@@ -99,6 +99,9 @@ Visual effects must never compromise responsiveness or gameplay clarity.
 | Minimal SFX only; modular audio system | Feedback without music scope; easy to extend | — Pending |
 | Ads/IAP/accounts later; offline MVP | Focus on gameplay quality; avoid backend early | — Pending |
 | Feel mix 40/30/30 (punch / physics / spectacle) | Guides tradeoffs when VFX and responsiveness conflict | — Pending |
+| Interactive gates for architecture/roadmap/scope; auto-execute approved plans | Speed after decisions without losing approval control | — Pending |
+| Parallel plans except physics ↔ game loop ↔ rendering when dependent | Avoid integration thrash on the hot path | — Pending |
+| Real-device testing required before performance goals are done | 60 FPS must be measured, not assumed | — Pending |
 
 ## Evolution
 
