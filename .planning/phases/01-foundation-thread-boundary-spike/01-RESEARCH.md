@@ -728,33 +728,25 @@ describe('core/ purity', () => {
 | A7 | `~200–300` opaque rects is well inside a Pixel 6a's budget, so the cliff ramp will need to go considerably higher | Validation / D-07 | Low. If 200 sprites already misses 60 FPS, that is itself the phase's most important finding and triggers the Skia 2.6.2 / layering / Atlas investigation early |
 | A8 | Android release builds via `expo run:android --variant release` sign with the debug keystore by default in the Expo template | Environment fallback | Low. If not, generate a throwaway keystore for the measurement build |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does Skia 2.12.0 build and run on EAS against the SDK 57 matrix?** (D-16, Validation Gate)
-   - What we know: peer dependencies verified compatible; prebuilt binaries ship as plain npm deps with no postinstall, which removes the most common native-install failure mode.
-   - What's unclear: no source confirms this exact combination shipping through EAS Build.
-   - Recommendation: make it the very first build task on both platforms. Fallback to 2.6.2 is documented and, in Phase 1 specifically, cheap — `select()` is not used by the sprite harness.
+   - **RESOLVED:** deferred to Plan `01-04` device/Skia gate (cannot be answered by research). Fallback to 2.6.2 remains D-16 if first hardware build fails.
 
 2. **Can a UI-runtime-allocated mutable world be mutated in place across frames in a *release* build?** (Validation Gate 1)
-   - What we know: dev-mode freezing is `__DEV__`-gated and applies to objects converted *on the RN runtime*; typed arrays crossing the boundary are copied. Allocating on the UI runtime should sidestep both.
-   - What's unclear: release-build behavior on real hardware, on both platforms.
-   - Recommendation: run the identical scripted check in dev and release and record both. Fallbacks: all hot state in typed arrays inside one shared value; then a JS-thread `requestAnimationFrame` loop.
+   - **RESOLVED:** deferred to Plan `01-04` SC-2 on-device gate (dev + release/profile). Fallbacks documented in RESEARCH remain available if gate fails.
 
 3. **Do cross-module `'worklet'` imports work, or is Bundle Mode needed?** (Validation Gate 2)
-   - What we know: imported functions need explicit `'worklet'` directives; `bundleMode` and `importForwarding` options exist in the pinned plugin.
-   - Recommendation: force the question with ≥5 `core/` modules. If it fails, enable Bundle Mode with `importForwarding` and record it as a project-wide constraint — it affects every later phase.
+   - **RESOLVED:** deferred to Plan `01-02`/`01-03` (≥5 `core/` modules + harness) and confirmed on device in Plan `01-04`. If it fails, enable Bundle Mode with `importForwarding` and record as project-wide constraint.
 
 4. **What is the Pixel 6a `SkPicture` draw-command budget?** (D-07)
-   - What we know: nothing device-specific; project research offers only a general "watch closely above 150 commands, trouble above 400 on mid-range Android" heuristic.
-   - Recommendation: ramp and record the curve, not just the pass/fail point. The number becomes the frame budget every later phase is measured against.
+   - **RESOLVED:** deferred to Plan `01-04` cliff-ramp research recording (not a Phase 1 completion requirement). Pass target remains ~200–300 sprites @ 60 FPS.
 
 5. **Is there a paid Apple Developer Program membership available?**
-   - What we know: EAS ad hoc internal distribution "requires a paid Apple Developer account" `[CITED: docs.expo.dev/build/internal-distribution]`. A physical iPhone (iOS 26.5.2) is already paired with this Mac, and Xcode 26.5 + CocoaPods are installed.
-   - Recommendation: **ask before planning the iOS build tasks.** If there is no membership, plan the iOS gate as a local Xcode build with a free personal team and note the 7-day certificate expiry in the phase artifacts.
+   - **RESOLVED: D-17** — Use paid Apple Developer Program for EAS internal distribution to a physical iPhone. Verify signing/provisioning before building. No free-personal-team auto-fallback.
 
 6. **Node runtime for the repo: 24 LTS, or `vitest@4` on the installed 25.6.0?**
-   - What we know: RN 0.86.3 accepts Node ≥25; `vitest@5.0.1` does not; `vitest@4.1.11` does. No Node version manager is installed.
-   - Recommendation: decide in the first task and record it (`.nvmrc` + `engines` if switching to 24; a STACK.md deviation note if staying on Vitest 4).
+   - **RESOLVED: D-18** — Use Node 24 LTS via nvm/fnm; pin `.nvmrc` + `engines`; Vitest 5.0.1.
 
 ## Environment Availability
 
@@ -774,7 +766,7 @@ Probed on this machine on 2026-09-19.
 | **Pixel 6a attached (D-01)** | The hard FPS gate | **✗ no device currently attached** | — | D-04 substitute device with full documentation + Pixel 6a re-cert before MVP |
 | `eas-cli` | EAS builds | ✗ not installed globally | latest is 24.7.0 | `npx eas-cli@latest` — no install needed |
 | Expo account / EAS project | Any cloud build | **unknown** | — | Local builds (toolchain is present) |
-| **Apple Developer Program membership** | iOS device install via EAS ad hoc | **unknown** | — | Local `expo run:ios --device` with a free personal team (7-day profiles) |
+| **Apple Developer Program membership** | iOS device install via EAS internal | **required (D-17)** | paid ADP | No free-team fallback — hard stop until credentials exist |
 | `vitest@5.0.1` on Node 25.6.0 | D-09 smoke test | **✗ engine mismatch** | engines `^22.12.0 \|\| ^24.0.0 \|\| >=26.0.0` | `vitest@4.1.11` (engines `^20 \|\| ^22 \|\| >=24`) **or** install Node 24 LTS |
 | Node version manager (`nvm`/`fnm`/`volta`/`mise`) | Switching Node cleanly | ✗ none installed | — | `brew install node@24` (Homebrew currently has `node@25`) |
 | `watchman` | Metro file watching (recommended) | ✗ | — | Metro works without it; expect slower/less reliable watching on large trees |

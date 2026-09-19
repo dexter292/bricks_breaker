@@ -32,7 +32,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A `'worklet'`-marked pure TypeScript module imported across several files mutates a UI-runtime world object in place across frames inside `useFrameCallback`, in both dev and release builds
   3. Several hundred dummy sprites recorded into an `SkPicture` hold 60 FPS on the reference Android device, readable from an in-app frame-time overlay behind a dev flag
   4. `core/` imports nothing from React, Skia, or Reanimated and runs unchanged in Node under Vitest; the separation of logic, physics, rendering, input, and UI is a written, checkable contract
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 01-01-PLAN.md — Bootstrap Expo SDK 57, Node 24, Skia 2.12.0, EAS profiles
+- [ ] 01-02-PLAN.md — core/ stub, Vitest smoke/purity, ESLint boundaries, layer contract
+- [ ] 01-03-PLAN.md — Worklet loop + SkPicture harness + overlay + thin app host
+- [ ] 01-04-PLAN.md — Device builds, FPS/worklet gates, Skia decision evidence
 **UI hint**: no
 
 ### Phase 2: Headless Core Simulation
@@ -134,7 +139,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Thread-Boundary Spike | 0/TBD | Not started | - |
+| 1. Foundation & Thread-Boundary Spike | 0/4 | Not started | - |
 | 2. Headless Core Simulation | 0/TBD | Not started | - |
 | 3. First Playable | 0/TBD | Not started | - |
 | 4. Level Format & Brick Types | 0/TBD | Not started | - |
