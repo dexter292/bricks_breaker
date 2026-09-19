@@ -43,7 +43,7 @@
   "project_code": null,
   "phase_naming": "sequential",
   "agent_skills": {},
-  "claude_md_path": "./.cursor/rules/",
+  "claude_md_path": "./.cursor/rules/gsd.md",
   "resolve_model_ids": "omit",
   "mode": "interactive",
   "granularity": "standard"
