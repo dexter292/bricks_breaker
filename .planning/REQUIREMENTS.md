@@ -98,39 +98,52 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PHYS-01 | — | Pending |
-| PHYS-02 | — | Pending |
-| PHYS-03 | — | Pending |
-| PHYS-04 | — | Pending |
-| PHYS-05 | — | Pending |
-| PHYS-06 | — | Pending |
-| PHYS-07 | — | Pending |
-| LVL-01 | — | Pending |
-| LVL-02 | — | Pending |
-| LVL-03 | — | Pending |
-| LVL-04 | — | Pending |
-| RUN-01 | — | Pending |
-| RUN-02 | — | Pending |
-| RUN-03 | — | Pending |
-| RUN-04 | — | Pending |
-| PWR-01 | — | Pending |
-| PWR-02 | — | Pending |
-| PWR-03 | — | Pending |
-| FX-01 | — | Pending |
-| FX-02 | — | Pending |
-| FX-03 | — | Pending |
-| PLT-01 | — | Pending |
-| PLT-02 | — | Pending |
-| PLT-03 | — | Pending |
-| PLT-04 | — | Pending |
-| ARCH-01 | — | Pending |
-| ARCH-02 | — | Pending |
+| PHYS-01 | Phase 3 | Pending |
+| PHYS-02 | Phase 2 | Pending |
+| PHYS-03 | Phase 2 | Pending |
+| PHYS-04 | Phase 2 | Pending |
+| PHYS-05 | Phase 3 | Pending |
+| PHYS-06 | Phase 2 | Pending |
+| PHYS-07 | Phase 5 | Pending |
+| LVL-01 | Phase 4 | Pending |
+| LVL-02 | Phase 4 | Pending |
+| LVL-03 | Phase 4 | Pending |
+| LVL-04 | Phase 8 | Pending |
+| RUN-01 | Phase 5 | Pending |
+| RUN-02 | Phase 3 | Pending |
+| RUN-03 | Phase 6 | Pending |
+| RUN-04 | Phase 6 | Pending |
+| PWR-01 | Phase 5 | Pending |
+| PWR-02 | Phase 5 | Pending |
+| PWR-03 | Phase 5 | Pending |
+| FX-01 | Phase 7 | Pending |
+| FX-02 | Phase 7 | Pending |
+| FX-03 | Phase 7 | Pending |
+| PLT-01 | Phase 3 | Pending |
+| PLT-02 | Phase 6 | Pending |
+| PLT-03 | Phase 8 | Pending |
+| PLT-04 | Phase 8 | Pending |
+| ARCH-01 | Phase 1 | Pending |
+| ARCH-02 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 27 total
-- Mapped to phases: 0
-- Unmapped: 27 ⚠️
+- Mapped to phases: 27 ✓
+- Unmapped: 0
+
+**By phase:**
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 1. Foundation & Thread-Boundary Spike | ARCH-01 | 1 |
+| 2. Headless Core Simulation | PHYS-02, PHYS-03, PHYS-04, PHYS-06 | 4 |
+| 3. First Playable | PHYS-01, PHYS-05, RUN-02, PLT-01 | 4 |
+| 4. Level Format & Brick Types | LVL-01, LVL-02, LVL-03 | 3 |
+| 5. Run Rules | RUN-01, PWR-01, PWR-02, PWR-03, PHYS-07 | 5 |
+| 6. UI Shell, HUD & Persistence | RUN-03, RUN-04, PLT-02, ARCH-02 | 4 |
+| 7. Feedback — Neon VFX & Audio | FX-01, FX-02, FX-03 | 3 |
+| 8. Showpiece Level & Launch Baseline | LVL-04, PLT-03, PLT-04 | 3 |
 
 ---
 *Requirements defined: 2026-09-19*
-*Last updated: 2026-09-19 after initial scoping*
+*Last updated: 2026-09-19 after roadmap creation (traceability mapped)*
