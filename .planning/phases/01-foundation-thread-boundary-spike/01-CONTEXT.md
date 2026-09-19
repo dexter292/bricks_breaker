@@ -41,11 +41,16 @@ Does **not** deliver: collision physics, paddle gameplay, brick logic, power-ups
 ### Skia version (locked without discussion — user confirmed research default)
 - **D-16:** Use research-recommended **Skia `2.12.0`** (SDK pin override) unless the first hardware build reveals compatibility or performance issues; then fall back to SDK-pinned `2.6.2` and record the decision.
 
+### Toolchain & distribution (locked during plan-phase research gate)
+- **D-17:** Use **paid Apple Developer Program** membership for EAS internal distribution to a physical iPhone. Verify signing credentials and provisioning **before** building. Physical iPhone install remains a **mandatory** Phase 1 completion criterion.
+- **D-18:** Use **Node 24 LTS** via nvm/fnm. Pin in **`.nvmrc`** and enforce via package **`engines`**. Vitest `core/` smoke test remains a **mandatory** Phase 1 completion criterion.
+
 ### Claude's Discretion
 - Exact Expo app router screen naming and file layout within `app/` / `src/`
 - Overlay visual styling (as long as metrics and methodology are clear)
 - Exact ESLint boundary plugin/config choice (must actually fail illegal imports)
 - How the cliff-ramp experiment is triggered (dev menu, button, or const) — results must be recorded
+- Whether to use `fnm` or `nvm` for Node 24 (must satisfy `.nvmrc` + `engines`)
 
 </decisions>
 
