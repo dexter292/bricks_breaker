@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-09-20T11:47:31.570Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-09-20T11:49:23.135Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 34
-  completed_plans: 30
-  percent: 88
+  completed_plans: 31
+  percent: 91
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 06 (ui-shell-hud-persistence-platform-seams) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -62,6 +62,7 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 | 5 | 7 | - | - |
 | Phase 06 P00 | 2min | 2 tasks | 7 files |
 | Phase 06 P01 | 1min | 2 tasks | 7 files |
+| Phase 06 P02 | 1min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,9 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 - [Phase 06]: Strict > for New Record (D-11); equal score keeps previous best
 - [Phase 06]: Schema v===1 + finite ≥0 + Math.floor; corrupt → 0 (T-06-01)
 - [Phase 06]: Classic AsyncStorage default export only — no createAsyncStorage / SecureStore
+- [Phase 06]: Method name locked to onRunEnded (research recommendation)
+- [Phase 06]: Platform no-ops only — no fetch/React/monetization UI (D-18 / T-06-02)
+- [Phase 06]: Call sites deferred to Plan 05 PlayingHost cold path
 
 ### Pending Todos
 
@@ -120,6 +124,6 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 
 ## Session Continuity
 
-Last session: 2026-09-20T11:47:31.567Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-09-20T11:49:23.132Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
