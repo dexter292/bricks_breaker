@@ -1,14 +1,14 @@
-// tests/core.smoke.test.ts — D-09
+// tests/core.smoke.test.ts — D-09 / Phase 2 World
 import { describe, it, expect } from 'vitest';
-import { allocateWorld, stepStub } from '../src/core';
+import { allocateWorld, stepWorld, FIXED_DT } from '../src/core';
 
 describe('core/ runs unchanged in Node', () => {
-  it('allocates and mutates a world across steps with no RN runtime', () => {
-    const w = allocateWorld(256);
-    const x0 = w.x[0];
-    stepStub(w, 1 / 120);
-    stepStub(w, 1 / 120);
-    expect(w.x[0]).not.toBe(x0); // mutated in place
-    expect(Number.isFinite(w.x[0])).toBe(true);
+  it('allocates and steps a World with finite ball state', () => {
+    const w = allocateWorld();
+    const intent = { paddleX: w.paddleX, launch: 0 };
+    stepWorld(w, intent, FIXED_DT);
+    stepWorld(w, intent, FIXED_DT);
+    expect(Number.isFinite(w.ballX[0])).toBe(true);
+    expect(w.tick).toBe(2);
   });
 });
