@@ -8,6 +8,8 @@ import {
   useSharedValue,
 } from 'react-native-reanimated';
 import { usePaddleGesture } from '../../src/input';
+import type { GlowAtlas } from '../../src/render/textures/bakeGlowSprites';
+import { bakeGlowSprites } from '../../src/render/textures/bakeGlowSprites';
 import {
   GameScreen,
   type GameScreenUiPhase,
@@ -20,7 +22,10 @@ import {
 import {
   UiPhaseNum,
   useGameLoop,
+  type PlayBatchFn,
 } from '../../src/runtime/useGameLoop';
+import { useVfxIntensity } from '../../src/runtime/useVfxIntensity';
+import { createDefaultAudioService } from '../../src/services/audio';
 import { defaultPlatformServices } from '../../src/services/platform';
 import {
   createDefaultPersonalBestStore,
@@ -73,8 +78,11 @@ export function PlayingHost({ onMenu }: Props) {
 
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
   const platform = useMemo(() => defaultPlatformServices(), []);
+  const audio = useMemo(() => createDefaultAudioService(), []);
   const previousBestRef = useRef(0);
   const runEndedRef = useRef(false);
+  /** Cold-path gate: SFX preload + glow bake settled (success or soft-fail). */
+  const [fxReady, setFxReady] = useState(false);
 
   // Sync validate+compile on JS when levelId changes (D-12, D-14) — derive UI from Result.
   const loadResult = useMemo(() => loadLevelById(levelId), [levelId]);
@@ -89,6 +97,9 @@ export function PlayingHost({ onMenu }: Props) {
   const stallTierSv = useSharedValue<number>(0);
   const camScale = useSharedValue(1);
   const compiledSv = useSharedValue<CompiledLevel | null>(null);
+  const playBatchSv = useSharedValue<PlayBatchFn | null>(null);
+  const glowAtlasSv = useSharedValue<GlowAtlas | null>(null);
+  const vfxIntensity = useVfxIntensity();
 
   const countdownTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -114,6 +125,43 @@ export function PlayingHost({ onMenu }: Props) {
         setResultBest(0);
       });
   }, [store]);
+
+  // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        await audio.preload();
+      } catch (err) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('[audio] preload soft-fail', err);
+        }
+      }
+      if (cancelled) {
+        return;
+      }
+      try {
+        glowAtlasSv.value = bakeGlowSprites();
+      } catch (err) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('[glow] bake soft-fail', err);
+        }
+        glowAtlasSv.value = null;
+      }
+      if (cancelled) {
+        return;
+      }
+      playBatchSv.value = (codes, count) => {
+        audio.playBatch(codes, count);
+      };
+      setFxReady(true);
+    })();
+    return () => {
+      cancelled = true;
+      playBatchSv.value = null;
+      audio.release();
+    };
+  }, [audio, glowAtlasSv, playBatchSv]);
 
   useEffect(() => {
     const mapped =
@@ -148,10 +196,13 @@ export function PlayingHost({ onMenu }: Props) {
     stallTierOut: stallTierSv,
     compiled: compiledSv,
     onOsPause,
+    vfxIntensity,
+    playBatch: playBatchSv,
+    glowAtlas: glowAtlasSv,
   });
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
-  // Frame callback autostarts false; only setActive(true) after load ok.
+  // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.
   useEffect(() => {
     if (!loadResult.ok) {
       console.error('[level]', loadResult.issues);
@@ -159,11 +210,15 @@ export function PlayingHost({ onMenu }: Props) {
       setActive(false);
       return;
     }
+    if (!fxReady) {
+      setActive(false);
+      return;
+    }
     compiledSv.value = loadResult.compiled;
     // Apply to existing world if already allocated; first frame handles cold start.
     retry();
     setActive(true);
-  }, [loadResult, compiledSv, setActive, retry]);
+  }, [loadResult, fxReady, compiledSv, setActive, retry]);
 
   useAnimatedReaction(
     () => {
@@ -276,7 +331,7 @@ export function PlayingHost({ onMenu }: Props) {
   }, [clearCountdown, setActive]);
 
   const onResume = useCallback(() => {
-    if (!levelReady || levelError != null) {
+    if (!levelReady || levelError != null || !fxReady) {
       return;
     }
     clearCountdown();
@@ -290,10 +345,10 @@ export function PlayingHost({ onMenu }: Props) {
       setActive(true);
     }, 3000);
     countdownTimers.current = [t1, t2, t3];
-  }, [clearCountdown, setActive, levelReady, levelError]);
+  }, [clearCountdown, setActive, levelReady, levelError, fxReady]);
 
   const onRetry = useCallback(() => {
-    if (!levelReady || levelError != null) {
+    if (!levelReady || levelError != null || !fxReady) {
       return;
     }
     // Keep current levelId — never cycle 01↔02 (D-11).
@@ -311,7 +366,7 @@ export function PlayingHost({ onMenu }: Props) {
     setUiPhase('playing');
     retry();
     setActive(true);
-  }, [clearCountdown, retry, setActive, levelReady, levelError]);
+  }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
 
   const toggleDevLevel = useCallback(() => {
     setLevelId((prev) => (prev === 'level-01' ? 'level-02' : 'level-01'));
