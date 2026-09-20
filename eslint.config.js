@@ -97,10 +97,11 @@ module.exports = [
               allow: { to: { element: { type: 'core' } } },
             },
             {
+              // LC-02 runtime→core; LC-12 runtime→render (SkPicture record on hot path)
               from: { element: { type: 'runtime' } },
               allow: {
                 to: {
-                  element: { types: { anyOf: ['core', 'runtime'] } },
+                  element: { types: { anyOf: ['core', 'runtime', 'render'] } },
                 },
               },
             },

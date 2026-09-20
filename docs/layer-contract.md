@@ -12,6 +12,7 @@ Checkable crossing rules for Neon Brick Breaker. ESLint (`eslint.config.js`) and
 | LC-05 | `input/` → `runtime/` | Shared value write | Future: pan writes paddle target on UI thread | ESLint boundaries (dirs empty until later) |
 | LC-09 | `core/` → `services/` | Event ring (batched ≤1/frame) | Future: no direct service imports from `core/` | Doc lock (ring, not import) |
 | LC-10 | `runtime/` ↔ RN runtime | Mount / discrete phase only | Allocate world once; pause/teardown | Process (plan 03+) |
+| LC-12 | `runtime/` → `render/` | Direct `'worklet'` call | Frame callback records `SkPicture` via `recordFrame` | ESLint boundaries |
 
 ## Banned crossings
 

@@ -1,5 +1,4 @@
 import {
-  DEFAULT_SPRITE_CAP,
   DEFAULT_SPRITE_SIZE,
   LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
@@ -13,7 +12,9 @@ import type { SpikeWorld } from './types';
 export function allocateWorld(capacity: number): SpikeWorld {
   'worklet';
   const cap = Math.max(0, Math.floor(capacity));
-  const spriteCount = Math.min(cap, DEFAULT_SPRITE_CAP);
+  // Capacity is the live sprite count (cliff-ramp may request up to ~300).
+  // DEFAULT_SPRITE_CAP remains the harness default, not a hard ceiling.
+  const spriteCount = cap;
   const x = new Float32Array(cap);
   const y = new Float32Array(cap);
   const vx = new Float32Array(cap);
