@@ -1,41 +1,28 @@
-import type { SpikeWorld } from './types';
+import type { Intent, World } from './types';
 
 /**
- * Advance stub sprites by velocity * dt and bounce inside the logical box.
- * No allocations in the hot loop.
+ * Advance one fixed simulation step (stub until Wave 2 CCD).
+ * Applies finite paddleX clamp; ignores non-finite intent (T-02-01).
  */
-export function stepStub(world: SpikeWorld, dt: number): void {
+export function stepWorld(world: World, intent: Intent, dt: number): void {
   'worklet';
   // Literals must match constants.ts — worklets cannot close over module consts.
   const logicalWidth = 360;
-  const logicalHeight = 640;
-  const n = world.spriteCount;
-  const { x, y, vx, vy, w, h } = world;
+  void dt; // Wave 2 CCD will consume dt; stub keeps ball SoA untouched
 
-  for (let i = 0; i < n; i++) {
-    let nx = x[i] + vx[i] * dt;
-    let ny = y[i] + vy[i] * dt;
-    const halfW = w[i] * 0.5;
-    const halfH = h[i] * 0.5;
+  // Clear per-step brick damage marks
+  const nBricks = world.brickDamagedThisStep.length;
+  for (let i = 0; i < nBricks; i++) {
+    world.brickDamagedThisStep[i] = 0;
+  }
 
-    if (nx - halfW < 0) {
-      nx = halfW;
-      vx[i] = -vx[i];
-    } else if (nx + halfW > logicalWidth) {
-      nx = logicalWidth - halfW;
-      vx[i] = -vx[i];
-    }
-
-    if (ny - halfH < 0) {
-      ny = halfH;
-      vy[i] = -vy[i];
-    } else if (ny + halfH > logicalHeight) {
-      ny = logicalHeight - halfH;
-      vy[i] = -vy[i];
-    }
-
-    x[i] = nx;
-    y[i] = ny;
+  const px = intent.paddleX;
+  if (Number.isFinite(px)) {
+    const half = world.paddleW * 0.5;
+    let x = px;
+    if (x < half) x = half;
+    else if (x > logicalWidth - half) x = logicalWidth - half;
+    world.paddleX = x;
   }
 
   world.tick += 1;
