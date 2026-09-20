@@ -1,15 +1,19 @@
 /**
- * RUN-01 — score / combo from event ring (Plan 02).
+ * RUN-01 — score / combo from event ring (Plan 02) + stepRun wiring (Plan 04).
  */
 import { describe, it, expect } from 'vitest';
 import {
   allocateWorld,
   resetWorld,
+  loadTestGrid,
   clearEvents,
   pushEvent,
+  stepRun,
   SimPhase,
   EventCode,
   BrickFlags,
+  FIXED_DT,
+  BALL_RADIUS,
 } from '../src/core';
 import { applyScoringFromEvents } from '../src/core/rules/scoring';
 
@@ -94,5 +98,37 @@ describe('scoring rules (RUN-01)', () => {
 
     expect(w.score).toBe(30);
     expect(w.combo).toBe(3);
+  });
+
+  it('stepRun awards score when ball hits a breakable brick', () => {
+    const w = allocateWorld();
+    resetWorld(w, 1, 2);
+    w.simPhase = SimPhase.PLAYING;
+    clearEvents(w);
+
+    const brickW = 40;
+    const brickH = 20;
+    const brickX = 160;
+    const brickY = 200;
+    loadTestGrid(w, [{ x: brickX, y: brickY, w: brickW, h: brickH, hp: 2 }]);
+
+    w.ballX[0] = brickX + brickW * 0.5;
+    w.ballY[0] = brickY + brickH + BALL_RADIUS + 2;
+    w.ballVx[0] = 0;
+    w.ballVy[0] = -600;
+    w.ballActive[0] = 1;
+    w.activeBallCount = 1;
+    expect(w.score).toBe(0);
+
+    let scored = false;
+    for (let s = 0; s < 60 && !scored; s++) {
+      stepRun(w, { paddleX: 180, launch: 0 }, FIXED_DT);
+      if (w.score > 0) scored = true;
+    }
+
+    expect(scored).toBe(true);
+    expect(w.score).toBeGreaterThan(0);
+    expect(w.combo).toBeGreaterThan(1);
+    expect(w.evOverflow).toBe(0);
   });
 });

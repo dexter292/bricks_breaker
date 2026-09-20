@@ -139,4 +139,26 @@ describe('lives rules (last-ball)', () => {
     expect(w.simPhase).toBe(SimPhase.LOST);
     expect(w.lives).toBe(0);
   });
+
+  it('stepRun last-ball miss decrements life once and docks', () => {
+    const w = allocateWorld();
+    resetWorld(w, 1, 2);
+    w.simPhase = SimPhase.PLAYING;
+    w.lives = 3;
+    w.score = 77;
+    // Simulate post-compact empty pool (last ball already BALL_OUT'd this step)
+    for (let i = 0; i < w.maxBalls; i++) {
+      w.ballActive[i] = 0;
+    }
+    w.activeBallCount = 0;
+
+    stepRun(w, { paddleX: 180, launch: 0 }, FIXED_DT);
+
+    expect(w.lives).toBe(2);
+    expect(w.simPhase).toBe(SimPhase.DOCKED);
+    expect(w.activeBallCount).toBe(1);
+    expect(w.ballActive[0]).toBe(1);
+    expect(w.score).toBe(77);
+    expect(w.paddleW).toBe(72);
+  });
 });

@@ -3,12 +3,16 @@ import { SimPhase } from './types';
 import { stepWorld } from './step';
 import { clearEvents } from './events/ring';
 import { processDocked } from './rules/serve';
+import { applyScoringFromEvents } from './rules/scoring';
+import { applyDropsFromBreaks, stepPickups } from './rules/pickups';
+import { stepEffects } from './rules/effects';
 import { applyLivesFromBallCount } from './rules/lives';
 import { applyWinCheck } from './rules/win';
 
 /**
- * Orchestrate dock/serve + physics + lives/win for one fixed step.
+ * Orchestrate dock/serve + physics + Phase 5 run rules for one fixed step.
  * Pause / AppState freeze stay in runtime — not here.
+ * Anti-stall lands in Plan 05.
  */
 export function stepRun(world: World, intent: Intent, dt: number): void {
   'worklet';
@@ -23,6 +27,7 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
 
   if (phase === SimPhase.DOCKED) {
     // Apply finite paddleX so docked ball rides drag (T-03-01)
+    // Uses current paddleW (base after life-reset; expand-aware if docked mid-expand)
     const px = intent.paddleX;
     if (Number.isFinite(px)) {
       const half = world.paddleW * 0.5;
@@ -36,9 +41,13 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
     return;
   }
 
-  // PLAYING
+  // PLAYING — score → drops → pickups → effects → lives → win (stall in Plan 05)
   clearEvents(world);
   stepWorld(world, intent, dt);
+  applyScoringFromEvents(world);
+  applyDropsFromBreaks(world);
+  stepPickups(world, dt);
+  stepEffects(world);
   applyLivesFromBallCount(world);
   applyWinCheck(world);
 }
