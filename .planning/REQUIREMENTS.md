@@ -52,7 +52,8 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 ### Architecture (cross-cutting)
 
-- [ ] **ARCH-01**: Game logic, physics, rendering, input, and UI are separated; simulation is suitable to run on the UI-thread worklet path
+- [x] **ARCH-01**: Game logic, physics, rendering, input, and UI are separated; simulation is suitable to run on the UI-thread worklet path
+  - *Note:* Hardware 60 FPS / Android install waived for Phase 1 close (simulator interim); re-cert before MVP (D-04/D-05).
 - [ ] **ARCH-02**: Architecture includes seams for future ads/IAP/accounts without implementing them; MVP is fully playable offline
 
 ## v2 Requirements
@@ -123,7 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLT-02 | Phase 6 | Pending |
 | PLT-03 | Phase 8 | Pending |
 | PLT-04 | Phase 8 | Pending |
-| ARCH-01 | Phase 1 | Pending |
+| ARCH-01 | Phase 1 | Complete (simulator waiver; hardware debt → MVP) |
 | ARCH-02 | Phase 6 | Pending |
 
 **Coverage:**

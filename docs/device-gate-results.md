@@ -2,14 +2,17 @@
 
 Evidence for architectural bet close. Simulators / emulators / RN perf monitor alone do **not** count (D-05). Methodology: `docs/measurement-methodology.md`.
 
-**Human approval:** typed `approved` on 2026-09-20 after iPhone development harness showed `worklet tick PASS` (HUD via bundled SpaceMono). Android reference device was **not attached** during this session — SC-3 FPS gate and Android SC-1/SC-2 are **deferred** with explicit human acknowledgment (see Failures / fallbacks). **Pixel 6a re-certification required before MVP acceptance (D-04).**
+**Human approval:** typed `approved` on 2026-09-20 after iPhone development harness showed `worklet tick PASS` (HUD via bundled SpaceMono).
+
+**Temporary waiver (2026-09-20):** Owner directed Phase 1 close on **iOS Simulator only** — skip Android and further physical-iOS gating for now. This **does not** satisfy D-05 for MVP; **Pixel 6a re-certification + physical iOS re-check required before MVP acceptance (D-04 / D-05).** Simulator evidence is interim smoke, not a performance claim.
 
 ## Devices
 
 | Role | Model | Chipset | OS | Refresh rate | Notes |
 |------|-------|---------|----|--------------|-------|
-| Android FPS gate (D-01) | _none attached_ | — | — | — | `adb devices` empty 2026-09-20; gate deferred |
-| iOS install/feel (D-02) | iPhone 16 Pro (`iPhone17,1`) | A18 Pro | iOS 26.6.1 | 120 Hz (ProMotion) | UDID `00008140-000605803C01801C`; CoreDevice id `06CAC741-EB05-55B0-AAE6-14D7B49F50BB` |
+| Android FPS gate (D-01) | _waived (temporary)_ | — | — | — | Skip until MVP hardware pass; D-04 debt |
+| iOS install/feel (D-02) | iPhone 16 Pro (`iPhone17,1`) | A18 Pro | iOS 26.6.1 | 120 Hz (ProMotion) | Physical install done earlier; further real-device work waived for Phase 1 |
+| Interim smoke (waived gate) | iPhone 17 Simulator | — | iOS 26.5 sim | — | `worklet tick PASS`, ~256 sprites, SpaceMono HUD — **not** D-05 evidence |
 
 ## Builds
 
@@ -28,30 +31,30 @@ Evidence for architectural bet close. Simulators / emulators / RN perf monitor a
 
 | Platform | Device | Result | Evidence |
 |----------|--------|--------|----------|
-| iOS | iPhone 16 Pro (iOS 26.6.1) | **PASS** | Process `NeonBrickBreaker` running; canvas + 256 sprites visible; human confirmed HUD after SpaceMono `useFont` fix (`f963409`) |
-| Android | _(none)_ | **DEFERRED** | No adb device; APK artifacts ready — install when Pixel 6a (or D-04 substitute) is available |
+| iOS (physical) | iPhone 16 Pro (iOS 26.6.1) | **PASS** | Process `NeonBrickBreaker` running; canvas + 256 sprites; HUD after SpaceMono fix |
+| iOS (simulator) | iPhone 17 Simulator | **PASS (interim)** | Owner waiver: Phase 1 proceeds on simulator; not D-05 |
+| Android | _(waived)_ | **WAIVED (temporary)** | Owner 2026-09-20: skip Android for Phase 1; D-04 before MVP |
 
 ## SC-2 Worklet mutation
 
 | Build type | Platform | Overlay self-check | Result | Notes |
 |------------|----------|-------------------|--------|-------|
-| development | iOS | `worklet tick PASS`, sprites moving | **PASS** | Physical iPhone 16 Pro + Metro; no `freezeObjectInDev` in Metro after worklets babel fix |
-| development | Android | tick / sprites | **DEFERRED** | No device |
-| profiling/release | Android | tick / sprites | **DEFERRED** | No device; profiling APK built |
-| profiling/release | iOS | tick / sprites | **DEFERRED** | Profiling IPA built; not re-installed after HUD font fix — treat as open follow-up |
+| development | iOS Simulator | `worklet tick PASS`, sprites moving | **PASS (interim)** | Metro + `EXPO_PUBLIC_PERF_OVERLAY=1`; SpaceMono HUD |
+| development | iOS physical | `worklet tick PASS` | **PASS** | iPhone 16 Pro earlier in session |
+| development | Android | — | **WAIVED** | Temporary |
+| profiling/release | Android | — | **WAIVED** | Temporary |
+| profiling/release | iOS | — | **WAIVED** | Temporary — re-run before MVP |
 
 ## SC-3 FPS
 
 | Run | Device | Build | Tool | Sprites | Overlay FPS / p95 | gfxinfo / Instruments | Thermal | Result |
 |-----|--------|-------|------|---------|-------------------|----------------------|---------|--------|
-| 1 | _(none)_ | profiling | `adb dumpsys gfxinfo` / Instruments | ~256 | — | **not captured** — Android absent; Instruments not run | — | **DEFERRED** |
-| 2 | _(none)_ | profiling | `adb dumpsys gfxinfo` / Instruments | ~256 | — | **not captured** | — | **DEFERRED** |
+| 1 | iPhone 17 Simulator | development | overlay only | ~256 | ~16.67 ms / ~60 FPS | **not** gfxinfo/Instruments — sim smoke | cool | **WAIVED (interim)** |
+| 2 | Pixel 6a (MVP) | profiling | `adb dumpsys gfxinfo` | ~256 | TBD | required before MVP | TBD | **OPEN (D-04)** |
 
-Pass criterion: stable ~60 FPS at 256± sprites on Pixel 6a (or documented D-04 substitute) using profiling/release only.
+Pass criterion (MVP): stable ~60 FPS at 256± sprites on Pixel 6a (or documented D-04 substitute) using profiling/release only — **not claimed for Phase 1 close under simulator waiver.**
 
-**Human acknowledgment (2026-09-20):** SC-3 not measured this session. No topology fallback chosen — UI-thread worklet + SkPicture path remains the architectural bet. **Pixel 6a re-certification required before MVP acceptance (D-04).** Re-run: install Android profiling APK → `adb shell dumpsys gfxinfo com.dexter292.bricksbreaker reset` → ≥30s → `framestats`; cross-read overlay; two runs.
-
-**iPhone overlay cross-check (not a D-01 gate claim):** development session showed ~`16.67 ms/frame`, rolling ~60 FPS, `worklet tick PASS` at 256 sprites — smoke only (D-05).
+**Owner waiver (2026-09-20):** Skip Android + further real-iOS for Phase 1; continue on simulator. No topology fallback — UI-thread worklet + SkPicture remains the bet. **Pixel 6a + physical device re-cert required before MVP (D-04 / D-05).**
 
 ## Cliff ramp (research)
 
@@ -71,10 +74,10 @@ Pass criterion: stable ~60 FPS at 256± sprites on Pixel 6a (or documented D-04 
 
 | Issue | Disposition |
 |-------|-------------|
-| Android reference device unavailable | **DEFERRED** with human `approved` 2026-09-20. SC-1/SC-2 Android + SC-3 FPS remain open. **Pixel 6a re-certification required before MVP acceptance (D-04).** No architecture fallback (typed-array SharedValue / JS rAF) adopted. |
+| Android + further physical iOS gating | **WAIVED (temporary)** by owner 2026-09-20 — Phase 1 closes on iOS Simulator interim evidence. **Pixel 6a + physical re-cert before MVP (D-04 / D-05).** No architecture fallback adopted. |
 | `matchFont('monospace')` null Typeface on Simulator / broke HUD | **FIXED** — bundled `assets/fonts/SpaceMono-Regular.ttf` + Skia `useFont` (`f963409`). |
 | Duplicate `react-native-worklets/plugin` SIGABRT | **FIXED** earlier in plan 03 (`a063acc`). |
 
 ---
 
-_Status: Task 2 human-approved with Android/SC-3 deferred; Task 3 evidence finalized 2026-09-20._
+_Status: Phase 1 closed under simulator-only waiver 2026-09-20; hardware gates remain MVP debt._
