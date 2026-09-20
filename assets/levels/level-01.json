@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "level-01",
+  "name": "Phase 3 Grid",
+  "grid": {
+    "cols": 7,
+    "rows": 5,
+    "originX": 14,
+    "originY": 56,
+    "brickW": 44,
+    "brickH": 18,
+    "gapX": 4,
+    "gapY": 4
+  },
+  "brickTypes": {
+    "1": { "hp": 1 },
+    "2": { "hp": 2 },
+    "3": { "hp": 3 },
+    "X": { "hp": 99, "unbreakable": true }
+  },
+  "cells": [
+    "X33333X",
+    "2222222",
+    "22X2222",
+    "1111111",
+    "1111111"
+  ]
+}

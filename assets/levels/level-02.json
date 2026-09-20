@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "level-02",
+  "name": "Steel Corridor",
+  "grid": {
+    "cols": 7,
+    "rows": 5,
+    "originX": 14,
+    "originY": 56,
+    "brickW": 44,
+    "brickH": 18,
+    "gapX": 4,
+    "gapY": 4
+  },
+  "brickTypes": {
+    "1": { "hp": 1 },
+    "2": { "hp": 2 },
+    "3": { "hp": 3 },
+    "X": { "hp": 99, "unbreakable": true }
+  },
+  "cells": [
+    "X1.1.1X",
+    "X22222X",
+    "XXXXXXX",
+    "X33333X",
+    "X1.1.1X"
+  ]
+}
