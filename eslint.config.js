@@ -33,6 +33,7 @@ module.exports = [
   },
   {
     // LC-01 / LC-06: core/ stays pure TypeScript (D-11)
+    // D-13 / PHYS-06: no Math.random / wall-clock in core/
     files: ['src/core/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
@@ -45,6 +46,32 @@ module.exports = [
                 'LC-01/LC-06: core/ must stay pure TypeScript — no React, React Native, Skia, Reanimated, or Expo imports (ARCH-01, D-11).',
             },
           ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'performance',
+          message: 'D-13 / PHYS-06: no wall-clock in core/ — use seeded PRNG streams and FIXED_DT only.',
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message:
+            'D-13: use World mulberry32 streams, not Math.random()',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: 'D-13: no Date.now() in core/',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='performance'][callee.property.name='now']",
+          message: 'D-13: no performance.now() in core/',
         },
       ],
     },
@@ -73,14 +100,14 @@ module.exports = [
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
-        { type: 'core', pattern: 'src/core/*' },
-        { type: 'runtime', pattern: 'src/runtime/*' },
-        { type: 'render', pattern: 'src/render/*' },
-        { type: 'app', pattern: 'app/*' },
-        { type: 'input', pattern: 'src/input/*' },
-        { type: 'ui', pattern: 'src/ui/*' },
-        { type: 'vfx', pattern: 'src/vfx/*' },
-        { type: 'services', pattern: 'src/services/*' },
+        { type: 'core', pattern: 'src/core/**' },
+        { type: 'runtime', pattern: 'src/runtime/**' },
+        { type: 'render', pattern: 'src/render/**' },
+        { type: 'app', pattern: 'app/**' },
+        { type: 'input', pattern: 'src/input/**' },
+        { type: 'ui', pattern: 'src/ui/**' },
+        { type: 'vfx', pattern: 'src/vfx/**' },
+        { type: 'services', pattern: 'src/services/**' },
       ],
     },
     rules: {
