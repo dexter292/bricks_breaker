@@ -131,7 +131,7 @@ Plans:
   5. Ads, IAP, and account interfaces exist as no-op stubs with real call sites, and the whole game is playable in airplane mode
 **Plans**: 6 plans
 Plans:
-- [ ] 06-00-PLAN.md — Wave 0: AsyncStorage 2.2.0, ESLint app→services, Nyquist stubs
+- [x] 06-00-PLAN.md — Wave 0: AsyncStorage 2.2.0, ESLint app→services, Nyquist stubs
 - [ ] 06-01-PLAN.md — services/storage personal best (compare + AsyncStorage + GREEN tests)
 - [ ] 06-02-PLAN.md — services/platform no-op seams (onRunEnded + GREEN tests)
 - [ ] 06-03-PLAN.md — Title/PlayingHost shell + Menu on Pause/Results (RUN-03)

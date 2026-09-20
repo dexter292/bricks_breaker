@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-09-20T11:19:22.949Z"
-last_activity: 2026-09-20 -- Phase 6 planning complete
+stopped_at: Completed 06-00-PLAN.md
+last_updated: "2026-09-20T11:45:46.496Z"
+last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 34
-  completed_plans: 28
-  percent: 82
+  completed_plans: 29
+  percent: 85
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 06 (ui-shell-hud-persistence-platform-seams) — EXECUTING
-Plan: 1 of ?
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-09-20 -- Phase 6 planning complete
+Last activity: 2026-09-20
 
 Progress: [██████████] 100% plans (5/8 phases complete)
 
@@ -60,6 +60,7 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 | Phase 05 P05 | 5min | 2 tasks | 4 files |
 | Phase 05 P06 | 11min | 3 tasks | 5 files |
 | 5 | 7 | - | - |
+| Phase 06 P00 | 2min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 - [Phase 05]: Show ×combo always while playing (not only when combo > 1)
 - [Phase 05]: Stall! · N rendered only when stallTier > 0
 - [Phase 05]: Pickup sprites are flat amber rects; gameplay catch remains core-authoritative
+- [Phase 06]: Pinned AsyncStorage exactly 2.2.0 via npx expo install (D-13 / T-06-02)
+- [Phase 06]: Added services to app allow-list only — runtime/core still banned (T-06-03)
 
 ### Pending Todos
 
@@ -113,6 +116,6 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 
 ## Session Continuity
 
-Last session: 2026-09-20T10:47:46.226Z
-Stopped at: Phase 6 UI-SPEC approved
-Resume file: .planning/phases/06-ui-shell-hud-persistence-platform-seams/06-UI-SPEC.md
+Last session: 2026-09-20T11:45:46.494Z
+Stopped at: Completed 06-00-PLAN.md
+Resume file: None
