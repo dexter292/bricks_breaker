@@ -15,9 +15,13 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [x] Score tracking with combo rewards — Validated in Phase 5: Run Rules
 - [x] Basic power-ups (at least multi-ball and paddle expansion) — Validated in Phase 5: Run Rules
 - [x] Limited lives with meaningful failure risk; clear win and lose conditions — last-ball life loss refined in Phase 5 (win/lose/pause from Phase 3)
-- [x] Architecture separating game logic, physics, rendering, input, and UI—no React state updates every physics frame — Validated across Phases 1–5 (SharedValue chrome mirrors)
+- [x] Architecture separating game logic, physics, rendering, input, and UI—no React state updates every physics frame — Validated across Phases 1–6 (SharedValue chrome mirrors + HudStrip)
 - [x] Data-driven level format designed to support a future level editor — Validated in Phase 4
 - [x] Unit tests for game logic and collision detection — Validated in Phases 2–5 (110 green as of Phase 5)
+- [x] Instant retry from pause/results; Title shell; Menu without confirmation — Validated in Phase 6
+- [x] Local personal best persists offline (AsyncStorage + Results Score/Best/New Record) — Validated in Phase 6
+- [x] Responsive playfield/HUD with safe-area insets (HudStrip above letterbox) — Validated in Phase 6
+- [x] Ads/IAP/account seams as no-ops with real `onRunEnded` call sites; airplane-playable — Validated in Phase 6
 
 ### Active
 
@@ -28,7 +32,6 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [ ] Pause and resume
 - [ ] Minimal SFX: paddle hit, brick hit/break, power-up, life lost, win/lose
 - [ ] Basic neon visual effects: glowing bricks, ball trails, particle destruction, subtle screen shake
-- [ ] Responsive layout across target phone sizes
 - [ ] Performance measured on real mid-range devices (target 60 FPS)
 
 ### Out of Scope
@@ -96,7 +99,7 @@ Visual effects must never compromise responsiveness or gameplay clarity.
 | One full arcade challenge level in MVP (not tutorial-only) | Prove complete loop, difficulty, and replay motivation | — Pending |
 | Basic power-ups (multi-ball, paddle expand) in MVP | Part of the engaging arcade loop, not deferred polish | Accepted Phase 5 — catch-on-paddle, last-ball lives, anti-stall |
 | Minimal SFX only; modular audio system | Feedback without music scope; easy to extend | — Pending |
-| Ads/IAP/accounts later; offline MVP | Focus on gameplay quality; avoid backend early | — Pending |
+| Ads/IAP/accounts later; offline MVP | Focus on gameplay quality; avoid backend early | Accepted Phase 6 — no-op seams + airplane UAT |
 | Feel mix 40/30/30 (punch / physics / spectacle) | Guides tradeoffs when VFX and responsiveness conflict | — Pending |
 | Interactive gates for architecture/roadmap/scope; auto-execute approved plans | Speed after decisions without losing approval control | — Pending |
 | Parallel plans except physics ↔ game loop ↔ rendering when dependent | Avoid integration thrash on the hot path | — Pending |
@@ -121,4 +124,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-20 — Phase 5 complete (score/combo, power-ups, anti-stall)*
+*Last updated: 2026-09-20 — Phase 6 complete (Title/HUD/Best/seams)*

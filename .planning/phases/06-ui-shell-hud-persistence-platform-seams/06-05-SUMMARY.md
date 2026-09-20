@@ -76,7 +76,7 @@ Each task was committed atomically:
 
 **Deviation fix:** `c9487de` (fix) — soft-fail AsyncStorage when RNCAsyncStorage null
 
-**Plan metadata:** (this commit)
+**Plan metadata:** `1385375` (docs: complete plan)
 
 ## Files Created/Modified
 
