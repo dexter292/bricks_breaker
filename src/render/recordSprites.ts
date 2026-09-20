@@ -50,6 +50,57 @@ function brickFillLocal(hp: number, flags: number): string {
   return '#F2CC8F';
 }
 
+type LocalCueStroke = { x0: number; y0: number; x1: number; y1: number };
+
+/**
+ * Worklet-local stroke geometry — keep in sync with src/core/levels/damageCues.ts.
+ * Duplicated so UI worklet never calls a JS remote (same reason as brickFillLocal).
+ */
+function planBrickDamageCuesLocal(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  hp: number,
+  flags: number,
+): LocalCueStroke[] {
+  'worklet';
+  if ((flags & 1) !== 0) {
+    return [
+      { x0: x, y0: y, x1: x + w, y1: y + h },
+      { x0: x + w * 0.5, y0: y, x1: x + w, y1: y + h * 0.5 },
+      { x0: x, y0: y + h * 0.5, x1: x + w * 0.5, y1: y + h },
+    ];
+  }
+  if (hp <= 0 || hp >= 3) {
+    return [];
+  }
+  if (hp === 2) {
+    return [
+      {
+        x0: x + w * 0.1,
+        y0: y + h * 0.5,
+        x1: x + w * 0.9,
+        y1: y + h * 0.35,
+      },
+    ];
+  }
+  return [
+    {
+      x0: x + w * 0.1,
+      y0: y + h * 0.35,
+      x1: x + w * 0.9,
+      y1: y + h * 0.55,
+    },
+    {
+      x0: x + w * 0.15,
+      y0: y + h * 0.65,
+      x1: x + w * 0.85,
+      y1: y + h * 0.45,
+    },
+  ];
+}
+
 /**
  * Record letterboxed playfield entities into one SkPicture (D-01…D-03).
  * LC-08: read World SoA only — never mutate.
@@ -98,15 +149,30 @@ export function recordFrame(
     if (hp <= 0) {
       continue;
     }
-    tools.paint.setColor(Skia.Color(brickFillLocal(hp, world.brickFlags[i])));
-    tools.entityRect.setXYWH(
-      world.brickX[i],
-      world.brickY[i],
-      world.brickW[i],
-      world.brickH[i],
-    );
+    const flags = world.brickFlags[i];
+    const bx = world.brickX[i];
+    const by = world.brickY[i];
+    const bw = world.brickW[i];
+    const bh = world.brickH[i];
+    tools.paint.setStyle(0); // PaintStyle.Fill — literal avoids JS remote
+    tools.paint.setColor(Skia.Color(brickFillLocal(hp, flags)));
+    tools.entityRect.setXYWH(bx, by, bw, bh);
     canvas.drawRect(tools.entityRect, tools.paint);
+
+    // Crack / hatch cues after fill (D-05…D-08) — flags-first, ≤3 strokes
+    const cues = planBrickDamageCuesLocal(bx, by, bw, bh, hp, flags);
+    const cueLen = cues.length;
+    if (cueLen > 0) {
+      tools.paint.setStyle(1); // PaintStyle.Stroke
+      tools.paint.setStrokeWidth(1.25);
+      tools.paint.setColor(Skia.Color('#E5E7EB'));
+      for (let ci = 0; ci < cueLen; ci++) {
+        const s = cues[ci];
+        canvas.drawLine(s.x0, s.y0, s.x1, s.y1, tools.paint);
+      }
+    }
   }
+  tools.paint.setStyle(0); // restore Fill for paddle / balls
 
   // Paddle — X center-based, Y top of AABB
   tools.paint.setColor(Skia.Color('#FFFFFF'));
