@@ -151,7 +151,7 @@ Plans:
   5. Every effect added is measured on the named Android reference device and stays inside the frame budget established in Phase 1
 **Plans**: 7 plans
 Plans:
-- [ ] 07-00-PLAN.md — Wave 0: expo-audio, LC-07/vfx boundaries, SFX placeholders, Nyquist stubs
+- [x] 07-00-PLAN.md — Wave 0: expo-audio, LC-07/vfx boundaries, SFX placeholders, Nyquist stubs
 - [ ] 07-01-PLAN.md — EventCode POWERUP_CATCH/LIFE_LOST/WIN/LOSE + core push sites (FX-03)
 - [ ] 07-02-PLAN.md — Pure src/vfx intensity/trails/particles/shake/event batch (FX-01/02)
 - [ ] 07-03-PLAN.md — services/audio mapping + expo-audio pools (FX-03)
