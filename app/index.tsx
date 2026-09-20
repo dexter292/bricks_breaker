@@ -1,5 +1,13 @@
-import { SpikeScreen } from '../src/runtime/SpikeScreen';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GameHost } from './GameHost';
 
 export default function Index() {
-  return <SpikeScreen />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <GameHost />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
 }
