@@ -27,7 +27,7 @@ export type GameScreenProps = {
 
 /**
  * Props-driven playfield + chrome + overlays.
- * Full-bleed canvas (letterbox paints its own bars); chrome uses safe-area insets.
+ * Full-bleed canvas; HUD/overlays are a separate elevated layer above Skia.
  */
 export function GameScreen({
   picture,
@@ -57,33 +57,41 @@ export function GameScreen({
         </View>
       </GestureDetector>
 
+      {/*
+        Elevated above opaque Skia SurfaceView. box-none so only the Pause
+        Pressable (and overlays) steal touches — labels never block serve.
+      */}
       <View style={styles.chrome} pointerEvents="box-none">
-        <Text
-          pointerEvents="none"
+        <View
           style={[
-            styles.lives,
-            { top: insets.top + 16, left: Math.max(insets.left, 16) },
+            styles.hud,
+            {
+              paddingTop: insets.top + 16,
+              paddingLeft: Math.max(insets.left, 16),
+              paddingRight: Math.max(insets.right, 16),
+            },
           ]}
+          pointerEvents="box-none"
         >
-          {`Lives · ${lives}`}
-        </Text>
+          <Text pointerEvents="none" style={styles.lives}>
+            {`Lives · ${lives}`}
+          </Text>
 
-        {showPauseChrome ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Pause game"
-            onPress={onPause}
-            style={[
-              styles.pauseButton,
-              {
-                top: insets.top + 16,
-                right: Math.max(insets.right, 16),
-              },
-            ]}
-          >
-            <Text style={styles.pauseLabel}>Pause</Text>
-          </Pressable>
-        ) : null}
+          {showPauseChrome ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Pause game"
+              onPress={onPause}
+              pointerEvents="auto"
+              hitSlop={8}
+              style={styles.pauseButton}
+            >
+              <Text style={styles.pauseLabel}>Pause</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.pausePlaceholder} />
+          )}
+        </View>
 
         {showServeHint && showPauseChrome ? (
           <Text
@@ -123,18 +131,22 @@ const styles = StyleSheet.create({
   },
   chrome: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    elevation: 10,
+  },
+  hud: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   lives: {
-    position: 'absolute',
     color: '#FFFFFF',
     fontFamily: 'SpaceMono',
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
-    zIndex: 2,
   },
   pauseButton: {
-    position: 'absolute',
     minHeight: 44,
     minWidth: 44,
     paddingHorizontal: 16,
@@ -142,7 +154,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#12121f',
-    zIndex: 2,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  pausePlaceholder: {
+    minHeight: 44,
+    minWidth: 44,
   },
   pauseLabel: {
     color: '#FFFFFF',
@@ -162,6 +179,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
-    zIndex: 2,
   },
 });
