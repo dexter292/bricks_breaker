@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-09-20T10:01:25.335Z"
+status: verifying
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-09-20T10:15:46.244Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 28
-  completed_plans: 27
-  percent: 96
+  completed_plans: 28
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 
 ## Current Position
 
-Phase: 05 (run-rules-score-combo-power-ups-anti-stall) — EXECUTING
+Phase: 05 (run-rules-score-combo-power-ups-anti-stall) — VERIFYING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-20
 
-Progress: [████░░░░░░] ~50% (4/8 phases)
+Progress: [██████████] 100% plans (5/8 phases complete)
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 | Phase 05 P03 | 3min | 3 tasks | 6 files |
 | Phase 05 P04 | 3min | 2 tasks | 6 files |
 | Phase 05 P05 | 5min | 2 tasks | 4 files |
+| Phase 05 P06 | 11min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 - [Phase 05]: stepRun PLAYING: score→drops→pickups→effects→lives→win (stall Plan 05)
 - [Phase 05]: Apply ×1.08 speed once when entering tier 2; ±8° nudge once when entering tier 3
 - [Phase 05]: stepRun integration uses sentinel breakable below paddle so win check does not WON on empty grid
+- [Phase 05]: Show ×combo always while playing (not only when combo > 1)
+- [Phase 05]: Stall! · N rendered only when stallTier > 0
+- [Phase 05]: Pickup sprites are flat amber rects; gameplay catch remains core-authoritative
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T10:01:25.332Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-09-20T10:15:46.241Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None

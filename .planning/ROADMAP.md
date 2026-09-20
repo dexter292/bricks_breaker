@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
 - [x] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
 - [x] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
-- [ ] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end
+- [x] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end (completed 2026-09-20)
 - [ ] **Phase 6: UI Shell, HUD, Persistence & Platform Seams** - Menus, HUD, instant retry, local high score, responsive layout, monetization seams
 - [ ] **Phase 7: Feedback — Neon VFX & Audio** - Spectacle and sound that never hide the ball or cost frame time
 - [ ] **Phase 8: Showpiece Level, Performance Certification & Launch Baseline** - The authored challenge level, measured 60 FPS on hardware, store paperwork ready
@@ -108,7 +108,7 @@ Plans:
   3. With several balls in play, a life is lost only when the last ball leaves the playfield
   4. While the paddle is expanded, bounce angles respond the same way as at base width, because the angle mapping normalizes to the current width
   5. A stalled rally escalates visibly and deterministically until it breaks out, with no random bounce jitter
-**Plans:** 7 plans
+**Plans:** 7/7 plans complete
 Plans:
 - [x] 05-00-PLAN.md — Wave 0 Nyquist stubs for scoring/pickups/effects/multiball/stall/lives
 - [x] 05-01-PLAN.md — World SoA + constants + hash + ball-pool compact (activeBallCount)
@@ -116,7 +116,7 @@ Plans:
 - [x] 05-03-PLAN.md — Pickups, expand effects, multi-ball spawn (PWR-01/02/03 modules)
 - [x] 05-04-PLAN.md — Last-ball lives + stepRun orchestration
 - [x] 05-05-PLAN.md — Deterministic anti-stall tiers (PHYS-07)
-- [ ] 05-06-PLAN.md — Score/combo/Stall! SharedValue chrome + flat pickups
+- [x] 05-06-PLAN.md — Score/combo/Stall! SharedValue chrome + flat pickups
 **UI hint**: no
 
 ### Phase 6: UI Shell, HUD, Persistence & Platform Seams
@@ -171,7 +171,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
 | 3. First Playable | 6/6 | Complete | 2026-09-20 |
 | 4. Level Format & Brick Types | 5/5 | Executing (verify) | 2026-09-20 |
-| 5. Run Rules | 0/7 | Planned | - |
+| 5. Run Rules | 7/7 | Complete   | 2026-09-20 |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
 | 7. Feedback — Neon VFX & Audio | 0/TBD | Not started | - |
 | 8. Showpiece Level & Launch Baseline | 0/TBD | Not started | - |
