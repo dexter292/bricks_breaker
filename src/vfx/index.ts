@@ -35,3 +35,17 @@ export {
 export { punchShake, stepShake, shakeOffset } from './shake';
 
 export { stepVfx } from './stepVfx';
+
+export {
+  consumeEventsForVfx,
+  defaultResolveBrickRgb,
+  type BrickRgb,
+  type ConsumeVfxOpts,
+} from './consumeEvents';
+
+export {
+  createAudioBatch,
+  resetAudioBatch,
+  appendEventsForAudio,
+  type AudioBatchSoA,
+} from './audioBatch';

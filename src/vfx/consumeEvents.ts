@@ -1,0 +1,92 @@
+/**
+ * Drain World event ring into cosmetic VFX (particles + shake).
+ * Does NOT clear the ring — stepRun owns clear policy (scoring analog).
+ */
+import type { World } from '../core/types';
+import { EventCode, BrickFlags } from '../core/types';
+import type { VfxState } from './types';
+import { IMPULSE_DESTROY, IMPULSE_LIFE_LOST } from './types';
+import { spawnBurst } from './particles';
+import { punchShake } from './shake';
+
+export type BrickRgb = { r: number; g: number; b: number };
+
+export type ConsumeVfxOpts = {
+  resolveBrickRgb?: (world: World, brickIndex: number) => BrickRgb;
+  /** Cosmetic RNG [0,1) — never host RNG / gameplay stream */
+  rng?: () => number;
+};
+
+/** Default brick body color from HP / flags (0–1 channels; core-only deps). */
+export function defaultResolveBrickRgb(
+  world: World,
+  brickIndex: number,
+): BrickRgb {
+  'worklet';
+  if (brickIndex < 0 || brickIndex >= world.brickCount) {
+    return { r: 1, g: 1, b: 1 };
+  }
+  const flags = world.brickFlags[brickIndex];
+  if ((flags & BrickFlags.UNBREAKABLE) !== 0) {
+    return { r: 0.42, g: 0.447, b: 0.502 }; // #6B7280
+  }
+  const hp = world.brickHp[brickIndex];
+  if (hp >= 3) {
+    return { r: 0.769, g: 0.271, b: 0.412 }; // #C44569
+  }
+  if (hp === 2) {
+    return { r: 0.878, g: 0.478, b: 0.373 }; // #E07A5F
+  }
+  return { r: 0.949, g: 0.8, b: 0.561 }; // #F2CC8F
+}
+
+function defaultRng(): number {
+  'worklet';
+  // Deterministic fallback when caller omits rng — not host Math RNG
+  return 0.5;
+}
+
+/**
+ * Scan event ring like applyScoringFromEvents; spawn chips/destroys + punch shake.
+ */
+export function consumeEventsForVfx(
+  world: World,
+  vfx: VfxState,
+  intensity: number,
+  opts?: ConsumeVfxOpts,
+): void {
+  'worklet';
+  const n = world.evCount;
+  if (n <= 0) {
+    return;
+  }
+
+  const resolve = opts?.resolveBrickRgb ?? defaultResolveBrickRgb;
+  const rng = opts?.rng ?? defaultRng;
+
+  const start = (world.evHead - n + world.evCap) % world.evCap;
+  for (let i = 0; i < n; i++) {
+    const idx = (start + i) % world.evCap;
+    const code = world.evCode[idx];
+    const x = world.evX[idx];
+    const y = world.evY[idx];
+    const brickIndex = world.evB[idx];
+
+    if (code === EventCode.BRICK_HIT) {
+      const rgb = resolve(world, brickIndex);
+      spawnBurst(vfx, { kind: 'chip', x, y, rgb, intensity, rng });
+      continue;
+    }
+
+    if (code === EventCode.BRICK_BREAK) {
+      const rgb = resolve(world, brickIndex);
+      spawnBurst(vfx, { kind: 'destroy', x, y, rgb, intensity, rng });
+      punchShake(vfx, IMPULSE_DESTROY, intensity);
+      continue;
+    }
+
+    if (code === EventCode.LIFE_LOST) {
+      punchShake(vfx, IMPULSE_LIFE_LOST, intensity);
+    }
+  }
+}
