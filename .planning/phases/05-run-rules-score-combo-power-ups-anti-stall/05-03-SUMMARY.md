@@ -74,7 +74,7 @@ Each task was committed atomically (TDD test → feat):
 2. **Task 2: Multiball spawn** - `996643c` (test) + `2913df4` (feat)
 3. **Task 3: Pickups drop/fall/catch** - `0ff1193` (test) + `4de0c88` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `04cced6` (docs: complete plan)
 
 ## Files Created/Modified
 
