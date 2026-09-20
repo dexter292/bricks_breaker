@@ -71,7 +71,7 @@ Plans:
   5. The player can pause and resume, and backgrounding the app mid-rally for 60+ seconds auto-pauses and resumes via countdown with no physics catch-up jump
 **Plans:** 6 plans
 Plans:
-- [ ] 03-00-PLAN.md — Wave 0: pure drag/gate/freeze helpers + Vitest stubs
+- [x] 03-00-PLAN.md — Wave 0: pure drag/gate/freeze helpers + Vitest stubs
 - [ ] 03-01-PLAN.md — Core dock/serve/lives/win + phase3Grid + stepRun
 - [ ] 03-02-PLAN.md — Letterbox camera + entity SkPicture + GameCanvas
 - [ ] 03-03-PLAN.md — Relative-drag Race(Pan,Tap) gesture hook
