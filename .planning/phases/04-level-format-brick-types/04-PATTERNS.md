@@ -12,7 +12,9 @@
 | `src/core/levels/validate.ts` | utility | transform | RESEARCH hand-roll shape; purity gate `tests/core.purity.test.ts` | partial |
 | `src/core/levels/compile.ts` | service | transform | `src/core/levels/phase3Grid.ts` (`loadPhase3Grid` layout loop) | exact |
 | `src/core/levels/apply.ts` | service | event-driven (worklet World fill) | `src/core/reset.ts` (`loadTestGrid`) + `assignSpatialBrickCells` | exact |
+| `src/core/levels/spatial.ts` | utility | transform | `phase3Grid.ts` `assignSpatialBrickCells` (move out on delete) | exact |
 | `src/core/levels/load.ts` | service | request-response | Host gate in RESEARCH; compose validate→compile | partial |
+| `src/runtime/loadLevel.ts` | service | request-response | GameHost cold-path compose; Metro `require` JSON | role-match |
 | `src/core/levels/migrations/index.ts` | utility | transform | none (v1 identity stub) | none |
 | `assets/levels/level-01.json` | config | file-I/O (bundled) | `phase3Grid.ts` literals (cols/rows/HP/steel) | exact |
 | `assets/levels/level-02.json` | config | file-I/O (bundled) | `phase3Grid.ts` steel placement pattern | role-match |

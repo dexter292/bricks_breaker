@@ -434,22 +434,13 @@ retry(); // resetWorld + applyCompiledLevel(compiled)
 | A3 | Disallowing spaces in row-strings is compatible with future editor (editor writes `.` only) | Pitfall 3 | Editor might emit spaces — then schema must define space semantics explicitly |
 | A4 | Empty `migrations/` with identity `migrate()` + reject-unsupported satisfies roadmap SC-5 “migration path” until v2 exists | D-03 | Auditors may want a documented stub README — include short migrations README |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact `level-01` cell encoding after migration**
-   - What we know: `phase3Grid` is 7×5, HP by row `[3,2,2,1,1]`, steel at (0,0),(0,6),(2,3).
-   - What's unclear: whether `originX` should be computed from field width or stored literally (phase3 uses centered formula).
-   - Recommendation: bake numeric `originX`/`originY` into JSON matching current layout so compile is dumb and deterministic.
+1. **Exact `level-01` cell encoding after migration** — RESOLVED: Bake numeric `originX`/`originY` into JSON (phase3 uses centered formula; bake `originX=14` and matching `originY` literals so compile stays dumb and deterministic). Layout remains 7×5, HP by row `[3,2,2,1,1]`, steel at (0,0),(0,6),(2,3).
 
-2. **Dev switch UX**
-   - What we know: `__DEV__` only; no menu (D-11).
-   - What's unclear: button vs long-press vs on-screen label.
-   - Recommendation: single small “Lv 01|02” text button in GameHost chrome (discretion).
+2. **Dev switch UX** — RESOLVED: `__DEV__` “Lv 01|02” text control in GameHost chrome (D-11 — no menu).
 
-3. **Whether `loadTestGrid` remains for non-level physics unit tests**
-   - What we know: D-15 removes phase3Grid; many physics tests use `loadTestGrid`.
-   - What's unclear: none — keep `loadTestGrid` for synthetic AABBs; only playable layouts go through JSON pipeline.
-   - Recommendation: keep `loadTestGrid`; ban reintroducing hardcoded playable grids.
+3. **Whether `loadTestGrid` remains for non-level physics unit tests** — RESOLVED: Keep `loadTestGrid` for synthetic AABBs in physics tests; playable layouts use JSON validate→compile→apply only; ban reintroducing hardcoded playable grids.
 
 ## Environment Availability
 
