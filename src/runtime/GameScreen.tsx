@@ -13,6 +13,9 @@ import { ResultOverlay } from './overlays/ResultOverlay';
 
 export type GameScreenUiPhase = 'playing' | 'paused' | 'countdown';
 
+/** Mirror SimPhase.PLAYING — app/runtime must not import src/core (LC-05). */
+const SIM_PLAYING = 1;
+
 export type GameScreenProps = {
   picture: SharedValue<SkPicture>;
   surfaceSize: SharedValue<SkSize>;
@@ -23,6 +26,8 @@ export type GameScreenProps = {
   score: number;
   combo: number;
   stallTier: number;
+  /** Numeric SimPhase mirror from host (0=DOCKED, 1=PLAYING, …). */
+  simPhaseNum?: number;
   countdownNumeral: number | null;
   onPause: () => void;
   onResume: () => void;
@@ -49,6 +54,7 @@ export function GameScreen({
   score,
   combo,
   stallTier,
+  simPhaseNum = 0,
   countdownNumeral,
   onPause,
   onResume,
@@ -70,6 +76,12 @@ export function GameScreen({
     result == null &&
     countdownNumeral != null;
   const showResult = !hasLevelError && result != null;
+  // D-18: stall persists across life reset, but chrome only during active play.
+  const showStall =
+    stallTier > 0 &&
+    result == null &&
+    uiPhase === 'playing' &&
+    simPhaseNum === SIM_PLAYING;
 
   const padH = Math.max(insets.left, 16);
   const padR = Math.max(insets.right, 16);
@@ -112,7 +124,7 @@ export function GameScreen({
             <Text style={styles.lives}>{`Lives · ${lives}`}</Text>
             <Text style={styles.lives}>{`Score · ${score}`}</Text>
             <Text style={styles.lives}>{`×${combo}`}</Text>
-            {stallTier > 0 ? (
+            {showStall ? (
               <Text style={styles.lives}>{`Stall! · ${stallTier}`}</Text>
             ) : null}
           </View>

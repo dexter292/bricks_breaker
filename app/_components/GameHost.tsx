@@ -288,6 +288,7 @@ export function GameHost() {
       score={score}
       combo={combo}
       stallTier={stallTier}
+      simPhaseNum={simPhaseNum}
       countdownNumeral={countdownNumeral}
       onPause={onPause}
       onResume={onResume}
