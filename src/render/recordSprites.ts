@@ -1,5 +1,5 @@
 import { Skia, type SkFont, type SkPicture } from '@shopify/react-native-skia';
-import type { SpikeWorld } from '../core';
+import type { World } from '../core';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
 
@@ -10,7 +10,7 @@ const LOGICAL_H = 640;
 type RecorderTools = {
   recorder: ReturnType<typeof Skia.PictureRecorder>;
   paint: ReturnType<typeof Skia.Paint>;
-  spriteRect: ReturnType<typeof Skia.XYWHRect>;
+  fieldRect: ReturnType<typeof Skia.XYWHRect>;
   surfaceBounds: ReturnType<typeof Skia.XYWHRect>;
   colorBuf: Float32Array;
 };
@@ -25,9 +25,9 @@ function ensureRecorderTools(): RecorderTools {
     tools = {
       recorder: Skia.PictureRecorder(),
       paint: Skia.Paint(),
-      spriteRect: Skia.XYWHRect(0, 0, 0, 0),
+      fieldRect: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
       surfaceBounds: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
-      colorBuf: Skia.Color('#ffffffff'),
+      colorBuf: Skia.Color('#1a1a2eff'),
     };
     global.__spikeRecorderTools = tools;
   }
@@ -35,11 +35,11 @@ function ensureRecorderTools(): RecorderTools {
 }
 
 /**
- * Record ~200–300 sprites into one SkPicture; optionally bake overlay text in (D-06 / D-08).
- * Overlay requires a loaded SkFont (bundled TTF) — skipped until font is ready.
+ * Record a blank playfield (+ optional overlay) into one SkPicture.
+ * Phase 3 owns gameplay visuals — no sprite SoA loop (D-07 migration).
  */
 export function recordFrame(
-  world: SpikeWorld,
+  _world: World,
   metrics: OverlayMetrics,
   surfaceW: number,
   surfaceH: number,
@@ -56,17 +56,14 @@ export function recordFrame(
 
   canvas.save();
   canvas.scale(wPx / LOGICAL_W, hPx / LOGICAL_H);
-  const n = world.spriteCount;
-  for (let i = 0; i < n; i++) {
-    const c = world.color[i];
-    tools.colorBuf[0] = ((c >>> 16) & 0xff) / 255;
-    tools.colorBuf[1] = ((c >>> 8) & 0xff) / 255;
-    tools.colorBuf[2] = (c & 0xff) / 255;
-    tools.colorBuf[3] = ((c >>> 24) & 0xff) / 255;
-    tools.paint.setColor(tools.colorBuf);
-    tools.spriteRect.setXYWH(world.x[i], world.y[i], world.w[i], world.h[i]);
-    canvas.drawRect(tools.spriteRect, tools.paint);
-  }
+  // Blank field fill — no sprite loop over removed SoA
+  tools.colorBuf[0] = 0.1;
+  tools.colorBuf[1] = 0.1;
+  tools.colorBuf[2] = 0.18;
+  tools.colorBuf[3] = 1;
+  tools.paint.setColor(tools.colorBuf);
+  tools.fieldRect.setXYWH(0, 0, LOGICAL_W, LOGICAL_H);
+  canvas.drawRect(tools.fieldRect, tools.paint);
   canvas.restore();
 
   if (drawOverlayFlag && hudFont) {
