@@ -99,7 +99,20 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] ROADMAP progress table not updated by gsd-tools**
+- **Found during:** Final docs commit
+- **Issue:** `roadmap update-plan-progress 04` reported success but left `| 4. Level Format… | 0/5 | Planned |`
+- **Fix:** Manually set table row to `1/5 | In Progress` (plan checklist already had 04-00 checked)
+- **Files modified:** `.planning/ROADMAP.md`
+- **Verification:** Visual confirm of progress table
+- **Committed in:** (docs follow-up)
+
+---
+
+**Total deviations:** 1 auto-fixed (Rule 3)
+**Impact on plan:** Docs accuracy only; no code scope change.
 
 ## Issues Encountered
 
