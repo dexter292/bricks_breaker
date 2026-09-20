@@ -1,23 +1,40 @@
 /**
- * D-20 — hardcoded Phase 3 grid: multi-HP breakables + unbreakable.
- * Spatial cellToBrick must cover brick AABBs (not packed 1-row from loadTestGrid).
+ * D-20 / D-09 — level-01 via shared loadAndCompile + applyCompiledLevel pipeline.
+ * Spatial cellToBrick must cover brick AABBs (gridRows > 1).
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import {
   allocateWorld,
+  applyCompiledLevel,
   resetWorld,
-  loadPhase3Grid,
   stepWorld,
   BrickFlags,
   SimPhase,
+  loadAndCompile,
   type Intent,
 } from '../src/core';
+
+const levelsDir = join(dirname(fileURLToPath(import.meta.url)), '../assets/levels');
+
+function loadLevel01Compiled() {
+  const raw = JSON.parse(
+    readFileSync(join(levelsDir, 'level-01.json'), 'utf8'),
+  ) as unknown;
+  const result = loadAndCompile(raw);
+  if (!result.ok) {
+    throw new Error(`level-01 failed validate: ${JSON.stringify(result.issues)}`);
+  }
+  return result.compiled;
+}
 
 describe('phase3 hardcoded grid', () => {
   it('loads multi-HP breakables and at least one unbreakable', () => {
     const w = allocateWorld();
     resetWorld(w, 0xabc, 0xdef);
-    loadPhase3Grid(w);
+    applyCompiledLevel(w, loadLevel01Compiled());
 
     expect(w.brickCount).toBeGreaterThanOrEqual(1);
 
@@ -41,20 +58,20 @@ describe('phase3 hardcoded grid', () => {
     expect(breakableHp.size).toBeGreaterThanOrEqual(2);
   });
 
-  it('keeps packed grid so stepWorld uses exhaustive brick scan (no tunnel)', () => {
+  it('applies spatial grid so gridRows matches level rows', () => {
     const w = allocateWorld();
     resetWorld(w, 0xabc, 0xdef);
-    loadPhase3Grid(w);
+    applyCompiledLevel(w, loadLevel01Compiled());
 
-    // Packed loadTestGrid layout — triggers exhaustive path in stepWorld
-    expect(w.gridRows).toBe(1);
+    expect(w.gridRows).toBe(5);
+    expect(w.gridCols).toBe(7);
     expect(w.brickCount).toBe(35);
   });
 
   it('does not tunnel through a mid-row brick from below at serve speed', () => {
     const w = allocateWorld();
     resetWorld(w, 0xabc, 0xdef);
-    loadPhase3Grid(w);
+    applyCompiledLevel(w, loadLevel01Compiled());
 
     const bi = 17; // row 2, col 3 of 7×5
     expect(w.brickHp[bi]).toBeGreaterThan(0);
