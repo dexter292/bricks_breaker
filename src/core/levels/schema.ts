@@ -41,6 +41,11 @@ export type CompiledLevel = {
   flags: Uint8Array;
   gridCols: number;
   gridRows: number;
+  /** Lattice origin / pitch for broadphase (brickW+gapX, brickH+gapY). */
+  originX: number;
+  originY: number;
+  pitchX: number;
+  pitchY: number;
 };
 
 export type ValidationIssue = { path: string; message: string };

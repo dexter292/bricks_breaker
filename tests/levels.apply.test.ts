@@ -34,6 +34,16 @@ describe('levels.apply', () => {
     expect(w.brickCount).toBe(35);
     expect(w.gridRows).toBe(5);
     expect(w.gridCols).toBe(7);
+    expect(w.latticePitchX).toBe(48); // 44+4
+    expect(w.latticePitchY).toBe(22); // 18+4
+
+    // Every alive brick must occupy a unique lattice cell (no "first wins" drops)
+    const mapped = new Set<number>();
+    for (let i = 0; i < w.cellToBrick.length; i++) {
+      const bi = w.cellToBrick[i];
+      if (bi >= 0) mapped.add(bi);
+    }
+    expect(mapped.size).toBe(35);
 
     let unbreakable = 0;
     for (let i = 0; i < w.brickCount; i++) {

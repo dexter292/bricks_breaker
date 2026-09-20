@@ -47,6 +47,10 @@ export function resetWorld(
   world.brickCount = 0;
   world.gridCols = 0;
   world.gridRows = 0;
+  world.latticeOriginX = 0;
+  world.latticeOriginY = 0;
+  world.latticePitchX = 0;
+  world.latticePitchY = 0;
   for (let i = 0; i < world.cellToBrick.length; i++) {
     world.cellToBrick[i] = -1;
     world.brickHp[i] = 0;
@@ -102,4 +106,8 @@ export function loadTestGrid(world: World, bricks: TestBrickSpec[]): void {
   world.brickCount = n;
   world.gridCols = n;
   world.gridRows = n > 0 ? 1 : 0;
+  world.latticeOriginX = 0;
+  world.latticeOriginY = 0;
+  world.latticePitchX = 0;
+  world.latticePitchY = 0;
 }

@@ -30,11 +30,27 @@ export function applyCompiledLevel(world: World, compiled: CompiledLevel): void 
 
   world.brickCount = n;
 
-  if (compiled.gridRows > 1) {
-    assignSpatialBrickCells(world, compiled.gridCols, compiled.gridRows);
+  if (
+    compiled.gridRows > 1 &&
+    compiled.pitchX > 0 &&
+    compiled.pitchY > 0
+  ) {
+    assignSpatialBrickCells(
+      world,
+      compiled.gridCols,
+      compiled.gridRows,
+      compiled.originX,
+      compiled.originY,
+      compiled.pitchX,
+      compiled.pitchY,
+    );
   } else {
     world.gridCols = n;
     world.gridRows = n > 0 ? 1 : 0;
+    world.latticeOriginX = 0;
+    world.latticeOriginY = 0;
+    world.latticePitchX = 0;
+    world.latticePitchY = 0;
     for (let i = 0; i < n; i++) {
       world.cellToBrick[i] = i;
     }

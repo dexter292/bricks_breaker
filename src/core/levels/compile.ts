@@ -44,5 +44,9 @@ export function compileLevel(level: LevelFileV1): CompiledLevel {
     flags: Uint8Array.from(flagsArr),
     gridCols: cols,
     gridRows: rows,
+    originX,
+    originY,
+    pitchX: brickW + gapX,
+    pitchY: brickH + gapY,
   };
 }

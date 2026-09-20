@@ -79,6 +79,10 @@ export function hashWorld(world: World): number {
   h = mixU32(h, world.brickCount);
   h = mixU32(h, world.gridCols);
   h = mixU32(h, world.gridRows);
+  h = mixF32(h, world.latticeOriginX);
+  h = mixF32(h, world.latticeOriginY);
+  h = mixF32(h, world.latticePitchX);
+  h = mixF32(h, world.latticePitchY);
   h = mixTyped(h, world.cellToBrick);
   h = mixTyped(h, world.brickDamagedThisStep);
 

@@ -75,6 +75,14 @@ export type World = {
   gridCols: number;
   gridRows: number;
   cellToBrick: Int16Array;
+  /**
+   * Lattice broadphase (playable levels): world→cell uses origin + pitch.
+   * pitchX/Y <= 0 → legacy full-field division (dense physics fixtures).
+   */
+  latticeOriginX: number;
+  latticeOriginY: number;
+  latticePitchX: number;
+  latticePitchY: number;
   brickDamagedThisStep: Uint8Array;
   // Effects reserve (D-09) — empty
   effectCount: number;

@@ -2,7 +2,11 @@ import type { World } from '../types';
 
 /**
  * Grid broadphase (D-12): walk cells overlapped by a swept circle segment.
- * Level grid is the acceleration structure — no quadtree.
+ *
+ * Lattice mode (pitchX > 0): cells are level-grid slots at origin+pitch —
+ * used by playable compiled levels.
+ * Legacy mode (pitchX <= 0): divide the full logical field by gridCols×gridRows —
+ * used by dense physics fixtures that fill the field 1:1.
  */
 export function forEachBrickCandidate(
   world: World,
@@ -31,11 +35,25 @@ export function forEachBrickCandidate(
     return;
   }
 
-  // Literals match constants.ts — worklets cannot close over module consts.
-  const logicalWidth = 360;
-  const logicalHeight = 640;
-  const cellW = logicalWidth / cols;
-  const cellH = logicalHeight / rows;
+  const useLattice = world.latticePitchX > 0 && world.latticePitchY > 0;
+  let cellW: number;
+  let cellH: number;
+  let originX = 0;
+  let originY = 0;
+
+  if (useLattice) {
+    cellW = world.latticePitchX;
+    cellH = world.latticePitchY;
+    originX = world.latticeOriginX;
+    originY = world.latticeOriginY;
+  } else {
+    // Literals match constants.ts — worklets cannot close over module consts.
+    const logicalWidth = 360;
+    const logicalHeight = 640;
+    cellW = logicalWidth / cols;
+    cellH = logicalHeight / rows;
+  }
+
   if (!(cellW > 0) || !(cellH > 0)) {
     return;
   }
@@ -50,10 +68,10 @@ export function forEachBrickCandidate(
   minY -= radius;
   maxY += radius;
 
-  let c0 = Math.floor(minX / cellW);
-  let c1 = Math.floor(maxX / cellW);
-  let r0 = Math.floor(minY / cellH);
-  let r1 = Math.floor(maxY / cellH);
+  let c0 = Math.floor((minX - originX) / cellW);
+  let c1 = Math.floor((maxX - originX) / cellW);
+  let r0 = Math.floor((minY - originY) / cellH);
+  let r1 = Math.floor((maxY - originY) / cellH);
 
   if (c0 < 0) c0 = 0;
   if (r0 < 0) r0 = 0;
