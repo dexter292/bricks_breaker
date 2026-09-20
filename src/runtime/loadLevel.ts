@@ -9,6 +9,8 @@ import {
   type ValidationIssue,
 } from '../core';
 
+export type { CompiledLevel, ValidationIssue };
+
 export type LevelId = 'level-01' | 'level-02';
 
 export type LoadLevelResult =

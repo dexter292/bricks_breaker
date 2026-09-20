@@ -148,6 +148,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const selfCheckFrames = SELF_CHECK_FRAMES;
 
   /* eslint-disable react-hooks/immutability -- SharedValue Intent/world writes on UI runtime (D-14) */
+  // autostart false: host gates setActive until JS-thread loadAndCompile succeeds (D-13, D-14)
   const frameCallback = useFrameCallback((frame) => {
     'worklet';
     let w = world.value;
@@ -225,7 +226,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       overlayEnabled,
       hudFontSv.value,
     );
-  });
+  }, false);
   /* eslint-enable react-hooks/immutability */
 
   const setActive = useCallback(

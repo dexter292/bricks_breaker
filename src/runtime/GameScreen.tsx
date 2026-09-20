@@ -3,8 +3,11 @@ import { GestureDetector, type ComposedGesture } from 'react-native-gesture-hand
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SharedValue } from 'react-native-reanimated';
 import type { SkPicture, SkSize } from '@shopify/react-native-skia';
+import type { ReactNode } from 'react';
 import { GameCanvas } from '../render/GameCanvas';
+import type { ValidationIssue } from './loadLevel';
 import { CountdownOverlay } from './overlays/CountdownOverlay';
+import { LevelErrorOverlay } from './overlays/LevelErrorOverlay';
 import { PauseOverlay } from './overlays/PauseOverlay';
 import { ResultOverlay } from './overlays/ResultOverlay';
 
@@ -23,6 +26,10 @@ export type GameScreenProps = {
   onRetry: () => void;
   /** Optional docked serve hint (UI-SPEC). */
   showServeHint?: boolean;
+  /** Validation failure — blocks pause/result chrome (D-13). */
+  levelError?: ValidationIssue[] | null;
+  /** __DEV__-only level switch control (D-11). */
+  devLevelSwitch?: ReactNode;
 };
 
 /**
@@ -41,13 +48,22 @@ export function GameScreen({
   onResume,
   onRetry,
   showServeHint = false,
+  levelError = null,
+  devLevelSwitch = null,
 }: GameScreenProps) {
   const insets = useSafeAreaInsets();
+  const hasLevelError = levelError != null && levelError.length > 0;
 
-  const showPauseChrome = uiPhase === 'playing' && result == null;
-  const showPauseOverlay = uiPhase === 'paused' && result == null;
+  const showPauseChrome =
+    !hasLevelError && uiPhase === 'playing' && result == null;
+  const showPauseOverlay =
+    !hasLevelError && uiPhase === 'paused' && result == null;
   const showCountdown =
-    uiPhase === 'countdown' && result == null && countdownNumeral != null;
+    !hasLevelError &&
+    uiPhase === 'countdown' &&
+    result == null &&
+    countdownNumeral != null;
+  const showResult = !hasLevelError && result != null;
 
   const padH = Math.max(insets.left, 16);
   const padR = Math.max(insets.right, 16);
@@ -104,6 +120,18 @@ export function GameScreen({
           ) : null}
         </View>
 
+        {devLevelSwitch != null ? (
+          <View
+            style={[
+              styles.devSwitchSlot,
+              { top: insets.top + 60, right: padR },
+            ]}
+            pointerEvents="box-none"
+          >
+            {devLevelSwitch}
+          </View>
+        ) : null}
+
         {showServeHint && showPauseChrome ? (
           <Text
             pointerEvents="none"
@@ -124,9 +152,11 @@ export function GameScreen({
           <CountdownOverlay numeral={countdownNumeral} />
         ) : null}
 
-        {result != null ? (
-          <ResultOverlay kind={result} onRetry={onRetry} />
+        {showResult ? (
+          <ResultOverlay kind={result!} onRetry={onRetry} />
         ) : null}
+
+        {hasLevelError ? <LevelErrorOverlay issues={levelError!} /> : null}
       </View>
     </View>
   );
@@ -193,5 +223,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
+  },
+  devSwitchSlot: {
+    position: 'absolute',
   },
 });
