@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready
-stopped_at: null
-last_updated: "2026-09-20T03:08:00.000Z"
-last_activity: 2026-09-20 -- Phase 01 closed (simulator waiver); ready for Phase 2
+stopped_at: "Phase 02 discuss complete — next /gsd-plan-phase 2"
+last_updated: "2026-09-20T03:12:00.000Z"
+last_activity: 2026-09-20 -- Phase 02 CONTEXT gathered
 progress:
   total_phases: 8
   completed_phases: 1
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 
 ## Current Position
 
-Phase: 02 (headless-core-simulation) — READY
+Phase: 02 (headless-core-simulation) — CONTEXT READY
 Plan: Not started
-Status: Phase 01 complete under simulator-only waiver
-Last activity: 2026-09-20 -- Owner waived Android + further physical iOS for Phase 1
+Status: Discuss complete — ready to plan
+Last activity: 2026-09-20 -- Phase 02 CONTEXT.md gathered (classic Breakout + N-ball + brick metadata)
 
 Progress: [█░░░░░░░░░] ~12% (1/8 phases)
 
@@ -52,6 +52,7 @@ Progress: [█░░░░░░░░░] ~12% (1/8 phases)
 
 - [Phase 1]: Close on iOS Simulator interim; Android + further physical iOS waived; D-04/D-05 Pixel 6a + real-device re-cert before MVP
 - [Phase 1]: Skia 2.12.0 Confirmed; UI-thread worklet topology retained
+- [Phase 2]: Classic Breakout paddle bounce + configurable clamps; designed max speed with 2× swept tests; N-ball + event ring (1 ball active); multi-HP/unbreakable brick metadata (levels Phase 4)
 
 ### Pending Todos
 
@@ -71,6 +72,6 @@ Progress: [█░░░░░░░░░] ~12% (1/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T03:08:00.000Z
-Stopped at: Phase 01 complete — next discuss/plan Phase 2
-Resume file: .planning/ROADMAP.md (Phase 2)
+Last session: 2026-09-20T03:12:00.000Z
+Stopped at: Phase 02 discuss complete — next `/gsd-plan-phase 2`
+Resume file: .planning/phases/02-headless-core-simulation/02-CONTEXT.md
