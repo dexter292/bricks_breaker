@@ -2,7 +2,7 @@ import type { SpikeWorld } from './types';
 
 /**
  * Allocate a mutable SoA world inside the (future) UI-runtime worklet path.
- * Deterministic seeds only — no Math.random().
+ * Deterministic seeds only — no host RNG or wall-clock reads (D-13).
  */
 export function allocateWorld(capacity: number): SpikeWorld {
   'worklet';
