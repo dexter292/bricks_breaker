@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-09-20T07:27:29.357Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-09-20T07:32:44.269Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 21
-  completed_plans: 18
-  percent: 86
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 04 (Level Format & Brick Types) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -49,6 +49,7 @@ Progress: [███░░░░░░░] ~38% (3/8 phases)
 | 03 | 6 | - | - |
 | Phase 04 P00 | 1min | 2 tasks | 10 files |
 | Phase 04 P01 | 2min | 2 tasks | 8 files |
+| Phase 04 P02 | 3min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ Progress: [███░░░░░░░] ~38% (3/8 phases)
 - [Phase 04]: Non-finite grid fixture uses originX:null (JSON has no Infinity/NaN)
 - [Phase 04]: Prefer compile stub so loadAndCompile imports compileLevel; packing in 04-02
 - [Phase 04]: brickTypes built on null-prototype map after rejecting dangerous keys
+- [Phase 04]: level-02 mid-row steel corridor + side walls for fingerprint ≠ level-01
+- [Phase 04]: applyCompiledLevel uses spatial when gridRows>1; packed 1-row fallback otherwise
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ Progress: [███░░░░░░░] ~38% (3/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T07:27:29.355Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-09-20T07:32:44.267Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
