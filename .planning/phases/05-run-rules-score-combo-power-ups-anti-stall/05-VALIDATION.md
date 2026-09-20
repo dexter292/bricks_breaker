@@ -38,21 +38,20 @@ created: 2026-09-20
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 05-W0-01 | 00 | 0 | RUN-01 | — | N/A | unit stub | `npx vitest run tests/rules.scoring.test.ts` | ❌ W0 | ⬜ pending |
-| 05-W0-02 | 00 | 0 | PWR-01/03 | — | N/A | unit stub | `npx vitest run tests/rules.pickups.test.ts` | ❌ W0 | ⬜ pending |
-| 05-W0-03 | 00 | 0 | PWR-02 | — | N/A | unit stub | `npx vitest run tests/rules.effects.test.ts` | ❌ W0 | ⬜ pending |
-| 05-W0-04 | 00 | 0 | PWR-01 | — | N/A | unit stub | `npx vitest run tests/rules.multiball.test.ts` | ❌ W0 | ⬜ pending |
-| 05-W0-05 | 00 | 0 | PHYS-07 | — | N/A | unit stub | `npx vitest run tests/rules.stall.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1+ | RUN-01 | T-05-01 | No Math.random in core scoring | unit | `npx vitest run tests/rules.scoring.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1+ | PWR-01 | T-05-02 | Last-ball life only; gameplay RNG for drops | unit | `npx vitest run tests/rules.lives.test.ts tests/rules.pickups.test.ts` | ⚠️ / ❌ | ⬜ pending |
-| TBD | TBD | 1+ | PWR-02 | T-05-03 | Finite paddle clamp after expand | unit | `npx vitest run tests/rules.effects.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1+ | PWR-03 | — | AABB catch only | unit | `npx vitest run tests/rules.pickups.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1+ | PHYS-07 | T-05-04 | Stall on sim ticks; no random jitter | unit | `npx vitest run tests/rules.stall.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | 1+ | Cross | T-05-01 | Same seed → identical hashWorld | unit | `npx vitest run tests/physics.golden-replay.test.ts` | ✅ extend | ⬜ pending |
+| 05-W0-01 | 00 | 0 | RUN-01 | — | N/A | unit stub | `npx vitest run tests/rules.scoring.test.ts` | ❌ → Plan 00 | ⬜ pending |
+| 05-W0-02 | 00 | 0 | PWR-01/03 | — | N/A | unit stub | `npx vitest run tests/rules.pickups.test.ts` | ❌ → Plan 00 | ⬜ pending |
+| 05-W0-03 | 00 | 0 | PWR-02 | — | N/A | unit stub | `npx vitest run tests/rules.effects.test.ts` | ❌ → Plan 00 | ⬜ pending |
+| 05-W0-04 | 00 | 0 | PWR-01 | — | N/A | unit stub | `npx vitest run tests/rules.multiball.test.ts` | ❌ → Plan 00 | ⬜ pending |
+| 05-W0-05 | 00 | 0 | PHYS-07 | — | N/A | unit stub | `npx vitest run tests/rules.stall.test.ts` | ❌ → Plan 00 | ⬜ pending |
+| 05-02-01 | 02 | 2 | RUN-01 | T-05-01 | No Math.random in core scoring | unit | `npx vitest run tests/rules.scoring.test.ts` | Plan 00 stub | ⬜ pending |
+| 05-03-01 | 03 | 2 | PWR-01/03 | T-05-01 | Gameplay RNG for drops; AABB catch | unit | `npx vitest run tests/rules.pickups.test.ts` | Plan 00 stub | ⬜ pending |
+| 05-03-02 | 03 | 2 | PWR-02 | T-05-03 | Finite paddle clamp after expand | unit | `npx vitest run tests/rules.effects.test.ts` | Plan 00 stub | ⬜ pending |
+| 05-03-03 | 03 | 2 | PWR-01 | T-05-03 | Multiball finite velocities / cap | unit | `npx vitest run tests/rules.multiball.test.ts` | Plan 00 stub | ⬜ pending |
+| 05-04-01 | 04 | 3 | PWR-01 | T-05-02 | Last-ball life only | unit | `npx vitest run tests/rules.lives.test.ts` | ⚠️ rewrite | ⬜ pending |
+| 05-05-01 | 05 | 4 | PHYS-07 | T-05-02/03 | Stall on sim ticks; no random jitter | unit | `npx vitest run tests/rules.stall.test.ts` | Plan 00 stub | ⬜ pending |
+| 05-01-02 | 01 | 1 | Cross | T-05-01 | Same seed → identical hashWorld | unit | `npx vitest run tests/physics.golden-replay.test.ts` | ✅ extend | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-
-*Planner fills concrete Task IDs when PLAN.md files are written.*
 
 ---
 
