@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation & Thread-Boundary Spike** - Prove the worklet-hosted simulation and Skia rendering bet on both real devices before any gameplay code
 - [x] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
 - [x] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
-- [ ] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
+- [x] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
 - [ ] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end
 - [ ] **Phase 6: UI Shell, HUD, Persistence & Platform Seams** - Menus, HUD, instant retry, local high score, responsive layout, monetization seams
 - [ ] **Phase 7: Feedback — Neon VFX & Audio** - Spectacle and sound that never hide the ball or cost frame time
