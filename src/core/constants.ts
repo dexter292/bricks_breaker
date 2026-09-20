@@ -34,6 +34,15 @@ export const MAX_BALL_SPEED = 720;
 /** Paddle bounce angle clamp from vertical (degrees). */
 export const PADDLE_ANGLE_CLAMP_DEG = 62;
 
+/** Paddle bounce angle clamp from vertical (radians). */
+export const PADDLE_ANGLE_CLAMP_RAD = (PADDLE_ANGLE_CLAMP_DEG * Math.PI) / 180;
+
+/**
+ * Minimum |vy|/speed after paddle english (≈ cos(clamp)).
+ * Prevents near-horizontal trajectories (D-03).
+ */
+export const MIN_VERTICAL_RATIO = Math.cos(PADDLE_ANGLE_CLAMP_RAD);
+
 /** N-ball SoA capacity (Phase 2 activates exactly one). */
 export const MAX_BALLS = 8;
 
