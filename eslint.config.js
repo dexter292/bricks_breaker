@@ -146,7 +146,7 @@ module.exports = [
                 to: {
                   element: {
                     types: {
-                      anyOf: ['runtime', 'render', 'input', 'ui', 'app'],
+                      anyOf: ['runtime', 'render', 'input', 'ui', 'app', 'services'],
                     },
                   },
                 },

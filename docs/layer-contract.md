@@ -8,7 +8,7 @@ Checkable crossing rules for Neon Brick Breaker. ESLint (`eslint.config.js`) and
 |----|-----------|-----------|-------|----------|
 | LC-02 | `runtime/` → `core/` | Direct `'worklet'` call | Frame callback invokes `allocateWorld` / `step*` | ESLint boundaries |
 | LC-03 | `render/` → `core/` | Read-only world view | Skia draw reads SoA fields; never mutates | ESLint boundaries |
-| LC-04 | `app/` → `runtime/`, `render/` | Mount / unmount | Thin Expo Router host wires the spike | ESLint boundaries |
+| LC-04 | `app/` → `runtime/`, `render/`, `services/` | Mount / unmount / cold I/O | Thin Expo host; AsyncStorage + platform seams from app only | ESLint boundaries |
 | LC-05 | `input/` → `runtime/` | Shared value write | Future: pan writes paddle target on UI thread | ESLint boundaries (dirs empty until later) |
 | LC-09 | `core/` → `services/` | Event ring (batched ≤1/frame) | Future: no direct service imports from `core/` | Doc lock (ring, not import) |
 | LC-10 | `runtime/` ↔ RN runtime | Mount / discrete phase only | Allocate world once; pause/teardown | Process (plan 03+) |
