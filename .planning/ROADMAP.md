@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Thread-Boundary Spike** - Prove the worklet-hosted simulation and Skia rendering bet on both real devices before any gameplay code
 - [x] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
-- [ ] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
+- [x] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
 - [ ] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
 - [ ] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end
 - [ ] **Phase 6: UI Shell, HUD, Persistence & Platform Seams** - Menus, HUD, instant retry, local high score, responsive layout, monetization seams
@@ -155,7 +155,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 |-------|----------------|--------|-----------|
 | 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
-| 3. First Playable | 6/6 | Executing (verify) | 2026-09-20 |
+| 3. First Playable | 6/6 | Complete | 2026-09-20 |
 | 4. Level Format & Brick Types | 0/TBD | Not started | - |
 | 5. Run Rules | 0/TBD | Not started | - |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
