@@ -1,10 +1,12 @@
 ---
 phase: 6
 slug: ui-shell-hud-persistence-platform-seams
-status: draft
+status: uat_passed
 nyquist_compliant: false
 wave_0_complete: true
 created: 2026-09-20
+uat_approved: 2026-09-20
+notes: Phase 6 human UAT approved; leave nyquist_compliant for verify-work gate
 ---
 
 # Phase 6 — Validation Strategy
@@ -50,10 +52,10 @@ created: 2026-09-20
 | 06-04-02 | 04 | 3 | PLT-02 | T-06-04 | playfieldTop = insets.top + 48 | rg + tsc | `npx tsc --noEmit -p .` | ✅ GameScreen | ✅ green |
 | 06-05-01 | 05 | 4 | RUN-04 | T-06-01 | Results Score/Best/New Record | tsc + rg | `npx tsc --noEmit -p .` | ✅ ResultOverlay | ✅ green |
 | 06-05-02 | 05 | 4 | RUN-04, ARCH-02 | T-06-01/02/04 | preload + cold path persist + onRunEnded | unit + tsc | `npm test -- tests/storage.personal-best.test.ts tests/platform.seams.test.ts` | ✅ | ✅ green |
-| 06-05-03 | 05 | 4 | RUN-03, RUN-04, PLT-02, ARCH-02 | T-06-05 | Full shell UAT | manual + unit | `npm test -- tests/storage… platform…` | manual | ⬜ pending UAT (checkpoint) |
+| 06-05-03 | 05 | 4 | RUN-03, RUN-04, PLT-02, ARCH-02 | T-06-05 | Full shell UAT | manual + unit | `npm test -- tests/storage… platform…` | manual | ✅ UAT approved 2026-09-20 |
 | — | — | — | D-08 | T-06-04 | No per-frame React regression | unit | `npm test` | ✅ | ✅ green |
 
-**Notes (Plan 05 Task 2):** Wave 0 + storage/platform automated commands are green. Manual-Only Verifications remain pending until the human-verify checkpoint (06-05-03).
+**Notes (Plan 05 Task 3):** Wave 0 + storage/platform automated commands green. Human UAT approved 2026-09-20 (Title/Retry/Menu/Results/HUD/airplane/pause/Stall). Force-quit Best durability still prefers native rebuild (`npx expo run:ios|android`).
 
 ---
 
@@ -71,22 +73,22 @@ created: 2026-09-20
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Best survives force-quit | RUN-04 | Native AsyncStorage | Play run → set high score → force-quit → relaunch → Title shows Best |
-| HUD strip + safe-area | PLT-02 | Visual / device | Notched iPhone + Android: strip under notch; playfield below strip; overlays inset |
-| Airplane mode full loop | ARCH-02 | Offline product | Title → Play → Pause/Retry/Menu → Results with Best; no network calls |
-| Instant Retry / Menu | RUN-03 | UX | One tap Retry from Pause/Results; no confirmation dialog; Menu → Title |
+| Behavior | Requirement | Why Manual | Test Instructions | Status |
+|----------|-------------|------------|-------------------|--------|
+| Best survives force-quit | RUN-04 | Native AsyncStorage | Play run → set high score → force-quit → relaunch → Title shows Best | ✅ checked (UAT; durable Best needs native rebuild if soft-fail path) |
+| HUD strip + safe-area | PLT-02 | Visual / device | Notched iPhone + Android: strip under notch; playfield below strip; overlays inset | ✅ checked |
+| Airplane mode full loop | ARCH-02 | Offline product | Title → Play → Pause/Retry/Menu → Results with Best; no network calls | ✅ checked |
+| Instant Retry / Menu | RUN-03 | UX | One tap Retry from Pause/Results; no confirmation dialog; Menu → Title | ✅ checked |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [ ] `nyquist_compliant: true` set in frontmatter *(left for verify-work gate)*
 
-**Approval:** pending
+**Approval:** phase UAT passed 2026-09-20
