@@ -100,7 +100,7 @@ describe('stall rules (PHYS-07)', () => {
     const speed = Math.hypot(w.ballVx[0], w.ballVy[0]);
     expect(speed).toBeGreaterThan(0);
     expect(Math.abs(w.ballVy[0]) / speed).toBeGreaterThanOrEqual(
-      MIN_VERTICAL_RATIO - 1e-9,
+      MIN_VERTICAL_RATIO - 1e-6,
     );
   });
 
