@@ -47,19 +47,22 @@ describe('multiball rules (PWR-01)', () => {
     const speed = SERVE_SPEED;
     const a18 = (18 * Math.PI) / 180;
     const a36 = (36 * Math.PI) / 180;
-    expect(w.ballVx[1]).toBeCloseTo(speed * Math.sin(-a18), 5);
-    expect(w.ballVy[1]).toBeCloseTo(-speed * Math.cos(-a18), 5);
-    expect(w.ballVx[2]).toBeCloseTo(speed * Math.sin(a36), 5);
-    expect(w.ballVy[2]).toBeCloseTo(-speed * Math.cos(a36), 5);
+    // Float32 SoA — compare with 4 decimal digits
+    expect(w.ballVx[1]).toBeCloseTo(speed * Math.sin(-a18), 4);
+    expect(w.ballVy[1]).toBeCloseTo(-speed * Math.cos(-a18), 4);
+    expect(w.ballVx[2]).toBeCloseTo(speed * Math.sin(a36), 4);
+    expect(w.ballVy[2]).toBeCloseTo(-speed * Math.cos(a36), 4);
   });
 
   it('existing ball velocities are preserved', () => {
     const w = worldWithActiveBalls(1);
     w.ballVx[0] = 123.45;
     w.ballVy[0] = -321.09;
+    const keepVx = w.ballVx[0];
+    const keepVy = w.ballVy[0];
     spawnMultiballFromPaddle(w);
-    expect(w.ballVx[0]).toBe(123.45);
-    expect(w.ballVy[0]).toBe(-321.09);
+    expect(w.ballVx[0]).toBe(keepVx);
+    expect(w.ballVy[0]).toBe(keepVy);
   });
 
   it('never exceeds maxBalls; never replaces active balls', () => {
@@ -96,7 +99,7 @@ describe('multiball rules (PWR-01)', () => {
       expect(Number.isFinite(vx)).toBe(true);
       expect(Number.isFinite(vy)).toBe(true);
       const speed = Math.hypot(vx, vy);
-      expect(speed).toBeCloseTo(SERVE_SPEED, 5);
+      expect(speed).toBeCloseTo(SERVE_SPEED, 4);
       expect(Math.abs(vy) / speed).toBeGreaterThanOrEqual(MIN_VERTICAL_RATIO - 1e-9);
     }
   });
