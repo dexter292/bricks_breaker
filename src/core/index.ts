@@ -24,3 +24,7 @@ export {
   MAX_CCD_ITERATIONS,
   SEPARATION_EPS,
 } from './constants';
+export { sweepCircleAabb } from './physics/sweep';
+export { forEachBrickCandidate } from './physics/broadphase';
+export { advanceBall } from './physics/integrate';
+export { resolvePaddleEnglish, reflectVelocity } from './physics/resolve';
