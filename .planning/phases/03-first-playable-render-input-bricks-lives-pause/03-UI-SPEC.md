@@ -1,10 +1,11 @@
 ---
 phase: 3
 slug: first-playable-render-input-bricks-lives-pause
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-09-20
+reviewed_at: 2026-09-20
 ---
 
 # Phase 3 — UI Design Contract
