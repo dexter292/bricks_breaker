@@ -60,3 +60,9 @@ export const MAX_CCD_ITERATIONS = 5;
 
 /** Nudge off surface after reflect. */
 export const SEPARATION_EPS = 1e-4;
+
+/** Starting lives per run (D-17). */
+export const DEFAULT_LIVES = 3;
+
+/** Serve launch speed (MAX_BALL_SPEED * 0.5). */
+export const SERVE_SPEED = 360;

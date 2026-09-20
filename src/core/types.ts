@@ -19,10 +19,18 @@ export const BrickFlags = {
   UNBREAKABLE: 1,
 } as const;
 
+/** Run-state machine phases (Phase 3 serve / lives / win). */
+export const SimPhase = {
+  DOCKED: 0,
+  PLAYING: 1,
+  WON: 2,
+  LOST: 3,
+} as const;
+
 export type Intent = {
   paddleX: number;
-  // reserved flags for Phase 3+; unused in Phase 2
-  launch: number; // 0
+  /** Consumed once while docked (tap launch); ignored while playing. */
+  launch: number;
 };
 
 export type Hit = {
@@ -53,6 +61,9 @@ export type World = {
   paddleY: number;
   paddleW: number;
   paddleH: number;
+  // Run state (Phase 3)
+  lives: number;
+  simPhase: number;
   // Bricks
   brickX: Float32Array;
   brickY: Float32Array;

@@ -5,6 +5,9 @@ import { allocateWorld, stepWorld, FIXED_DT } from '../src/core';
 describe('core/ runs unchanged in Node', () => {
   it('allocates and steps a World with real motion and finite ball state', () => {
     const w = allocateWorld();
+    // allocate docks with vx=vy=0 — set free-flight for motion fixture
+    w.ballVx[0] = 120;
+    w.ballVy[0] = -360;
     const intent = { paddleX: w.paddleX, launch: 0 };
     const x0 = w.ballX[0];
     const y0 = w.ballY[0];

@@ -19,7 +19,6 @@ export function allocateWorld(capacities?: WorldCapacities): World {
   const ballRadius = 6;
   const paddleW = 72;
   const paddleH = 12;
-  const maxBallSpeed = 720;
   const defaultMaxBalls = 8;
   const defaultMaxBricks = 256;
   const defaultEventCap = 128;
@@ -81,20 +80,13 @@ export function allocateWorld(capacities?: WorldCapacities): World {
   const paddleX = logicalWidth * 0.5;
   const paddleY = logicalHeight - paddleH * 2;
 
-  // One active ball above paddle with finite velocity ≤ MAX_BALL_SPEED
+  // Docked ball on paddle (vx=vy=0); callers set velocity for free-flight fixtures
   ballX[0] = paddleX;
-  ballY[0] = paddleY - ballRadius * 4;
-  ballVx[0] = 120;
-  ballVy[0] = -360;
+  ballY[0] = paddleY - ballRadius - 1;
+  ballVx[0] = 0;
+  ballVy[0] = 0;
   ballRadiusArr[0] = ballRadius;
   ballActive[0] = 1;
-  // Clamp seed speed (should already be under cap)
-  const speed0 = Math.hypot(ballVx[0], ballVy[0]);
-  if (speed0 > maxBallSpeed && speed0 > 0) {
-    const s = maxBallSpeed / speed0;
-    ballVx[0] *= s;
-    ballVy[0] *= s;
-  }
   for (let i = 1; i < maxBalls; i++) {
     ballRadiusArr[i] = ballRadius;
     ballActive[i] = 0;
@@ -113,6 +105,8 @@ export function allocateWorld(capacities?: WorldCapacities): World {
     paddleY,
     paddleW,
     paddleH,
+    lives: 3,
+    simPhase: 0, // SimPhase.DOCKED
     brickX,
     brickY,
     brickW,

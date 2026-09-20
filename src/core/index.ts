@@ -5,7 +5,7 @@ export { hashWorld } from './hash';
 export { nextU32, nextFloat } from './rng/mulberry32';
 export { pushEvent, clearEvents } from './events/ring';
 export type { World, Intent, Hit } from './types';
-export { EventCode, BrickFlags, HitKind } from './types';
+export { EventCode, BrickFlags, HitKind, SimPhase } from './types';
 export {
   FIXED_DT,
   MAX_SUBSTEPS,
@@ -23,7 +23,10 @@ export {
   MAX_EFFECTS,
   MAX_CCD_ITERATIONS,
   SEPARATION_EPS,
+  DEFAULT_LIVES,
+  SERVE_SPEED,
 } from './constants';
+export { loadPhase3Grid } from './levels/phase3Grid';
 export { sweepCircleAabb } from './physics/sweep';
 export { forEachBrickCandidate } from './physics/broadphase';
 export { advanceBall } from './physics/integrate';

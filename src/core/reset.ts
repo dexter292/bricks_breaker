@@ -1,9 +1,12 @@
 import type { World } from './types';
-import { BrickFlags } from './types';
+import { BrickFlags, SimPhase } from './types';
 
 /**
  * Reset mutable World fields in place (zero alloc) for tests (D-11 / D-13).
  * Seeds both RNG streams from the provided values.
+ *
+ * Docks ball on paddle (vx=vy=0, simPhase=DOCKED). Clears bricks —
+ * callers invoke loadPhase3Grid(world) or loadTestGrid for a playable layout.
  */
 export function resetWorld(
   world: World,
@@ -16,7 +19,6 @@ export function resetWorld(
   const ballRadius = 6;
   const paddleW = 72;
   const paddleH = 12;
-  const maxBallSpeed = 720;
 
   world.paddleW = paddleW;
   world.paddleH = paddleH;
@@ -31,18 +33,16 @@ export function resetWorld(
     world.ballRadius[i] = ballRadius;
     world.ballActive[i] = 0;
   }
+  // Docked: snap above paddle center (match serve.dockBall gap)
   world.ballX[0] = world.paddleX;
-  world.ballY[0] = world.paddleY - ballRadius * 4;
-  world.ballVx[0] = 120;
-  world.ballVy[0] = -360;
+  world.ballY[0] = world.paddleY - ballRadius - 1;
+  world.ballVx[0] = 0;
+  world.ballVy[0] = 0;
   world.ballActive[0] = 1;
   world.activeBallCount = 1;
-  const speed0 = Math.hypot(world.ballVx[0], world.ballVy[0]);
-  if (speed0 > maxBallSpeed && speed0 > 0) {
-    const s = maxBallSpeed / speed0;
-    world.ballVx[0] *= s;
-    world.ballVy[0] *= s;
-  }
+
+  world.lives = 3;
+  world.simPhase = SimPhase.DOCKED;
 
   world.brickCount = 0;
   world.gridCols = 0;
