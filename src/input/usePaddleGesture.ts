@@ -70,8 +70,8 @@ export function usePaddleGesture(
       if (!panModeAllowed(simPhase.value, uiPhase.value)) {
         return;
       }
-      panActive.value = true;
-      // Anchor from current paddle — never finger absolute X (D-04)
+      // Do NOT set panActive here — onBegin fires before Race resolves Tap vs Pan.
+      // Setting panActive on touch-down blocks shouldAcceptServeTap on a real tap.
       anchorPaddleX.value = paddleTarget.value;
     })
     .onStart(() => {
@@ -79,6 +79,7 @@ export function usePaddleGesture(
       if (!panModeAllowed(simPhase.value, uiPhase.value)) {
         return;
       }
+      // Pan activated (past minDistance) — cancel serve for this gesture
       panActive.value = true;
       anchorPaddleX.value = paddleTarget.value;
     })

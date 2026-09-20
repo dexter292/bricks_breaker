@@ -71,44 +71,53 @@ export function GameScreen({
         </View>
       </GestureDetector>
 
-      {/* Chrome after canvas (absolute over flex playfield) */}
-      <Text style={[styles.lives, { top: insets.top + 16, left: insets.left + 16 }]}>
-        {`Lives · ${lives}`}
-      </Text>
-
-      {showPauseChrome ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Pause game"
-          onPress={onPause}
-          style={[
-            styles.pauseButton,
-            { top: insets.top + 16, right: insets.right + 16 },
-          ]}
-        >
-          <Text style={styles.pauseLabel}>Pause</Text>
-        </Pressable>
-      ) : null}
-
-      {showServeHint && showPauseChrome ? (
+      {/*
+        box-none: only interactive chrome (Pause) captures touches;
+        labels must not steal serve taps over the playfield.
+      */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         <Text
-          style={[styles.serveHint, { bottom: insets.bottom + 48 }]}
+          pointerEvents="none"
+          style={[styles.lives, { top: insets.top + 16, left: insets.left + 16 }]}
         >
-          Tap to launch
+          {`Lives · ${lives}`}
         </Text>
-      ) : null}
 
-      {showPauseOverlay ? (
-        <PauseOverlay onResume={onResume} onRetry={onRetry} />
-      ) : null}
+        {showPauseChrome ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Pause game"
+            onPress={onPause}
+            style={[
+              styles.pauseButton,
+              { top: insets.top + 16, right: insets.right + 16 },
+            ]}
+          >
+            <Text style={styles.pauseLabel}>Pause</Text>
+          </Pressable>
+        ) : null}
 
-      {showCountdown ? (
-        <CountdownOverlay numeral={countdownNumeral} />
-      ) : null}
+        {showServeHint && showPauseChrome ? (
+          <Text
+            pointerEvents="none"
+            style={[styles.serveHint, { bottom: insets.bottom + 48 }]}
+          >
+            Tap to launch
+          </Text>
+        ) : null}
 
-      {result != null ? (
-        <ResultOverlay kind={result} onRetry={onRetry} />
-      ) : null}
+        {showPauseOverlay ? (
+          <PauseOverlay onResume={onResume} onRetry={onRetry} />
+        ) : null}
+
+        {showCountdown ? (
+          <CountdownOverlay numeral={countdownNumeral} />
+        ) : null}
+
+        {result != null ? (
+          <ResultOverlay kind={result} onRetry={onRetry} />
+        ) : null}
+      </View>
     </View>
   );
 }
