@@ -171,7 +171,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
 | 3. First Playable | 6/6 | Complete | 2026-09-20 |
 | 4. Level Format & Brick Types | 5/5 | Executing (verify) | 2026-09-20 |
-| 5. Run Rules | 7/7 | Complete   | 2026-09-20 |
+| 5. Run Rules | 7/7 | Complete    | 2026-09-20 |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
 | 7. Feedback — Neon VFX & Audio | 0/TBD | Not started | - |
 | 8. Showpiece Level & Launch Baseline | 0/TBD | Not started | - |
