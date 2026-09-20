@@ -17,6 +17,7 @@ import {
   type World,
 } from '../core';
 import { recordFrame } from '../render/recordSprites';
+import { subscribeAppStateAutoPause } from './appStatePause';
 import {
   FIXED_DT,
   MAX_FRAME_TIME,
@@ -220,6 +221,23 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     paddleTarget.value = w.paddleX;
     /* eslint-enable react-hooks/immutability */
   }, [world, launchFlag, paddleTarget]);
+
+  // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
+  // Returning to `active` stays frozen until Resume → countdown (Plan 05).
+  const onOsPause = options.onOsPause;
+  useEffect(() => {
+    const sub = subscribeAppStateAutoPause({
+      onAutoPause: () => {
+        // setActive(false) also resets accumulator via handle contract
+        setActive(false);
+        uiPhase.value = UiPhaseNum.PAUSED;
+        onOsPause?.();
+      },
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [setActive, uiPhase, onOsPause]);
 
   return {
     world,
