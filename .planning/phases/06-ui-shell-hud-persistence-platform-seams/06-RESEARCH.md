@@ -510,21 +510,22 @@ const showStall =
 
 **If empty:** N/A — four assumed items above need no user lock; they match Claude's Discretion + UI-SPEC fail-soft.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should Menu unmount the game host or keep it frozen under Title?**
+1. **Should Menu unmount the game host or keep it frozen under Title?** — **RESOLVED**
    - What we know: Unmount clears worklets/AppState listeners; remount on Play reloads level via existing `retry`/`loadLevelById` path.
-   - What's unclear: Whether any Phase 8 soak prefers keep-alive.
-   - Recommendation: **Unmount** on Menu (cleaner Title; matches “not playing”).
+   - **Lock (Q1):** Unmount `PlayingHost` on Menu (do **not** freeze-under-Title). Matches Pattern 1 / A2 and Plan 03 shell.
+   - Rationale: Cleaner Title; tears down worklets/AppState; Play remounts fresh.
 
-2. **In-memory cache of best inside PlayingHost for Results?**
+2. **In-memory cache of best inside PlayingHost for Results?** — **RESOLVED**
    - What we know: UI-SPEC wants Score/Best/New Record on Results without blocking.
-   - What's unclear: Whether to preload best when entering Playing.
-   - Recommendation: Preload `previousBest` when mounting PlayingHost (or on Play press); use it for evaluate; Title still re-reads from storage.
+   - **Lock (Q2):** Preload `previousBest` on Play / `PlayingHost` mount; use it for `evaluatePersonalBest`; Title still re-reads from storage on Menu return.
+   - Rationale: Optimistic Results without awaiting AsyncStorage on the cold path (Plan 05).
 
-3. **Does RUN-03 require any code change beyond Menu + Title?**
+3. **Does RUN-03 require any code change beyond Menu + Title?** — **RESOLVED**
    - What we know: Instant Retry already shipped in Phase 3/5.
-   - Recommendation: Treat RUN-03 as **regression + Menu path** — verify Retry still one-tap; no new dialogs.
+   - **Lock (Q3):** RUN-03 = instant Retry + Menu→Title; preserve Phase 3 pause/OS rules (D-05); **no** confirmation dialogs on Retry or Menu.
+   - Rationale: Treat as regression + Menu path — Pressable-only; no new dialogs (Plans 03/05).
 
 ## Environment Availability
 
