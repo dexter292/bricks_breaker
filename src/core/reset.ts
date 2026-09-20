@@ -6,7 +6,8 @@ import { BrickFlags, SimPhase } from './types';
  * Seeds both RNG streams from the provided values.
  *
  * Docks ball on paddle (vx=vy=0, simPhase=DOCKED). Clears bricks —
- * callers invoke loadPhase3Grid(world) or loadTestGrid for a playable layout.
+ * callers invoke applyCompiledLevel(world, compiled) or loadTestGrid.
+ * loadPhase3Grid is deprecated (removed in Plan 04-04).
  */
 export function resetWorld(
   world: World,
