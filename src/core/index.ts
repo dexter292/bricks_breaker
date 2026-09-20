@@ -6,7 +6,14 @@ export { hashWorld } from './hash';
 export { nextU32, nextFloat } from './rng/mulberry32';
 export { pushEvent, clearEvents } from './events/ring';
 export type { World, Intent, Hit } from './types';
-export { EventCode, BrickFlags, HitKind, SimPhase } from './types';
+export {
+  EventCode,
+  BrickFlags,
+  HitKind,
+  SimPhase,
+  PickupType,
+  EffectType,
+} from './types';
 export {
   FIXED_DT,
   MAX_SUBSTEPS,
@@ -26,6 +33,28 @@ export {
   SEPARATION_EPS,
   DEFAULT_LIVES,
   SERVE_SPEED,
+  SCORE_HIT,
+  SCORE_BREAK_BONUS,
+  DROP_CHANCE,
+  DROP_TYPE_MULTIBALL_THRESHOLD,
+  MAX_PICKUPS,
+  PICKUP_WIDTH,
+  PICKUP_HEIGHT,
+  PICKUP_FALL_SPEED,
+  EXPAND_SCALE,
+  EXPAND_DURATION_SEC,
+  EXPAND_DURATION_TICKS,
+  EFFECT_TYPE_EXPAND,
+  PICKUP_TYPE_MULTIBALL,
+  PICKUP_TYPE_EXPAND,
+  MULTIBALL_ANGLE_A_DEG,
+  MULTIBALL_ANGLE_B_DEG,
+  STALL_IDLE_SEC,
+  STALL_IDLE_TICKS,
+  STALL_TIER2_EXTRA_TICKS,
+  STALL_TIER3_EXTRA_TICKS,
+  STALL_SPEED_MULT,
+  STALL_ANGLE_NUDGE_DEG,
 } from './constants';
 export { assignSpatialBrickCells } from './levels/spatial';
 export { applyCompiledLevel } from './levels/apply';

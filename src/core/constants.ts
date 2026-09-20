@@ -66,3 +66,71 @@ export const DEFAULT_LIVES = 3;
 
 /** Serve launch speed (MAX_BALL_SPEED * 0.5). */
 export const SERVE_SPEED = 360;
+
+// --- Phase 5 run rules / power-ups / anti-stall (worklets must inline matching literals) ---
+
+/** Points awarded per brick hit (D-01 / A1). */
+export const SCORE_HIT = 10;
+
+/** Extra points when a brick breaks (D-01 / A1). */
+export const SCORE_BREAK_BONUS = 50;
+
+/** Chance a broken brick drops a pickup (D-09). */
+export const DROP_CHANCE = 0.2;
+
+/** After drop chance, roll < this → multiball; else expand (A2). */
+export const DROP_TYPE_MULTIBALL_THRESHOLD = 0.5;
+
+/** Pickup SoA capacity. */
+export const MAX_PICKUPS = 16;
+
+/** Pickup flat AABB width. */
+export const PICKUP_WIDTH = 20;
+
+/** Pickup flat AABB height. */
+export const PICKUP_HEIGHT = 12;
+
+/** Constant pickup fall speed (logical units / second; y-down positive). */
+export const PICKUP_FALL_SPEED = 120;
+
+/** Paddle expand width multiplier (D-08). */
+export const EXPAND_SCALE = 1.5;
+
+/** Expand effect duration in seconds (D-08). */
+export const EXPAND_DURATION_SEC = 10;
+
+/** Expand effect duration in ticks (10 / FIXED_DT). */
+export const EXPAND_DURATION_TICKS = 1200;
+
+/** Effects SoA type code for expand paddle. */
+export const EFFECT_TYPE_EXPAND = 1;
+
+/** Pickup type code: multiball (D-06). */
+export const PICKUP_TYPE_MULTIBALL = 1;
+
+/** Pickup type code: expand (D-06). */
+export const PICKUP_TYPE_EXPAND = 2;
+
+/** Multiball spawn angle A from vertical (degrees; D-14 / A3). */
+export const MULTIBALL_ANGLE_A_DEG = 18;
+
+/** Multiball spawn angle B from vertical (degrees; D-14 / A3). */
+export const MULTIBALL_ANGLE_B_DEG = 36;
+
+/** Idle seconds before stall tier 1 (D-15). */
+export const STALL_IDLE_SEC = 8;
+
+/** Idle ticks before stall tier 1 (8 / FIXED_DT). */
+export const STALL_IDLE_TICKS = 960;
+
+/** Extra ticks after tier 1 before tier 2 (+2s; A4). */
+export const STALL_TIER2_EXTRA_TICKS = 240;
+
+/** Extra ticks after tier 1 before tier 3 (+4s; A4). */
+export const STALL_TIER3_EXTRA_TICKS = 480;
+
+/** Stall speed multiplier applied on intervention (A4). */
+export const STALL_SPEED_MULT = 1.08;
+
+/** Stall angle nudge in degrees (within paddle clamp). */
+export const STALL_ANGLE_NUDGE_DEG = 8;

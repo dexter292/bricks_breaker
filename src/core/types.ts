@@ -27,6 +27,17 @@ export const SimPhase = {
   LOST: 3,
 } as const;
 
+/** Pickup type codes in pickup SoA (D-06). */
+export const PickupType = {
+  MULTIBALL: 1,
+  EXPAND: 2,
+} as const;
+
+/** Active effect type codes in effects SoA. */
+export const EffectType = {
+  EXPAND: 1,
+} as const;
+
 export type Intent = {
   paddleX: number;
   /** Consumed once while docked (tap launch); ignored while playing. */
@@ -64,6 +75,9 @@ export type World = {
   // Run state (Phase 3)
   lives: number;
   simPhase: number;
+  // Score / combo (Phase 5)
+  score: number;
+  combo: number;
   // Bricks
   brickX: Float32Array;
   brickY: Float32Array;
@@ -84,11 +98,21 @@ export type World = {
   latticePitchX: number;
   latticePitchY: number;
   brickDamagedThisStep: Uint8Array;
-  // Effects reserve (D-09) — empty
+  // Effects reserve (D-09) — empty until power-ups
   effectCount: number;
   effectType: Uint8Array;
   effectUntilTick: Int32Array;
   maxEffects: number;
+  // Pickups SoA (Phase 5)
+  pickupX: Float32Array;
+  pickupY: Float32Array;
+  pickupType: Uint8Array;
+  pickupActive: Uint8Array;
+  pickupCount: number;
+  maxPickups: number;
+  // Anti-stall (Phase 5 / PHYS-07)
+  stallIdleTicks: number;
+  stallTier: number;
   // RNG + time
   rngGameplay: Uint32Array; // length 1
   rngCosmetic: Uint32Array; // length 1
