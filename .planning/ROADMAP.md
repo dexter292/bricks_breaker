@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 4 plans
 Plans:
 - [x] 01-01-PLAN.md — Bootstrap Expo SDK 57, Node 24, Skia 2.12.0, EAS profiles
-- [ ] 01-02-PLAN.md — core/ stub, Vitest smoke/purity, ESLint boundaries, layer contract
+- [x] 01-02-PLAN.md — core/ stub, Vitest smoke/purity, ESLint boundaries, layer contract
 - [ ] 01-03-PLAN.md — Worklet loop + SkPicture harness + overlay + thin app host
 - [ ] 01-04-PLAN.md — Device builds, FPS/worklet gates, Skia decision evidence
 **UI hint**: no
