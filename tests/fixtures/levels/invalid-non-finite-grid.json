@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "invalid-non-finite-grid",
+  "name": "Non-finite grid metric",
+  "grid": {
+    "cols": 2,
+    "rows": 2,
+    "originX": null,
+    "originY": 0,
+    "brickW": 40,
+    "brickH": 16,
+    "gapX": 4,
+    "gapY": 4
+  },
+  "brickTypes": {
+    "1": { "hp": 1 }
+  },
+  "cells": [
+    "1.",
+    ".1"
+  ]
+}
