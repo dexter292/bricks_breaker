@@ -32,6 +32,7 @@ export type GameScreenProps = {
   onPause: () => void;
   onResume: () => void;
   onRetry: () => void;
+  onMenu: () => void;
   /** Optional docked serve hint (UI-SPEC). */
   showServeHint?: boolean;
   /** Validation failure — blocks pause/result chrome (D-13). */
@@ -59,6 +60,7 @@ export function GameScreen({
   onPause,
   onResume,
   onRetry,
+  onMenu,
   showServeHint = false,
   levelError = null,
   devLevelSwitch = null,
@@ -168,7 +170,11 @@ export function GameScreen({
         ) : null}
 
         {showPauseOverlay ? (
-          <PauseOverlay onResume={onResume} onRetry={onRetry} />
+          <PauseOverlay
+            onResume={onResume}
+            onRetry={onRetry}
+            onMenu={onMenu}
+          />
         ) : null}
 
         {showCountdown ? (
@@ -176,7 +182,7 @@ export function GameScreen({
         ) : null}
 
         {showResult ? (
-          <ResultOverlay kind={result!} onRetry={onRetry} />
+          <ResultOverlay kind={result!} onRetry={onRetry} onMenu={onMenu} />
         ) : null}
 
         {hasLevelError ? <LevelErrorOverlay issues={levelError!} /> : null}

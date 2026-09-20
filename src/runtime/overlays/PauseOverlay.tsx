@@ -4,13 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type Props = {
   onResume: () => void;
   onRetry: () => void;
+  onMenu: () => void;
 };
 
 /**
  * Full-screen pause scrim + panel (UI-SPEC). Resume is Pressable-only — never a playfield tap.
+ * Resume → Retry → Menu (outline). No confirmation (D-03 / RUN-03).
  * Centered in the safe area (not under notch / Dynamic Island).
  */
-export function PauseOverlay({ onResume, onRetry }: Props) {
+export function PauseOverlay({ onResume, onRetry, onMenu }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -42,6 +44,14 @@ export function PauseOverlay({ onResume, onRetry }: Props) {
           style={[styles.button, styles.buttonSpaced]}
         >
           <Text style={styles.buttonLabel}>Retry</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Return to title"
+          onPress={onMenu}
+          style={[styles.menuButton, styles.buttonSpaced]}
+        >
+          <Text style={styles.menuLabel}>Menu</Text>
         </Pressable>
       </View>
     </View>
@@ -89,5 +99,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
+  },
+  menuButton: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#12121f',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  menuLabel: {
+    color: '#FFFFFF',
+    fontFamily: 'SpaceMono',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   },
 });

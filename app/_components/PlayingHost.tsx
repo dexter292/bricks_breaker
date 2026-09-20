@@ -282,9 +282,6 @@ export function PlayingHost({ onMenu }: Props) {
       </Pressable>
     ) : null;
 
-  // onMenu wired to overlays in Task 2 — keep prop for GameHost shell contract.
-  void onMenu;
-
   return (
     <GameScreen
       picture={picture}
@@ -301,6 +298,7 @@ export function PlayingHost({ onMenu }: Props) {
       onPause={onPause}
       onResume={onResume}
       onRetry={onRetry}
+      onMenu={onMenu}
       showServeHint={showServeHint}
       levelError={levelError}
       devLevelSwitch={devLevelSwitch}

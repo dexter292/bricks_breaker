@@ -4,13 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type Props = {
   kind: 'win' | 'lose';
   onRetry: () => void;
+  onMenu: () => void;
 };
 
 /**
- * Minimal Win / Lose overlay + Retry (UI-SPEC D-17…D-19). No confirmation.
- * Centered in the safe area (not under notch / Dynamic Island).
+ * Minimal Win / Lose overlay + Retry + Menu (UI-SPEC D-04). No confirmation.
+ * Score/Best/New Record arrive in Plan 05. Centered in safe area.
  */
-export function ResultOverlay({ kind, onRetry }: Props) {
+export function ResultOverlay({ kind, onRetry, onMenu }: Props) {
   const insets = useSafeAreaInsets();
   const isWin = kind === 'win';
   return (
@@ -40,6 +41,14 @@ export function ResultOverlay({ kind, onRetry }: Props) {
           style={styles.button}
         >
           <Text style={styles.buttonLabel}>Retry</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Return to title"
+          onPress={onMenu}
+          style={[styles.menuButton, styles.buttonSpaced]}
+        >
+          <Text style={styles.menuLabel}>Menu</Text>
         </Pressable>
       </View>
     </View>
@@ -90,11 +99,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
+  buttonSpaced: {
+    marginTop: 16,
+  },
   buttonLabel: {
     color: '#1a1a2e',
     fontFamily: 'SpaceMono',
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
+  },
+  menuButton: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#12121f',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  menuLabel: {
+    color: '#FFFFFF',
+    fontFamily: 'SpaceMono',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   },
 });
