@@ -1,4 +1,10 @@
-import { Skia, type SkPicture } from '@shopify/react-native-skia';
+import {
+  Skia,
+  type SkHostRect,
+  type SkPaint,
+  type SkPicture,
+  type SkPictureRecorder,
+} from '@shopify/react-native-skia';
 import type { SpikeWorld } from '../core';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
@@ -7,17 +13,49 @@ import { drawOverlay } from './recordOverlay';
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
 
-// Module-scope host objects — never allocate Paint/Recorder/array literals per frame (Pattern D).
-const recorder = Skia.PictureRecorder();
-const paint = Skia.Paint();
-const spriteRect = Skia.XYWHRect(0, 0, 0, 0);
-const surfaceBounds = Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H);
-const colorBuf = Skia.Color('#ffffffff');
+// Lazily created on the UI runtime — never at module import (Skia JSI may not be ready).
+let recorder: SkPictureRecorder | null = null;
+let paint: SkPaint | null = null;
+let spriteRect: SkHostRect | null = null;
+let surfaceBounds: SkHostRect | null = null;
+let colorBuf: Float32Array | null = null;
+
+function ensureRecorderTools(): {
+  recorder: SkPictureRecorder;
+  paint: SkPaint;
+  spriteRect: SkHostRect;
+  surfaceBounds: SkHostRect;
+  colorBuf: Float32Array;
+} {
+  'worklet';
+  if (!recorder) {
+    recorder = Skia.PictureRecorder();
+  }
+  if (!paint) {
+    paint = Skia.Paint();
+  }
+  if (!spriteRect) {
+    spriteRect = Skia.XYWHRect(0, 0, 0, 0);
+  }
+  if (!surfaceBounds) {
+    surfaceBounds = Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H);
+  }
+  if (!colorBuf) {
+    colorBuf = Skia.Color('#ffffffff');
+  }
+  return {
+    recorder,
+    paint,
+    spriteRect,
+    surfaceBounds,
+    colorBuf,
+  };
+}
 
 /**
  * Record ~200–300 sprites into one SkPicture; optionally bake overlay text in (D-06 / D-08).
  * Sprites are authored in logical 360×640, then scaled to the live surface size so the
- * picture fills the phone screen 1:1 (no FitBox required).
+ * picture fills the phone screen 1:1.
  */
 export function recordFrame(
   world: SpikeWorld,
@@ -27,32 +65,31 @@ export function recordFrame(
   drawOverlayFlag: boolean,
 ): SkPicture {
   'worklet';
+  const tools = ensureRecorderTools();
   const wPx = surfaceW > 1 ? surfaceW : LOGICAL_W;
   const hPx = surfaceH > 1 ? surfaceH : LOGICAL_H;
-  surfaceBounds.setXYWH(0, 0, wPx, hPx);
+  tools.surfaceBounds.setXYWH(0, 0, wPx, hPx);
 
-  const canvas = recorder.beginRecording(surfaceBounds);
+  const canvas = tools.recorder.beginRecording(tools.surfaceBounds);
 
-  // Draw sprites in logical space, scaled to fill the surface.
   canvas.save();
   canvas.scale(wPx / LOGICAL_W, hPx / LOGICAL_H);
   const n = world.spriteCount;
   for (let i = 0; i < n; i++) {
     const c = world.color[i];
-    colorBuf[0] = ((c >>> 16) & 0xff) / 255;
-    colorBuf[1] = ((c >>> 8) & 0xff) / 255;
-    colorBuf[2] = (c & 0xff) / 255;
-    colorBuf[3] = ((c >>> 24) & 0xff) / 255;
-    paint.setColor(colorBuf);
-    spriteRect.setXYWH(world.x[i], world.y[i], world.w[i], world.h[i]);
-    canvas.drawRect(spriteRect, paint);
+    tools.colorBuf[0] = ((c >>> 16) & 0xff) / 255;
+    tools.colorBuf[1] = ((c >>> 8) & 0xff) / 255;
+    tools.colorBuf[2] = (c & 0xff) / 255;
+    tools.colorBuf[3] = ((c >>> 24) & 0xff) / 255;
+    tools.paint.setColor(tools.colorBuf);
+    tools.spriteRect.setXYWH(world.x[i], world.y[i], world.w[i], world.h[i]);
+    canvas.drawRect(tools.spriteRect, tools.paint);
   }
   canvas.restore();
 
-  // Overlay in surface pixels (stable HUD size, not stretched with fill).
   if (drawOverlayFlag) {
     drawOverlay(canvas, metrics);
   }
 
-  return recorder.finishRecordingAsPicture();
+  return tools.recorder.finishRecordingAsPicture();
 }

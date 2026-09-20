@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
-import { runOnUI } from 'react-native-worklets';
 import { CLIFF_RAMP, PERF_OVERLAY } from '../devflags';
 import { SpikeCanvas } from '../render/SpikeCanvas';
 import { SPRITE_CAP } from './constants';
@@ -23,12 +22,9 @@ export function SpikeScreen() {
   );
 
   const onCliffRamp = useCallback(() => {
-    // Discrete press → UI runtime write only (D-07 / D-14).
-    runOnUI((step: number, max: number, reset: number) => {
-      'worklet';
-      const next = spriteTarget.value + step;
-      spriteTarget.value = next > max ? reset : next;
-    })(CLIFF_STEP, CLIFF_MAX, SPRITE_CAP);
+    // SharedValue number writes from JS are safe (no runOnUI needed).
+    const next = spriteTarget.value + CLIFF_STEP;
+    spriteTarget.value = next > CLIFF_MAX ? SPRITE_CAP : next;
   }, [spriteTarget]);
 
   return (
