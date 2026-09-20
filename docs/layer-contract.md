@@ -13,6 +13,8 @@ Checkable crossing rules for Neon Brick Breaker. ESLint (`eslint.config.js`) and
 | LC-09 | `core/` → `services/` | Event ring (batched ≤1/frame) | Future: no direct service imports from `core/` | Doc lock (ring, not import) |
 | LC-10 | `runtime/` ↔ RN runtime | Mount / discrete phase only | Allocate world once; pause/teardown | Process (plan 03+) |
 | LC-12 | `runtime/` → `render/` | Direct `'worklet'` call | Frame callback records `SkPicture` via `recordFrame` | ESLint boundaries |
+| LC-13 | `runtime/` → `vfx/` | Direct worklet call | `stepVfx` / `consumeEvents` after each `stepRun` | ESLint boundaries |
+| LC-14 | `render/` → `vfx/` | Read-only `VfxState` | `recordFrame` draws trails/particles/shake offset | ESLint boundaries |
 
 ## Banned crossings
 
@@ -20,7 +22,7 @@ Checkable crossing rules for Neon Brick Breaker. ESLint (`eslint.config.js`) and
 |----|----------|-----|----------|
 | LC-01 | `core/` → React / RN / Skia / Reanimated / Expo / `@react-native*` | Simulation must run unchanged in Node (D-09, D-11, D-12) | ESLint `no-restricted-imports` + Vitest purity |
 | LC-06 | `core/` → any other app layer via import | Keeps the stub pure and worklet-portable | ESLint boundaries |
-| LC-07 | `runtime/` or `render/` calling `runOnJS` / `scheduleOnRN` | No per-frame JS-thread hops (D-14) | ESLint `no-restricted-syntax` |
+| LC-07 | `runtime/` or `render/` calling `runOnJS` / `scheduleOnRN` | No per-frame JS hops except ≤1 batched `scheduleOnRN`/frame from `src/runtime/eventBridge.ts` for audio drain (Phase 7) | ESLint `no-restricted-syntax` (file-scoped override for `eventBridge.ts`) |
 | LC-08 | `render/` mutating the world | Render is a consumer; mutation belongs in `runtime`/`core` | Boundaries + review |
 | LC-11 | React state updates every physics/render frame | Breaks 60 FPS budget | Doc + later code review |
 

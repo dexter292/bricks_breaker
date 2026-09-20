@@ -96,6 +96,13 @@ module.exports = [
     },
   },
   {
+    // LC-07 Phase 7 exception: ≤1 batched scheduleOnRN/frame from eventBridge for audio drain
+    files: ['src/runtime/eventBridge.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+  {
     // LC-02..LC-05, LC-08: one-way layer matrix (eslint-plugin-boundaries)
     plugins: { boundaries },
     settings: {
@@ -124,19 +131,22 @@ module.exports = [
               allow: { to: { element: { type: 'core' } } },
             },
             {
-              // LC-02 runtime→core; LC-12 runtime→render (SkPicture record on hot path)
+              // LC-02 runtime→core; LC-12 runtime→render; LC-13 runtime→vfx
               from: { element: { type: 'runtime' } },
               allow: {
                 to: {
-                  element: { types: { anyOf: ['core', 'runtime', 'render'] } },
+                  element: {
+                    types: { anyOf: ['core', 'runtime', 'render', 'vfx'] },
+                  },
                 },
               },
             },
             {
+              // LC-03 render→core; LC-14 render→vfx
               from: { element: { type: 'render' } },
               allow: {
                 to: {
-                  element: { types: { anyOf: ['core', 'render'] } },
+                  element: { types: { anyOf: ['core', 'render', 'vfx'] } },
                 },
               },
             },
