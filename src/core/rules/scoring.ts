@@ -1,3 +1,10 @@
+/**
+ * Scoring rules (RUN-01).
+ *
+ * Worklet close-over ban: inlined literals below MUST match constants.ts:
+ *   SCORE_HIT = 10
+ *   SCORE_BREAK_BONUS = 50
+ */
 import type { World } from '../types';
 import { BrickFlags, EventCode, SimPhase } from '../types';
 

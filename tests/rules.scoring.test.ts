@@ -22,6 +22,13 @@ function playingWorld() {
 }
 
 describe('scoring rules (RUN-01)', () => {
+  it('resetWorld starts score at 0 and combo at 1', () => {
+    const w = allocateWorld();
+    resetWorld(w, 1, 2);
+    expect(w.score).toBe(0);
+    expect(w.combo).toBe(1);
+  });
+
   it('BRICK_HIT awards SCORE_HIT * combo then increments combo', () => {
     const w = playingWorld();
     expect(w.combo).toBe(1);
