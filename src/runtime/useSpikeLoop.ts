@@ -4,13 +4,14 @@
  * rule does not understand Reanimated shared-value mutation (D-14 / Pattern A).
  */
 import { useEffect } from 'react';
+import { Dimensions } from 'react-native';
 import {
   useFrameCallback,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
 import { runOnUI } from 'react-native-worklets';
-import type { SkPicture, SkRect } from '@shopify/react-native-skia';
+import type { SkPicture, SkSize } from '@shopify/react-native-skia';
 import { Skia } from '@shopify/react-native-skia';
 import { allocateWorld, stepStub, type SpikeWorld } from '../core';
 import { recordFrame } from '../render/recordSprites';
@@ -30,13 +31,16 @@ const EMPTY_PICTURE: SkPicture = (() => {
   return rec.finishRecordingAsPicture();
 })();
 
+const WIN = Dimensions.get('window');
+
 export type SpikeLoopHandle = {
   world: SharedValue<SpikeWorld | null>;
   picture: SharedValue<SkPicture>;
   metrics: SharedValue<SpikeMetrics>;
   /** Discrete cliff-ramp target (D-07); applied on UI thread inside the frame callback. */
   spriteTarget: SharedValue<number>;
-  bounds: SkRect;
+  /** Canvas surface size in points (seeded from window, refined by onSize). */
+  surfaceSize: SharedValue<SkSize>;
 };
 
 function applySpriteTarget(w: SpikeWorld, target: number): void {
@@ -59,8 +63,10 @@ export function useSpikeLoop(
   const picture = useSharedValue<SkPicture>(EMPTY_PICTURE);
   const metrics = useSharedValue<SpikeMetrics>(createMetrics());
   const spriteTarget = useSharedValue(initialSprites);
-  // Logical play-field bounds in core units (host maps via canvas flex).
-  const bounds = Skia.XYWHRect(0, 0, 360, 640);
+  const surfaceSize = useSharedValue<SkSize>({
+    width: WIN.width,
+    height: WIN.height,
+  });
 
   // Freeze overlay flag into the worklet closure once at mount (D-08 / D-14).
   const overlayEnabled = drawOverlayFlag;
@@ -115,8 +121,15 @@ export function useSpikeLoop(
       selfCheckFrames,
     );
 
-    picture.value = recordFrame(w, metrics.value, bounds, overlayEnabled);
+    const size = surfaceSize.value;
+    picture.value = recordFrame(
+      w,
+      metrics.value,
+      size.width,
+      size.height,
+      overlayEnabled,
+    );
   });
 
-  return { world, picture, metrics, spriteTarget, bounds };
+  return { world, picture, metrics, spriteTarget, surfaceSize };
 }

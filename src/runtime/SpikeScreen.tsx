@@ -17,7 +17,10 @@ const CLIFF_MAX = 300;
 export function SpikeScreen() {
   useKeepAwake();
 
-  const { picture, spriteTarget } = useSpikeLoop(PERF_OVERLAY, SPRITE_CAP);
+  const { picture, spriteTarget, surfaceSize } = useSpikeLoop(
+    PERF_OVERLAY,
+    SPRITE_CAP,
+  );
 
   const onCliffRamp = useCallback(() => {
     // Discrete press → UI runtime write only (D-07 / D-14).
@@ -30,7 +33,7 @@ export function SpikeScreen() {
 
   return (
     <View style={styles.root}>
-      <SpikeCanvas picture={picture} />
+      <SpikeCanvas picture={picture} onSize={surfaceSize} />
       {CLIFF_RAMP ? (
         <Pressable
           accessibilityRole="button"

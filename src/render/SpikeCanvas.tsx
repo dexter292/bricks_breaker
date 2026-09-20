@@ -1,55 +1,33 @@
-import {
-  Canvas,
-  Fill,
-  Group,
-  Picture,
-  fitbox,
-  rect,
-} from '@shopify/react-native-skia';
-import {
-  useDerivedValue,
-  useSharedValue,
-  type SharedValue,
-} from 'react-native-reanimated';
+import { Canvas, Fill, Picture } from '@shopify/react-native-skia';
+import type { SharedValue } from 'react-native-reanimated';
 import type { SkPicture, SkSize } from '@shopify/react-native-skia';
 import { StyleSheet } from 'react-native';
 
-/** Must match core logical play-field (allocate/step). */
-const LOGICAL = rect(0, 0, 360, 640);
-
 type Props = {
   picture: SharedValue<SkPicture>;
+  /** Live canvas size in points — drives recordFrame surface scale. */
+  onSize: SharedValue<SkSize>;
 };
 
 /**
  * Opaque Skia canvas (SurfaceView on Android). Must sit lowest in host z-order (Pattern E).
- * Picture is recorded in logical 360×640 — scale to the full surface via onSize
- * (otherwise content sits 1:1 in the top-left on large phones).
+ * Picture is already recorded at surface size — draw 1:1 full-bleed.
  */
-export function SpikeCanvas({ picture }: Props) {
-  const size = useSharedValue<SkSize>({ width: 0, height: 0 });
-
-  const transform = useDerivedValue(() => {
-    const w = size.value.width;
-    const h = size.value.height;
-    if (w <= 0 || h <= 0) {
-      return [];
-    }
-    return fitbox('fill', LOGICAL, rect(0, 0, w, h));
-  });
-
+export function SpikeCanvas({ picture, onSize }: Props) {
   return (
-    <Canvas style={styles.canvas} opaque onSize={size}>
+    <Canvas style={styles.canvas} opaque onSize={onSize}>
       <Fill color="black" />
-      <Group transform={transform}>
-        <Picture picture={picture} />
-      </Group>
+      <Picture picture={picture} />
     </Canvas>
   );
 }
 
 const styles = StyleSheet.create({
   canvas: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });
