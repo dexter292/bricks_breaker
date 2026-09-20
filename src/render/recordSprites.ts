@@ -1,14 +1,11 @@
 import { Skia, type SkFont, type SkPicture } from '@shopify/react-native-skia';
 import type { World } from '../core';
-import { LOGICAL_H, LOGICAL_W, makeCamera } from './camera';
-import {
-  BALL_PADDLE,
-  FIELD_NAVY,
-  LETTERBOX_BLACK,
-  brickFill,
-} from './colors';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
+
+/** Logical play-field — literals inside worklets (no cross-module const capture). */
+const LOGICAL_W = 360;
+const LOGICAL_H = 640;
 
 type RecorderTools = {
   recorder: ReturnType<typeof Skia.PictureRecorder>;
@@ -20,29 +17,45 @@ type RecorderTools = {
 
 declare const global: typeof globalThis & {
   __gameRecorderTools?: RecorderTools;
-  __spikeRecorderTools?: RecorderTools;
 };
 
 function ensureRecorderTools(): RecorderTools {
   'worklet';
-  // Prefer new key; fall back once to spike key for hot-reload continuity.
-  let tools = global.__gameRecorderTools ?? global.__spikeRecorderTools;
-  if (!tools) {
+  let tools = global.__gameRecorderTools;
+  if (!tools || tools.entityRect == null || tools.surfaceBounds == null) {
     tools = {
       recorder: Skia.PictureRecorder(),
       paint: Skia.Paint(),
-      fieldRect: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
+      fieldRect: Skia.XYWHRect(0, 0, 360, 640),
       entityRect: Skia.XYWHRect(0, 0, 1, 1),
-      surfaceBounds: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
+      surfaceBounds: Skia.XYWHRect(0, 0, 360, 640),
     };
+    global.__gameRecorderTools = tools;
   }
-  global.__gameRecorderTools = tools;
   return tools;
+}
+
+/** Flat brick fill — inlined so UI worklet never calls a JS remote (UI-SPEC). */
+function brickFillLocal(hp: number, flags: number): string {
+  'worklet';
+  if ((flags & 1) !== 0) {
+    return '#6B7280';
+  }
+  if (hp >= 3) {
+    return '#C44569';
+  }
+  if (hp === 2) {
+    return '#E07A5F';
+  }
+  return '#F2CC8F';
 }
 
 /**
  * Record letterboxed playfield entities into one SkPicture (D-01…D-03).
  * LC-08: read World SoA only — never mutate.
+ *
+ * Camera/color helpers are local: imported worklets can stay JS remotes and
+ * abort the frame (black canvas + chrome still visible).
  */
 export function recordFrame(
   world: World,
@@ -54,25 +67,28 @@ export function recordFrame(
 ): SkPicture {
   'worklet';
   const tools = ensureRecorderTools();
-  const wPx = Number.isFinite(surfaceW) && surfaceW > 1 ? surfaceW : LOGICAL_W;
-  const hPx = Number.isFinite(surfaceH) && surfaceH > 1 ? surfaceH : LOGICAL_H;
+  const wPx = Number.isFinite(surfaceW) && surfaceW > 1 ? surfaceW : 360;
+  const hPx = Number.isFinite(surfaceH) && surfaceH > 1 ? surfaceH : 640;
   tools.surfaceBounds.setXYWH(0, 0, wPx, hPx);
 
   const canvas = tools.recorder.beginRecording(tools.surfaceBounds);
 
   // Letterbox bars — black over entire surface
-  tools.paint.setColor(Skia.Color(LETTERBOX_BLACK));
+  tools.paint.setColor(Skia.Color('#000000'));
   tools.entityRect.setXYWH(0, 0, wPx, hPx);
   canvas.drawRect(tools.entityRect, tools.paint);
 
-  const cam = makeCamera(wPx, hPx);
+  // Uniform letterbox (inline makeCamera)
+  const scale = Math.min(wPx / 360, hPx / 640);
+  const ox = (wPx - 360 * scale) * 0.5;
+  const oy = (hPx - 640 * scale) * 0.5;
   canvas.save();
-  canvas.translate(cam.ox, cam.oy);
-  canvas.scale(cam.scale, cam.scale);
+  canvas.translate(ox, oy);
+  canvas.scale(scale, scale);
 
   // Navy field only inside logical 360×640
-  tools.paint.setColor(Skia.Color(FIELD_NAVY));
-  tools.fieldRect.setXYWH(0, 0, LOGICAL_W, LOGICAL_H);
+  tools.paint.setColor(Skia.Color('#1a1a2e'));
+  tools.fieldRect.setXYWH(0, 0, 360, 640);
   canvas.drawRect(tools.fieldRect, tools.paint);
 
   // Bricks (hp > 0 — unbreakables keep hp)
@@ -82,7 +98,7 @@ export function recordFrame(
     if (hp <= 0) {
       continue;
     }
-    tools.paint.setColor(Skia.Color(brickFill(hp, world.brickFlags[i])));
+    tools.paint.setColor(Skia.Color(brickFillLocal(hp, world.brickFlags[i])));
     tools.entityRect.setXYWH(
       world.brickX[i],
       world.brickY[i],
@@ -93,7 +109,7 @@ export function recordFrame(
   }
 
   // Paddle — X center-based, Y top of AABB
-  tools.paint.setColor(Skia.Color(BALL_PADDLE));
+  tools.paint.setColor(Skia.Color('#FFFFFF'));
   const paddleHalfW = world.paddleW * 0.5;
   tools.entityRect.setXYWH(
     world.paddleX - paddleHalfW,
@@ -104,7 +120,7 @@ export function recordFrame(
   canvas.drawRect(tools.entityRect, tools.paint);
 
   // Active balls
-  tools.paint.setColor(Skia.Color(BALL_PADDLE));
+  tools.paint.setColor(Skia.Color('#FFFFFF'));
   const maxBalls = world.maxBalls;
   for (let bi = 0; bi < maxBalls; bi++) {
     if (world.ballActive[bi] === 0) {
@@ -126,3 +142,6 @@ export function recordFrame(
 
   return tools.recorder.finishRecordingAsPicture();
 }
+
+// Re-export logical size for GameHost / camera consumers that still import from camera.ts
+export { LOGICAL_W, LOGICAL_H };

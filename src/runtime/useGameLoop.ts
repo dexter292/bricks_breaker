@@ -25,8 +25,21 @@ import {
   SELF_CHECK_FRAMES,
   SPRITE_CAP,
 } from './constants';
-import { clampFrameDt, resetAccumulator } from './freeze';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
+
+/** Inline in this module so Babel workletizes with the frame callback (imported worklets can stay JS remotes). */
+function clampFrameDtLocal(dtSec: number, maxFrameTime: number): number {
+  'worklet';
+  if (!Number.isFinite(dtSec)) {
+    return 1 / 60;
+  }
+  return Math.min(dtSec, maxFrameTime);
+}
+
+function resetAccumulatorLocal(world: { accumulator: number }): void {
+  'worklet';
+  world.accumulator = 0;
+}
 
 /* World / metrics live in SharedValues and are mutated on the UI runtime
  * by design (useFrameCallback). React Compiler immutability does not apply (D-14). */
@@ -140,7 +153,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     }
 
     // First frame after reactivate: timeSincePreviousFrame is null → ~16.67ms
-    const dt = clampFrameDt(
+    const dt = clampFrameDtLocal(
       (frame.timeSincePreviousFrame ?? 16.67) / 1000,
       maxFrameTime,
     );
@@ -200,7 +213,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       if (!active) {
         const w = world.value;
         if (w) {
-          resetAccumulator(w);
+          resetAccumulatorLocal(w);
         }
       }
     },
