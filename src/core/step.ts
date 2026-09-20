@@ -201,8 +201,16 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         }
       }
 
-      // --- Bricks (grid broadphase) ---
-      forEachBrickCandidate(world, cx, cy, x1, y1, radius, (brickIndex) => {
+      // --- Bricks ---
+      // Exhaustive scan when brickCount is small (Phase 3 = 35). loadTestGrid's
+      // packed 1-row cellToBrick is NOT spatial — broadphase misses most bricks
+      // and the ball tunnels. Dense levels (cols×rows) still use the grid.
+      const useSpatial =
+        world.gridRows > 1 &&
+        world.gridCols > 1 &&
+        world.gridCols * world.gridRows >= world.brickCount;
+
+      const considerBrick = (brickIndex: number) => {
         if (brickIndex < 0 || brickIndex >= world.brickCount) {
           return;
         }
@@ -231,7 +239,15 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
           bestKind = KIND_BRICK;
           bestIndex = brickIndex;
         }
-      });
+      };
+
+      if (useSpatial) {
+        forEachBrickCandidate(world, cx, cy, x1, y1, radius, considerBrick);
+      } else {
+        for (let brickIndex = 0; brickIndex < world.brickCount; brickIndex++) {
+          considerBrick(brickIndex);
+        }
+      }
 
       // Miss → advance full remaining and stop CCD for this ball
       if (bestKind < 0 || bestT > 1) {

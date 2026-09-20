@@ -27,7 +27,7 @@ export {
   DEFAULT_LIVES,
   SERVE_SPEED,
 } from './constants';
-export { loadPhase3Grid } from './levels/phase3Grid';
+export { loadPhase3Grid, assignSpatialBrickCells } from './levels/phase3Grid';
 export { dockBall, applyServe, processDocked } from './rules/serve';
 export { applyLivesFromEvents } from './rules/lives';
 export { countBreakableAlive, applyWinCheck } from './rules/win';
