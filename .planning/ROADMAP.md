@@ -129,7 +129,14 @@ Plans:
   3. A personal best survives force-quitting the app and is shown on the results screen, entirely offline
   4. Playfield and UI lay out correctly with safe-area insets on a notched iPhone and on Android, across the target phone sizes
   5. Ads, IAP, and account interfaces exist as no-op stubs with real call sites, and the whole game is playable in airplane mode
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 06-00-PLAN.md — Wave 0: AsyncStorage 2.2.0, ESLint app→services, Nyquist stubs
+- [ ] 06-01-PLAN.md — services/storage personal best (compare + AsyncStorage + GREEN tests)
+- [ ] 06-02-PLAN.md — services/platform no-op seams (onRunEnded + GREEN tests)
+- [ ] 06-03-PLAN.md — Title/PlayingHost shell + Menu on Pause/Results (RUN-03)
+- [ ] 06-04-PLAN.md — HudStrip + playfieldSafe.top = insets.top + 48 (PLT-02)
+- [ ] 06-05-PLAN.md — End-of-run persist + seams + Results Score/Best/New Record + UAT
 **UI hint**: yes
 
 ### Phase 7: Feedback — Neon VFX & Audio
@@ -172,7 +179,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 3. First Playable | 6/6 | Complete | 2026-09-20 |
 | 4. Level Format & Brick Types | 5/5 | Executing (verify) | 2026-09-20 |
 | 5. Run Rules | 7/7 | Complete    | 2026-09-20 |
-| 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
+| 6. UI Shell, HUD & Persistence | 0/6 | Planned | - |
 | 7. Feedback — Neon VFX & Audio | 0/TBD | Not started | - |
 | 8. Showpiece Level & Launch Baseline | 0/TBD | Not started | - |
 
