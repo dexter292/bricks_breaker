@@ -3,7 +3,7 @@ phase: 5
 slug: run-rules-score-combo-power-ups-anti-stall
 status: draft
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-09-20
 ---
 
@@ -37,17 +37,17 @@ created: 2026-09-20
 ## Per-Task Verification Map
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 05-W0-01 | 00 | 0 | RUN-01 | — | N/A | unit stub | `npx vitest run tests/rules.scoring.test.ts` | ❌ → Plan 00 | ⬜ pending |
-| 05-W0-02 | 00 | 0 | PWR-01/03 | — | N/A | unit stub | `npx vitest run tests/rules.pickups.test.ts` | ❌ → Plan 00 | ⬜ pending |
-| 05-W0-03 | 00 | 0 | PWR-02 | — | N/A | unit stub | `npx vitest run tests/rules.effects.test.ts` | ❌ → Plan 00 | ⬜ pending |
-| 05-W0-04 | 00 | 0 | PWR-01 | — | N/A | unit stub | `npx vitest run tests/rules.multiball.test.ts` | ❌ → Plan 00 | ⬜ pending |
-| 05-W0-05 | 00 | 0 | PHYS-07 | — | N/A | unit stub | `npx vitest run tests/rules.stall.test.ts` | ❌ → Plan 00 | ⬜ pending |
+|---------|------|------|-------------|-----------------|-----------------|-----------|-------------------|-------------|--------|
+| 05-W0-01 | 00 | 0 | RUN-01 | — | N/A | unit stub | `npx vitest run tests/rules.scoring.test.ts` | ✅ | ⬜ pending |
+| 05-W0-02 | 00 | 0 | PWR-01/03 | — | N/A | unit stub | `npx vitest run tests/rules.pickups.test.ts` | ✅ | ⬜ pending |
+| 05-W0-03 | 00 | 0 | PWR-02 | — | N/A | unit stub | `npx vitest run tests/rules.effects.test.ts` | ✅ | ⬜ pending |
+| 05-W0-04 | 00 | 0 | PWR-01 | — | N/A | unit stub | `npx vitest run tests/rules.multiball.test.ts` | ✅ | ⬜ pending |
+| 05-W0-05 | 00 | 0 | PHYS-07 | — | N/A | unit stub | `npx vitest run tests/rules.stall.test.ts` | ✅ | ⬜ pending |
 | 05-02-01 | 02 | 2 | RUN-01 | T-05-01 | No Math.random in core scoring | unit | `npx vitest run tests/rules.scoring.test.ts` | Plan 00 stub | ⬜ pending |
 | 05-03-01 | 03 | 2 | PWR-01/03 | T-05-01 | Gameplay RNG for drops; AABB catch | unit | `npx vitest run tests/rules.pickups.test.ts` | Plan 00 stub | ⬜ pending |
 | 05-03-02 | 03 | 2 | PWR-02 | T-05-03 | Finite paddle clamp after expand | unit | `npx vitest run tests/rules.effects.test.ts` | Plan 00 stub | ⬜ pending |
 | 05-03-03 | 03 | 2 | PWR-01 | T-05-03 | Multiball finite velocities / cap | unit | `npx vitest run tests/rules.multiball.test.ts` | Plan 00 stub | ⬜ pending |
-| 05-04-01 | 04 | 3 | PWR-01 | T-05-02 | Last-ball life only | unit | `npx vitest run tests/rules.lives.test.ts` | ⚠️ rewrite | ⬜ pending |
+| 05-04-01 | 04 | 3 | PWR-01 | T-05-02 | Last-ball life only | unit | `npx vitest run tests/rules.lives.test.ts` | ✅ Wave 0 rewrite (Plan 00); fill 05-04-* on Plan 04 | ⬜ pending |
 | 05-05-01 | 05 | 4 | PHYS-07 | T-05-02/03 | Stall on sim ticks; no random jitter | unit | `npx vitest run tests/rules.stall.test.ts` | Plan 00 stub | ⬜ pending |
 | 05-01-02 | 01 | 1 | Cross | T-05-01 | Same seed → identical hashWorld | unit | `npx vitest run tests/physics.golden-replay.test.ts` | ✅ extend | ⬜ pending |
 
@@ -57,15 +57,15 @@ created: 2026-09-20
 
 ## Wave 0 Requirements
 
-- [ ] `tests/rules.scoring.test.ts` — stubs for RUN-01 (hit/break/combo/paddle reset/simultaneous)
-- [ ] `tests/rules.pickups.test.ts` — stubs for PWR-01/03 drop chance, catch, miss, RNG stream
-- [ ] `tests/rules.effects.test.ts` — stubs for PWR-02 expand refresh/expire/derive width/clamp
-- [ ] `tests/rules.multiball.test.ts` — stubs for +2 spawn, maxBalls, preserve velocities
-- [ ] `tests/rules.stall.test.ts` — stubs for PHYS-07 thresholds, reset, freeze, determinism
-- [ ] Update `tests/rules.lives.test.ts` — last-ball only; life-reset cleanup preserves score/bricks
+- [x] `tests/rules.scoring.test.ts` — stubs for RUN-01 (hit/break/combo/paddle reset/simultaneous)
+- [x] `tests/rules.pickups.test.ts` — stubs for PWR-01/03 drop chance, catch, miss, RNG stream
+- [x] `tests/rules.effects.test.ts` — stubs for PWR-02 expand refresh/expire/derive width/clamp
+- [x] `tests/rules.multiball.test.ts` — stubs for +2 spawn, maxBalls, preserve velocities
+- [x] `tests/rules.stall.test.ts` — stubs for PHYS-07 thresholds, reset, freeze, determinism
+- [x] Update `tests/rules.lives.test.ts` — last-ball only; life-reset cleanup preserves score/bricks
 - [ ] Extend `hashWorld` + golden replay expectations for new fields
 
-*Existing infrastructure: Vitest + `tests/core.purity.test.ts` cover purity; lives tests exist but wrong semantics.*
+*Existing infrastructure: Vitest + `tests/core.purity.test.ts` cover purity; lives Wave 0 stubs encode last-ball semantics (Plan 04 implements).*
 
 ---
 
