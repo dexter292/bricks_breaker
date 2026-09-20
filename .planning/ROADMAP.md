@@ -115,7 +115,7 @@ Plans:
 - [x] 05-02-PLAN.md — Score + combo from event ring (RUN-01, award-then-increment)
 - [x] 05-03-PLAN.md — Pickups, expand effects, multi-ball spawn (PWR-01/02/03 modules)
 - [x] 05-04-PLAN.md — Last-ball lives + stepRun orchestration
-- [ ] 05-05-PLAN.md — Deterministic anti-stall tiers (PHYS-07)
+- [x] 05-05-PLAN.md — Deterministic anti-stall tiers (PHYS-07)
 - [ ] 05-06-PLAN.md — Score/combo/Stall! SharedValue chrome + flat pickups
 **UI hint**: no
 
