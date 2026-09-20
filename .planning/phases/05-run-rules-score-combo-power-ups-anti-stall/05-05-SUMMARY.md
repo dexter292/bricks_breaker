@@ -71,7 +71,7 @@ Each task was committed atomically (TDD test → feat):
 1. **Task 1: Implement stepAntiStall + green stall tests** - `0e7df7d` (test) + `1623fa5` (feat)
 2. **Task 2: Wire stepAntiStall into stepRun + replay hash** - `d899542` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `265a888`
 
 ## Files Created/Modified
 
