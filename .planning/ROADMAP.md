@@ -149,7 +149,15 @@ Plans:
   3. One global intensity scalar — defaulting from the OS reduce-motion flag — scales every effect, and deleting the VFX layer leaves gameplay identical
   4. Paddle hit, brick hit/break, power-up catch, life lost, win, and lose each play a distinct SFX aligned to the frame of impact, with rapid hits overlapping rather than cutting each other off
   5. Every effect added is measured on the named Android reference device and stays inside the frame budget established in Phase 1
-**Plans**: TBD
+**Plans**: 7 plans
+Plans:
+- [ ] 07-00-PLAN.md — Wave 0: expo-audio, LC-07/vfx boundaries, SFX placeholders, Nyquist stubs
+- [ ] 07-01-PLAN.md — EventCode POWERUP_CATCH/LIFE_LOST/WIN/LOSE + core push sites (FX-03)
+- [ ] 07-02-PLAN.md — Pure src/vfx intensity/trails/particles/shake/event batch (FX-01/02)
+- [ ] 07-03-PLAN.md — services/audio mapping + expo-audio pools (FX-03)
+- [ ] 07-04-PLAN.md — Baked glow + recordFrame trails/particles/shake (FX-01/02)
+- [ ] 07-05-PLAN.md — useGameLoop drain, eventBridge, intensity, PlayingHost preload
+- [ ] 07-06-PLAN.md — Pixel 6a measurement doc + human UAT checkpoint
 **UI hint**: yes
 
 ### Phase 8: Showpiece Level, Performance Certification & Launch Baseline
@@ -180,7 +188,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 4. Level Format & Brick Types | 5/5 | Complete | 2026-09-20 |
 | 5. Run Rules | 7/7 | Complete | 2026-09-20 |
 | 6. UI Shell, HUD & Persistence | 6/6 | Complete | 2026-09-20 |
-| 7. Feedback — Neon VFX & Audio | 0/TBD | Not started | - |
+| 7. Feedback — Neon VFX & Audio | 0/7 | Planned | - |
 | 8. Showpiece Level & Launch Baseline | 0/TBD | Not started | - |
 
 ## Coverage
