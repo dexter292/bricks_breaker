@@ -95,7 +95,7 @@ Plans:
 - [x] 04-01-PLAN.md — schema/validate/migrations + loadAndCompile gate
 - [x] 04-02-PLAN.md — compile/apply + level-01/02 JSON + spatial SoA
 - [x] 04-03-PLAN.md — damageCues + Skia crack/hatch in recordFrame
-- [ ] 04-04-PLAN.md — GameHost wire, LevelErrorOverlay, delete phase3Grid
+- [x] 04-04-PLAN.md — GameHost wire, LevelErrorOverlay, delete phase3Grid
 **UI hint**: no
 
 ### Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall
@@ -162,7 +162,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
 | 3. First Playable | 6/6 | Complete | 2026-09-20 |
-| 4. Level Format & Brick Types | 2/5 | In Progress | - |
+| 4. Level Format & Brick Types | 5/5 | Executing (verify) | 2026-09-20 |
 | 5. Run Rules | 0/TBD | Not started | - |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
 | 7. Feedback — Neon VFX & Audio | 0/TBD | Not started | - |

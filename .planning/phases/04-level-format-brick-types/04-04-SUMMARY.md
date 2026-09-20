@@ -2,8 +2,7 @@
 phase: 04-level-format-brick-types
 plan: 04
 subsystem: runtime
-tags: [loadLevel, GameHost, LevelErrorOverlay, phase3Grid-deleted, D-11, D-12, D-13, D-14, D-15, LVL-01]
-status: uat-pending
+tags: [loadLevel, GameHost, LevelErrorOverlay, phase3Grid-deleted, UAT, LVL-01, LVL-02, LVL-03]
 
 requires:
   - phase: 04-level-format-brick-types
@@ -12,16 +11,17 @@ provides:
   - JS-thread loadLevelById → CompiledLevel SharedValue pipeline
   - GameHost load gate + LevelErrorOverlay + __DEV__ level switch
   - phase3Grid.ts deleted; applyCompiledLevel-only hot path
+  - Lattice broadphase (origin+pitch) so playable levels do not tunnel
+  - Human UAT sign-off for Phase 4
 affects:
-  - Phase 04 human UAT (Task 3)
-  - Phase 6 level select (LVL-05)
+  - Phase 5 run rules / Phase 6 level select
 
 tech-stack:
   added: []
   patterns:
-    - loadLevelById (Metro require + loadAndCompile) on JS; worklets only applyCompiledLevel
-    - Derive levelError from useMemo Result; effect syncs SharedValue + setActive only
-    - useFrameCallback(autostart: false) until host activates after compile ok
+    - loadLevelById on JS; worklets only applyCompiledLevel
+    - Lattice cellToBrick via origin+pitch (not full-field cols×rows division)
+    - LevelErrorOverlay blocks chrome while issues non-null
 
 key-files:
   created:
@@ -33,110 +33,60 @@ key-files:
     - src/runtime/GameScreen.tsx
     - src/core/index.ts
     - src/core/reset.ts
+    - src/core/levels/spatial.ts
+    - src/core/physics/broadphase.ts
   deleted:
     - src/core/levels/phase3Grid.ts
 
 key-decisions:
-  - "Frame callback autostart false so first frame never applies before JS compile"
-  - "Types CompiledLevel/ValidationIssue re-exported from loadLevel so app never imports core"
-  - "levelError derived from useMemo load Result (no setState-in-effect)"
+  - "Frame callback autostart false until host activates after compile ok"
+  - "Lattice broadphase maps bricks by level pitch — fixes post-JSON tunneling"
+  - "Human UAT approved 2026-09-20"
 
-patterns-established:
-  - "Pattern: host owns validate/compile; loop only applyCompiledLevel from SharedValue"
-  - "Pattern: LevelErrorOverlay blocks pause/result chrome while issues non-null"
+requirements-completed: [LVL-01, LVL-02, LVL-03]
 
-requirements-completed: []  # LVL-01/02/03 pending human UAT (Task 3)
-
-duration: 4min
+duration: ~40min
 completed: 2026-09-20
 ---
 
-# Phase 04 Plan 04: Host Load Gate Summary
+# Phase 04 Plan 04: Host Load Gate + UAT Summary
 
-**JS-thread loadLevelById → CompiledLevel SharedValue → applyCompiledLevel; phase3Grid deleted; LevelErrorOverlay + __DEV__ Lv 01|02 switch — human UAT pending**
-
-## Status
-
-**Autonomous tasks 1–2 complete. Task 3 (checkpoint:human-verify) awaiting human approval.**
-
-Do not treat Phase 4 roadmap success criteria as signed off until UAT checklist passes and the human replies `approved`.
+**JS-thread load → applyCompiledLevel; LevelErrorOverlay; __DEV__ switch; phase3Grid deleted; lattice broadphase fix; human UAT approved.**
 
 ## Performance
 
-- **Duration:** ~4 min
-- **Started:** 2026-09-20T07:36:54Z
-- **Completed (autonomous):** 2026-09-20T07:40:30Z
-- **Tasks:** 2/3 autonomous (Task 3 UAT pending)
-- **Files modified:** 8 created/modified/deleted
+- **Completed:** 2026-09-20
+- **Tasks:** 3/3 (2 autonomous + human UAT)
+- **Tests:** 79 passed
 
 ## Accomplishments
 
-- Deleted `phase3Grid.ts`; zero `loadPhase3Grid` refs in `src`/`tests`/`app`
-- `useGameLoop` applies `compiled` SharedValue on first frame + retry only
-- GameHost loads level-01 by default; fails loudly with overlay; `__DEV__` toggles 01↔02; Retry keeps current level
+- Deleted `phase3Grid.ts`; single validate→compile→apply pipeline
+- GameHost loads level-01 by default; `__DEV__` Lv 01|02; Retry keeps current level
+- Fail-loud LevelErrorOverlay on invalid data
+- UAT follow-up: lattice broadphase so bricks are not dropped from `cellToBrick`
+- Human approved checklist (level-01/02, cues, overlay, Retry)
 
 ## Task Commits
 
-1. **Task 1: loadLevel + useGameLoop + delete phase3Grid** - `c16d058` (feat)
-2. **Task 2: GameHost load gate + LevelErrorOverlay + __DEV__ switch** - `a3f35b0` (feat)
-3. **Task 3: Device/sim UAT** - pending human verification
+1. **Task 1:** `c16d058` — loadLevel + useGameLoop; delete phase3Grid
+2. **Task 2:** `a3f35b0` — GameHost gate + overlay + `__DEV__` switch
+3. **UAT fix:** `6ae731e` — lattice broadphase (tunneling)
+4. **Task 3:** Human `approved` 2026-09-20
 
-## Files Created/Modified
+## UAT Checklist
 
-- `src/runtime/loadLevel.ts` — `loadLevelById` + type re-exports
-- `src/runtime/useGameLoop.ts` — `compiled` SharedValue; `applyCompiledLevel`; autostart false
-- `src/core/index.ts` — removed `loadPhase3Grid` export
-- `src/core/reset.ts` — comment cleanup
-- `src/core/levels/phase3Grid.ts` — **DELETED**
-- `app/_components/GameHost.tsx` — load gate, `__DEV__` switch, Retry no-cycle
-- `src/runtime/GameScreen.tsx` — `levelError` + overlay slot
-- `src/runtime/overlays/LevelErrorOverlay.tsx` — actionable issue list
+| Check | Result |
+|-------|--------|
+| level-01 playable (multi-HP + steel, no tunnel) | Pass |
+| `__DEV__` → level-02 corridor | Pass |
+| Crack/hatch cues | Pass |
+| Invalid → overlay, no play | Pass |
+| Retry keeps current level | Pass |
+| `npm test` | 79/79 green |
 
-## Decisions Made
+## Self-Check: PASSED
 
-- Start frame callback inactive until compile succeeds (prevents empty-world first frame)
-- Keep ValidationIssue types behind `loadLevel` for LC-05 (app → runtime only)
-- Derive overlay state from memoized `loadLevelById` Result to satisfy `react-hooks/set-state-in-effect`
-
-## Deviations from Plan
-
-### Auto-fixed Issues
-
-**1. [Rule 2 - Correctness] Frame callback autostart false**
-- **Found during:** Task 2
-- **Issue:** Default autostart true could allocate World before JS compile finished
-- **Fix:** `useFrameCallback(..., false)`; host `setActive(true)` only after ok load
-- **Files modified:** `src/runtime/useGameLoop.ts`, `app/_components/GameHost.tsx`
-- **Committed in:** `a3f35b0`
-
-**2. [Rule 3 - Blocking] ESLint set-state-in-effect on load gate**
-- **Found during:** Task 2
-- **Issue:** `setLevelError` / `setLevelReady` inside `useEffect` failed eslint
-- **Fix:** `useMemo(() => loadLevelById(levelId))`; derive error/ready; effect only writes SharedValue + `setActive`
-- **Files modified:** `app/_components/GameHost.tsx`
-- **Committed in:** `a3f35b0`
-
-## Issues Encountered
-
-None blocking autonomous tasks.
-
-## User Setup Required
-
-Human UAT (Task 3) — see checkpoint how-to-verify checklist.
-
-## Next Phase Readiness
-
-- Code path ready for playtesting both levels through one pipeline
-- After `approved`, mark LVL-01/02/03 complete and close Phase 04 plan metadata
-
-## Self-Check: PASSED (autonomous scope)
-
-- FOUND: `src/runtime/loadLevel.ts`
-- FOUND: `src/runtime/overlays/LevelErrorOverlay.tsx`
-- FOUND: deleted `src/core/levels/phase3Grid.ts`
-- FOUND: commits `c16d058`, `a3f35b0`
-- PENDING: Task 3 human UAT approval
-
----
-*Phase: 04-level-format-brick-types*
-*Autonomous complete: 2026-09-20; UAT pending*
+- [x] SUMMARY finalized after UAT
+- [x] LVL-01/02/03 marked complete
+- [x] Full suite green
