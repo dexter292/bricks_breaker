@@ -65,6 +65,13 @@ export function useSpikeLoop(
   // Freeze overlay flag into the worklet closure once at mount (D-08 / D-14).
   const overlayEnabled = drawOverlayFlag;
 
+  // Capture numeric consts into locals so UI worklets do not depend on
+  // cross-module import bindings (same class of bug as METRICS_WINDOW default).
+  const fixedDt = FIXED_DT;
+  const maxSubsteps = MAX_SUBSTEPS;
+  const maxFrameTime = MAX_FRAME_TIME;
+  const selfCheckFrames = SELF_CHECK_FRAMES;
+
   useEffect(() => {
     const capacity = Math.max(initialSprites, 300);
     runOnUI((cap: number) => {
@@ -86,16 +93,16 @@ export function useSpikeLoop(
 
     // timeSincePreviousFrame is ms; null on the first frame.
     let dt = (frame.timeSincePreviousFrame ?? 16.67) / 1000;
-    if (dt > MAX_FRAME_TIME) dt = MAX_FRAME_TIME;
+    if (dt > maxFrameTime) dt = maxFrameTime;
 
     w.accumulator += dt;
     let steps = 0;
-    while (w.accumulator >= FIXED_DT && steps < MAX_SUBSTEPS) {
-      stepStub(w, FIXED_DT);
-      w.accumulator -= FIXED_DT;
+    while (w.accumulator >= fixedDt && steps < maxSubsteps) {
+      stepStub(w, fixedDt);
+      w.accumulator -= fixedDt;
       steps += 1;
     }
-    if (steps === MAX_SUBSTEPS) {
+    if (steps === maxSubsteps) {
       w.accumulator = 0;
     }
 
@@ -105,7 +112,7 @@ export function useSpikeLoop(
       steps,
       w.spriteCount,
       w.tick,
-      SELF_CHECK_FRAMES,
+      selfCheckFrames,
     );
 
     picture.value = recordFrame(w, metrics.value, bounds, overlayEnabled);

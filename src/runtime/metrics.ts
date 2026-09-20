@@ -1,8 +1,9 @@
-import { BUDGET_MS, METRICS_WINDOW } from './constants';
-
 /**
  * Preallocated frame metrics for the UI-runtime hot path (D-08).
  * No React imports — mutated only from worklets.
+ *
+ * Numeric defaults are literals inside worklets (not imported consts):
+ * Reanimated/worklets cannot resolve cross-module binding in default params.
  */
 export type SpikeMetrics = {
   intervals: Float32Array;
@@ -28,8 +29,10 @@ export type SpikeMetrics = {
   scratch: Float32Array;
 };
 
-export function createMetrics(window = METRICS_WINDOW): SpikeMetrics {
+export function createMetrics(windowSize?: number): SpikeMetrics {
   'worklet';
+  // Literals only — worklets cannot close over module const bindings reliably.
+  const window = windowSize ?? 60; // METRICS_WINDOW
   return {
     intervals: new Float32Array(window),
     window,
@@ -110,7 +113,7 @@ export function pushSample(
   m.lastMs = intervalMs;
   m.lastSubsteps = substeps;
   if (substeps > m.maxSubsteps) m.maxSubsteps = substeps;
-  if (intervalMs > BUDGET_MS) m.overBudget += 1;
+  if (intervalMs > 16.7) m.overBudget += 1; // BUDGET_MS
   m.spriteCount = spriteCount;
   m.lastTick = tick;
   m.rollingFps = rollingFps(m);

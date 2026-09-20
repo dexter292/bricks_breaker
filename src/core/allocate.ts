@@ -1,8 +1,3 @@
-import {
-  DEFAULT_SPRITE_SIZE,
-  LOGICAL_HEIGHT,
-  LOGICAL_WIDTH,
-} from './constants';
 import type { SpikeWorld } from './types';
 
 /**
@@ -11,6 +6,10 @@ import type { SpikeWorld } from './types';
  */
 export function allocateWorld(capacity: number): SpikeWorld {
   'worklet';
+  // Literals must match constants.ts — worklets cannot close over module consts.
+  const logicalWidth = 360;
+  const logicalHeight = 640;
+  const spriteSize = 8;
   const cap = Math.max(0, Math.floor(capacity));
   // Capacity is the live sprite count (cliff-ramp may request up to ~300).
   // DEFAULT_SPRITE_CAP remains the harness default, not a hard ceiling.
@@ -25,12 +24,12 @@ export function allocateWorld(capacity: number): SpikeWorld {
 
   for (let i = 0; i < spriteCount; i++) {
     // Deterministic lattice + velocity from index (no RNG).
-    x[i] = (i * 37) % LOGICAL_WIDTH;
-    y[i] = (i * 53) % LOGICAL_HEIGHT;
+    x[i] = (i * 37) % logicalWidth;
+    y[i] = (i * 53) % logicalHeight;
     vx[i] = 40 + (i % 17) * 3;
     vy[i] = 30 + (i % 13) * 2;
-    w[i] = DEFAULT_SPRITE_SIZE;
-    h[i] = DEFAULT_SPRITE_SIZE;
+    w[i] = spriteSize;
+    h[i] = spriteSize;
     color[i] = 0xff00ffff + ((i * 97) & 0x00ffffff);
   }
 

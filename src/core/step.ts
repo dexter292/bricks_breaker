@@ -1,4 +1,3 @@
-import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from './constants';
 import type { SpikeWorld } from './types';
 
 /**
@@ -7,6 +6,9 @@ import type { SpikeWorld } from './types';
  */
 export function stepStub(world: SpikeWorld, dt: number): void {
   'worklet';
+  // Literals must match constants.ts — worklets cannot close over module consts.
+  const logicalWidth = 360;
+  const logicalHeight = 640;
   const n = world.spriteCount;
   const { x, y, vx, vy, w, h } = world;
 
@@ -19,16 +21,16 @@ export function stepStub(world: SpikeWorld, dt: number): void {
     if (nx - halfW < 0) {
       nx = halfW;
       vx[i] = -vx[i];
-    } else if (nx + halfW > LOGICAL_WIDTH) {
-      nx = LOGICAL_WIDTH - halfW;
+    } else if (nx + halfW > logicalWidth) {
+      nx = logicalWidth - halfW;
       vx[i] = -vx[i];
     }
 
     if (ny - halfH < 0) {
       ny = halfH;
       vy[i] = -vy[i];
-    } else if (ny + halfH > LOGICAL_HEIGHT) {
-      ny = LOGICAL_HEIGHT - halfH;
+    } else if (ny + halfH > logicalHeight) {
+      ny = logicalHeight - halfH;
       vy[i] = -vy[i];
     }
 
