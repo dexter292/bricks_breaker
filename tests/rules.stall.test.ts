@@ -1,9 +1,3 @@
-/**
- * PHYS-07 — deterministic anti-stall (Plan 05).
- */
-import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   allocateWorld,
   resetWorld,
@@ -11,12 +5,19 @@ import {
   clearEvents,
   pushEvent,
   hashWorld,
+  stepRun,
   SimPhase,
   EventCode,
   BrickFlags,
   MAX_BALL_SPEED,
+  FIXED_DT,
+  BALL_RADIUS,
+  LOGICAL_HEIGHT,
 } from '../src/core';
 import { stepAntiStall } from '../src/core/rules/stall';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, it, expect } from 'vitest';
 
 /** cos(62°) — matches MIN_VERTICAL_RATIO in constants.ts */
 const MIN_VERTICAL_RATIO = Math.cos((62 * Math.PI) / 180);
@@ -38,6 +39,16 @@ function idleSteps(w: ReturnType<typeof allocateWorld>, n: number): void {
   for (let i = 0; i < n; i++) {
     clearEvents(w);
     stepAntiStall(w);
+  }
+}
+
+/** Keep paddle under the ball so PLAYING survives long idle runs. */
+function stepRunTrackingPaddle(
+  w: ReturnType<typeof allocateWorld>,
+  n: number,
+): void {
+  for (let i = 0; i < n; i++) {
+    stepRun(w, { paddleX: w.ballX[0], launch: 0 }, FIXED_DT);
   }
 }
 
@@ -184,6 +195,66 @@ describe('stall rules (PHYS-07)', () => {
     idleSteps(a, 960);
     idleSteps(b, 960);
     expect(a.stallTier).toBe(1);
+    expect(hashWorld(a)).toBe(hashWorld(b));
+  });
+
+  it('stepRun 960 empty-grid steps → stallTier 1; pause skip freezes idle', () => {
+    const w = allocateWorld();
+    resetWorld(w, 0x55aa, 0x33cc);
+    // Sentinel breakable below paddle so applyWinCheck does not WON (empty grid
+    // would); ball never reaches it while paddle tracks — idle stays pure.
+    loadTestGrid(w, [{ x: 160, y: 630, w: 40, h: 10, hp: 1 }]);
+    w.simPhase = SimPhase.PLAYING;
+    w.ballX[0] = 180;
+    w.ballY[0] = LOGICAL_HEIGHT * 0.5;
+    w.ballVx[0] = 220;
+    w.ballVy[0] = -280;
+    w.ballRadius[0] = BALL_RADIUS;
+    w.ballActive[0] = 1;
+    w.activeBallCount = 1;
+    w.paddleX = 180;
+
+    stepRunTrackingPaddle(w, 200);
+    expect(w.simPhase).toBe(SimPhase.PLAYING);
+    const idleAfter200 = w.stallIdleTicks;
+    expect(idleAfter200).toBe(200);
+
+    // Pause: skip stepRun calls — stall must not advance (T-05-02)
+    const paused = w.stallIdleTicks;
+    for (let i = 0; i < 100; i++) {
+      /* skipped stepRun */
+    }
+    expect(w.stallIdleTicks).toBe(paused);
+
+    stepRunTrackingPaddle(w, 760);
+    expect(w.simPhase).toBe(SimPhase.PLAYING);
+    expect(w.stallIdleTicks).toBe(960);
+    expect(w.stallTier).toBe(1);
+  });
+
+  it('stepRun determinism: same seed + same step count → equal hashWorld', () => {
+    function seededRun(seedG: number, seedC: number, steps: number) {
+      const w = allocateWorld();
+      resetWorld(w, seedG, seedC);
+      loadTestGrid(w, [{ x: 160, y: 630, w: 40, h: 10, hp: 1 }]);
+      w.simPhase = SimPhase.PLAYING;
+      w.ballX[0] = 180;
+      w.ballY[0] = 320;
+      w.ballVx[0] = 200;
+      w.ballVy[0] = -320;
+      w.ballRadius[0] = BALL_RADIUS;
+      w.ballActive[0] = 1;
+      w.activeBallCount = 1;
+      w.paddleX = 180;
+      stepRunTrackingPaddle(w, steps);
+      return w;
+    }
+
+    const a = seededRun(0x11112222, 0x33334444, 480);
+    const b = seededRun(0x11112222, 0x33334444, 480);
+    expect(a.simPhase).toBe(SimPhase.PLAYING);
+    expect(a.stallIdleTicks).toBe(b.stallIdleTicks);
+    expect(a.stallTier).toBe(b.stallTier);
     expect(hashWorld(a)).toBe(hashWorld(b));
   });
 });

@@ -6,13 +6,13 @@ import { processDocked } from './rules/serve';
 import { applyScoringFromEvents } from './rules/scoring';
 import { applyDropsFromBreaks, stepPickups } from './rules/pickups';
 import { stepEffects } from './rules/effects';
+import { stepAntiStall } from './rules/stall';
 import { applyLivesFromBallCount } from './rules/lives';
 import { applyWinCheck } from './rules/win';
 
 /**
  * Orchestrate dock/serve + physics + Phase 5 run rules for one fixed step.
  * Pause / AppState freeze stay in runtime — not here.
- * Anti-stall lands in Plan 05.
  */
 export function stepRun(world: World, intent: Intent, dt: number): void {
   'worklet';
@@ -41,13 +41,14 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
     return;
   }
 
-  // PLAYING — score → drops → pickups → effects → lives → win (stall in Plan 05)
+  // PLAYING — score → drops → pickups → effects → stall → lives → win
   clearEvents(world);
   stepWorld(world, intent, dt);
   applyScoringFromEvents(world);
   applyDropsFromBreaks(world);
   stepPickups(world, dt);
   stepEffects(world);
+  stepAntiStall(world);
   applyLivesFromBallCount(world);
   applyWinCheck(world);
 }
