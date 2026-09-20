@@ -406,27 +406,31 @@ function playBreak(): void {
 
 **If empty:** N/A — table above lists discretionary assumptions needing playtest confirmation, not blockers.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Pixel 6a VFX frame budget after particles+glow**
+1. **Pixel 6a VFX frame budget after particles+glow** — **RESOLVED**
    - What we know: Phase 1 ~256 flat sprites target was waived; methodology exists; no gfxinfo numbers yet `[VERIFIED: docs/device-gate-results.md]`.
    - What's unclear: headroom once glow blits + ≤192 particles + trails land.
    - Recommendation: Plan a Wave measurement task after glow+particles land; cut particle cap / Atlas escalate before adding more spectacle.
+   - **Resolution (plans):** Plan 04 lands glow+particles draw; Plan 06 writes `docs/phase7-vfx-measurement.md` + human/gfxinfo checkpoint against Phase 1 Pixel 6a methodology (D-04 waiver allowed). Cap/Atlas escalation only if measurement fails — not in-scope unless gap plans.
 
-2. **`expo-audio` end-to-end latency on mid-range Android**
+2. **`expo-audio` end-to-end latency on mid-range Android** — **RESOLVED**
    - What we know: API + pooling pattern verified; no recent public benchmark `[CITED: STACK.md open questions]`.
    - What's unclear: whether impact SFX feel frame-aligned under load.
    - Recommendation: Measure in-phase; if unacceptable, schedule `react-native-audio-api` migration as a follow-up (not same plan as first landing).
+   - **Resolution (plans):** Plan 00 installs `expo-audio` only; Plan 03 ships pooled `AudioService`; Plan 05 one `scheduleOnRN` hop/frame; Plan 06 UAT checks frame-align feel. `react-native-audio-api` migration stays out of Phase 7 (follow-up if UAT fails).
 
-3. **ESLint placement of the single `scheduleOnRN`**
+3. **ESLint placement of the single `scheduleOnRN`** — **RESOLVED**
    - What we know: LC-07 bans it in `runtime/`/`render/` today.
    - What's unclear: whether planner prefers allowlisted `runtime/eventBridge.ts` vs app-owned drain.
    - Recommendation: Prefer `runtime/eventBridge.ts` with a **file-scoped** eslint exception and LC-07 amendment (“≤1 batched hop/frame allowed”).
+   - **Resolution (plans):** Plan 00 file-scopes the exception to `src/runtime/eventBridge.ts` only + LC-07/LC-13/14 amendments; Plan 05 implements `flushAudioBatchOnJS` there (not app-owned drain).
 
-4. **Glow bake implementation API**
+4. **Glow bake implementation API** — **RESOLVED**
    - What we know: `drawAsImage` / `useTexture` patterns in Skia docs; recorder already in `recordSprites.ts`.
    - What's unclear: worklet-safe cache handoff (images created on JS, read on UI).
    - Recommendation: Bake on JS at level load into SharedValue/`SkImage` refs before `setActive(true)` — same lifecycle as fonts.
+   - **Resolution (plans):** Plan 04 creates `bakeGlowSprites()` on the JS cold path (no live `BlurMask`); Plan 05 calls it from PlayingHost before `setActive(true)` and hands atlas into `recordFrame`.
 
 ## Environment Availability
 
