@@ -1,45 +1,51 @@
 import { Skia, type SkFont, type SkPicture } from '@shopify/react-native-skia';
 import type { World } from '../core';
+import { LOGICAL_H, LOGICAL_W, makeCamera } from './camera';
+import {
+  BALL_PADDLE,
+  FIELD_NAVY,
+  LETTERBOX_BLACK,
+  brickFill,
+} from './colors';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
-
-/** Logical play-field — must match core allocate/step. */
-const LOGICAL_W = 360;
-const LOGICAL_H = 640;
 
 type RecorderTools = {
   recorder: ReturnType<typeof Skia.PictureRecorder>;
   paint: ReturnType<typeof Skia.Paint>;
   fieldRect: ReturnType<typeof Skia.XYWHRect>;
+  entityRect: ReturnType<typeof Skia.XYWHRect>;
   surfaceBounds: ReturnType<typeof Skia.XYWHRect>;
-  colorBuf: Float32Array;
 };
 
-declare const global: typeof globalThis & { __spikeRecorderTools?: RecorderTools };
+declare const global: typeof globalThis & {
+  __gameRecorderTools?: RecorderTools;
+  __spikeRecorderTools?: RecorderTools;
+};
 
 function ensureRecorderTools(): RecorderTools {
   'worklet';
-  // Store on UI-runtime global — module `let` bindings break worklet serialization.
-  let tools = global.__spikeRecorderTools;
+  // Prefer new key; fall back once to spike key for hot-reload continuity.
+  let tools = global.__gameRecorderTools ?? global.__spikeRecorderTools;
   if (!tools) {
     tools = {
       recorder: Skia.PictureRecorder(),
       paint: Skia.Paint(),
       fieldRect: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
+      entityRect: Skia.XYWHRect(0, 0, 1, 1),
       surfaceBounds: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
-      colorBuf: Skia.Color('#1a1a2eff'),
     };
-    global.__spikeRecorderTools = tools;
   }
+  global.__gameRecorderTools = tools;
   return tools;
 }
 
 /**
- * Record a blank playfield (+ optional overlay) into one SkPicture.
- * Phase 3 owns gameplay visuals — no sprite SoA loop (D-07 migration).
+ * Record letterboxed playfield entities into one SkPicture (D-01…D-03).
+ * LC-08: read World SoA only — never mutate.
  */
 export function recordFrame(
-  _world: World,
+  world: World,
   metrics: OverlayMetrics,
   surfaceW: number,
   surfaceH: number,
@@ -48,22 +54,70 @@ export function recordFrame(
 ): SkPicture {
   'worklet';
   const tools = ensureRecorderTools();
-  const wPx = surfaceW > 1 ? surfaceW : LOGICAL_W;
-  const hPx = surfaceH > 1 ? surfaceH : LOGICAL_H;
+  const wPx = Number.isFinite(surfaceW) && surfaceW > 1 ? surfaceW : LOGICAL_W;
+  const hPx = Number.isFinite(surfaceH) && surfaceH > 1 ? surfaceH : LOGICAL_H;
   tools.surfaceBounds.setXYWH(0, 0, wPx, hPx);
 
   const canvas = tools.recorder.beginRecording(tools.surfaceBounds);
 
+  // Letterbox bars — black over entire surface
+  tools.paint.setColor(Skia.Color(LETTERBOX_BLACK));
+  tools.entityRect.setXYWH(0, 0, wPx, hPx);
+  canvas.drawRect(tools.entityRect, tools.paint);
+
+  const cam = makeCamera(wPx, hPx);
   canvas.save();
-  canvas.scale(wPx / LOGICAL_W, hPx / LOGICAL_H);
-  // Blank field fill — no sprite loop over removed SoA
-  tools.colorBuf[0] = 0.1;
-  tools.colorBuf[1] = 0.1;
-  tools.colorBuf[2] = 0.18;
-  tools.colorBuf[3] = 1;
-  tools.paint.setColor(tools.colorBuf);
+  canvas.translate(cam.ox, cam.oy);
+  canvas.scale(cam.scale, cam.scale);
+
+  // Navy field only inside logical 360×640
+  tools.paint.setColor(Skia.Color(FIELD_NAVY));
   tools.fieldRect.setXYWH(0, 0, LOGICAL_W, LOGICAL_H);
   canvas.drawRect(tools.fieldRect, tools.paint);
+
+  // Bricks (hp > 0 — unbreakables keep hp)
+  const brickCount = world.brickCount;
+  for (let i = 0; i < brickCount; i++) {
+    const hp = world.brickHp[i];
+    if (hp <= 0) {
+      continue;
+    }
+    tools.paint.setColor(Skia.Color(brickFill(hp, world.brickFlags[i])));
+    tools.entityRect.setXYWH(
+      world.brickX[i],
+      world.brickY[i],
+      world.brickW[i],
+      world.brickH[i],
+    );
+    canvas.drawRect(tools.entityRect, tools.paint);
+  }
+
+  // Paddle — X center-based, Y top of AABB
+  tools.paint.setColor(Skia.Color(BALL_PADDLE));
+  const paddleHalfW = world.paddleW * 0.5;
+  tools.entityRect.setXYWH(
+    world.paddleX - paddleHalfW,
+    world.paddleY,
+    world.paddleW,
+    world.paddleH,
+  );
+  canvas.drawRect(tools.entityRect, tools.paint);
+
+  // Active balls
+  tools.paint.setColor(Skia.Color(BALL_PADDLE));
+  const maxBalls = world.maxBalls;
+  for (let bi = 0; bi < maxBalls; bi++) {
+    if (world.ballActive[bi] === 0) {
+      continue;
+    }
+    canvas.drawCircle(
+      world.ballX[bi],
+      world.ballY[bi],
+      world.ballRadius[bi],
+      tools.paint,
+    );
+  }
+
   canvas.restore();
 
   if (drawOverlayFlag && hudFont) {
