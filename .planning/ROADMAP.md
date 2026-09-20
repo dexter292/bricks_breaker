@@ -69,7 +69,14 @@ Plans:
   3. A player can deliberately aim the ball at a chosen brick within their first minute of play
   4. A run ends with a clear win when the last breakable brick is destroyed and a clear lose when the last of three lives is spent
   5. The player can pause and resume, and backgrounding the app mid-rally for 60+ seconds auto-pauses and resumes via countdown with no physics catch-up jump
-**Plans**: TBD
+**Plans:** 6 plans
+Plans:
+- [ ] 03-00-PLAN.md — Wave 0: pure drag/gate/freeze helpers + Vitest stubs
+- [ ] 03-01-PLAN.md — Core dock/serve/lives/win + phase3Grid + stepRun
+- [ ] 03-02-PLAN.md — Letterbox camera + entity SkPicture + GameCanvas
+- [ ] 03-03-PLAN.md — Relative-drag Race(Pan,Tap) gesture hook
+- [ ] 03-04-PLAN.md — useGameLoop Intent/stepRun + AppState freeze
+- [ ] 03-05-PLAN.md — GameHost overlays + playable UAT checkpoint
 **UI hint**: yes
 
 ### Phase 4: Level Format & Brick Types
@@ -148,7 +155,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 |-------|----------------|--------|-----------|
 | 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
-| 3. First Playable | 0/TBD | Not started | - |
+| 3. First Playable | 0/6 | Planned | - |
 | 4. Level Format & Brick Types | 0/TBD | Not started | - |
 | 5. Run Rules | 0/TBD | Not started | - |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
