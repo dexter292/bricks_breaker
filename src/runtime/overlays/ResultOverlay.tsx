@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   kind: 'win' | 'lose';
@@ -7,11 +8,24 @@ type Props = {
 
 /**
  * Minimal Win / Lose overlay + Retry (UI-SPEC D-17…D-19). No confirmation.
+ * Centered in the safe area (not under notch / Dynamic Island).
  */
 export function ResultOverlay({ kind, onRetry }: Props) {
+  const insets = useSafeAreaInsets();
   const isWin = kind === 'win';
   return (
-    <View style={styles.scrim} pointerEvents="auto">
+    <View
+      style={[
+        styles.scrim,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+      pointerEvents="auto"
+    >
       <View style={styles.panel}>
         <Text style={[styles.heading, !isWin && styles.loseHeading]}>
           {isWin ? 'Win' : 'Lose'}
@@ -42,8 +56,8 @@ const styles = StyleSheet.create({
   panel: {
     backgroundColor: '#12121f',
     padding: 24,
-    gap: 32,
     minWidth: 200,
+    maxWidth: 320,
     alignItems: 'stretch',
   },
   heading: {
@@ -53,6 +67,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 24,
     textAlign: 'center',
+    marginBottom: 16,
   },
   loseHeading: {
     color: '#E85D5D',
@@ -64,6 +79,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 24,
     textAlign: 'center',
+    marginBottom: 32,
   },
   button: {
     minHeight: 44,

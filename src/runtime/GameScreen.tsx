@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';import { GestureDetector, type ComposedGesture } from 'react-native-gesture-handler';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureDetector, type ComposedGesture } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SharedValue } from 'react-native-reanimated';
 import type { SkPicture, SkSize } from '@shopify/react-native-skia';
@@ -26,8 +27,7 @@ export type GameScreenProps = {
 
 /**
  * Props-driven playfield + chrome + overlays.
- * Gestures composed in app/ (LC-05) — this file must not import src/input.
- * Canvas first in JSX (opaque z-order), then chrome/overlays.
+ * Full-bleed canvas (letterbox paints its own bars); chrome uses safe-area insets.
  */
 export function GameScreen({
   picture,
@@ -50,35 +50,20 @@ export function GameScreen({
     uiPhase === 'countdown' && result == null && countdownNumeral != null;
 
   return (
-    <View
-      style={[
-        styles.root,
-        {
-          paddingTop: insets.top,
-          paddingBottom: insets.bottom,
-          paddingLeft: insets.left,
-          paddingRight: insets.right,
-        },
-      ]}
-    >
-      {/*
-        GestureDetector must wrap a flex:1 host — absoluteFill under a
-        zero-height detector collapses Skia Canvas (Phase 1 used flex:1 root).
-      */}
+    <View style={styles.root}>
       <GestureDetector gesture={playfieldGesture}>
         <View style={styles.playfield} collapsable={false}>
           <GameCanvas picture={picture} onSize={surfaceSize} />
         </View>
       </GestureDetector>
 
-      {/*
-        box-none: only interactive chrome (Pause) captures touches;
-        labels must not steal serve taps over the playfield.
-      */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      <View style={styles.chrome} pointerEvents="box-none">
         <Text
           pointerEvents="none"
-          style={[styles.lives, { top: insets.top + 16, left: insets.left + 16 }]}
+          style={[
+            styles.lives,
+            { top: insets.top + 16, left: Math.max(insets.left, 16) },
+          ]}
         >
           {`Lives · ${lives}`}
         </Text>
@@ -90,7 +75,10 @@ export function GameScreen({
             onPress={onPause}
             style={[
               styles.pauseButton,
-              { top: insets.top + 16, right: insets.right + 16 },
+              {
+                top: insets.top + 16,
+                right: Math.max(insets.right, 16),
+              },
             ]}
           >
             <Text style={styles.pauseLabel}>Pause</Text>
@@ -100,7 +88,10 @@ export function GameScreen({
         {showServeHint && showPauseChrome ? (
           <Text
             pointerEvents="none"
-            style={[styles.serveHint, { bottom: insets.bottom + 48 }]}
+            style={[
+              styles.serveHint,
+              { bottom: Math.max(insets.bottom, 16) + 48 },
+            ]}
           >
             Tap to launch
           </Text>
@@ -130,6 +121,9 @@ const styles = StyleSheet.create({
   playfield: {
     flex: 1,
   },
+  chrome: {
+    ...StyleSheet.absoluteFillObject,
+  },
   lives: {
     position: 'absolute',
     color: '#FFFFFF',
@@ -137,6 +131,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
+    zIndex: 2,
   },
   pauseButton: {
     position: 'absolute',
@@ -147,6 +142,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#12121f',
+    zIndex: 2,
   },
   pauseLabel: {
     color: '#FFFFFF',
@@ -166,5 +162,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
+    zIndex: 2,
   },
 });
