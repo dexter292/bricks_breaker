@@ -76,7 +76,7 @@ Each task was committed atomically:
 1. **Task 1: TitleScreen + extract PlayingHost + GameHost shellPhase** - `ac46d49` (feat)
 2. **Task 2: Menu on Pause/Results + GameScreen onMenu** - `d185978` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `d402a11` (docs: complete plan)
 
 ## Files Created/Modified
 
