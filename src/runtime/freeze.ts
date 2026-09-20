@@ -14,10 +14,12 @@ export const UiPhase = {
 export type UiPhase = (typeof UiPhase)[keyof typeof UiPhase];
 
 export function resetAccumulator(world: { accumulator: number }): void {
+  'worklet';
   world.accumulator = 0;
 }
 
 export function clampFrameDt(dtSec: number, maxFrameTime: number): number {
+  'worklet';
   if (!Number.isFinite(dtSec)) {
     return 1 / 60;
   }
@@ -25,6 +27,7 @@ export function clampFrameDt(dtSec: number, maxFrameTime: number): number {
 }
 
 export function shouldFreezeForUiPhase(phase: UiPhase): boolean {
+  'worklet';
   return phase !== UiPhase.PLAYING;
 }
 
@@ -33,5 +36,6 @@ export function pendingSubsteps(
   fixedDt: number,
   maxSubsteps: number,
 ): number {
+  'worklet';
   return Math.min(Math.floor(accumulator / fixedDt), maxSubsteps);
 }

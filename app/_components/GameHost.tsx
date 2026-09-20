@@ -7,12 +7,12 @@ import {
   useAnimatedReaction,
   useSharedValue,
 } from 'react-native-reanimated';
-import { usePaddleGesture } from '../src/input';
-import { GameScreen, type GameScreenUiPhase } from '../src/runtime/GameScreen';
+import { usePaddleGesture } from '../../src/input';
+import { GameScreen, type GameScreenUiPhase } from '../../src/runtime/GameScreen';
 import {
   UiPhaseNum,
   useGameLoop,
-} from '../src/runtime/useGameLoop';
+} from '../../src/runtime/useGameLoop';
 
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
@@ -33,7 +33,7 @@ export function GameHost() {
   useKeepAwake();
 
   const [fontsLoaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
   const [uiPhase, setUiPhase] = useState<GameScreenUiPhase>('playing');
