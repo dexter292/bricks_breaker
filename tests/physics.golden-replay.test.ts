@@ -125,6 +125,15 @@ describe('PHYS-06 / D-14 golden-replay chunking', () => {
     // Verified by this suite always passing FIXED_DT — see runChunked above.
     expect(FIXED_DT).toBeCloseTo(1 / 120, 12);
   });
+
+  it('compactBallPool: inactive sole ball → activeBallCount 0 after step (D-12)', () => {
+    const w = allocateWorld();
+    resetWorld(w, 0xabc, 0xdef);
+    w.ballActive[0] = 0;
+    w.activeBallCount = 1;
+    stepWorld(w, { paddleX: w.paddleX, launch: 0 }, FIXED_DT);
+    expect(w.activeBallCount).toBe(0);
+  });
 });
 
 test.prop(

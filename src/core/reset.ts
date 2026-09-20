@@ -43,6 +43,8 @@ export function resetWorld(
 
   world.lives = 3;
   world.simPhase = SimPhase.DOCKED;
+  world.score = 0;
+  world.combo = 1;
 
   world.brickCount = 0;
   world.gridCols = 0;
@@ -63,6 +65,16 @@ export function resetWorld(
     world.effectType[i] = 0;
     world.effectUntilTick[i] = 0;
   }
+
+  world.pickupCount = 0;
+  for (let i = 0; i < world.maxPickups; i++) {
+    world.pickupX[i] = 0;
+    world.pickupY[i] = 0;
+    world.pickupType[i] = 0;
+    world.pickupActive[i] = 0;
+  }
+  world.stallIdleTicks = 0;
+  world.stallTier = 0;
 
   world.rngGameplay[0] = seedGameplay >>> 0;
   world.rngCosmetic[0] = seedCosmetic >>> 0;

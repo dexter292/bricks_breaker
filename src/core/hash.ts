@@ -91,6 +91,17 @@ export function hashWorld(world: World): number {
   h = mixTyped(h, world.effectUntilTick);
   h = mixU32(h, world.maxEffects);
 
+  h = mixU32(h, world.score);
+  h = mixU32(h, world.combo);
+  h = mixU32(h, world.pickupCount);
+  h = mixTyped(h, world.pickupType);
+  h = mixTyped(h, world.pickupActive);
+  h = mixTyped(h, world.pickupX);
+  h = mixTyped(h, world.pickupY);
+  h = mixU32(h, world.maxPickups);
+  h = mixU32(h, world.stallIdleTicks);
+  h = mixU32(h, world.stallTier);
+
   h = mixU32(h, world.rngGameplay[0]);
   h = mixU32(h, world.rngCosmetic[0]);
   h = mixU32(h, world.tick);

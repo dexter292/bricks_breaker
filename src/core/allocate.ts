@@ -5,6 +5,7 @@ export type WorldCapacities = {
   maxBricks?: number;
   eventCap?: number;
   maxEffects?: number;
+  maxPickups?: number;
 };
 
 /**
@@ -23,6 +24,7 @@ export function allocateWorld(capacities?: WorldCapacities): World {
   const defaultMaxBricks = 256;
   const defaultEventCap = 128;
   const defaultMaxEffects = 16;
+  const defaultMaxPickups = 16; // MAX_PICKUPS
   const seedGameplay = 0xc0ffee01;
   const seedCosmetic = 0xbadc0de2;
 
@@ -41,6 +43,10 @@ export function allocateWorld(capacities?: WorldCapacities): World {
   const maxEffects = Math.max(
     1,
     Math.floor(capacities?.maxEffects ?? defaultMaxEffects),
+  );
+  const maxPickups = Math.max(
+    1,
+    Math.floor(capacities?.maxPickups ?? defaultMaxPickups),
   );
 
   const ballX = new Float32Array(maxBalls);
@@ -64,6 +70,11 @@ export function allocateWorld(capacities?: WorldCapacities): World {
 
   const effectType = new Uint8Array(maxEffects);
   const effectUntilTick = new Int32Array(maxEffects);
+
+  const pickupX = new Float32Array(maxPickups);
+  const pickupY = new Float32Array(maxPickups);
+  const pickupType = new Uint8Array(maxPickups);
+  const pickupActive = new Uint8Array(maxPickups);
 
   const rngGameplay = new Uint32Array(1);
   const rngCosmetic = new Uint32Array(1);
@@ -107,6 +118,8 @@ export function allocateWorld(capacities?: WorldCapacities): World {
     paddleH,
     lives: 3,
     simPhase: 0, // SimPhase.DOCKED
+    score: 0,
+    combo: 1,
     brickX,
     brickY,
     brickW,
@@ -126,6 +139,14 @@ export function allocateWorld(capacities?: WorldCapacities): World {
     effectType,
     effectUntilTick,
     maxEffects,
+    pickupX,
+    pickupY,
+    pickupType,
+    pickupActive,
+    pickupCount: 0,
+    maxPickups,
+    stallIdleTicks: 0,
+    stallTier: 0,
     rngGameplay,
     rngCosmetic,
     tick: 0,

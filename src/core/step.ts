@@ -12,6 +12,32 @@ const KIND_BRICK = 2;
 const KIND_BOTTOM = 3;
 
 /**
+ * Pack live balls into dense prefix [0, live).
+ * activeBallCount === live dense count (Phase 5 / D-12).
+ */
+function compactBallPool(world: World): void {
+  'worklet';
+  let write = 0;
+  const n = world.maxBalls;
+  for (let i = 0; i < n; i++) {
+    if (world.ballActive[i] !== 1) {
+      continue;
+    }
+    if (write !== i) {
+      world.ballX[write] = world.ballX[i];
+      world.ballY[write] = world.ballY[i];
+      world.ballVx[write] = world.ballVx[i];
+      world.ballVy[write] = world.ballVy[i];
+      world.ballRadius[write] = world.ballRadius[i];
+      world.ballActive[write] = 1;
+      world.ballActive[i] = 0;
+    }
+    write += 1;
+  }
+  world.activeBallCount = write;
+}
+
+/**
  * Advance one fixed simulation step with swept CCD (PHYS-02 / PHYS-06 / D-06).
  * Callers supply FIXED_DT; core never integrates leftover partial steps.
  * No React / service calls — events go to the ring only (D-08).
@@ -373,6 +399,9 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
     }
   }
 
-  // 5. tick++
+  // 5. Dense live ball count (D-12) — after BALL_OUT marks, before tick++
+  compactBallPool(world);
+
+  // 6. tick++
   world.tick += 1;
 }
