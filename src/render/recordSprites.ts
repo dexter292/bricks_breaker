@@ -172,7 +172,27 @@ export function recordFrame(
       }
     }
   }
-  tools.paint.setStyle(0); // restore Fill for paddle / balls
+  tools.paint.setStyle(0); // restore Fill for paddle / balls / pickups
+
+  // Active pickups — flat amber rects (no glow/shadow); sparse pool scan
+  const pickupW = 20;
+  const pickupH = 12;
+  const pickupHalfW = pickupW * 0.5;
+  const pickupHalfH = pickupH * 0.5;
+  tools.paint.setColor(Skia.Color('#FBBF24'));
+  const maxPickups = world.maxPickups;
+  for (let pi = 0; pi < maxPickups; pi++) {
+    if (world.pickupActive[pi] === 0) {
+      continue;
+    }
+    tools.entityRect.setXYWH(
+      world.pickupX[pi] - pickupHalfW,
+      world.pickupY[pi] - pickupHalfH,
+      pickupW,
+      pickupH,
+    );
+    canvas.drawRect(tools.entityRect, tools.paint);
+  }
 
   // Paddle — X center-based, Y top of AABB
   tools.paint.setColor(Skia.Color('#FFFFFF'));
