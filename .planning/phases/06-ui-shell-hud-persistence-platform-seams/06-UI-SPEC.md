@@ -1,10 +1,11 @@
 ---
 phase: 6
 slug: ui-shell-hud-persistence-platform-seams
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-09-20
+reviewed_at: 2026-09-20
 ---
 
 # Phase 6 — UI Design Contract
