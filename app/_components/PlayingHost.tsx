@@ -21,6 +21,11 @@ import {
   UiPhaseNum,
   useGameLoop,
 } from '../../src/runtime/useGameLoop';
+import { defaultPlatformServices } from '../../src/services/platform';
+import {
+  createAsyncStoragePersonalBestStore,
+  evaluatePersonalBest,
+} from '../../src/services/storage';
 
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
@@ -61,8 +66,15 @@ export function PlayingHost({ onMenu }: Props) {
   const [combo, setCombo] = useState(1);
   const [stallTier, setStallTier] = useState<number>(0);
   const [result, setResult] = useState<null | 'win' | 'lose'>(null);
+  const [resultBest, setResultBest] = useState(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
   const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
   const [levelId, setLevelId] = useState<LevelId>('level-01');
+
+  const store = useMemo(() => createAsyncStoragePersonalBestStore(), []);
+  const platform = useMemo(() => defaultPlatformServices(), []);
+  const previousBestRef = useRef(0);
+  const runEndedRef = useRef(false);
 
   // Sync validate+compile on JS when levelId changes (D-12, D-14) — derive UI from Result.
   const loadResult = useMemo(() => loadLevelById(levelId), [levelId]);
@@ -88,6 +100,20 @@ export function PlayingHost({ onMenu }: Props) {
   }, []);
 
   useEffect(() => () => clearCountdown(), [clearCountdown]);
+
+  // Preload previousBest for optimistic Results (D-10 / research lock).
+  useEffect(() => {
+    void store
+      .getBest()
+      .then((b) => {
+        previousBestRef.current = b;
+        setResultBest(b);
+      })
+      .catch(() => {
+        previousBestRef.current = 0;
+        setResultBest(0);
+      });
+  }, [store]);
 
   useEffect(() => {
     const mapped =
@@ -154,32 +180,63 @@ export function PlayingHost({ onMenu }: Props) {
     },
   );
 
+  // Cold path only — never await inside useAnimatedReaction / frame callback.
+  const handleRunEnded = useCallback(
+    (runScore: number, outcome: 'win' | 'lose') => {
+      const previous = previousBestRef.current;
+      const { best, isNewRecord: record } = evaluatePersonalBest(
+        runScore,
+        previous,
+      );
+      setResultBest(best);
+      setIsNewRecord(record);
+      if (record) {
+        previousBestRef.current = best;
+        void store.setBest(best).catch(() => {});
+      }
+      const payload = { score: runScore, outcome, isNewRecord: record };
+      platform.ads.onRunEnded(payload);
+      platform.purchases.onRunEnded(payload);
+      platform.accounts.onRunEnded(payload);
+    },
+    [platform, store],
+  );
+
   const applyWorldChrome = useCallback(
-    (phase: number, livesCount: number) => {
+    (phase: number, livesCount: number, runScore: number) => {
       setSimPhaseNum(phase);
       setLives(livesCount);
       if (phase === SIM.WON) {
+        if (!runEndedRef.current) {
+          runEndedRef.current = true;
+          handleRunEnded(runScore, 'win');
+        }
         setResult('win');
         setActive(false);
       } else if (phase === SIM.LOST) {
+        if (!runEndedRef.current) {
+          runEndedRef.current = true;
+          handleRunEnded(runScore, 'lose');
+        }
         setResult('lose');
         setActive(false);
       }
     },
-    [setActive],
+    [handleRunEnded, setActive],
   );
 
   // Dedicated SharedValue writes from the loop trigger this; World field
   // mutation alone would not (LC-07 chrome bridge).
   // Lives/phase stay packed (8-bit safe). Score/combo/stall use separate
   // reactions — scores exceed 8 bits and must not share the pack.
+  // Read scoreSv live at fire time so WON/LOST cold path gets current run score.
   useAnimatedReaction(
     () => (simPhaseSv.value << 8) | (livesSv.value & 0xff),
     (packed, prev) => {
       const phase = packed >> 8;
       const livesCount = packed & 0xff;
       if (prev === null || packed !== prev) {
-        runOnJS(applyWorldChrome)(phase, livesCount);
+        runOnJS(applyWorldChrome)(phase, livesCount, scoreSv.value);
       }
     },
   );
@@ -243,6 +300,9 @@ export function PlayingHost({ onMenu }: Props) {
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
+    setIsNewRecord(false);
+    setResultBest(previousBestRef.current);
+    runEndedRef.current = false;
     setLives(3);
     setScore(0);
     setCombo(1);
@@ -291,8 +351,8 @@ export function PlayingHost({ onMenu }: Props) {
       result={result}
       lives={lives}
       score={score}
-      best={0}
-      isNewRecord={false}
+      best={resultBest}
+      isNewRecord={isNewRecord}
       combo={combo}
       stallTier={stallTier}
       simPhaseNum={simPhaseNum}
