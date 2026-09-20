@@ -89,7 +89,13 @@ Plans:
   3. A level contains multiple brick types whose remaining hit points are readable through a non-color cue as well as colour
   4. Unbreakable/structural bricks reflect the ball, never break, and never block the win condition
   5. The format carries a version and a migration path, so level files authored today still load after the schema evolves
-**Plans**: TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 04-00-PLAN.md — Wave 0: Nyquist stubs + invalid level fixtures
+- [ ] 04-01-PLAN.md — schema/validate/migrations + loadAndCompile gate
+- [ ] 04-02-PLAN.md — compile/apply + level-01/02 JSON + spatial SoA
+- [ ] 04-03-PLAN.md — damageCues + Skia crack/hatch in recordFrame
+- [ ] 04-04-PLAN.md — GameHost wire, LevelErrorOverlay, delete phase3Grid
 **UI hint**: no
 
 ### Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall
@@ -156,7 +162,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
 | 3. First Playable | 6/6 | Complete | 2026-09-20 |
-| 4. Level Format & Brick Types | 0/TBD | Not started | - |
+| 4. Level Format & Brick Types | 0/5 | Planned | - |
 | 5. Run Rules | 0/TBD | Not started | - |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
 | 7. Feedback — Neon VFX & Audio | 0/TBD | Not started | - |
