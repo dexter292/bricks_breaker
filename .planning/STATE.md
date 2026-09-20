@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-09-20T11:52:15.648Z"
+stopped_at: Completed 06-04-PLAN.md
+last_updated: "2026-09-20T11:54:05.563Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 34
-  completed_plans: 32
-  percent: 94
+  completed_plans: 33
+  percent: 97
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 06 (ui-shell-hud-persistence-platform-seams) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -64,6 +64,7 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 | Phase 06 P01 | 1min | 2 tasks | 7 files |
 | Phase 06 P02 | 1min | 2 tasks | 6 files |
 | Phase 06 P03 | 2min | 2 tasks | 6 files |
+| Phase 06 P04 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 - [Phase 06]: Cold start defaults shellPhase to title (D-02)
 - [Phase 06]: Menu unmounts PlayingHost — no freeze-under-Title (Pattern 1)
 - [Phase 06]: Retry/Menu have no Alert.alert confirmation (RUN-03)
+- [Phase 06]: Strip height 48 + rgba(18,18,31,0.8) per UI-SPEC
+- [Phase 06]: playfield starts below notch + strip so opaque chrome never covers brick rows
+- [Phase 06]: Stall gate unchanged: PLAYING + stallTier > 0 (D-09)
 
 ### Pending Todos
 
@@ -128,6 +132,6 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 
 ## Session Continuity
 
-Last session: 2026-09-20T11:52:15.645Z
-Stopped at: Completed 06-03-PLAN.md
+Last session: 2026-09-20T11:54:05.561Z
+Stopped at: Completed 06-04-PLAN.md
 Resume file: None

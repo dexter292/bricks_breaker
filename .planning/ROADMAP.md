@@ -135,7 +135,7 @@ Plans:
 - [x] 06-01-PLAN.md — services/storage personal best (compare + AsyncStorage + GREEN tests)
 - [x] 06-02-PLAN.md — services/platform no-op seams (onRunEnded + GREEN tests)
 - [x] 06-03-PLAN.md — Title/PlayingHost shell + Menu on Pause/Results (RUN-03)
-- [ ] 06-04-PLAN.md — HudStrip + playfieldSafe.top = insets.top + 48 (PLT-02)
+- [x] 06-04-PLAN.md — HudStrip + playfieldSafe.top = insets.top + 48 (PLT-02)
 - [ ] 06-05-PLAN.md — End-of-run persist + seams + Results Score/Best/New Record + UAT
 **UI hint**: yes
 
