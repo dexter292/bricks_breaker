@@ -64,7 +64,15 @@ describe('audio service pools (FX-03)', () => {
     const created: AudioPlayerLike[] = [];
     const playCounts: number[] = [];
 
-    const factory = (): AudioPlayerLike => {
+    const factory = (_source: unknown, sfxId: string): AudioPlayerLike => {
+      if (sfxId !== 'brick_chip') {
+        return {
+          volume: 1,
+          seekTo: () => {},
+          play: () => {},
+          release: () => {},
+        };
+      }
       const idx = created.length;
       playCounts[idx] = 0;
       const player: AudioPlayerLike = {
@@ -82,7 +90,7 @@ describe('audio service pools (FX-03)', () => {
     const svc = createAudioServiceWithPlayers(factory);
     await svc.preload();
 
-    // 5 rapid BRICK_HIT → brick_chip limit 3; only 3 players created
+    // 5 rapid BRICK_HIT → brick_chip limit 3; only 3 players for that id
     const hits = [3, 3, 3, 3, 3];
     svc.playBatch(hits, hits.length);
 

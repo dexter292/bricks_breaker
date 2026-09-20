@@ -1,0 +1,241 @@
+import type { AudioService, SfxId } from './types';
+import {
+  mapEventToSfx,
+  selectVoiceIndex,
+  SFX_VOLUME,
+  VOICE_LIMITS,
+} from './mapping';
+
+/** Minimal player surface used by pools (expo-audio AudioPlayer compatible). */
+export type AudioPlayerLike = {
+  volume: number;
+  seekTo(seconds: number): void | Promise<void>;
+  play(): void;
+  release(): void;
+};
+
+export type PlayerFactory = (source: unknown, sfxId: SfxId) => AudioPlayerLike;
+
+export type MemoryPlayRecord = { sfxId: SfxId; voiceIndex: number };
+
+export type MemoryAudioService = AudioService & {
+  readonly plays: MemoryPlayRecord[];
+};
+
+const ALL_SFX: readonly SfxId[] = [
+  'paddle_hit',
+  'brick_chip',
+  'brick_break',
+  'powerup_catch',
+  'life_lost',
+  'win',
+  'lose',
+];
+
+function placeholderSources(): Record<SfxId, unknown> {
+  const out = {} as Record<SfxId, unknown>;
+  for (const id of ALL_SFX) {
+    out[id] = id;
+  }
+  return out;
+}
+
+/**
+ * Lazy require of original assets (T-07-16). Falls back to placeholders when
+ * Metro/Node cannot resolve WAVs (Vitest).
+ */
+function loadSfxSources(): Record<SfxId, unknown> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- asset requires
+    return {
+      paddle_hit: require('../../../assets/sfx/paddle_hit.wav'),
+      brick_chip: require('../../../assets/sfx/brick_chip.wav'),
+      brick_break: require('../../../assets/sfx/brick_break.wav'),
+      powerup_catch: require('../../../assets/sfx/powerup_catch.wav'),
+      life_lost: require('../../../assets/sfx/life_lost.wav'),
+      win: require('../../../assets/sfx/win.wav'),
+      lose: require('../../../assets/sfx/lose.wav'),
+    };
+  } catch {
+    return placeholderSources();
+  }
+}
+
+type ServiceDeps = {
+  setAudioModeAsync?: (mode: { playsInSilentMode: boolean }) => Promise<void>;
+  preloadSource?: (source: unknown) => Promise<void> | void;
+  sources?: Record<SfxId, unknown>;
+};
+
+/**
+ * Pooled AudioService over an injectable player factory (D-23 / T-07-13).
+ * Fixed VOICE_LIMITS pools; seekTo(0)+play reuses oldest voice at limit.
+ */
+export function createAudioServiceWithPlayers(
+  createPlayer: PlayerFactory,
+  deps: ServiceDeps = {},
+): AudioService {
+  const sources = deps.sources ?? loadSfxSources();
+  const pools = new Map<SfxId, AudioPlayerLike[]>();
+  const cursors = new Map<SfxId, number>();
+  let released = false;
+
+  function ensurePools(): void {
+    if (pools.size > 0) return;
+    for (const id of ALL_SFX) {
+      const limit = VOICE_LIMITS[id];
+      const voices: AudioPlayerLike[] = [];
+      for (let i = 0; i < limit; i++) {
+        voices.push(createPlayer(sources[id], id));
+      }
+      pools.set(id, voices);
+      cursors.set(id, 0);
+    }
+  }
+
+  return {
+    async preload(): Promise<void> {
+      if (released) return;
+      try {
+        if (deps.setAudioModeAsync) {
+          await deps.setAudioModeAsync({ playsInSilentMode: true });
+        }
+        if (deps.preloadSource) {
+          for (const id of ALL_SFX) {
+            await deps.preloadSource(sources[id]);
+          }
+        }
+        ensurePools();
+      } catch {
+        // Soft-fail preload (D-24 / T-07-14) — never throw into gameplay
+      }
+    },
+
+    playBatch(codes: ArrayLike<number>, count: number): void {
+      if (released) return;
+      try {
+        ensurePools();
+        const n = Math.min(count, codes.length);
+        for (let i = 0; i < n; i++) {
+          const sfxId = mapEventToSfx(codes[i]!);
+          if (!sfxId) continue;
+          const voices = pools.get(sfxId);
+          if (!voices || voices.length === 0) continue;
+          const cursor = cursors.get(sfxId) ?? 0;
+          const idx = selectVoiceIndex(cursor, voices.length);
+          cursors.set(sfxId, cursor + 1);
+          const player = voices[idx]!;
+          player.volume = SFX_VOLUME[sfxId];
+          void player.seekTo(0);
+          player.play();
+        }
+      } catch {
+        // Soft-fail play — never throw into gameplay
+      }
+    },
+
+    release(): void {
+      if (released) return;
+      released = true;
+      for (const voices of pools.values()) {
+        for (const p of voices) {
+          try {
+            p.release();
+          } catch {
+            // ignore
+          }
+        }
+      }
+      pools.clear();
+      cursors.clear();
+    },
+  };
+}
+
+/** In-memory AudioService for tests / soft-fail fallback (records plays). */
+export function createMemoryAudioService(): MemoryAudioService {
+  const plays: MemoryPlayRecord[] = [];
+  const cursors = new Map<SfxId, number>();
+  let released = false;
+
+  return {
+    plays,
+    async preload(): Promise<void> {
+      // no-op — always resolves
+    },
+    playBatch(codes: ArrayLike<number>, count: number): void {
+      if (released) return;
+      const n = Math.min(count, codes.length);
+      for (let i = 0; i < n; i++) {
+        const sfxId = mapEventToSfx(codes[i]!);
+        if (!sfxId) continue;
+        const limit = VOICE_LIMITS[sfxId];
+        const cursor = cursors.get(sfxId) ?? 0;
+        const voiceIndex = selectVoiceIndex(cursor, limit);
+        cursors.set(sfxId, cursor + 1);
+        plays.push({ sfxId, voiceIndex });
+      }
+    },
+    release(): void {
+      released = true;
+    },
+  };
+}
+
+type ExpoAudioModule = {
+  createAudioPlayer: (source: unknown) => AudioPlayerLike;
+  preload: (source: unknown) => Promise<void>;
+  setAudioModeAsync: (mode: { playsInSilentMode: boolean }) => Promise<void>;
+};
+
+function loadExpoAudio(): ExpoAudioModule | null {
+  if (typeof process !== 'undefined' && process.env.VITEST) {
+    return null;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy native load
+    return require('expo-audio') as ExpoAudioModule;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * expo-audio createAudioPlayer pools (SDK 57). Caller must handle missing native
+ * via createDefaultAudioService.
+ */
+export function createExpoAudioService(): AudioService {
+  const audio = loadExpoAudio();
+  if (!audio) {
+    return createMemoryAudioService();
+  }
+  return createAudioServiceWithPlayers(
+    (source) => audio.createAudioPlayer(source),
+    {
+      setAudioModeAsync: audio.setAudioModeAsync.bind(audio),
+      preloadSource: (source) => audio.preload(source),
+      sources: loadSfxSources(),
+    },
+  );
+}
+
+/**
+ * Prefer expo-audio when linked; otherwise memory. Soft-fail never blocks play
+ * with a modal (D-24 / UI-SPEC / T-07-14).
+ */
+export function createDefaultAudioService(): AudioService {
+  const audio = loadExpoAudio();
+  if (!audio) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.warn(
+        '[audio] expo-audio native module missing — using memory AudioService. Rebuild the dev client for SFX.',
+      );
+    }
+    return createMemoryAudioService();
+  }
+  try {
+    return createExpoAudioService();
+  } catch {
+    return createMemoryAudioService();
+  }
+}
