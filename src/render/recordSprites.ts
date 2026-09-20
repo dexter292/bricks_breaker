@@ -1,22 +1,22 @@
 import { Skia, type SkPicture, type SkRect } from '@shopify/react-native-skia';
 import type { SpikeWorld } from '../core';
 import type { OverlayMetrics } from './overlayMetrics';
+import { drawOverlay } from './recordOverlay';
 
-// Module-scope host objects — safe to capture in worklets (Pattern D).
+// Module-scope host objects — never allocate Paint/Recorder/array literals per frame (Pattern D).
 const recorder = Skia.PictureRecorder();
 const paint = Skia.Paint();
 const rect = Skia.XYWHRect(0, 0, 0, 0);
 const colorBuf = Skia.Color('#ffffffff');
 
 /**
- * Stub recorder — Task 2 fills sprite loop + overlay.
- * Exists so Task 1 `useSpikeLoop` can import a worklet-safe symbol.
+ * Record ~200–300 sprites into one SkPicture; optionally bake overlay text in (D-06 / D-08).
  */
 export function recordFrame(
   world: SpikeWorld,
-  _metrics: OverlayMetrics,
+  metrics: OverlayMetrics,
   bounds: SkRect,
-  _drawOverlayFlag: boolean,
+  drawOverlayFlag: boolean,
 ): SkPicture {
   'worklet';
   const canvas = recorder.beginRecording(bounds);
@@ -30,6 +30,9 @@ export function recordFrame(
     paint.setColor(colorBuf);
     rect.setXYWH(world.x[i], world.y[i], world.w[i], world.h[i]);
     canvas.drawRect(rect, paint);
+  }
+  if (drawOverlayFlag) {
+    drawOverlay(canvas, metrics);
   }
   return recorder.finishRecordingAsPicture();
 }

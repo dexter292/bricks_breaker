@@ -23,9 +23,16 @@ import {
 } from './constants';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
 
+/** Empty picture placeholder until the first frame records (avoids null AnimatedProp). */
+const EMPTY_PICTURE: SkPicture = (() => {
+  const rec = Skia.PictureRecorder();
+  rec.beginRecording(Skia.XYWHRect(0, 0, 1, 1));
+  return rec.finishRecordingAsPicture();
+})();
+
 export type SpikeLoopHandle = {
   world: SharedValue<SpikeWorld | null>;
-  picture: SharedValue<SkPicture | null>;
+  picture: SharedValue<SkPicture>;
   metrics: SharedValue<SpikeMetrics>;
   /** Discrete cliff-ramp target (D-07); applied on UI thread inside the frame callback. */
   spriteTarget: SharedValue<number>;
@@ -49,7 +56,7 @@ export function useSpikeLoop(
   initialSprites: number = SPRITE_CAP,
 ): SpikeLoopHandle {
   const world = useSharedValue<SpikeWorld | null>(null);
-  const picture = useSharedValue<SkPicture | null>(null);
+  const picture = useSharedValue<SkPicture>(EMPTY_PICTURE);
   const metrics = useSharedValue<SpikeMetrics>(createMetrics());
   const spriteTarget = useSharedValue(initialSprites);
   // Logical play-field bounds in core units (host maps via canvas flex).

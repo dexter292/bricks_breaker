@@ -1,22 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { SpikeScreen } from '../src/runtime/SpikeScreen';
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Spike host — pending</Text>
-    </View>
-  );
+  return <SpikeScreen />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000',
-  },
-  text: {
-    color: '#fff',
-    fontSize: 18,
-  },
-});
