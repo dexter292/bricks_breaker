@@ -76,6 +76,9 @@ export type UseGameLoopOptions = {
   /** Host-owned mirrors written every frame (in-place World edits are silent). */
   livesOut: SharedValue<number>;
   simPhaseOut: SharedValue<number>;
+  scoreOut: SharedValue<number>;
+  comboOut: SharedValue<number>;
+  stallTierOut: SharedValue<number>;
   /**
    * JS-thread validated/compiled level. Worklets only apply — never parse (D-04, D-14).
    * Null → skip apply (host shows LevelErrorOverlay / gate setActive).
@@ -121,6 +124,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     uiPhase,
     livesOut,
     simPhaseOut,
+    scoreOut,
+    comboOut,
+    stallTierOut,
     compiled,
     drawOverlayFlag = false,
     hudFont = null,
@@ -164,6 +170,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       world.value = w;
       livesOut.value = w.lives;
       simPhaseOut.value = w.simPhase;
+      scoreOut.value = w.score;
+      comboOut.value = w.combo;
+      stallTierOut.value = w.stallTier;
     }
     if (!m) {
       m = createMetrics();
@@ -216,6 +225,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     // Publish chrome mirrors every frame (in-place World edits are invisible to reactions)
     livesOut.value = w.lives;
     simPhaseOut.value = w.simPhase;
+    scoreOut.value = w.score;
+    comboOut.value = w.combo;
+    stallTierOut.value = w.stallTier;
 
     const size = surfaceSize.value;
     picture.value = recordFrame(
@@ -260,8 +272,21 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     paddleTarget.value = w.paddleX;
     livesOut.value = w.lives;
     simPhaseOut.value = w.simPhase;
+    scoreOut.value = w.score;
+    comboOut.value = w.combo;
+    stallTierOut.value = w.stallTier;
     /* eslint-enable react-hooks/immutability */
-  }, [world, compiled, launchFlag, paddleTarget, livesOut, simPhaseOut]);
+  }, [
+    world,
+    compiled,
+    launchFlag,
+    paddleTarget,
+    livesOut,
+    simPhaseOut,
+    scoreOut,
+    comboOut,
+    stallTierOut,
+  ]);
 
   // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).

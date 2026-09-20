@@ -20,6 +20,9 @@ export type GameScreenProps = {
   uiPhase: GameScreenUiPhase;
   result: null | 'win' | 'lose';
   lives: number;
+  score: number;
+  combo: number;
+  stallTier: number;
   countdownNumeral: number | null;
   onPause: () => void;
   onResume: () => void;
@@ -43,6 +46,9 @@ export function GameScreen({
   uiPhase,
   result,
   lives,
+  score,
+  combo,
+  stallTier,
   countdownNumeral,
   onPause,
   onResume,
@@ -102,9 +108,14 @@ export function GameScreen({
           ]}
           pointerEvents="box-none"
         >
-          <Text pointerEvents="none" style={styles.lives}>
-            {`Lives · ${lives}`}
-          </Text>
+          <View style={styles.hudLeft} pointerEvents="none">
+            <Text style={styles.lives}>{`Lives · ${lives}`}</Text>
+            <Text style={styles.lives}>{`Score · ${score}`}</Text>
+            <Text style={styles.lives}>{`×${combo}`}</Text>
+            {stallTier > 0 ? (
+              <Text style={styles.lives}>{`Stall! · ${stallTier}`}</Text>
+            ) : null}
+          </View>
 
           {showPauseChrome ? (
             <Pressable
@@ -187,6 +198,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  hudLeft: {
+    flexDirection: 'column',
+    gap: 2,
   },
   lives: {
     color: '#FFFFFF',

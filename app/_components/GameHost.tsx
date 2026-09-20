@@ -52,8 +52,11 @@ export function GameHost() {
     null,
   );
   const [lives, setLives] = useState(3);
+  const [score, setScore] = useState<number>(0);
+  const [combo, setCombo] = useState(1);
+  const [stallTier, setStallTier] = useState<number>(0);
   const [result, setResult] = useState<null | 'win' | 'lose'>(null);
-  const [simPhaseNum, setSimPhaseNum] = useState(SIM.DOCKED);
+  const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
   const [levelId, setLevelId] = useState<LevelId>('level-01');
 
   // Sync validate+compile on JS when levelId changes (D-12, D-14) — derive UI from Result.
@@ -61,9 +64,12 @@ export function GameHost() {
   const levelError = loadResult.ok ? null : loadResult.issues;
   const levelReady = loadResult.ok;
 
-  const uiPhaseSv = useSharedValue(UiPhaseNum.PLAYING);
-  const simPhaseSv = useSharedValue(SIM.DOCKED);
-  const livesSv = useSharedValue(3);
+  const uiPhaseSv = useSharedValue<number>(UiPhaseNum.PLAYING);
+  const simPhaseSv = useSharedValue<number>(SIM.DOCKED);
+  const livesSv = useSharedValue<number>(3);
+  const scoreSv = useSharedValue<number>(0);
+  const comboSv = useSharedValue<number>(1);
+  const stallTierSv = useSharedValue<number>(0);
   const camScale = useSharedValue(1);
   const compiledSv = useSharedValue<CompiledLevel | null>(null);
 
@@ -106,6 +112,9 @@ export function GameHost() {
     uiPhase: uiPhaseSv,
     livesOut: livesSv,
     simPhaseOut: simPhaseSv,
+    scoreOut: scoreSv,
+    comboOut: comboSv,
+    stallTierOut: stallTierSv,
     compiled: compiledSv,
     onOsPause,
   });
@@ -157,6 +166,8 @@ export function GameHost() {
 
   // Dedicated SharedValue writes from the loop trigger this; World field
   // mutation alone would not (LC-07 chrome bridge).
+  // Lives/phase stay packed (8-bit safe). Score/combo/stall use separate
+  // reactions — scores exceed 8 bits and must not share the pack.
   useAnimatedReaction(
     () => (simPhaseSv.value << 8) | (livesSv.value & 0xff),
     (packed, prev) => {
@@ -164,6 +175,33 @@ export function GameHost() {
       const livesCount = packed & 0xff;
       if (prev === null || packed !== prev) {
         runOnJS(applyWorldChrome)(phase, livesCount);
+      }
+    },
+  );
+
+  useAnimatedReaction(
+    () => scoreSv.value,
+    (next, prev) => {
+      if (prev === null || next !== prev) {
+        runOnJS(setScore)(next);
+      }
+    },
+  );
+
+  useAnimatedReaction(
+    () => comboSv.value,
+    (next, prev) => {
+      if (prev === null || next !== prev) {
+        runOnJS(setCombo)(next);
+      }
+    },
+  );
+
+  useAnimatedReaction(
+    () => stallTierSv.value,
+    (next, prev) => {
+      if (prev === null || next !== prev) {
+        runOnJS(setStallTier)(next);
       }
     },
   );
@@ -201,6 +239,9 @@ export function GameHost() {
     setCountdownNumeral(null);
     setResult(null);
     setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
     setSimPhaseNum(SIM.DOCKED);
     setUiPhase('playing');
     retry();
@@ -244,6 +285,9 @@ export function GameHost() {
       uiPhase={uiPhase}
       result={result}
       lives={lives}
+      score={score}
+      combo={combo}
+      stallTier={stallTier}
       countdownNumeral={countdownNumeral}
       onPause={onPause}
       onResume={onResume}
