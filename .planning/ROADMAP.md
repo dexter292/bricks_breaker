@@ -156,7 +156,7 @@ Plans:
 - [x] 07-02-PLAN.md — Pure src/vfx intensity/trails/particles/shake/event batch (FX-01/02)
 - [x] 07-03-PLAN.md — services/audio mapping + expo-audio pools (FX-03)
 - [x] 07-04-PLAN.md — Baked glow + recordFrame trails/particles/shake (FX-01/02)
-- [ ] 07-05-PLAN.md — useGameLoop drain, eventBridge, intensity, PlayingHost preload
+- [x] 07-05-PLAN.md — useGameLoop drain, eventBridge, intensity, PlayingHost preload
 - [ ] 07-06-PLAN.md — Pixel 6a measurement doc + human UAT checkpoint
 **UI hint**: yes
 
