@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Phase 1 Wave 4 Task 2: human-verify SC-1/SC-2/SC-3 (iPhone launched; Android pending)"
-last_updated: "2026-09-20T02:51:00.000Z"
-last_activity: 2026-09-20 -- HUD useFont fix landed; iPhone 16 Pro launched against Metro
+status: verifying
+stopped_at: "Phase 1 verified gaps_found 5/8 — Android SC-3 open"
+last_updated: "2026-09-20T02:55:00.000Z"
+last_activity: 2026-09-20 -- Plan 01-04 SUMMARY + VERIFICATION gaps_found
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 100
 ---
 
 # Project State
@@ -21,34 +21,34 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-19)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Phase 01 — foundation-thread-boundary-spike
+**Current focus:** Phase 01 — foundation-thread-boundary-spike (gaps: Android SC-1/SC-2 + SC-3 FPS)
 
 ## Current Position
 
-Phase: 01 (foundation-thread-boundary-spike) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 01
-Last activity: 2026-09-20 -- Phase 01 execution started
+Phase: 01 (foundation-thread-boundary-spike) — GAPS FOUND (5/8)
+Plan: 4 of 4 complete; phase goal not fully met
+Status: Verification gaps — Android device gate deferred
+Last activity: 2026-09-20 -- 01-VERIFICATION.md status gaps_found
 
-Progress: [░░░░░░░░░░] 0%
+Progress: plans [██████████] 4/4 · phase goal incomplete
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 4 (Phase 01)
 - Average duration: —
-- Total execution time: 0 hours
+- Total execution time: —
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 4 | — | — |
 
 **Recent Trend:**
 
-- Last 5 plans: —
+- Last 5 plans: 01-01 … 01-04
 - Trend: —
 
 *Updated after each plan completion*
@@ -64,29 +64,28 @@ Recent decisions affecting current work:
 - [Roadmap]: Phases 1 → 2 → 3 stay strictly sequential (physics ↔ game loop ↔ rendering); 4∥5 and 6∥7 may run in parallel.
 - [Roadmap]: Level authoring (LVL-04) deliberately sits in the final phase so it is authored against locked feel constants.
 - [Roadmap]: v1 excludes haptics, paddle bump, and combo-tier juice (FX-04/05/06 are v2).
+- [Phase 1]: Skia 2.12.0 Confirmed; Android SC-3 deferred with human approval + D-04 Pixel 6a re-cert before MVP; no topology fallback.
 
 ### Pending Todos
 
-None yet.
+- Close Phase 1 verification gaps: Android install + profiling SC-2 + gfxinfo SC-3 (see 01-VERIFICATION.md)
 
 ### Blockers/Concerns
 
-- [Phase 1] The UI-thread-worklet simulation topology is unproven for a mutable game world; Phase 1 is an empirical gate with documented fallbacks (typed arrays in one shared value, or a JS-thread loop).
-- [Phase 1] Skia 2.12.0 overrides the SDK 57 pin (2.6.2). No source confirms this combination builds on EAS — must be smoke-tested on both platforms first.
-- [All phases] A specific mid-range Android reference device must be named in Phase 1; every later phase carries a measured frame-time criterion against it. The RN perf monitor is not acceptable evidence.
+- [Phase 1] Android reference device not attached — SC-1/SC-2 Android + SC-3 FPS open (D-04 debt).
+- [All phases] Mid-range Android reference must be named and measured before MVP acceptance.
 - [Phase 7] Whether baked glow sprites achieve the intended neon look is an art-direction question; fallback is a single full-screen shader bloom pass.
 - [Phase 7] No authoritative benchmark exists for expo-audio SFX latency on mid-range Android; migration to react-native-audio-api is the escape hatch if measurement demands it.
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
-
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| Device gate | Android SC-1/SC-2 + SC-3 gfxinfo (Pixel 6a) | Open — D-04 re-cert before MVP | 2026-09-20 |
+| Device gate | iOS profiling SC-2 re-run after SpaceMono HUD fix | Open | 2026-09-20 |
 
 ## Session Continuity
 
-Last session: 2026-09-20T02:00:26.810Z
-Stopped at: Phase 1 Wave 4: CHECKPOINT human-verify — on-device SC-1/SC-2/SC-3
-Resume file: .planning/phases/01-foundation-thread-boundary-spike/01-04-PLAN.md
+Last session: 2026-09-20T02:55:00.000Z
+Stopped at: Phase 1 VERIFICATION gaps_found — next `/gsd-plan-phase 1 --gaps`
+Resume file: .planning/phases/01-foundation-thread-boundary-spike/01-VERIFICATION.md
