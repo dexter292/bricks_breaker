@@ -70,7 +70,7 @@ Each task was committed atomically:
 2. **Task 1 (GREEN): planBrickDamageCues** - `e960e21` (feat)
 3. **Task 2: Skia drawLine crack/hatch** - `bf6e3d6` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `cafa38f` (docs: complete plan)
 
 ## Files Created/Modified
 
