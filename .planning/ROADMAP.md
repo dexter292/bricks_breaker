@@ -152,7 +152,7 @@ Plans:
 **Plans**: 7 plans
 Plans:
 - [x] 07-00-PLAN.md — Wave 0: expo-audio, LC-07/vfx boundaries, SFX placeholders, Nyquist stubs
-- [ ] 07-01-PLAN.md — EventCode POWERUP_CATCH/LIFE_LOST/WIN/LOSE + core push sites (FX-03)
+- [x] 07-01-PLAN.md — EventCode POWERUP_CATCH/LIFE_LOST/WIN/LOSE + core push sites (FX-03)
 - [ ] 07-02-PLAN.md — Pure src/vfx intensity/trails/particles/shake/event batch (FX-01/02)
 - [ ] 07-03-PLAN.md — services/audio mapping + expo-audio pools (FX-03)
 - [ ] 07-04-PLAN.md — Baked glow + recordFrame trails/particles/shake (FX-01/02)
