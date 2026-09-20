@@ -77,7 +77,7 @@ Each task was committed atomically:
 2. **Task 1 (GREEN): schema + validateLevel** - `7837538` (feat)
 3. **Task 2: migrations + loadAndCompile + compile stub** - `185de60` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `1303c27` (docs: complete plan)
 
 ## Files Created/Modified
 
@@ -98,7 +98,20 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] ROADMAP progress table not updated by gsd-tools**
+- **Found during:** Final docs commit
+- **Issue:** `roadmap update-plan-progress 04` left progress table at `| 1/5 |` despite two SUMMARYs
+- **Fix:** Manually set table row to `2/5 | In Progress`
+- **Files modified:** `.planning/ROADMAP.md`
+- **Verification:** Visual confirm of progress table
+- **Committed in:** follow-up docs commit
+
+---
+
+**Total deviations:** 1 auto-fixed (Rule 3)
+**Impact on plan:** Docs accuracy only; no code scope change.
 
 ## Issues Encountered
 
