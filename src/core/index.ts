@@ -28,6 +28,17 @@ export {
   SERVE_SPEED,
 } from './constants';
 export { loadPhase3Grid, assignSpatialBrickCells } from './levels/phase3Grid';
+export { SCHEMA_VERSION } from './levels/schema';
+export type {
+  BrickTypeDef,
+  LevelFileV1,
+  CompiledLevel,
+  ValidationIssue,
+} from './levels/schema';
+export { validateLevel } from './levels/validate';
+export { migrateLevel } from './levels/migrations';
+export { compileLevel } from './levels/compile';
+export { loadAndCompile } from './levels/load';
 export { dockBall, applyServe, processDocked } from './rules/serve';
 export { applyLivesFromEvents } from './rules/lives';
 export { countBreakableAlive, applyWinCheck } from './rules/win';

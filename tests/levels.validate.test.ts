@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { MAX_BRICKS } from '../src/core/constants';
+import { loadAndCompile } from '../src/core/levels/load';
 import { validateLevel } from '../src/core/levels/validate';
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/levels');
@@ -157,6 +158,15 @@ describe('levels.validate', () => {
     expect(spaced.ok).toBe(false);
     if (!spaced.ok) {
       expect(spaced.issues.some((i) => i.path.includes('cells'))).toBe(true);
+    }
+  });
+
+  it('loadAndCompile returns ok:false on invalid input without invoking compile stub', () => {
+    const result = loadAndCompile(loadFixture('invalid-schema-version.json'));
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.length).toBeGreaterThan(0);
+      expect(result.issues.some((i) => i.path === 'schemaVersion')).toBe(true);
     }
   });
 });
