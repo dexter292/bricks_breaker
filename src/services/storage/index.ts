@@ -7,4 +7,7 @@ export {
 export { evaluatePersonalBest } from './compareBest';
 export { parsePersonalBestBlob } from './parseBlob';
 export { createMemoryPersonalBestStore } from './memoryStore';
-export { createAsyncStoragePersonalBestStore } from './asyncStorageStore';
+export {
+  createAsyncStoragePersonalBestStore,
+  createDefaultPersonalBestStore,
+} from './asyncStorageStore';

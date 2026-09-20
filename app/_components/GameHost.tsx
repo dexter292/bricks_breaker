@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
-import { createAsyncStoragePersonalBestStore } from '../../src/services/storage';
+import { createDefaultPersonalBestStore } from '../../src/services/storage';
 import { PlayingHost } from './PlayingHost';
 import { TitleScreen } from './TitleScreen';
 
@@ -21,7 +21,7 @@ export function GameHost() {
 
   useEffect(() => {
     if (shellPhase !== 'title') return;
-    void createAsyncStoragePersonalBestStore()
+    void createDefaultPersonalBestStore()
       .getBest()
       .then(setBest)
       .catch(() => setBest(0));

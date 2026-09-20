@@ -23,7 +23,7 @@ import {
 } from '../../src/runtime/useGameLoop';
 import { defaultPlatformServices } from '../../src/services/platform';
 import {
-  createAsyncStoragePersonalBestStore,
+  createDefaultPersonalBestStore,
   evaluatePersonalBest,
 } from '../../src/services/storage';
 
@@ -71,7 +71,7 @@ export function PlayingHost({ onMenu }: Props) {
   const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
   const [levelId, setLevelId] = useState<LevelId>('level-01');
 
-  const store = useMemo(() => createAsyncStoragePersonalBestStore(), []);
+  const store = useMemo(() => createDefaultPersonalBestStore(), []);
   const platform = useMemo(() => defaultPlatformServices(), []);
   const previousBestRef = useRef(0);
   const runEndedRef = useRef(false);

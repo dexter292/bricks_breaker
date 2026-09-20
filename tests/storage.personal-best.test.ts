@@ -69,11 +69,14 @@ describe('parsePersonalBestBlob', () => {
   });
 });
 
-describe('createMemoryPersonalBestStore', () => {
-  it('getBest/setBest round-trip', async () => {
-    const store = createMemoryPersonalBestStore();
+describe('createDefaultPersonalBestStore', () => {
+  it('returns a working store without throwing when AsyncStorage native is absent (Node)', async () => {
+    const { createDefaultPersonalBestStore } = await import(
+      '../src/services/storage/asyncStorageStore'
+    );
+    const store = createDefaultPersonalBestStore();
     expect(await store.getBest()).toBe(0);
-    await store.setBest(42);
-    expect(await store.getBest()).toBe(42);
+    await store.setBest(7);
+    expect(await store.getBest()).toBe(7);
   });
 });
