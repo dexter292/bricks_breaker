@@ -3,7 +3,7 @@ phase: 7
 slug: feedback-neon-vfx-audio
 status: draft
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-09-20
 ---
 
@@ -38,32 +38,30 @@ created: 2026-09-20
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 07-W0-01 | 00 | 0 | FX-01 | — | N/A | unit | `npx vitest run tests/vfx.trails.test.ts` | ❌ W0 | ⬜ pending |
-| 07-W0-02 | 00 | 0 | FX-02 | — | N/A | unit | `npx vitest run tests/vfx.particles.test.ts` | ❌ W0 | ⬜ pending |
-| 07-W0-03 | 00 | 0 | FX-02 | — | N/A | unit | `npx vitest run tests/vfx.shake.test.ts` | ❌ W0 | ⬜ pending |
-| 07-W0-04 | 00 | 0 | FX-02 | — | N/A | unit | `npx vitest run tests/vfx.intensity.test.ts` | ❌ W0 | ⬜ pending |
-| 07-W0-05 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/events.fx.test.ts` | ❌ W0 | ⬜ pending |
-| 07-W0-06 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/audio.mapping.test.ts` | ❌ W0 | ⬜ pending |
-| 07-W0-07 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/runtime.event-drain.test.ts` | ❌ W0 | ⬜ pending |
+| 07-W0-01 | 00 | 0 | FX-01 | — | N/A | unit | `npx vitest run tests/vfx.trails.test.ts` | ✅ | ⬜ pending |
+| 07-W0-02 | 00 | 0 | FX-02 | — | N/A | unit | `npx vitest run tests/vfx.particles.test.ts` | ✅ | ⬜ pending |
+| 07-W0-03 | 00 | 0 | FX-02 | — | N/A | unit | `npx vitest run tests/vfx.shake.test.ts` | ✅ | ⬜ pending |
+| 07-W0-04 | 00 | 0 | FX-02 | — | N/A | unit | `npx vitest run tests/vfx.intensity.test.ts` | ✅ | ⬜ pending |
+| 07-W0-05 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/events.fx.test.ts` | ✅ | ⬜ pending |
+| 07-W0-06 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/audio.mapping.test.ts` | ✅ | ⬜ pending |
+| 07-W0-07 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/runtime.event-drain.test.ts` | ✅ | ⬜ pending |
 | TBD | TBD | TBD | FX-01/02 | — | N/A | manual-on-device | `adb shell dumpsys gfxinfo … framestats` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-
-*Task IDs above are Wave 0 placeholders — planner will replace with concrete plan/task IDs.*
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/vfx.trails.test.ts` — FX-01 length/bounds
-- [ ] `tests/vfx.particles.test.ts` — FX-02 pool/cap/intensity
-- [ ] `tests/vfx.shake.test.ts` — FX-02 merge/cap/decay
-- [ ] `tests/vfx.intensity.test.ts` — reduce-motion mapping
-- [ ] `tests/events.fx.test.ts` — new EventCodes + push sites
-- [ ] `tests/audio.mapping.test.ts` — routing + voice limit (mock players)
-- [ ] `tests/runtime.event-drain.test.ts` — multi-substep snapshot semantics
-- [ ] `npx expo install expo-audio` + app plugin config (mic off)
-- [ ] ESLint / `docs/layer-contract.md` updates: `runtime→vfx`, `render→vfx`, batched drain exception
+- [x] `tests/vfx.trails.test.ts` — FX-01 length/bounds
+- [x] `tests/vfx.particles.test.ts` — FX-02 pool/cap/intensity
+- [x] `tests/vfx.shake.test.ts` — FX-02 merge/cap/decay
+- [x] `tests/vfx.intensity.test.ts` — reduce-motion mapping
+- [x] `tests/events.fx.test.ts` — new EventCodes + push sites
+- [x] `tests/audio.mapping.test.ts` — routing + voice limit (mock players)
+- [x] `tests/runtime.event-drain.test.ts` — multi-substep snapshot semantics
+- [x] `npx expo install expo-audio` + app plugin config (mic off)
+- [x] ESLint / `docs/layer-contract.md` updates: `runtime→vfx`, `render→vfx`, batched drain exception
 
 ---
 
