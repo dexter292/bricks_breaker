@@ -1,5 +1,6 @@
 import type { World } from '../types';
-import { BrickFlags, SimPhase } from '../types';
+import { BrickFlags, EventCode, SimPhase } from '../types';
+import { pushEvent } from '../events/ring';
 
 /** Count bricks with hp>0 that are not UNBREAKABLE. */
 export function countBreakableAlive(world: World): number {
@@ -22,5 +23,6 @@ export function applyWinCheck(world: World): void {
   }
   if (countBreakableAlive(world) === 0) {
     world.simPhase = SimPhase.WON;
+    pushEvent(world, EventCode.WIN, 0, -1, 0, 0);
   }
 }

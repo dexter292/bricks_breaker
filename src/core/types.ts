@@ -12,6 +12,10 @@ export const EventCode = {
   BRICK_HIT: 3,
   BRICK_BREAK: 4,
   BALL_OUT: 5,
+  POWERUP_CATCH: 6,
+  LIFE_LOST: 7,
+  WIN: 8,
+  LOSE: 9,
 } as const;
 
 /** Brick flag bits (D-10). */

@@ -13,6 +13,7 @@
  */
 import type { World } from '../types';
 import { EventCode } from '../types';
+import { pushEvent } from '../events/ring';
 import { nextFloat } from '../rng/mulberry32';
 import { applyOrRefreshExpand } from './effects';
 import { spawnMultiballFromPaddle } from './multiball';
@@ -126,6 +127,7 @@ export function stepPickups(world: World, dt: number): void {
       const type = world.pickupType[i];
       world.pickupActive[i] = 0;
       world.pickupType[i] = 0;
+      pushEvent(world, EventCode.POWERUP_CATCH, type, -1, x, y);
       if (type === typeMultiball) {
         spawnMultiballFromPaddle(world);
       } else if (type === typeExpand) {

@@ -1,5 +1,6 @@
 import type { World } from '../types';
-import { SimPhase } from '../types';
+import { EventCode, SimPhase } from '../types';
+import { pushEvent } from '../events/ring';
 import { dockBall } from './serve';
 import { derivePaddleWidth } from './effects';
 
@@ -20,6 +21,7 @@ export function applyLivesFromBallCount(world: World): void {
   let lives = world.lives - 1;
   if (lives < 0) lives = 0;
   world.lives = lives;
+  pushEvent(world, EventCode.LIFE_LOST, lives, -1, world.paddleX, world.paddleY);
 
   if (lives > 0) {
     // D-13: clear falling pickups
@@ -48,5 +50,6 @@ export function applyLivesFromBallCount(world: World): void {
     dockBall(world);
   } else {
     world.simPhase = SimPhase.LOST;
+    pushEvent(world, EventCode.LOSE, 0, -1, world.paddleX, world.paddleY);
   }
 }
