@@ -29,7 +29,9 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "@vitest/coverage-v8": "5.0.1",
+    "typescript": "~6.0.3",
+    "vitest": "5.0.1"
   },
   "scripts": {
     "start": "expo start",
@@ -37,6 +39,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test": "vitest run",
+    "test:core": "vitest run src/core tests",
     "assert:skia": "node scripts/assert-skia-version.mjs"
   },
   "engines": {
