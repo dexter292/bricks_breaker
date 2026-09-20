@@ -1,5 +1,4 @@
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { GestureDetector, type ComposedGesture } from 'react-native-gesture-handler';
+import { Pressable, StyleSheet, Text, View } from 'react-native';import { GestureDetector, type ComposedGesture } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SharedValue } from 'react-native-reanimated';
 import type { SkPicture, SkSize } from '@shopify/react-native-skia';
@@ -44,9 +43,6 @@ export function GameScreen({
   showServeHint = false,
 }: GameScreenProps) {
   const insets = useSafeAreaInsets();
-  const { width: winW, height: winH } = useWindowDimensions();
-  const contentW = winW - insets.left - insets.right;
-  const contentH = winH - insets.top - insets.bottom;
 
   const showPauseChrome = uiPhase === 'playing' && result == null;
   const showPauseOverlay = uiPhase === 'paused' && result == null;
@@ -54,57 +50,65 @@ export function GameScreen({
     uiPhase === 'countdown' && result == null && countdownNumeral != null;
 
   return (
-    <View style={styles.root}>
-      <View
-        style={[
-          styles.content,
-          {
-            top: insets.top,
-            left: insets.left,
-            width: contentW,
-            height: contentH,
-          },
-        ]}
-      >
-        {/* Opaque canvas first — lowest z */}
-        <GestureDetector gesture={playfieldGesture}>
-          <View style={styles.playfield}>
-            <GameCanvas picture={picture} onSize={surfaceSize} />
-          </View>
-        </GestureDetector>
+    <View
+      style={[
+        styles.root,
+        {
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
+      {/*
+        GestureDetector must wrap a flex:1 host — absoluteFill under a
+        zero-height detector collapses Skia Canvas (Phase 1 used flex:1 root).
+      */}
+      <GestureDetector gesture={playfieldGesture}>
+        <View style={styles.playfield} collapsable={false}>
+          <GameCanvas picture={picture} onSize={surfaceSize} />
+        </View>
+      </GestureDetector>
 
-        {/* Chrome after canvas */}
-        <Text style={[styles.lives, { top: 16, left: 16 }]}>
-          {`Lives · ${lives}`}
+      {/* Chrome after canvas (absolute over flex playfield) */}
+      <Text style={[styles.lives, { top: insets.top + 16, left: insets.left + 16 }]}>
+        {`Lives · ${lives}`}
+      </Text>
+
+      {showPauseChrome ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Pause game"
+          onPress={onPause}
+          style={[
+            styles.pauseButton,
+            { top: insets.top + 16, right: insets.right + 16 },
+          ]}
+        >
+          <Text style={styles.pauseLabel}>Pause</Text>
+        </Pressable>
+      ) : null}
+
+      {showServeHint && showPauseChrome ? (
+        <Text
+          style={[styles.serveHint, { bottom: insets.bottom + 48 }]}
+        >
+          Tap to launch
         </Text>
+      ) : null}
 
-        {showPauseChrome ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Pause game"
-            onPress={onPause}
-            style={[styles.pauseButton, { top: 16, right: 16 }]}
-          >
-            <Text style={styles.pauseLabel}>Pause</Text>
-          </Pressable>
-        ) : null}
+      {showPauseOverlay ? (
+        <PauseOverlay onResume={onResume} onRetry={onRetry} />
+      ) : null}
 
-        {showServeHint && showPauseChrome ? (
-          <Text style={styles.serveHint}>Tap to launch</Text>
-        ) : null}
+      {showCountdown ? (
+        <CountdownOverlay numeral={countdownNumeral} />
+      ) : null}
 
-        {showPauseOverlay ? (
-          <PauseOverlay onResume={onResume} onRetry={onRetry} />
-        ) : null}
-
-        {showCountdown ? (
-          <CountdownOverlay numeral={countdownNumeral} />
-        ) : null}
-
-        {result != null ? (
-          <ResultOverlay kind={result} onRetry={onRetry} />
-        ) : null}
-      </View>
+      {result != null ? (
+        <ResultOverlay kind={result} onRetry={onRetry} />
+      ) : null}
     </View>
   );
 }
@@ -114,12 +118,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  content: {
-    position: 'absolute',
-    overflow: 'hidden',
-  },
   playfield: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
   },
   lives: {
     position: 'absolute',
@@ -148,7 +148,6 @@ const styles = StyleSheet.create({
   },
   serveHint: {
     position: 'absolute',
-    bottom: 48,
     alignSelf: 'center',
     left: 0,
     right: 0,

@@ -16,7 +16,8 @@ type Props = {
 export function GameCanvas({ picture, onSize }: Props) {
   return (
     <Canvas style={styles.canvas} opaque onSize={onSize}>
-      <Fill color="black" />
+      {/* Navy fallback so a missing Picture is never pure black */}
+      <Fill color="#1a1a2e" />
       <Picture picture={picture} />
     </Canvas>
   );
@@ -24,10 +25,6 @@ export function GameCanvas({ picture, onSize }: Props) {
 
 const styles = StyleSheet.create({
   canvas: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
   },
 });
