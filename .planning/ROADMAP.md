@@ -94,7 +94,7 @@ Plans:
 - [x] 04-00-PLAN.md — Wave 0: Nyquist stubs + invalid level fixtures
 - [x] 04-01-PLAN.md — schema/validate/migrations + loadAndCompile gate
 - [x] 04-02-PLAN.md — compile/apply + level-01/02 JSON + spatial SoA
-- [ ] 04-03-PLAN.md — damageCues + Skia crack/hatch in recordFrame
+- [x] 04-03-PLAN.md — damageCues + Skia crack/hatch in recordFrame
 - [ ] 04-04-PLAN.md — GameHost wire, LevelErrorOverlay, delete phase3Grid
 **UI hint**: no
 
