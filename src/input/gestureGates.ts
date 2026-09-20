@@ -9,6 +9,7 @@ export function shouldAcceptServeTap(args: {
   countdown: boolean;
   panActive: boolean;
 }): boolean {
+  'worklet';
   return (
     args.simPhaseDocked &&
     !args.uiPaused &&
@@ -22,5 +23,6 @@ export function shouldAcceptResumeTap(args: {
   countdown: boolean;
   fromResumeControl: boolean;
 }): boolean {
+  'worklet';
   return args.uiPaused && !args.countdown && args.fromResumeControl;
 }

@@ -8,10 +8,12 @@ export function clampPaddleCenter(
   paddleHalfW: number,
   logicalWidth: number,
 ): number {
+  'worklet';
   return Math.min(Math.max(x, paddleHalfW), logicalWidth - paddleHalfW);
 }
 
 function isFiniteNumber(n: number): boolean {
+  'worklet';
   return typeof n === 'number' && Number.isFinite(n);
 }
 
@@ -25,6 +27,7 @@ export function computeRelativePaddleX(args: {
   paddleHalfW: number;
   logicalWidth: number;
 }): number {
+  'worklet';
   const {
     anchorPaddleX,
     translationXPx,
