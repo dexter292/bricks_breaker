@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-09-20T09:51:32.761Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-09-20T09:56:01.230Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 28
-  completed_plans: 25
-  percent: 89
+  completed_plans: 26
+  percent: 93
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 05 (run-rules-score-combo-power-ups-anti-stall) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -56,6 +56,7 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 | Phase 05 P01 | 2min | 2 tasks | 8 files |
 | Phase 05 P02 | 2min | 2 tasks | 2 files |
 | Phase 05 P03 | 3min | 3 tasks | 6 files |
+| Phase 05 P04 | 3min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,9 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 - [Phase 05]: Task order effects → multiball → pickups so catch can import helpers
 - [Phase 05]: Even/odd SoA slot index signs ±18°/±36° multiball angles
 - [Phase 05]: Power-up barrel export + stepRun deferred to Plan 04
+- [Phase 05]: Deleted applyLivesFromEvents; life only when activeBallCount===0
+- [Phase 05]: Life-reset sets combo=1; preserves score and brick HP
+- [Phase 05]: stepRun PLAYING: score→drops→pickups→effects→lives→win (stall Plan 05)
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T09:51:32.759Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-09-20T09:56:01.228Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None
