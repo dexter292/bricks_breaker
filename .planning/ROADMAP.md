@@ -12,7 +12,7 @@ The journey runs from an empty repo to a single, shippable, 60-FPS neon arcade l
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Thread-Boundary Spike** - Prove the worklet-hosted simulation and Skia rendering bet on both real devices before any gameplay code
+- [x] **Phase 1: Foundation & Thread-Boundary Spike** - Prove the worklet-hosted simulation and Skia rendering bet on both real devices before any gameplay code
 - [ ] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
 - [ ] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
 - [ ] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
@@ -139,7 +139,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Thread-Boundary Spike | 0/4 | Not started | - |
+| 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
 | 2. Headless Core Simulation | 0/TBD | Not started | - |
 | 3. First Playable | 0/TBD | Not started | - |
 | 4. Level Format & Brick Types | 0/TBD | Not started | - |
