@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `core/` imports nothing from React, Skia, or Reanimated and runs unchanged in Node under Vitest; the separation of logic, physics, rendering, input, and UI is a written, checkable contract
 **Plans:** 4 plans
 Plans:
-- [ ] 01-01-PLAN.md — Bootstrap Expo SDK 57, Node 24, Skia 2.12.0, EAS profiles
+- [x] 01-01-PLAN.md — Bootstrap Expo SDK 57, Node 24, Skia 2.12.0, EAS profiles
 - [ ] 01-02-PLAN.md — core/ stub, Vitest smoke/purity, ESLint boundaries, layer contract
 - [ ] 01-03-PLAN.md — Worklet loop + SkPicture harness + overlay + thin app host
 - [ ] 01-04-PLAN.md — Device builds, FPS/worklet gates, Skia decision evidence
