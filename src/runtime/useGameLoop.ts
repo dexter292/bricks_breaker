@@ -72,6 +72,9 @@ export type UseGameLoopOptions = {
   launchFlag: SharedValue<number>;
   /** 0 playing, 1 paused, 2 countdown */
   uiPhase: SharedValue<number>;
+  /** Host-owned mirrors written every frame (in-place World edits are silent). */
+  livesOut: SharedValue<number>;
+  simPhaseOut: SharedValue<number>;
   /** Invoked from AppState auto-pause path (Task 2); host sets React pause UI. */
   onOsPause?: () => void;
   drawOverlayFlag?: boolean;
@@ -110,6 +113,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     paddleTarget,
     launchFlag,
     uiPhase,
+    livesOut,
+    simPhaseOut,
     drawOverlayFlag = false,
     hudFont = null,
     initialSprites = SPRITE_CAP,
@@ -146,6 +151,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       loadPhase3Grid(w);
       paddleTarget.value = w.paddleX;
       world.value = w;
+      livesOut.value = w.lives;
+      simPhaseOut.value = w.simPhase;
     }
     if (!m) {
       m = createMetrics();
@@ -195,6 +202,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       );
     }
 
+    // Publish chrome mirrors every frame (in-place World edits are invisible to reactions)
+    livesOut.value = w.lives;
+    simPhaseOut.value = w.simPhase;
+
     const size = surfaceSize.value;
     picture.value = recordFrame(
       w,
@@ -232,8 +243,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     /* eslint-disable react-hooks/immutability -- SharedValue writes (D-14) */
     launchFlag.value = 0;
     paddleTarget.value = w.paddleX;
+    livesOut.value = w.lives;
+    simPhaseOut.value = w.simPhase;
     /* eslint-enable react-hooks/immutability */
-  }, [world, launchFlag, paddleTarget]);
+  }, [world, launchFlag, paddleTarget, livesOut, simPhaseOut]);
 
   // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).

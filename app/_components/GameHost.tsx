@@ -45,7 +45,8 @@ export function GameHost() {
   const [simPhaseNum, setSimPhaseNum] = useState(SIM.DOCKED);
 
   const uiPhaseSv = useSharedValue(UiPhaseNum.PLAYING);
-  const simPhase = useSharedValue(SIM.DOCKED);
+  const simPhaseSv = useSharedValue(SIM.DOCKED);
+  const livesSv = useSharedValue(3);
   const camScale = useSharedValue(1);
 
   const countdownTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -59,7 +60,6 @@ export function GameHost() {
 
   useEffect(() => () => clearCountdown(), [clearCountdown]);
 
-  // Mirror React ui shell → SharedValue (discrete — not per physics frame)
   useEffect(() => {
     const mapped =
       uiPhase === 'playing'
@@ -70,26 +70,27 @@ export function GameHost() {
     uiPhaseSv.value = mapped;
   }, [uiPhase, uiPhaseSv]);
 
-  const { paddleTarget, launchFlag, gesture } = usePaddleGesture({
-    simPhase,
-    uiPhase: uiPhaseSv,
-    camScale,
-  });
-
   const onOsPause = useCallback(() => {
     clearCountdown();
     setCountdownNumeral(null);
     setUiPhase('paused');
   }, [clearCountdown]);
 
-  const { world, picture, surfaceSize, setActive, retry } = useGameLoop({
+  const { paddleTarget, launchFlag, gesture } = usePaddleGesture({
+    simPhase: simPhaseSv,
+    uiPhase: uiPhaseSv,
+    camScale,
+  });
+
+  const { picture, surfaceSize, setActive, retry } = useGameLoop({
     paddleTarget,
     launchFlag,
     uiPhase: uiPhaseSv,
+    livesOut: livesSv,
+    simPhaseOut: simPhaseSv,
     onOsPause,
   });
 
-  // Keep camScale in sync with letterboxed surface (same as makeCamera)
   useAnimatedReaction(
     () => {
       const s = surfaceSize.value;
@@ -120,22 +121,13 @@ export function GameHost() {
     [setActive],
   );
 
-  // Discrete phase/lives edges only (LC-07 exception lives in app/, not runtime)
+  // Dedicated SharedValue writes from the loop trigger this; World field
+  // mutation alone would not (LC-07 chrome bridge).
   useAnimatedReaction(
-    () => {
-      const w = world.value;
-      if (!w) {
-        return -1;
-      }
-      return (w.simPhase << 8) | (w.lives & 0xff);
-    },
+    () => (simPhaseSv.value << 8) | (livesSv.value & 0xff),
     (packed, prev) => {
-      if (packed < 0) {
-        return;
-      }
       const phase = packed >> 8;
       const livesCount = packed & 0xff;
-      simPhase.value = phase;
       if (prev === null || packed !== prev) {
         runOnJS(applyWorldChrome)(phase, livesCount);
       }
@@ -153,7 +145,6 @@ export function GameHost() {
     clearCountdown();
     setUiPhase('countdown');
     setCountdownNumeral(3);
-    // Keep frozen through countdown — do not setActive(true) yet
     const t1 = setTimeout(() => setCountdownNumeral(2), 1000);
     const t2 = setTimeout(() => setCountdownNumeral(1), 2000);
     const t3 = setTimeout(() => {

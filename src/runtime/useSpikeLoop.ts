@@ -27,11 +27,15 @@ export function useSpikeLoop(
   const paddleTarget = useSharedValue(180);
   const launchFlag = useSharedValue(0);
   const uiPhase = useSharedValue(UiPhaseNum.PLAYING);
+  const livesOut = useSharedValue(3);
+  const simPhaseOut = useSharedValue(0);
 
   const loop = useGameLoop({
     paddleTarget,
     launchFlag,
     uiPhase,
+    livesOut,
+    simPhaseOut,
     drawOverlayFlag,
     hudFont,
     initialSprites,
