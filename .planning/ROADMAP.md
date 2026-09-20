@@ -132,7 +132,7 @@ Plans:
 **Plans**: 6 plans
 Plans:
 - [x] 06-00-PLAN.md — Wave 0: AsyncStorage 2.2.0, ESLint app→services, Nyquist stubs
-- [ ] 06-01-PLAN.md — services/storage personal best (compare + AsyncStorage + GREEN tests)
+- [x] 06-01-PLAN.md — services/storage personal best (compare + AsyncStorage + GREEN tests)
 - [ ] 06-02-PLAN.md — services/platform no-op seams (onRunEnded + GREEN tests)
 - [ ] 06-03-PLAN.md — Title/PlayingHost shell + Menu on Pause/Results (RUN-03)
 - [ ] 06-04-PLAN.md — HudStrip + playfieldSafe.top = insets.top + 48 (PLT-02)
