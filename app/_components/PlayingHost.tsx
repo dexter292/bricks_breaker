@@ -25,7 +25,7 @@ import {
   type PlayBatchFn,
 } from '../../src/runtime/useGameLoop';
 import { useVfxIntensity } from '../../src/runtime/useVfxIntensity';
-import { createDefaultAudioService } from '../../src/services/audio';
+import { createDefaultAudioService, createMemoryAudioService } from '../../src/services/audio';
 import { defaultPlatformServices } from '../../src/services/platform';
 import {
   createDefaultPersonalBestStore,
@@ -78,7 +78,17 @@ export function PlayingHost({ onMenu }: Props) {
 
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
   const platform = useMemo(() => defaultPlatformServices(), []);
-  const audio = useMemo(() => createDefaultAudioService(), []);
+  // Soft-fail: stale native binary without ExpoAudio must not crash play (D-24).
+  const audio = useMemo(() => {
+    try {
+      return createDefaultAudioService();
+    } catch (err) {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn('[audio] PlayingHost createDefaultAudioService soft-fail', err);
+      }
+      return createMemoryAudioService();
+    }
+  }, []);
   const previousBestRef = useRef(0);
   const runEndedRef = useRef(false);
   /** Cold-path gate: SFX preload + glow bake settled (success or soft-fail). */

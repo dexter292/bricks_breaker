@@ -188,8 +188,29 @@ type ExpoAudioModule = {
   setAudioModeAsync: (mode: { playsInSilentMode: boolean }) => Promise<void>;
 };
 
-function loadExpoAudio(): ExpoAudioModule | null {
+/**
+ * Probe for the ExpoAudio native module WITHOUT importing `expo-audio`.
+ * `expo-audio`'s entry calls `requireNativeModule('ExpoAudio')`, which throws
+ * (and can surface as Uncaught Error under Fast Refresh) when the binary was
+ * built before the dependency was added. Soft-fail must never crash play (D-24).
+ */
+function isExpoAudioNativeAvailable(): boolean {
   if (typeof process !== 'undefined' && process.env.VITEST) {
+    return false;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- optional native probe
+    const { requireOptionalNativeModule } = require('expo-modules-core') as {
+      requireOptionalNativeModule: (name: string) => unknown;
+    };
+    return requireOptionalNativeModule('ExpoAudio') != null;
+  } catch {
+    return false;
+  }
+}
+
+function loadExpoAudio(): ExpoAudioModule | null {
+  if (!isExpoAudioNativeAvailable()) {
     return null;
   }
   try {
@@ -222,20 +243,26 @@ export function createExpoAudioService(): AudioService {
 /**
  * Prefer expo-audio when linked; otherwise memory. Soft-fail never blocks play
  * with a modal (D-24 / UI-SPEC / T-07-14).
+ *
+ * Missing native module (stale Expo Go / pre-`expo-audio` dev client) → memory
+ * service + console.warn — never throw into PlayingHost.
  */
 export function createDefaultAudioService(): AudioService {
-  const audio = loadExpoAudio();
-  if (!audio) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.warn(
-        '[audio] expo-audio native module missing — using memory AudioService. Rebuild the dev client for SFX.',
-      );
-    }
-    return createMemoryAudioService();
-  }
   try {
+    const audio = loadExpoAudio();
+    if (!audio) {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn(
+          '[audio] ExpoAudio native module missing — using memory AudioService (no SFX). Rebuild with `npx expo run:ios` or `npx expo run:android` after adding expo-audio.',
+        );
+      }
+      return createMemoryAudioService();
+    }
     return createExpoAudioService();
-  } catch {
+  } catch (err) {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.warn('[audio] createDefaultAudioService soft-fail', err);
+    }
     return createMemoryAudioService();
   }
 }
