@@ -7,7 +7,6 @@ import { BrickFlags, SimPhase } from './types';
  *
  * Docks ball on paddle (vx=vy=0, simPhase=DOCKED). Clears bricks —
  * callers invoke applyCompiledLevel(world, compiled) or loadTestGrid.
- * loadPhase3Grid is deprecated (removed in Plan 04-04).
  */
 export function resetWorld(
   world: World,

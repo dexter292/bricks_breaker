@@ -27,7 +27,6 @@ export {
   DEFAULT_LIVES,
   SERVE_SPEED,
 } from './constants';
-export { loadPhase3Grid } from './levels/phase3Grid';
 export { assignSpatialBrickCells } from './levels/spatial';
 export { applyCompiledLevel } from './levels/apply';
 export { SCHEMA_VERSION } from './levels/schema';

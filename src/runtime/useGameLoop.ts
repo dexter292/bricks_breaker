@@ -9,11 +9,12 @@ import type { SkFont, SkPicture, SkSize } from '@shopify/react-native-skia';
 import { Skia } from '@shopify/react-native-skia';
 import {
   allocateWorld,
+  applyCompiledLevel,
   dockBall,
-  loadPhase3Grid,
   resetWorld,
   stepRun,
   SimPhase,
+  type CompiledLevel,
   type World,
 } from '../core';
 import { recordFrame } from '../render/recordSprites';
@@ -75,6 +76,11 @@ export type UseGameLoopOptions = {
   /** Host-owned mirrors written every frame (in-place World edits are silent). */
   livesOut: SharedValue<number>;
   simPhaseOut: SharedValue<number>;
+  /**
+   * JS-thread validated/compiled level. Worklets only apply — never parse (D-04, D-14).
+   * Null → skip apply (host shows LevelErrorOverlay / gate setActive).
+   */
+  compiled: SharedValue<CompiledLevel | null>;
   /** Invoked from AppState auto-pause path (Task 2); host sets React pause UI. */
   onOsPause?: () => void;
   drawOverlayFlag?: boolean;
@@ -115,6 +121,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     uiPhase,
     livesOut,
     simPhaseOut,
+    compiled,
     drawOverlayFlag = false,
     hudFont = null,
     initialSprites = SPRITE_CAP,
@@ -148,7 +155,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     if (!w) {
       w = allocateWorld();
       resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
-      loadPhase3Grid(w);
+      const level = compiled.value;
+      if (level != null) {
+        applyCompiledLevel(w, level);
+      }
       paddleTarget.value = w.paddleX;
       world.value = w;
       livesOut.value = w.lives;
@@ -233,12 +243,16 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
 
   const retry = useCallback(() => {
     // Discrete phase transition on JS thread (Plan 04 contract — app never imports core).
+    // Reloads current compiled only — never cycles levels (D-11).
     const w = world.value;
     if (!w) {
       return;
     }
     resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
-    loadPhase3Grid(w);
+    const level = compiled.value;
+    if (level != null) {
+      applyCompiledLevel(w, level);
+    }
     dockBall(w);
     /* eslint-disable react-hooks/immutability -- SharedValue writes (D-14) */
     launchFlag.value = 0;
@@ -246,7 +260,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     livesOut.value = w.lives;
     simPhaseOut.value = w.simPhase;
     /* eslint-enable react-hooks/immutability */
-  }, [world, launchFlag, paddleTarget, livesOut, simPhaseOut]);
+  }, [world, compiled, launchFlag, paddleTarget, livesOut, simPhaseOut]);
 
   // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).
