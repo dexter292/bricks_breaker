@@ -41,6 +41,10 @@ export { validateLevel } from './levels/validate';
 export { migrateLevel } from './levels/migrations';
 export { compileLevel } from './levels/compile';
 export { loadAndCompile } from './levels/load';
+export {
+  planBrickDamageCues,
+  type BrickCueStroke,
+} from './levels/damageCues';
 export { dockBall, applyServe, processDocked } from './rules/serve';
 export { applyLivesFromEvents } from './rules/lives';
 export { countBreakableAlive, applyWinCheck } from './rules/win';
