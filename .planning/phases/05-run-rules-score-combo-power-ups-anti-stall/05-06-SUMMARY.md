@@ -73,7 +73,7 @@ Each task was committed atomically:
 2. **Task 2: Flat pickup sprites in recordFrame** - `edac144` (feat)
 3. **Task 3: Human verify Score/combo/Stall chrome + pickup catch** - approved (no code commit)
 
-**Plan metadata:** _(pending docs commit)_
+**Plan metadata:** `f1b39bf`
 
 ## Files Created/Modified
 
