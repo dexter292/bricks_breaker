@@ -37,7 +37,7 @@ Plans:
 - [x] 01-01-PLAN.md — Bootstrap Expo SDK 57, Node 24, Skia 2.12.0, EAS profiles
 - [x] 01-02-PLAN.md — core/ stub, Vitest smoke/purity, ESLint boundaries, layer contract
 - [x] 01-03-PLAN.md — Worklet loop + SkPicture harness + overlay + thin app host
-- [ ] 01-04-PLAN.md — Device builds, FPS/worklet gates, Skia decision evidence
+- [x] 01-04-PLAN.md — Device builds, FPS/worklet gates, Skia decision evidence
 **UI hint**: no
 
 ### Phase 2: Headless Core Simulation
