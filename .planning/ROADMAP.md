@@ -113,7 +113,7 @@ Plans:
 - [x] 05-00-PLAN.md — Wave 0 Nyquist stubs for scoring/pickups/effects/multiball/stall/lives
 - [x] 05-01-PLAN.md — World SoA + constants + hash + ball-pool compact (activeBallCount)
 - [x] 05-02-PLAN.md — Score + combo from event ring (RUN-01, award-then-increment)
-- [ ] 05-03-PLAN.md — Pickups, expand effects, multi-ball spawn (PWR-01/02/03 modules)
+- [x] 05-03-PLAN.md — Pickups, expand effects, multi-ball spawn (PWR-01/02/03 modules)
 - [ ] 05-04-PLAN.md — Last-ball lives + stepRun orchestration
 - [ ] 05-05-PLAN.md — Deterministic anti-stall tiers (PHYS-07)
 - [ ] 05-06-PLAN.md — Score/combo/Stall! SharedValue chrome + flat pickups
