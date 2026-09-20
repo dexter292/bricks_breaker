@@ -55,4 +55,38 @@ describe('win rules (last breakable)', () => {
     expect(countBreakableAlive(w)).toBe(0);
     expect(w.brickHp[1]).toBeGreaterThan(0); // steel still present
   });
+
+  it('cleared board + no balls on final life → WON (not LOST)', () => {
+    const w = allocateWorld();
+    resetWorld(w, 5, 6);
+    // Empty grid (brickCount 0) — board already clear
+    w.simPhase = SimPhase.PLAYING;
+    w.lives = 1;
+    for (let i = 0; i < w.maxBalls; i++) {
+      w.ballActive[i] = 0;
+    }
+    w.activeBallCount = 0;
+
+    stepRun(w, { paddleX: 180, launch: 0 }, FIXED_DT);
+
+    expect(w.simPhase).toBe(SimPhase.WON);
+    expect(w.lives).toBe(1);
+    expect(countBreakableAlive(w)).toBe(0);
+  });
+
+  it('cleared board + no balls with lives remaining → WON (not DOCKED)', () => {
+    const w = allocateWorld();
+    resetWorld(w, 7, 8);
+    w.simPhase = SimPhase.PLAYING;
+    w.lives = 3;
+    for (let i = 0; i < w.maxBalls; i++) {
+      w.ballActive[i] = 0;
+    }
+    w.activeBallCount = 0;
+
+    stepRun(w, { paddleX: 180, launch: 0 }, FIXED_DT);
+
+    expect(w.simPhase).toBe(SimPhase.WON);
+    expect(w.lives).toBe(3);
+  });
 });

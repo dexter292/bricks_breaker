@@ -143,6 +143,8 @@ describe('lives rules (last-ball)', () => {
   it('stepRun last-ball miss decrements life once and docks', () => {
     const w = allocateWorld();
     resetWorld(w, 1, 2);
+    // Keep a breakable alive so win check does not short-circuit life loss.
+    loadTestGrid(w, [{ x: 40, y: 80, w: 36, h: 16, hp: 1 }]);
     w.simPhase = SimPhase.PLAYING;
     w.lives = 3;
     w.score = 77;

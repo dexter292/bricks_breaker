@@ -41,7 +41,8 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
     return;
   }
 
-  // PLAYING — score → drops → pickups → effects → stall → lives → win
+  // PLAYING — score → drops → pickups → effects → stall → win → lives
+  // Win before lives: cleared board + last-ball miss same step → WON, not LOST/DOCKED.
   clearEvents(world);
   stepWorld(world, intent, dt);
   applyScoringFromEvents(world);
@@ -49,6 +50,8 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
   stepPickups(world, dt);
   stepEffects(world);
   stepAntiStall(world);
-  applyLivesFromBallCount(world);
   applyWinCheck(world);
+  if (world.simPhase === SimPhase.PLAYING) {
+    applyLivesFromBallCount(world);
+  }
 }
