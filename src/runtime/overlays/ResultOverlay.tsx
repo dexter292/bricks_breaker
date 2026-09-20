@@ -3,15 +3,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   kind: 'win' | 'lose';
+  score: number;
+  best: number;
+  isNewRecord: boolean;
   onRetry: () => void;
   onMenu: () => void;
 };
 
 /**
- * Minimal Win / Lose overlay + Retry + Menu (UI-SPEC D-04). No confirmation.
- * Score/Best/New Record arrive in Plan 05. Centered in safe area.
+ * Win / Lose overlay + Score/Best/New Record + Retry + Menu (UI-SPEC D-11).
+ * No confirmation. Centered in safe area.
  */
-export function ResultOverlay({ kind, onRetry, onMenu }: Props) {
+export function ResultOverlay({
+  kind,
+  score,
+  best,
+  isNewRecord,
+  onRetry,
+  onMenu,
+}: Props) {
   const insets = useSafeAreaInsets();
   const isWin = kind === 'win';
   return (
@@ -31,14 +41,19 @@ export function ResultOverlay({ kind, onRetry, onMenu }: Props) {
         <Text style={[styles.heading, !isWin && styles.loseHeading]}>
           {isWin ? 'Win' : 'Lose'}
         </Text>
-        <Text style={styles.body}>
-          {isWin ? 'All clear' : 'Out of lives'}
-        </Text>
+        <Text style={styles.body}>{isWin ? 'All clear' : 'Out of lives'}</Text>
+        <Text style={styles.metric}>Score · {score}</Text>
+        <Text style={styles.metric}>Best · {best}</Text>
+        {isNewRecord ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeLabel}>New Record</Text>
+          </View>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Retry level"
           onPress={onRetry}
-          style={styles.button}
+          style={[styles.button, styles.retrySpaced]}
         >
           <Text style={styles.buttonLabel}>Retry</Text>
         </Pressable>
@@ -88,7 +103,29 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 24,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 16,
+  },
+  metric: {
+    color: '#FFFFFF',
+    fontFamily: 'SpaceMono',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  badge: {
+    alignSelf: 'center',
+    backgroundColor: '#F2CC8F',
+    padding: 4,
+    marginBottom: 16,
+  },
+  badgeLabel: {
+    color: '#1a1a2e',
+    fontFamily: 'SpaceMono',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   },
   button: {
     minHeight: 44,
@@ -98,6 +135,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
+  },
+  retrySpaced: {
+    marginTop: 16,
   },
   buttonSpaced: {
     marginTop: 16,

@@ -28,6 +28,8 @@ export type GameScreenProps = {
   result: null | 'win' | 'lose';
   lives: number;
   score: number;
+  best: number;
+  isNewRecord: boolean;
   combo: number;
   stallTier: number;
   /** Numeric SimPhase mirror from host (0=DOCKED, 1=PLAYING, …). */
@@ -57,6 +59,8 @@ export function GameScreen({
   result,
   lives,
   score,
+  best,
+  isNewRecord,
   combo,
   stallTier,
   simPhaseNum = 0,
@@ -165,7 +169,14 @@ export function GameScreen({
         ) : null}
 
         {showResult ? (
-          <ResultOverlay kind={result!} onRetry={onRetry} onMenu={onMenu} />
+          <ResultOverlay
+            kind={result!}
+            score={score}
+            best={best}
+            isNewRecord={isNewRecord}
+            onRetry={onRetry}
+            onMenu={onMenu}
+          />
         ) : null}
 
         {hasLevelError ? <LevelErrorOverlay issues={levelError!} /> : null}

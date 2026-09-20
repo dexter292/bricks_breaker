@@ -291,6 +291,8 @@ export function PlayingHost({ onMenu }: Props) {
       result={result}
       lives={lives}
       score={score}
+      best={0}
+      isNewRecord={false}
       combo={combo}
       stallTier={stallTier}
       simPhaseNum={simPhaseNum}
