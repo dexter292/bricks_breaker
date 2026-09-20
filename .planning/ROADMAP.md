@@ -74,8 +74,8 @@ Plans:
 - [x] 03-00-PLAN.md — Wave 0: pure drag/gate/freeze helpers + Vitest stubs
 - [x] 03-01-PLAN.md — Core dock/serve/lives/win + phase3Grid + stepRun
 - [x] 03-02-PLAN.md — Letterbox camera + entity SkPicture + GameCanvas
-- [ ] 03-03-PLAN.md — Relative-drag Race(Pan,Tap) gesture hook
-- [ ] 03-04-PLAN.md — useGameLoop Intent/stepRun + AppState freeze
+- [x] 03-03-PLAN.md — Relative-drag Race(Pan,Tap) gesture hook
+- [x] 03-04-PLAN.md — useGameLoop Intent/stepRun + AppState freeze
 - [ ] 03-05-PLAN.md — GameHost overlays + playable UAT checkpoint
 **UI hint**: yes
 
