@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { GestureDetector, type ComposedGesture } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SharedValue } from 'react-native-reanimated';
@@ -6,6 +6,7 @@ import type { SkPicture, SkSize } from '@shopify/react-native-skia';
 import type { ReactNode } from 'react';
 import { GameCanvas } from '../render/GameCanvas';
 import type { ValidationIssue } from './loadLevel';
+import { HudStrip } from './HudStrip';
 import { CountdownOverlay } from './overlays/CountdownOverlay';
 import { LevelErrorOverlay } from './overlays/LevelErrorOverlay';
 import { PauseOverlay } from './overlays/PauseOverlay';
@@ -15,6 +16,9 @@ export type GameScreenUiPhase = 'playing' | 'paused' | 'countdown';
 
 /** Mirror SimPhase.PLAYING — app/runtime must not import src/core (LC-05). */
 const SIM_PLAYING = 1;
+
+/** HUD strip content height (UI-SPEC) — playfield starts below notch + strip. */
+const HUD_STRIP_CONTENT = 48;
 
 export type GameScreenProps = {
   picture: SharedValue<SkPicture>;
@@ -42,7 +46,7 @@ export type GameScreenProps = {
 };
 
 /**
- * Playfield letterboxes inside the safe area (black root = bars).
+ * Playfield letterboxes inside the safe area below the HUD strip (black root = bars).
  * HUD + overlays are explicitly absolute so they cannot fall to the bottom.
  */
 export function GameScreen({
@@ -78,24 +82,24 @@ export function GameScreen({
     result == null &&
     countdownNumeral != null;
   const showResult = !hasLevelError && result != null;
-  // D-18: stall persists across life reset, but chrome only during active play.
+  // D-09 / D-18: stall persists across life reset, but chrome only during active play.
   const showStall =
     stallTier > 0 &&
     result == null &&
     uiPhase === 'playing' &&
     simPhaseNum === SIM_PLAYING;
 
-  const padH = Math.max(insets.left, 16);
+  const playfieldTop = insets.top + HUD_STRIP_CONTENT;
   const padR = Math.max(insets.right, 16);
 
   return (
     <View style={styles.root}>
-      {/* Safe-area playfield — Skia letterboxes into this box (D-03). */}
+      {/* Safe-area playfield below HUD strip — Skia letterboxes into this box (D-14/D-15). */}
       <View
         style={[
           styles.playfieldSafe,
           {
-            top: insets.top,
+            top: playfieldTop,
             bottom: insets.bottom,
             left: insets.left,
             right: insets.right,
@@ -111,45 +115,24 @@ export function GameScreen({
 
       {/* Chrome above opaque canvas — every child is position:absolute. */}
       <View style={styles.chrome} pointerEvents="box-none">
-        <View
-          style={[
-            styles.hud,
-            {
-              top: insets.top + 16,
-              left: padH,
-              right: padR,
-            },
-          ]}
-          pointerEvents="box-none"
-        >
-          <View style={styles.hudLeft} pointerEvents="none">
-            <Text style={styles.lives}>{`Lives · ${lives}`}</Text>
-            <Text style={styles.lives}>{`Score · ${score}`}</Text>
-            <Text style={styles.lives}>{`×${combo}`}</Text>
-            {showStall ? (
-              <Text style={styles.lives}>{`Stall! · ${stallTier}`}</Text>
-            ) : null}
-          </View>
-
-          {showPauseChrome ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Pause game"
-              onPress={onPause}
-              pointerEvents="auto"
-              hitSlop={8}
-              style={styles.pauseButton}
-            >
-              <Text style={styles.pauseLabel}>Pause</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        <HudStrip
+          score={score}
+          combo={combo}
+          lives={lives}
+          stallTier={stallTier}
+          showStall={showStall}
+          showPause={showPauseChrome}
+          onPause={onPause}
+          top={insets.top}
+          left={insets.left}
+          right={insets.right}
+        />
 
         {devLevelSwitch != null ? (
           <View
             style={[
               styles.devSwitchSlot,
-              { top: insets.top + 60, right: padR },
+              { top: insets.top + HUD_STRIP_CONTENT + 8, right: padR },
             ]}
             pointerEvents="box-none"
           >
@@ -210,41 +193,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 10,
     elevation: 10,
-  },
-  hud: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  hudLeft: {
-    flexDirection: 'column',
-    gap: 2,
-  },
-  lives: {
-    color: '#FFFFFF',
-    fontFamily: 'SpaceMono',
-    fontSize: 14,
-    fontWeight: '400',
-    lineHeight: 20,
-  },
-  pauseButton: {
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#12121f',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  pauseLabel: {
-    color: '#FFFFFF',
-    fontFamily: 'SpaceMono',
-    fontSize: 14,
-    fontWeight: '400',
-    lineHeight: 20,
   },
   serveHint: {
     position: 'absolute',
