@@ -73,7 +73,7 @@ Each task was committed atomically (TDD test → feat):
 1. **Task 1: Rewrite lives to last-ball + D-13 cleanup** - `08f02ee` (test) + `40e1a6f` (feat)
 2. **Task 2: Wire stepRun orchestration** - `99a8533` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `1cdcbce`
 
 ## Files Created/Modified
 
