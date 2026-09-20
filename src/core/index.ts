@@ -74,7 +74,15 @@ export {
   type BrickCueStroke,
 } from './levels/damageCues';
 export { dockBall, applyServe, processDocked } from './rules/serve';
-export { applyLivesFromEvents } from './rules/lives';
+export { applyLivesFromBallCount } from './rules/lives';
+export { applyScoringFromEvents } from './rules/scoring';
+export { applyDropsFromBreaks, stepPickups } from './rules/pickups';
+export {
+  applyOrRefreshExpand,
+  stepEffects,
+  derivePaddleWidth,
+} from './rules/effects';
+export { spawnMultiballFromPaddle } from './rules/multiball';
 export { countBreakableAlive, applyWinCheck } from './rules/win';
 export { sweepCircleAabb } from './physics/sweep';
 export { forEachBrickCandidate } from './physics/broadphase';

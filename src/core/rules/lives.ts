@@ -1,31 +1,19 @@
 import type { World } from '../types';
-import { EventCode, SimPhase } from '../types';
+import { SimPhase } from '../types';
 import { dockBall } from './serve';
+import { derivePaddleWidth } from './effects';
 
 /**
- * Scan event ring for BALL_OUT → decrement lives; re-dock or LOST.
- * Does not clear the ring (stepRun / stepWorld own clear policy).
+ * Last-ball life (D-12 / D-13): decrement only when activeBallCount === 0.
+ * Does not scan BALL_OUT events — multi-ball outs while others remain are free.
  */
-export function applyLivesFromEvents(world: World): void {
+export function applyLivesFromBallCount(world: World): void {
   'worklet';
   if (world.simPhase !== SimPhase.PLAYING) {
     return;
   }
 
-  const n = world.evCount;
-  if (n <= 0) {
-    return;
-  }
-  const start = (world.evHead - n + world.evCap) % world.evCap;
-  let ballOut = false;
-  for (let i = 0; i < n; i++) {
-    const idx = (start + i) % world.evCap;
-    if (world.evCode[idx] === EventCode.BALL_OUT) {
-      ballOut = true;
-      break;
-    }
-  }
-  if (!ballOut) {
+  if (world.activeBallCount > 0) {
     return;
   }
 
@@ -34,6 +22,28 @@ export function applyLivesFromEvents(world: World): void {
   world.lives = lives;
 
   if (lives > 0) {
+    // D-13: clear falling pickups
+    const maxP = world.maxPickups;
+    for (let i = 0; i < maxP; i++) {
+      world.pickupActive[i] = 0;
+      world.pickupType[i] = 0;
+      world.pickupX[i] = 0;
+      world.pickupY[i] = 0;
+    }
+    world.pickupCount = 0;
+
+    // Expire expand / all effects; restore base paddle width
+    const maxE = world.maxEffects;
+    for (let i = 0; i < maxE; i++) {
+      world.effectType[i] = 0;
+      world.effectUntilTick[i] = 0;
+    }
+    world.effectCount = 0;
+    derivePaddleWidth(world);
+
+    // Preserve score; reset combo on life loss
+    world.combo = 1;
+
     world.simPhase = SimPhase.DOCKED;
     dockBall(world);
   } else {

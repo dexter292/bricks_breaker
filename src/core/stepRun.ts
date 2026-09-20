@@ -3,7 +3,7 @@ import { SimPhase } from './types';
 import { stepWorld } from './step';
 import { clearEvents } from './events/ring';
 import { processDocked } from './rules/serve';
-import { applyLivesFromEvents } from './rules/lives';
+import { applyLivesFromBallCount } from './rules/lives';
 import { applyWinCheck } from './rules/win';
 
 /**
@@ -39,6 +39,6 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
   // PLAYING
   clearEvents(world);
   stepWorld(world, intent, dt);
-  applyLivesFromEvents(world);
+  applyLivesFromBallCount(world);
   applyWinCheck(world);
 }

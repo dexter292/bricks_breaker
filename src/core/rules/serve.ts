@@ -2,9 +2,16 @@ import type { Intent, World } from '../types';
 import { SimPhase } from '../types';
 import { resolvePaddleEnglish } from '../physics/resolve';
 
-/** Snap ball[0] to paddle top center; zero velocity; keep active. */
+/**
+ * Deactivate all ball slots, then dock index 0 on paddle (activeBallCount=1).
+ * Does not touch score (D-13).
+ */
 export function dockBall(world: World): void {
   'worklet';
+  const maxB = world.maxBalls;
+  for (let i = 0; i < maxB; i++) {
+    world.ballActive[i] = 0;
+  }
   const bi = 0;
   const r = world.ballRadius[bi];
   world.ballX[bi] = world.paddleX;
