@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-00-PLAN.md
-last_updated: "2026-09-20T09:42:30.053Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-09-20T09:45:17.768Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 28
-  completed_plans: 22
-  percent: 79
+  completed_plans: 23
+  percent: 82
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 05 (run-rules-score-combo-power-ups-anti-stall) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -53,6 +53,7 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 | Phase 04 P03 | 2min | 2 tasks | 4 files |
 | 04 | 5 | - | - |
 | Phase 05 P00 | 2min | 2 tasks | 7 files |
+| Phase 05 P01 | 2min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 - [Phase 04]: Stroke color #E5E7EB width 1.25; hatch = 3 fixed diagonals distinct from hp===1 cracks
 - [Phase 05]: Wave 0: lives stubs-only until Plan 04; no applyLivesFromEvents
 - [Phase 05]: hashWorld golden-replay Wave 0 box deferred to Plan 01
+- [Phase 05]: Locked SCORE_HIT=10, DROP_CHANCE=0.2, EXPAND_DURATION_TICKS=1200, STALL_IDLE_TICKS=960 verbatim
+- [Phase 05]: compactBallPool swaps SoA after CCD; activeBallCount is live dense count (D-12)
+- [Phase 05]: hashWorld extended with score/combo/pickups/stall (T-05-01)
 
 ### Pending Todos
 
@@ -90,6 +94,6 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T09:42:30.050Z
-Stopped at: Completed 05-00-PLAN.md
+Last session: 2026-09-20T09:45:17.766Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
