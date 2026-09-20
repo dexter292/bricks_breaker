@@ -1,4 +1,4 @@
-import { Skia, type SkPicture } from '@shopify/react-native-skia';
+import { Skia, type SkFont, type SkPicture } from '@shopify/react-native-skia';
 import type { SpikeWorld } from '../core';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
@@ -36,6 +36,7 @@ function ensureRecorderTools(): RecorderTools {
 
 /**
  * Record ~200–300 sprites into one SkPicture; optionally bake overlay text in (D-06 / D-08).
+ * Overlay requires a loaded SkFont (bundled TTF) — skipped until font is ready.
  */
 export function recordFrame(
   world: SpikeWorld,
@@ -43,6 +44,7 @@ export function recordFrame(
   surfaceW: number,
   surfaceH: number,
   drawOverlayFlag: boolean,
+  hudFont: SkFont | null,
 ): SkPicture {
   'worklet';
   const tools = ensureRecorderTools();
@@ -67,8 +69,8 @@ export function recordFrame(
   }
   canvas.restore();
 
-  if (drawOverlayFlag) {
-    drawOverlay(canvas, metrics);
+  if (drawOverlayFlag && hudFont) {
+    drawOverlay(canvas, metrics, hudFont);
   }
 
   return tools.recorder.finishRecordingAsPicture();

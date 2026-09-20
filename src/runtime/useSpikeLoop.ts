@@ -3,13 +3,14 @@
  * (allocate via runOnUI, step via useFrameCallback). React Compiler's immutability
  * rule does not understand Reanimated shared-value mutation (D-14 / Pattern A).
  */
+import { useEffect } from 'react';
 import {
   useFrameCallback,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
 import { Dimensions } from 'react-native';
-import type { SkPicture, SkSize } from '@shopify/react-native-skia';
+import type { SkFont, SkPicture, SkSize } from '@shopify/react-native-skia';
 import { Skia } from '@shopify/react-native-skia';
 import { allocateWorld, stepStub, type SpikeWorld } from '../core';
 import { recordFrame } from '../render/recordSprites';
@@ -54,6 +55,7 @@ function makeEmptyPicture(): SkPicture {
 export function useSpikeLoop(
   drawOverlayFlag: boolean,
   initialSprites: number = SPRITE_CAP,
+  hudFont: SkFont | null = null,
 ): SpikeLoopHandle {
   const picture = useSharedValue<SkPicture>(makeEmptyPicture());
   const world = useSharedValue<SpikeWorld | null>(null);
@@ -63,6 +65,11 @@ export function useSpikeLoop(
     width: WIN.width,
     height: WIN.height,
   });
+  const hudFontSv = useSharedValue<SkFont | null>(null);
+
+  useEffect(() => {
+    hudFontSv.value = hudFont;
+  }, [hudFont, hudFontSv]);
 
   const overlayEnabled = drawOverlayFlag;
   const capacity = Math.max(initialSprites, 300);
@@ -116,6 +123,7 @@ export function useSpikeLoop(
       size.width,
       size.height,
       overlayEnabled,
+      hudFontSv.value,
     );
   });
 

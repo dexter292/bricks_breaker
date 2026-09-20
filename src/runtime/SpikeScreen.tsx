@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFont } from '@shopify/react-native-skia';
 import { useKeepAwake } from 'expo-keep-awake';
 import { CLIFF_RAMP, PERF_OVERLAY } from '../devflags';
 import { SpikeCanvas } from '../render/SpikeCanvas';
@@ -16,9 +17,16 @@ const CLIFF_MAX = 300;
 export function SpikeScreen() {
   useKeepAwake();
 
+  // Bundled TTF — matchFont returns null on iOS Simulator / some devices.
+  const hudFont = useFont(
+    require('../../assets/fonts/SpaceMono-Regular.ttf'),
+    16,
+  );
+
   const { picture, spriteTarget, surfaceSize } = useSpikeLoop(
     PERF_OVERLAY,
     SPRITE_CAP,
+    hudFont,
   );
 
   const onCliffRamp = useCallback(() => {
