@@ -19,7 +19,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 ### Level & Bricks
 
-- [ ] **LVL-01**: Levels load from a versioned data-driven format suitable for a future level editor
+- [x] **LVL-01**: Levels load from a versioned data-driven format suitable for a future level editor
 - [ ] **LVL-02**: Level includes multiple brick types with different hit points and readable damage states (color + non-color cue)
 - [ ] **LVL-03**: Level can include unbreakable/structural bricks that channel the ball
 - [ ] **LVL-04**: One hand-crafted ~2–3 minute arcade challenge level with progressive difficulty, authored after core feel is validated
@@ -106,7 +106,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PHYS-05 | Phase 3 | Pending |
 | PHYS-06 | Phase 2 | Complete |
 | PHYS-07 | Phase 5 | Pending |
-| LVL-01 | Phase 4 | Pending |
+| LVL-01 | Phase 4 | Complete |
 | LVL-02 | Phase 4 | Pending |
 | LVL-03 | Phase 4 | Pending |
 | LVL-04 | Phase 8 | Pending |

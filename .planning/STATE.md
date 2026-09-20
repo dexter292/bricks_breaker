@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-00-PLAN.md
-last_updated: "2026-09-20T07:24:15.072Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-09-20T07:27:29.357Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 21
-  completed_plans: 17
-  percent: 81
+  completed_plans: 18
+  percent: 86
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 04 (Level Format & Brick Types) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -48,6 +48,7 @@ Progress: [███░░░░░░░] ~38% (3/8 phases)
 | 02 | 6 | — | — |
 | 03 | 6 | - | - |
 | Phase 04 P00 | 1min | 2 tasks | 10 files |
+| Phase 04 P01 | 2min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,8 @@ Progress: [███░░░░░░░] ~38% (3/8 phases)
 - [Phase 3]: Snappy relative-drag; tap serve no aim line; tap+3s countdown resume; navy flat render; hardcoded grid; gesture/UI separation
 - [Phase 04]: Wave 0: invalid fixtures + it.todo stubs; LVL reqs deferred to Plans 01–03
 - [Phase 04]: Non-finite grid fixture uses originX:null (JSON has no Infinity/NaN)
+- [Phase 04]: Prefer compile stub so loadAndCompile imports compileLevel; packing in 04-02
+- [Phase 04]: brickTypes built on null-prototype map after rejecting dangerous keys
 
 ### Pending Todos
 
@@ -77,6 +80,6 @@ Progress: [███░░░░░░░] ~38% (3/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T07:24:15.070Z
-Stopped at: Completed 04-00-PLAN.md
+Last session: 2026-09-20T07:27:29.355Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
