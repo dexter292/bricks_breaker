@@ -13,7 +13,7 @@ The journey runs from an empty repo to a single, shippable, 60-FPS neon arcade l
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Thread-Boundary Spike** - Prove the worklet-hosted simulation and Skia rendering bet on both real devices before any gameplay code
-- [ ] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
+- [x] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
 - [ ] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
 - [ ] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
 - [ ] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end
@@ -51,12 +51,12 @@ Plans:
   4. No React state is written during simulation, and `Math.random()` or wall-clock reads inside the simulation directory fail the build — all randomness comes from two seeded streams
 **Plans:** 6 plans
 Plans:
-- [ ] 02-00-PLAN.md — Wave 0: fast-check install, ESLint RNG/clock bans, nested core boundaries
-- [ ] 02-01-PLAN.md — World SoA + dual RNG + event ring + hashWorld + thin harness migration
-- [ ] 02-02-PLAN.md — Swept CCD primitives (sweep/broadphase/integrate) + PHYS-02 unit tests
-- [ ] 02-03-PLAN.md — Classic Breakout paddle english + PHYS-04 clamp tests
-- [ ] 02-04-PLAN.md — stepWorld CCD loop + multi-HP/unbreakable + Intent finite guards
-- [ ] 02-05-PLAN.md — 2× tunneling props + golden-replay + full suite gate
+- [x] 02-00-PLAN.md — Wave 0: fast-check install, ESLint RNG/clock bans, nested core boundaries
+- [x] 02-01-PLAN.md — World SoA + dual RNG + event ring + hashWorld + thin harness migration
+- [x] 02-02-PLAN.md — Swept CCD primitives (sweep/broadphase/integrate) + PHYS-02 unit tests
+- [x] 02-03-PLAN.md — Classic Breakout paddle english + PHYS-04 clamp tests
+- [x] 02-04-PLAN.md — stepWorld CCD loop + multi-HP/unbreakable + Intent finite guards
+- [x] 02-05-PLAN.md — 2× tunneling props + golden-replay + full suite gate
 **UI hint**: no
 
 ### Phase 3: First Playable — Render, Input, Bricks, Lives, Pause
@@ -147,7 +147,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
-| 2. Headless Core Simulation | 0/6 | Planned | - |
+| 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
 | 3. First Playable | 0/TBD | Not started | - |
 | 4. Level Format & Brick Types | 0/TBD | Not started | - |
 | 5. Run Rules | 0/TBD | Not started | - |
