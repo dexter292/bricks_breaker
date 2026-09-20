@@ -110,7 +110,7 @@ Plans:
   5. A stalled rally escalates visibly and deterministically until it breaks out, with no random bounce jitter
 **Plans:** 7 plans
 Plans:
-- [ ] 05-00-PLAN.md — Wave 0 Nyquist stubs for scoring/pickups/effects/multiball/stall/lives
+- [x] 05-00-PLAN.md — Wave 0 Nyquist stubs for scoring/pickups/effects/multiball/stall/lives
 - [ ] 05-01-PLAN.md — World SoA + constants + hash + ball-pool compact (activeBallCount)
 - [ ] 05-02-PLAN.md — Score + combo from event ring (RUN-01, award-then-increment)
 - [ ] 05-03-PLAN.md — Pickups, expand effects, multi-ball spawn (PWR-01/02/03 modules)

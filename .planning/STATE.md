@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-20T08:42:48.783Z"
-last_activity: 2026-09-20 -- Phase 5 planning complete
+stopped_at: Completed 05-00-PLAN.md
+last_updated: "2026-09-20T09:42:30.053Z"
+last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 28
-  completed_plans: 21
-  percent: 75
+  completed_plans: 22
+  percent: 79
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-20)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Phase 05 — Run Rules — Score, Combo, Power-ups, Anti-Stall
+**Current focus:** Phase 05 — run-rules-score-combo-power-ups-anti-stall
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
+Phase: 05 (run-rules-score-combo-power-ups-anti-stall) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-09-20 -- Phase 5 planning complete
+Last activity: 2026-09-20
 
 Progress: [████░░░░░░] ~50% (4/8 phases)
 
@@ -52,6 +52,7 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 | Phase 04 P02 | 3min | 2 tasks | 11 files |
 | Phase 04 P03 | 2min | 2 tasks | 4 files |
 | 04 | 5 | - | - |
+| Phase 05 P00 | 2min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 - [Phase 04]: applyCompiledLevel uses spatial when gridRows>1; packed 1-row fallback otherwise
 - [Phase 04]: Inlined planBrickDamageCuesLocal in worklet (sync with damageCues.ts) to avoid JS remotes
 - [Phase 04]: Stroke color #E5E7EB width 1.25; hatch = 3 fixed diagonals distinct from hp===1 cracks
+- [Phase 05]: Wave 0: lives stubs-only until Plan 04; no applyLivesFromEvents
+- [Phase 05]: hashWorld golden-replay Wave 0 box deferred to Plan 01
 
 ### Pending Todos
 
@@ -87,6 +90,6 @@ Progress: [████░░░░░░] ~50% (4/8 phases)
 
 ## Session Continuity
 
-Last session: 2026-09-20T08:22:42.409Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-run-rules-score-combo-power-ups-anti-stall/05-CONTEXT.md
+Last session: 2026-09-20T09:42:30.050Z
+Stopped at: Completed 05-00-PLAN.md
+Resume file: None

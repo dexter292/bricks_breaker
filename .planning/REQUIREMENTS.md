@@ -15,7 +15,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 - [x] **PHYS-04**: Ball bounce angle is paddle-relative with clamps that avoid near-horizontal and near-vertical degenerate trajectories
 - [ ] **PHYS-05**: On life start, ball is docked to the paddle and player launches with an aimed release/tap
 - [x] **PHYS-06**: Game advances on a fixed-timestep loop; React state is not updated every physics frame
-- [ ] **PHYS-07**: Anti-stall mitigation uses visible, deterministic escalation (no random bounce jitter)
+- [x] **PHYS-07**: Anti-stall mitigation uses visible, deterministic escalation (no random bounce jitter)
 
 ### Level & Bricks
 
@@ -26,16 +26,16 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 ### Run Loop
 
-- [ ] **RUN-01**: Player earns score with combo rewards for consecutive brick hits without paddle contact
+- [x] **RUN-01**: Player earns score with combo rewards for consecutive brick hits without paddle contact
 - [ ] **RUN-02**: Player has a limited number of lives (default 3) with clear win and lose presentations
 - [ ] **RUN-03**: Player can instantly retry from lose or pause without a confirmation dialog
 - [ ] **RUN-04**: Local high score persists across app kills (offline, no account)
 
 ### Power-ups
 
-- [ ] **PWR-01**: Destroyed bricks can drop multi-ball; a life is lost only when the last ball leaves play
-- [ ] **PWR-02**: Destroyed bricks can drop paddle expand; bounce-angle mapping normalizes to current paddle width
-- [ ] **PWR-03**: Power-up drops must be caught on the paddle (no auto-collect)
+- [x] **PWR-01**: Destroyed bricks can drop multi-ball; a life is lost only when the last ball leaves play
+- [x] **PWR-02**: Destroyed bricks can drop paddle expand; bounce-angle mapping normalizes to current paddle width
+- [x] **PWR-03**: Power-up drops must be caught on the paddle (no auto-collect)
 
 ### Feedback (VFX / Audio)
 
@@ -105,18 +105,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PHYS-04 | Phase 2 | Complete |
 | PHYS-05 | Phase 3 | Pending |
 | PHYS-06 | Phase 2 | Complete |
-| PHYS-07 | Phase 5 | Pending |
+| PHYS-07 | Phase 5 | Complete |
 | LVL-01 | Phase 4 | Complete |
 | LVL-02 | Phase 4 | Complete |
 | LVL-03 | Phase 4 | Complete |
 | LVL-04 | Phase 8 | Pending |
-| RUN-01 | Phase 5 | Pending |
+| RUN-01 | Phase 5 | Complete |
 | RUN-02 | Phase 3 | Pending |
 | RUN-03 | Phase 6 | Pending |
 | RUN-04 | Phase 6 | Pending |
-| PWR-01 | Phase 5 | Pending |
-| PWR-02 | Phase 5 | Pending |
-| PWR-03 | Phase 5 | Pending |
+| PWR-01 | Phase 5 | Complete |
+| PWR-02 | Phase 5 | Complete |
+| PWR-03 | Phase 5 | Complete |
 | FX-01 | Phase 7 | Pending |
 | FX-02 | Phase 7 | Pending |
 | FX-03 | Phase 7 | Pending |
