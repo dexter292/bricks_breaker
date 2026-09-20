@@ -91,7 +91,7 @@ Plans:
   5. The format carries a version and a migration path, so level files authored today still load after the schema evolves
 **Plans:** 5 plans
 Plans:
-- [ ] 04-00-PLAN.md — Wave 0: Nyquist stubs + invalid level fixtures
+- [x] 04-00-PLAN.md — Wave 0: Nyquist stubs + invalid level fixtures
 - [ ] 04-01-PLAN.md — schema/validate/migrations + loadAndCompile gate
 - [ ] 04-02-PLAN.md — compile/apply + level-01/02 JSON + spatial SoA
 - [ ] 04-03-PLAN.md — damageCues + Skia crack/hatch in recordFrame
