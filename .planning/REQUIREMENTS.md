@@ -28,7 +28,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 - [x] **RUN-01**: Player earns score with combo rewards for consecutive brick hits without paddle contact
 - [ ] **RUN-02**: Player has a limited number of lives (default 3) with clear win and lose presentations
-- [ ] **RUN-03**: Player can instantly retry from lose or pause without a confirmation dialog
+- [x] **RUN-03**: Player can instantly retry from lose or pause without a confirmation dialog
 - [x] **RUN-04**: Local high score persists across app kills (offline, no account)
 
 ### Power-ups
@@ -112,7 +112,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LVL-04 | Phase 8 | Pending |
 | RUN-01 | Phase 5 | Complete |
 | RUN-02 | Phase 3 | Pending |
-| RUN-03 | Phase 6 | Pending |
+| RUN-03 | Phase 6 | Complete |
 | RUN-04 | Phase 6 | Complete |
 | PWR-01 | Phase 5 | Complete |
 | PWR-02 | Phase 5 | Complete |

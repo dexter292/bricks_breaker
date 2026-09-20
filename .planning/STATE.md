@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-09-20T11:49:23.135Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-09-20T11:52:15.648Z"
 last_activity: 2026-09-20
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 34
-  completed_plans: 31
-  percent: 91
+  completed_plans: 32
+  percent: 94
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-20)
 ## Current Position
 
 Phase: 06 (ui-shell-hud-persistence-platform-seams) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-09-20
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 | Phase 06 P00 | 2min | 2 tasks | 7 files |
 | Phase 06 P01 | 1min | 2 tasks | 7 files |
 | Phase 06 P02 | 1min | 2 tasks | 6 files |
+| Phase 06 P03 | 2min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 - [Phase 06]: Method name locked to onRunEnded (research recommendation)
 - [Phase 06]: Platform no-ops only — no fetch/React/monetization UI (D-18 / T-06-02)
 - [Phase 06]: Call sites deferred to Plan 05 PlayingHost cold path
+- [Phase 06]: Cold start defaults shellPhase to title (D-02)
+- [Phase 06]: Menu unmounts PlayingHost — no freeze-under-Title (Pattern 1)
+- [Phase 06]: Retry/Menu have no Alert.alert confirmation (RUN-03)
 
 ### Pending Todos
 
@@ -124,6 +128,6 @@ Progress: [██████████] 100% plans (5/8 phases complete)
 
 ## Session Continuity
 
-Last session: 2026-09-20T11:49:23.132Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-09-20T11:52:15.645Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
