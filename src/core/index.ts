@@ -1,6 +1,7 @@
 export { allocateWorld, type WorldCapacities } from './allocate';
 export { resetWorld, loadTestGrid, type TestBrickSpec } from './reset';
 export { stepWorld } from './step';
+export { stepRun } from './stepRun';
 export { hashWorld } from './hash';
 export { nextU32, nextFloat } from './rng/mulberry32';
 export { pushEvent, clearEvents } from './events/ring';
@@ -27,6 +28,9 @@ export {
   SERVE_SPEED,
 } from './constants';
 export { loadPhase3Grid } from './levels/phase3Grid';
+export { dockBall, applyServe, processDocked } from './rules/serve';
+export { applyLivesFromEvents } from './rules/lives';
+export { countBreakableAlive, applyWinCheck } from './rules/win';
 export { sweepCircleAabb } from './physics/sweep';
 export { forEachBrickCandidate } from './physics/broadphase';
 export { advanceBall } from './physics/integrate';
