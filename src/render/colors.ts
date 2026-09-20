@@ -4,6 +4,9 @@ export const FIELD_NAVY = '#1a1a2e';
 export const LETTERBOX_BLACK = '#000000';
 export const BALL_PADDLE = '#FFFFFF';
 
+/** Trail rim / particle fleck cyan — Shatter neon (D-01); never Phase 1 cliff `#00ffaa`. */
+export const TRAIL_CYAN = '#67E8F9';
+
 export const BRICK_HP3 = '#C44569';
 export const BRICK_HP2 = '#E07A5F';
 export const BRICK_HP1 = '#F2CC8F';
