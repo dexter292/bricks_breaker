@@ -12,7 +12,12 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Score tracking with combo rewards — Validated in Phase 5: Run Rules
+- [x] Basic power-ups (at least multi-ball and paddle expansion) — Validated in Phase 5: Run Rules
+- [x] Limited lives with meaningful failure risk; clear win and lose conditions — last-ball life loss refined in Phase 5 (win/lose/pause from Phase 3)
+- [x] Architecture separating game logic, physics, rendering, input, and UI—no React state updates every physics frame — Validated across Phases 1–5 (SharedValue chrome mirrors)
+- [x] Data-driven level format designed to support a future level editor — Validated in Phase 4
+- [x] Unit tests for game logic and collision detection — Validated in Phases 2–5 (110 green as of Phase 5)
 
 ### Active
 
@@ -20,16 +25,10 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [ ] Ball movement with accurate, deterministic collision detection (paddle, walls, bricks)
 - [ ] Multiple brick types with different hit points and behaviors
 - [ ] One complete arcade challenge level (~2–3 min successful run) with progressive difficulty
-- [ ] Score tracking with combo rewards
-- [ ] Limited lives with meaningful failure risk; clear win and lose conditions
-- [ ] Basic power-ups (at least multi-ball and paddle expansion)
 - [ ] Pause and resume
 - [ ] Minimal SFX: paddle hit, brick hit/break, power-up, life lost, win/lose
 - [ ] Basic neon visual effects: glowing bricks, ball trails, particle destruction, subtle screen shake
 - [ ] Responsive layout across target phone sizes
-- [ ] Architecture separating game logic, physics, rendering, input, and UI—no React state updates every physics frame
-- [ ] Data-driven level format designed to support a future level editor
-- [ ] Unit tests for game logic and collision detection
 - [ ] Performance measured on real mid-range devices (target 60 FPS)
 
 ### Out of Scope
@@ -95,7 +94,7 @@ Visual effects must never compromise responsiveness or gameplay clarity.
 | Separate logic/physics/render/input/UI; no per-frame React state | Preserve 60 FPS and clean architecture | — Pending |
 | Data-driven levels from day one | Enables future level editor without rewrite | — Pending |
 | One full arcade challenge level in MVP (not tutorial-only) | Prove complete loop, difficulty, and replay motivation | — Pending |
-| Basic power-ups (multi-ball, paddle expand) in MVP | Part of the engaging arcade loop, not deferred polish | — Pending |
+| Basic power-ups (multi-ball, paddle expand) in MVP | Part of the engaging arcade loop, not deferred polish | Accepted Phase 5 — catch-on-paddle, last-ball lives, anti-stall |
 | Minimal SFX only; modular audio system | Feedback without music scope; easy to extend | — Pending |
 | Ads/IAP/accounts later; offline MVP | Focus on gameplay quality; avoid backend early | — Pending |
 | Feel mix 40/30/30 (punch / physics / spectacle) | Guides tradeoffs when VFX and responsiveness conflict | — Pending |
@@ -122,4 +121,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-19 after initialization*
+*Last updated: 2026-09-20 — Phase 5 complete (score/combo, power-ups, anti-stall)*
