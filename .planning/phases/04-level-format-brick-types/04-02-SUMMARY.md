@@ -81,7 +81,7 @@ Each task was committed atomically:
 3. **Task 2 (RED): apply + retargeted grid tests** - `4b8fac2` (test)
 4. **Task 2 (GREEN): applyCompiledLevel + spatial** - `2a2ec6f` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `3c2a252` (docs: complete plan)
 
 _Note: TDD tasks may have multiple commits (test → feat → refactor)_
 
