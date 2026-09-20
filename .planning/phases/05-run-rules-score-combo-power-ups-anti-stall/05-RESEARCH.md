@@ -391,22 +391,19 @@ if (nextFloat(world.rngGameplay, 0) < DROP_CHANCE) {
 
 **If empty:** N/A — table above lists discretionary numeric assumptions.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Combo increment timing relative to award**
-   - What we know: D-01/D-02 require multiplier on hit+break and +1 per consecutive hit.
-   - What's unclear: award-with-current-then-increment vs increment-then-award for the first brick (×1 vs ×2).
-   - Recommendation: **award with current combo (start 1), then increment** — first hit scores ×1; second ×2. Lock in unit tests.
+1. **Combo increment timing relative to award** — RESOLVED
+   - Locked choice: **award-then-increment** — award with current combo (starts at 1), then `combo += 1`. First hit scores ×1; second ×2.
+   - Plans: `05-02` scoring module + unit tests; RESEARCH Q1 lock cited in plan interfaces.
 
-2. **Partial multi-ball spawn at cap**
-   - What we know: D-07 respects `maxBalls`; do not replace existing.
-   - What's unclear: if 7/8 balls and catch multi, spawn +1 or deny entirely?
-   - Recommendation: **spawn `min(2, freeSlots)`** — still rewards catch.
+2. **Partial multi-ball spawn at cap** — RESOLVED
+   - Locked choice: **spawn `min(2, freeSlots)`** — if 7/8 balls, catch still consumes pickup and spawns 1; if 0 free slots, spawn nothing.
+   - Plans: `05-03` multiball module (D-07/D-14).
 
-3. **Whether `hashWorld` must include score/combo/stall/pickups**
-   - What we know: Phase 2 hash omits `lives`/`simPhase` today.
-   - What's unclear: replay tests for Phase 5 scope.
-   - Recommendation: **extend hash** for all new gameplay fields so drop/stall tests can assert `hashWorld` equality.
+3. **Whether `hashWorld` must include score/combo/stall/pickups** — RESOLVED
+   - Locked choice: **extend `hashWorld`** for score, combo, stall fields, and pickup SoA so drop/stall/replay tests can assert equality.
+   - Plans: `05-01` World/hash extension; `05-05` determinism asserts.
 
 ## Environment Availability
 
