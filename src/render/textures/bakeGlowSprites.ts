@@ -1,6 +1,6 @@
 /**
  * Cold-path neon halo bake — call from PlayingHost/level load before setActive(true) (wire in Plan 05).
- * Two radius variants only (soft / strong). No live BlurMask — concentric soft fills only.
+ * Two radius variants only (soft / strong). Concentric soft fills only (baked sprites, never live blur).
  */
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import {
@@ -31,8 +31,8 @@ export type GlowVariant = {
 export type GlowAtlas = Record<string, GlowVariant>;
 
 /**
- * Paint a soft neon halo into an offscreen surface (no MaskFilter).
- * Concentric rect rings approximate edge falloff for blit under brick fills.
+ * Paint a soft neon halo into an offscreen surface via concentric rect rings.
+ * Approximates edge falloff for blit under brick fills (D-05 baked sprites).
  */
 function bakeHalo(color: string, pad: number, edgeAlpha: number): SkImage {
   const width = BRICK_W + pad * 2;
