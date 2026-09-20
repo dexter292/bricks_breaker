@@ -76,7 +76,7 @@ Each task was committed atomically:
 1. **Task 1: Invalid level JSON fixtures for validator security cases** - `30e3620` (test)
 2. **Task 2: Wave 0 it.todo Vitest stubs for validate/compile/apply/damage-cues** - `c8bf637` (test)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `9b33bcb` (docs: complete plan)
 
 ## Files Created/Modified
 
