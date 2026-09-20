@@ -24,7 +24,7 @@ updated: 2026-09-20
 | **Quick run command** | `npm run test:core` |
 | **Full suite command** | `npm test` |
 | **Lint purity** | `npx eslint src/core` |
-| **Estimated runtime** | ~5–30s (props dominate) |
+| **Estimated runtime** | ~5–30s typical; PROP-TUNNEL suite may approach **60s** max |
 | **Node** | 24 (`.nvmrc`) — prefer `export PATH="/opt/homebrew/opt/node@24/bin:$PATH"` |
 
 ---
@@ -34,7 +34,7 @@ updated: 2026-09-20
 - **After every task commit:** `npm run test:core` + `npx eslint src/core`
 - **After every plan wave:** `npm test` + `npx eslint src/core`
 - **Before `/gsd-verify-work`:** Full suite green; tunneling prop + golden-replay must pass
-- **Max feedback latency:** 60 seconds
+- **Max feedback latency:** 60 seconds (PROP-TUNNEL may approach this ceiling; acceptable per Nyquist budget)
 
 ---
 
@@ -52,8 +52,9 @@ updated: 2026-09-20
 | 02-02-02 | 02 | 2 | PHYS-02/03 | T-02-01 | Sweep/broadphase GREEN | unit | `npx vitest run tests/physics.sweep.test.ts` | ❌ | ⬜ pending |
 | 02-03-01 | 03 | 2 | PHYS-04 | — | Paddle tests RED | unit | `npx vitest run tests/physics.paddle.test.ts` (expect fail) | ❌ | ⬜ pending |
 | 02-03-02 | 03 | 2 | PHYS-04 | T-02-01 | Paddle english GREEN | unit | `npx vitest run tests/physics.paddle.test.ts` | ❌ | ⬜ pending |
-| 02-04-01 | 04 | 3 | PHYS-02 | — | Brick tests RED | unit | `npx vitest run tests/physics.bricks.test.ts` (expect fail) | ❌ | ⬜ pending |
-| 02-04-02 | 04 | 3 | PHYS-02/06 | T-02-01 | stepWorld CCD + finite Intent | unit | `npx vitest run tests/physics.bricks.test.ts tests/core.smoke.test.ts` | ❌ | ⬜ pending |
+| 02-04-01 | 04 | 3 | PHYS-02/06 | — | Barrel export consolidation | lint | `grep` + `npm run test:core` | ✅ migrate | ⬜ pending |
+| 02-04-02 | 04 | 3 | PHYS-02 | — | Brick tests RED | unit | `npx vitest run tests/physics.bricks.test.ts` (expect fail) | ❌ | ⬜ pending |
+| 02-04-03 | 04 | 3 | PHYS-02/06 | T-02-01 | stepWorld CCD + finite Intent | unit | `npx vitest run tests/physics.bricks.test.ts tests/core.smoke.test.ts` | ❌ | ⬜ pending |
 | 02-05-01 | 05 | 4 | PHYS-02/03/04 | T-02-01 | 2× tunneling + clamp/speed props | property | `npx vitest run tests/physics.tunneling.prop.test.ts` | ❌ | ⬜ pending |
 | 02-05-02 | 05 | 4 | PHYS-06 | T-02-02 | Golden-replay + full suite | unit | `npx vitest run tests/physics.golden-replay.test.ts && npm test` | ❌ | ⬜ pending |
 

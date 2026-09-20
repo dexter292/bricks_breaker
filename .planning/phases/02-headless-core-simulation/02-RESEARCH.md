@@ -506,20 +506,16 @@ Also extend `tests/core.purity.test.ts` with a regex scan for `Math.random`, `Da
 
 **If wrong:** Planner adjusts constants in one place; physics formulation unchanged.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `FIXED_DT` / `MAX_SUBSTEPS` live in `core/` or stay in `runtime/`?**
-   - What we know: Runtime already defines them; Node tests need the same numbers.
-   - What's unclear: Single source of truth vs worklet literal duplication.
-   - Recommendation: Export from `core/constants.ts` for tests; runtime imports or duplicates literals inside the frame callback closure (Phase 1 pattern). Do **not** have `core` import `runtime`.
+   - **RESOLVED:** Export `FIXED_DT`, `MAX_SUBSTEPS`, and `MAX_FRAME_TIME` from `core/constants.ts` for Node tests and as the numeric source of truth. Runtime **duplicates matching literals** inside the frame-callback / worklet closure (Phase 1 pattern — worklets must not close over module consts). Do **not** have `core` import `runtime`.
 
 2. **How aggressive should brick “missed collision” detection be in prop tests?**
-   - What we know: Must assert zero tunneling / zero missed hits (success criteria).
-   - What's unclear: Exact oracle (segment vs grid occupancy vs event log).
-   - Recommendation: Dual oracle — (1) no center inside solid brick; (2) any grid cell whose expanded AABB is crossed by the swept segment must produce a hit event or an earlier TOI stop before exiting the far side.
+   - **RESOLVED:** Dual oracle — (1) no ball center inside a solid brick AABB after any step; (2) any grid cell whose expanded AABB is crossed by the swept segment must produce a hit event (BRICK_HIT/BREAK/unbreakable bounce) or an earlier TOI stop before exiting the far side. Used by plan 02-05 PROP-TUNNEL.
 
 3. **Spike harness after World replace**
-   - Recommendation: Minimal compile-safe loop; delete stub sprite SoA rather than dual-world forever.
+   - **RESOLVED:** Replace `SpikeWorld` entirely with `World`. Thin harness to a blank compile-safe playfield + overlay (no sprite SoA dual-world). Phase 3 owns real visuals. Implemented in plan 02-01 Task 3.
 
 ## Environment Availability
 
@@ -697,10 +693,10 @@ Also extend `tests/core.purity.test.ts` with a regex scan for `Math.random`, `Da
 | Architecture | HIGH | CONTEXT-locked; ARCHITECTURE formulations cited |
 | Pitfalls | HIGH | Prior research + Phase 1 worklet lessons |
 
-### Open Questions
-- Single source for `FIXED_DT` across `core/` exports vs runtime worklet literals
-- Exact missed-collision oracle details (dual oracle recommended)
-- Spike harness trim vs temporary stub retention
+### Open Questions (RESOLVED)
+- **FIXED_DT location:** Export from `core/constants.ts`; runtime duplicates literals in worklet closures (no core→runtime import)
+- **Missed-collision oracle:** Dual oracle — center-in-brick + cell-crossing must hit or earlier TOI stop (plan 02-05)
+- **Spike harness:** Replace SpikeWorld; blank compile-safe field + overlay (plan 02-01 Task 3)
 
 ### Ready for Planning
 Research complete. Planner can now create PLAN.md files.
