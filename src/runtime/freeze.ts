@@ -1,6 +1,6 @@
 /**
  * UI-phase freeze + accumulator policy helpers (PLT-01 / D-14).
- * Pure TS — no React Native AppState import (Node-safe).
+ * Pure TS — Node-safe; no React Native lifecycle imports.
  */
 
 export const UiPhase = {
