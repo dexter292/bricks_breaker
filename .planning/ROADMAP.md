@@ -76,7 +76,7 @@ Plans:
 - [x] 03-02-PLAN.md — Letterbox camera + entity SkPicture + GameCanvas
 - [x] 03-03-PLAN.md — Relative-drag Race(Pan,Tap) gesture hook
 - [x] 03-04-PLAN.md — useGameLoop Intent/stepRun + AppState freeze
-- [ ] 03-05-PLAN.md — GameHost overlays + playable UAT checkpoint
+- [x] 03-05-PLAN.md — GameHost overlays + playable UAT checkpoint
 **UI hint**: yes
 
 ### Phase 4: Level Format & Brick Types
@@ -155,7 +155,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 |-------|----------------|--------|-----------|
 | 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
 | 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
-| 3. First Playable | 0/6 | Planned | - |
+| 3. First Playable | 6/6 | Executing (verify) | 2026-09-20 |
 | 4. Level Format & Brick Types | 0/TBD | Not started | - |
 | 5. Run Rules | 0/TBD | Not started | - |
 | 6. UI Shell, HUD & Persistence | 0/TBD | Not started | - |
