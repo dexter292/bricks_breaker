@@ -26,8 +26,8 @@ export type GameScreenProps = {
 };
 
 /**
- * Props-driven playfield + chrome + overlays.
- * Full-bleed canvas; HUD/overlays are a separate elevated layer above Skia.
+ * Playfield letterboxes inside the safe area (black root = bars).
+ * HUD + overlays are explicitly absolute so they cannot fall to the bottom.
  */
 export function GameScreen({
   picture,
@@ -49,26 +49,39 @@ export function GameScreen({
   const showCountdown =
     uiPhase === 'countdown' && result == null && countdownNumeral != null;
 
+  const padH = Math.max(insets.left, 16);
+  const padR = Math.max(insets.right, 16);
+
   return (
     <View style={styles.root}>
-      <GestureDetector gesture={playfieldGesture}>
-        <View style={styles.playfield} collapsable={false}>
-          <GameCanvas picture={picture} onSize={surfaceSize} />
-        </View>
-      </GestureDetector>
+      {/* Safe-area playfield — Skia letterboxes into this box (D-03). */}
+      <View
+        style={[
+          styles.playfieldSafe,
+          {
+            top: insets.top,
+            bottom: insets.bottom,
+            left: insets.left,
+            right: insets.right,
+          },
+        ]}
+      >
+        <GestureDetector gesture={playfieldGesture}>
+          <View style={styles.playfield} collapsable={false}>
+            <GameCanvas picture={picture} onSize={surfaceSize} />
+          </View>
+        </GestureDetector>
+      </View>
 
-      {/*
-        Elevated above opaque Skia SurfaceView. box-none so only the Pause
-        Pressable (and overlays) steal touches — labels never block serve.
-      */}
+      {/* Chrome above opaque canvas — every child is position:absolute. */}
       <View style={styles.chrome} pointerEvents="box-none">
         <View
           style={[
             styles.hud,
             {
-              paddingTop: insets.top + 16,
-              paddingLeft: Math.max(insets.left, 16),
-              paddingRight: Math.max(insets.right, 16),
+              top: insets.top + 16,
+              left: padH,
+              right: padR,
             },
           ]}
           pointerEvents="box-none"
@@ -88,9 +101,7 @@ export function GameScreen({
             >
               <Text style={styles.pauseLabel}>Pause</Text>
             </Pressable>
-          ) : (
-            <View style={styles.pausePlaceholder} />
-          )}
+          ) : null}
         </View>
 
         {showServeHint && showPauseChrome ? (
@@ -126,15 +137,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  playfieldSafe: {
+    position: 'absolute',
+  },
   playfield: {
     flex: 1,
   },
   chrome: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 10,
     elevation: 10,
   },
   hud: {
+    position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -157,10 +176,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFFFFF',
   },
-  pausePlaceholder: {
-    minHeight: 44,
-    minWidth: 44,
-  },
   pauseLabel: {
     color: '#FFFFFF',
     fontFamily: 'SpaceMono',
@@ -170,7 +185,6 @@ const styles = StyleSheet.create({
   },
   serveHint: {
     position: 'absolute',
-    alignSelf: 'center',
     left: 0,
     right: 0,
     textAlign: 'center',
