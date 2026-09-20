@@ -68,7 +68,7 @@ Each task was committed atomically:
 1. **Task 1: Create HudStrip component per UI-SPEC** - `06072fb` (feat)
 2. **Task 2: GameScreen — strip above letterbox (playfieldTop)** - `9698a2d` (feat)
 
-**Plan metadata:** (pending final docs commit)
+**Plan metadata:** `392eb57` (docs: complete plan)
 
 ## Files Created/Modified
 
