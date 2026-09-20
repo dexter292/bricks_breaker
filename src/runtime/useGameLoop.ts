@@ -11,13 +11,30 @@ import {
   allocateWorld,
   applyCompiledLevel,
   dockBall,
+  EventCode,
   resetWorld,
   stepRun,
   SimPhase,
   type CompiledLevel,
   type World,
 } from '../core';
-import { recordFrame } from '../render/recordSprites';
+import {
+  recordFrame,
+  type DestroyFlashState,
+} from '../render/recordSprites';
+import type { GlowAtlas } from '../render/textures/bakeGlowSprites';
+import {
+  allocateVfx,
+  appendEventsForAudio,
+  consumeEventsForVfx,
+  createAudioBatch,
+  pushTrail,
+  resetAudioBatch,
+  stepVfx,
+  trailLength,
+  type AudioBatchSoA,
+  type VfxState,
+} from '../vfx';
 import { subscribeAppStateAutoPause } from './appStatePause';
 import {
   FIXED_DT,
@@ -26,6 +43,7 @@ import {
   SELF_CHECK_FRAMES,
   SPRITE_CAP,
 } from './constants';
+import { flushAudioBatchOnJS } from './eventBridge';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
 
 /** Inline in this module so Babel workletizes with the frame callback (imported worklets can stay JS remotes). */
@@ -40,6 +58,62 @@ function clampFrameDtLocal(dtSec: number, maxFrameTime: number): number {
 function resetAccumulatorLocal(world: { accumulator: number }): void {
   'worklet';
   world.accumulator = 0;
+}
+
+/** Brief destroy flash ≤100ms — Plan 04 draw path; life owned here (Plan 05). */
+function punchDestroyFlash(
+  flash: DestroyFlashState,
+  x: number,
+  y: number,
+): void {
+  'worklet';
+  flash.x = x;
+  flash.y = y;
+  flash.life = 0.1;
+  flash.lifeMax = 0.1;
+}
+
+/** Scan ring for BRICK_BREAK after consume (ring still live until next stepRun clear). */
+function updateFlashFromEvents(world: World, flash: DestroyFlashState): void {
+  'worklet';
+  const n = world.evCount;
+  if (n <= 0) {
+    return;
+  }
+  const start = (world.evHead - n + world.evCap) % world.evCap;
+  for (let i = 0; i < n; i++) {
+    const idx = (start + i) % world.evCap;
+    if (world.evCode[idx] === EventCode.BRICK_BREAK) {
+      punchDestroyFlash(flash, world.evX[idx], world.evY[idx]);
+    }
+  }
+}
+
+function decayFlash(flash: DestroyFlashState, dt: number): void {
+  'worklet';
+  if (flash.life <= 0) {
+    return;
+  }
+  flash.life -= dt;
+  if (flash.life < 0) {
+    flash.life = 0;
+  }
+}
+
+function pushActiveBallTrails(
+  world: World,
+  vfx: VfxState,
+  intensity: number,
+): void {
+  'worklet';
+  const len = trailLength(intensity);
+  const limit = world.activeBallCount;
+  for (let i = 0; i < limit; i++) {
+    if (world.ballActive[i] !== 1) {
+      continue;
+    }
+    pushTrail(vfx, i, world.ballX[i], world.ballY[i], len);
+  }
 }
 
 /* World / metrics live in SharedValues and are mutated on the UI runtime
@@ -59,6 +133,11 @@ export const UiPhaseNum = {
   PAUSED: 1,
   COUNTDOWN: 2,
 } as const;
+
+export type PlayBatchFn = (
+  codes: ArrayLike<number>,
+  count: number,
+) => void;
 
 export type GameLoopHandle = {
   world: SharedValue<World | null>;
@@ -90,6 +169,15 @@ export type UseGameLoopOptions = {
   hudFont?: SkFont | null;
   /** PERF_OVERLAY / cliff harness sprite count (until Plan 05). */
   initialSprites?: number;
+  /** Global VFX intensity from useVfxIntensity (D-03). Defaults to 1.0 when omitted. */
+  vfxIntensity?: SharedValue<number>;
+  /**
+   * JS-thread AudioService.playBatch bound by host — never import services/ here.
+   * Null → skip audio hop (soft-fail / pre-preload).
+   */
+  playBatch?: SharedValue<PlayBatchFn | null>;
+  /** Baked glow atlas from PlayingHost cold path; null until bake completes. */
+  glowAtlas?: SharedValue<GlowAtlas | null>;
 };
 
 function makeEmptyPicture(): SkPicture {
@@ -113,6 +201,7 @@ export function applyFreeze(
 /**
  * Playable fixed-timestep host: Intent SharedValues → stepRun → letterboxed recordFrame.
  * Freeze via setActive(false) + resetAccumulator; never auto-resume (PLT-01 / PHYS-05).
+ * Phase 7: per-substep VFX/audio drain + one batched audio hop via eventBridge.
  */
 export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   metrics: SharedValue<SpikeMetrics | null>;
@@ -135,6 +224,20 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
 
   const picture = useSharedValue<SkPicture>(makeEmptyPicture());
   const world = useSharedValue<World | null>(null);
+  const vfxSv = useSharedValue<VfxState | null>(null);
+  const audioBatchSv = useSharedValue<AudioBatchSoA | null>(null);
+  const flashSv = useSharedValue<DestroyFlashState>({
+    x: 0,
+    y: 0,
+    life: 0,
+    lifeMax: 0.1,
+  });
+  const defaultIntensity = useSharedValue(1.0);
+  const defaultPlayBatch = useSharedValue<PlayBatchFn | null>(null);
+  const defaultGlowAtlas = useSharedValue<GlowAtlas | null>(null);
+  const vfxIntensity = options.vfxIntensity ?? defaultIntensity;
+  const playBatch = options.playBatch ?? defaultPlayBatch;
+  const glowAtlas = options.glowAtlas ?? defaultGlowAtlas;
   const metrics = useSharedValue<SpikeMetrics | null>(null);
   const spriteTarget = useSharedValue(initialSprites);
   const surfaceSize = useSharedValue<SkSize>({
@@ -159,6 +262,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     'worklet';
     let w = world.value;
     let m = metrics.value;
+    let vfx = vfxSv.value;
+    let batch = audioBatchSv.value;
     if (!w) {
       w = allocateWorld();
       resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
@@ -174,6 +279,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       comboOut.value = w.combo;
       stallTierOut.value = w.stallTier;
     }
+    if (!vfx) {
+      vfx = allocateVfx({ maxBalls: w.maxBalls });
+      vfxSv.value = vfx;
+    }
+    if (!batch) {
+      batch = createAudioBatch();
+      audioBatchSv.value = batch;
+    }
     if (!m) {
       m = createMetrics();
       metrics.value = m;
@@ -184,6 +297,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       (frame.timeSincePreviousFrame ?? 16.67) / 1000,
       maxFrameTime,
     );
+
+    const intensity = vfxIntensity.value;
+    const flash = flashSv.value;
 
     const ui = uiPhase.value;
     const uiFrozen =
@@ -201,6 +317,11 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
           launch: launchFlag.value,
         };
         stepRun(w, intent, fixedDt);
+        // Per-substep drain BEFORE next clearEvents (Pitfall 1 / FX-03)
+        consumeEventsForVfx(w, vfx, intensity);
+        appendEventsForAudio(w, batch);
+        updateFlashFromEvents(w, flash);
+        pushActiveBallTrails(w, vfx, intensity);
         // Edge-consume launch after the step that saw it
         if (launchFlag.value !== 0) {
           launchFlag.value = 0;
@@ -222,6 +343,20 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       );
     }
 
+    // Cosmetic decay even while frozen (pause / won / lost) — no new audio from idle ring
+    stepVfx(vfx, fixedDt, intensity);
+    decayFlash(flash, dt);
+
+    // Exactly one audio hop / frame from eventBridge (LC-07)
+    const play = playBatch.value;
+    if (play != null && batch.count > 0) {
+      flushAudioBatchOnJS(play, batch.codes, batch.count);
+      resetAudioBatch(batch);
+    } else if (batch.count > 0) {
+      // Soft-fail: drop batch rather than leak across frames without a player
+      resetAudioBatch(batch);
+    }
+
     // Publish chrome mirrors every frame (in-place World edits are invisible to reactions)
     livesOut.value = w.lives;
     simPhaseOut.value = w.simPhase;
@@ -230,6 +365,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     stallTierOut.value = w.stallTier;
 
     const size = surfaceSize.value;
+    const flashArg: DestroyFlashState | null =
+      flash.life > 0 ? flash : null;
     picture.value = recordFrame(
       w,
       m,
@@ -237,6 +374,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       size.height,
       overlayEnabled,
       hudFontSv.value,
+      vfx,
+      intensity,
+      glowAtlas.value,
+      flashArg,
     );
   }, false);
   /* eslint-enable react-hooks/immutability */
@@ -275,6 +416,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     scoreOut.value = w.score;
     comboOut.value = w.combo;
     stallTierOut.value = w.stallTier;
+    // Reset cosmetic flash; keep Vfx pools (particles decay via stepVfx)
+    flashSv.value = { x: 0, y: 0, life: 0, lifeMax: 0.1 };
+    const batch = audioBatchSv.value;
+    if (batch) {
+      resetAudioBatch(batch);
+    }
     /* eslint-enable react-hooks/immutability */
   }, [
     world,
@@ -286,6 +433,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     scoreOut,
     comboOut,
     stallTierOut,
+    flashSv,
+    audioBatchSv,
   ]);
 
   // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
