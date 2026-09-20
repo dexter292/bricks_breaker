@@ -31,8 +31,10 @@ export function SpikeScreen() {
 
   const onCliffRamp = useCallback(() => {
     // SharedValue number writes from JS are safe (no runOnUI needed).
+    /* eslint-disable react-hooks/immutability -- Reanimated SharedValue write (D-14) */
     const next = spriteTarget.value + CLIFF_STEP;
     spriteTarget.value = next > CLIFF_MAX ? SPRITE_CAP : next;
+    /* eslint-enable react-hooks/immutability */
   }, [spriteTarget]);
 
   return (

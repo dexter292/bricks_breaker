@@ -1,8 +1,3 @@
-/* eslint-disable react-hooks/immutability --
- * SpikeWorld lives in a SharedValue and is mutated on the UI runtime by design
- * (allocate via runOnUI, step via useFrameCallback). React Compiler's immutability
- * rule does not understand Reanimated shared-value mutation (D-14 / Pattern A).
- */
 import { useEffect } from 'react';
 import {
   useFrameCallback,
@@ -23,6 +18,8 @@ import {
 } from './constants';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
 
+/* SpikeWorld / metrics live in SharedValues and are mutated on the UI runtime
+ * by design (useFrameCallback). React Compiler immutability does not apply (D-14). */
 const WIN = Dimensions.get('window');
 
 export type SpikeLoopHandle = {

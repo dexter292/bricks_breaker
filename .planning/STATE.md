@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 1 Wave 4: CHECKPOINT human-verify — on-device SC-1/SC-2/SC-3"
-last_updated: "2026-09-20T02:00:26.812Z"
-last_activity: 2026-09-20 -- Phase 01 execution started
+stopped_at: "Phase 1 Wave 4 Task 2: human-verify SC-1/SC-2/SC-3 (iPhone launched; Android pending)"
+last_updated: "2026-09-20T02:51:00.000Z"
+last_activity: 2026-09-20 -- HUD useFont fix landed; iPhone 16 Pro launched against Metro
 progress:
   total_phases: 8
   completed_phases: 0
