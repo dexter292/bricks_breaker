@@ -504,18 +504,18 @@ canvas.restore();
 | A4 | Colocating overlays in `runtime/overlays/` (not `src/ui/`) is preferred for ESLint | Structure | If planner wants `ui/`, must route composition through `app/` or update boundaries |
 | A5 | Discrete life/win/lose React updates via phase transitions (not per-frame drain) suffice for Phase 3 HUD | Pitfall 8 | If event drain needed, batch ≤1 `scheduleOnRN`/frame only on phase edges |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Rename spike symbols now vs evolve in place?**
+1. **Rename spike symbols now vs evolve in place?** — RESOLVED
    - What we know: CONTEXT leaves to discretion; UI-SPEC names `GameScreen` / `GameCanvas`.
-   - Recommendation: Rename in Phase 3 (clearer reviews); keep thin re-exports if needed.
+   - Decision (Plans 02/04/05): Rename to `Game*` (`GameScreen`, `GameCanvas`, `useGameLoop`, `GameHost`); keep thin re-exports (`useSpikeLoop` → `useGameLoop`, SpikeScreen → GameScreen) until Plan 05 removes cliff harness.
 
-2. **Brick dirty-layer split vs single Picture?**
+2. **Brick dirty-layer split vs single Picture?** — RESOLVED
    - What we know: Architecture prefers dirty bricks; Phase 3 grid is small.
-   - Recommendation: Start with one `recordFrame` drawing all entities; add `bricksDirty` + second Picture if frame-time overlay shows pressure (optional mid-phase).
+   - Decision (Plan 02): Single `recordFrame` / one SkPicture drawing all entities first; defer `bricksDirty` + second Picture unless frame-time overlay shows pressure (out of Phase 3 must-haves).
 
-3. **Where does `uiPhase` live vs `simPhase`?**
-   - Recommendation: `simPhase` in World (docked/playing/won/lost); `uiPhase` in React (shellPlaying/paused/countdown) gating `setActive` and gestures. Avoid putting AppState into core.
+3. **Where does `uiPhase` live vs `simPhase`?** — RESOLVED
+   - Decision (Plans 04/05): `simPhase` lives on World in core (docked/playing/won/lost); `uiPhase` lives in React state in `GameHost` plus a mirrored SharedValue consumed by `useGameLoop` / gestures (playing/paused/countdown) to gate `setActive` and serve/pan. AppState stays out of core — host `onOsPause` only.
 
 ## Environment Availability
 
