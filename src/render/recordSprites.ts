@@ -1,10 +1,4 @@
-import {
-  Skia,
-  type SkHostRect,
-  type SkPaint,
-  type SkPicture,
-  type SkPictureRecorder,
-} from '@shopify/react-native-skia';
+import { Skia, type SkPicture } from '@shopify/react-native-skia';
 import type { SpikeWorld } from '../core';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
@@ -13,49 +7,35 @@ import { drawOverlay } from './recordOverlay';
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
 
-// Lazily created on the UI runtime — never at module import (Skia JSI may not be ready).
-let recorder: SkPictureRecorder | null = null;
-let paint: SkPaint | null = null;
-let spriteRect: SkHostRect | null = null;
-let surfaceBounds: SkHostRect | null = null;
-let colorBuf: Float32Array | null = null;
-
-function ensureRecorderTools(): {
-  recorder: SkPictureRecorder;
-  paint: SkPaint;
-  spriteRect: SkHostRect;
-  surfaceBounds: SkHostRect;
+type RecorderTools = {
+  recorder: ReturnType<typeof Skia.PictureRecorder>;
+  paint: ReturnType<typeof Skia.Paint>;
+  spriteRect: ReturnType<typeof Skia.XYWHRect>;
+  surfaceBounds: ReturnType<typeof Skia.XYWHRect>;
   colorBuf: Float32Array;
-} {
+};
+
+declare const global: typeof globalThis & { __spikeRecorderTools?: RecorderTools };
+
+function ensureRecorderTools(): RecorderTools {
   'worklet';
-  if (!recorder) {
-    recorder = Skia.PictureRecorder();
+  // Store on UI-runtime global — module `let` bindings break worklet serialization.
+  let tools = global.__spikeRecorderTools;
+  if (!tools) {
+    tools = {
+      recorder: Skia.PictureRecorder(),
+      paint: Skia.Paint(),
+      spriteRect: Skia.XYWHRect(0, 0, 0, 0),
+      surfaceBounds: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
+      colorBuf: Skia.Color('#ffffffff'),
+    };
+    global.__spikeRecorderTools = tools;
   }
-  if (!paint) {
-    paint = Skia.Paint();
-  }
-  if (!spriteRect) {
-    spriteRect = Skia.XYWHRect(0, 0, 0, 0);
-  }
-  if (!surfaceBounds) {
-    surfaceBounds = Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H);
-  }
-  if (!colorBuf) {
-    colorBuf = Skia.Color('#ffffffff');
-  }
-  return {
-    recorder,
-    paint,
-    spriteRect,
-    surfaceBounds,
-    colorBuf,
-  };
+  return tools;
 }
 
 /**
  * Record ~200–300 sprites into one SkPicture; optionally bake overlay text in (D-06 / D-08).
- * Sprites are authored in logical 360×640, then scaled to the live surface size so the
- * picture fills the phone screen 1:1.
  */
 export function recordFrame(
   world: SpikeWorld,

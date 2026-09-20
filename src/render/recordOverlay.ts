@@ -1,41 +1,46 @@
-import { Skia, matchFont, type SkCanvas, type SkFont, type SkPaint } from '@shopify/react-native-skia';
+import {
+  Skia,
+  matchFont,
+  type SkCanvas,
+  type SkFont,
+  type SkPaint,
+} from '@shopify/react-native-skia';
 import type { OverlayMetrics } from './overlayMetrics';
 
-/** iOS system UI font — avoid "monospace" (often resolves empty / no glyphs). */
 const FONT_FAMILY = 'Helvetica';
 
-let textPaint: SkPaint | null = null;
-let overlayFont: SkFont | null = null;
+type OverlayTools = { paint: SkPaint; font: SkFont };
 
-function ensureOverlayTools(): { paint: SkPaint; font: SkFont } | null {
+declare const global: typeof globalThis & { __spikeOverlayTools?: OverlayTools };
+
+function ensureOverlayTools(): OverlayTools | null {
   'worklet';
-  if (textPaint && overlayFont) {
-    return { paint: textPaint, font: overlayFont };
+  let tools = global.__spikeOverlayTools;
+  if (tools) {
+    return tools;
   }
   try {
-    textPaint = Skia.Paint();
-    textPaint.setColor(Skia.Color('#00ffaa'));
-    overlayFont = matchFont({
+    const paint = Skia.Paint();
+    paint.setColor(Skia.Color('#00ffaa'));
+    const font = matchFont({
       fontFamily: FONT_FAMILY,
       fontSize: 16,
       fontStyle: 'normal',
       fontWeight: 'normal',
     });
+    tools = { paint, font };
   } catch {
-    textPaint = Skia.Paint();
-    textPaint.setColor(Skia.Color('#00ffaa'));
-    overlayFont = Skia.Font(undefined, 16);
+    const paint = Skia.Paint();
+    paint.setColor(Skia.Color('#00ffaa'));
+    tools = { paint, font: Skia.Font(undefined, 16) };
   }
-  if (!textPaint || !overlayFont) {
-    return null;
-  }
-  return { paint: textPaint, font: overlayFont };
+  global.__spikeOverlayTools = tools;
+  return tools;
 }
 
 /**
  * Draw D-08 overlay lines into the same SkPicture as the sprites (no React text).
- * Coordinates are in **surface pixels** (after logical→surface scale is restored).
- * Host objects are created lazily on the UI runtime (never at module import).
+ * Coordinates are in surface pixels.
  */
 export function drawOverlay(canvas: SkCanvas, m: OverlayMetrics): void {
   'worklet';
@@ -44,7 +49,6 @@ export function drawOverlay(canvas: SkCanvas, m: OverlayMetrics): void {
     return;
   }
   const { paint, font } = tools;
-
   const fps = m.rollingFps;
   const self = m.selfCheckReady ? (m.workletPass ? 'PASS' : 'FAIL') : '...';
 
