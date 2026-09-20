@@ -1,8 +1,11 @@
 // tests/platform.seams.test.ts — ARCH-02 / 06-W0-02
 import { describe, it, expect } from 'vitest';
-import { noopAds } from '../src/services/platform/noopAds';
-import { noopPurchases } from '../src/services/platform/noopPurchases';
-import { noopAccounts } from '../src/services/platform/noopAccounts';
+import {
+  noopAds,
+  noopPurchases,
+  noopAccounts,
+  defaultPlatformServices,
+} from '../src/services/platform';
 
 describe('platform seams', () => {
   it('noopAds.onRunEnded does not throw', () => {
@@ -23,7 +26,19 @@ describe('platform seams', () => {
     ).not.toThrow();
   });
 
-  it.todo(
-    'defaultPlatformServices returns ads/purchases/accounts with onRunEnded',
-  );
+  it('defaultPlatformServices returns ads/purchases/accounts with onRunEnded', () => {
+    const platform = defaultPlatformServices();
+    expect(platform).toHaveProperty('ads');
+    expect(platform).toHaveProperty('purchases');
+    expect(platform).toHaveProperty('accounts');
+    expect(() =>
+      platform.ads.onRunEnded({ score: 5, outcome: 'win' }),
+    ).not.toThrow();
+    expect(() =>
+      platform.purchases.onRunEnded({ score: 5, outcome: 'lose' }),
+    ).not.toThrow();
+    expect(() =>
+      platform.accounts.onRunEnded({ score: 5, outcome: 'win' }),
+    ).not.toThrow();
+  });
 });
