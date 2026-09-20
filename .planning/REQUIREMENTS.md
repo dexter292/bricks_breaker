@@ -10,8 +10,8 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 ### Controls & Physics
 
 - [ ] **PHYS-01**: Player can move the paddle with relative-drag touch (not absolute finger-follow), with tuned gain and light smoothing on device
-- [ ] **PHYS-02**: Ball collides with paddle, walls, and bricks using swept, deterministic collision with no tunneling at designed max speed
-- [ ] **PHYS-03**: Collision and simulation logic are unit-tested (including property tests for extreme speeds / dense grids)
+- [x] **PHYS-02**: Ball collides with paddle, walls, and bricks using swept, deterministic collision with no tunneling at designed max speed
+- [x] **PHYS-03**: Collision and simulation logic are unit-tested (including property tests for extreme speeds / dense grids)
 - [ ] **PHYS-04**: Ball bounce angle is paddle-relative with clamps that avoid near-horizontal and near-vertical degenerate trajectories
 - [ ] **PHYS-05**: On life start, ball is docked to the paddle and player launches with an aimed release/tap
 - [ ] **PHYS-06**: Game advances on a fixed-timestep loop; React state is not updated every physics frame
@@ -100,8 +100,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PHYS-01 | Phase 3 | Pending |
-| PHYS-02 | Phase 2 | Pending |
-| PHYS-03 | Phase 2 | Pending |
+| PHYS-02 | Phase 2 | Complete |
+| PHYS-03 | Phase 2 | Complete |
 | PHYS-04 | Phase 2 | Pending |
 | PHYS-05 | Phase 3 | Pending |
 | PHYS-06 | Phase 2 | Pending |
