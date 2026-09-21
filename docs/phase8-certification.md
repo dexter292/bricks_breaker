@@ -111,4 +111,46 @@ Fill during Plan 06 device certification. Empty rows are intentional.
 
 ---
 
+## Soak test (D-19…D-23)
+
+DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loops/listeners/audio before the Plan 06 human gate.
+
+| Item | Value |
+|------|--------|
+| Arm | `__DEV__` + `EXPO_PUBLIC_SOAK=1` (dev-client / profiling with `__DEV__`) |
+| Driver | `GameHost` soak harness — discrete `setTimeout` only (**not** `useFrameCallback`) |
+| Phase A | **100** Title↔Playing mount/unmount cycles (~750 ms dwell each edge) |
+| Phase B | **15 min** continuous play, then return to Title + `[soak] complete` log |
+| Production | **Never** set `EXPO_PUBLIC_SOAK` on the production EAS profile |
+
+### How to arm
+
+1. Install a **dev-client** or profiling build that still exposes `__DEV__`.
+2. Launch with `EXPO_PUBLIC_SOAK=1` (e.g. env on the development/profiling profile for a soak session only — not production).
+3. Leave the app foregrounded; do not manually thrash Menu/Play while the harness runs.
+4. Watch Metro / device logs for `[soak] arming` → cycles done → `[soak] complete`.
+
+### Record at start and end (D-21)
+
+| Signal | Android | iOS |
+|--------|---------|-----|
+| Memory | `adb shell dumpsys meminfo com.dexter292.bricksbreaker` | Xcode Memory gauges / Instruments Allocations |
+| Frame-time | `adb shell dumpsys gfxinfo … framestats` (same package) | Instruments Core Animation / Game |
+
+**Fail when:** sustained RSS growth, rising p95 / progressive frame-time degradation, crash, or unresponsive controls.
+
+### Automated vs device gate (D-20 / D-22)
+
+- Unit asserts (`tests/audio.release.test.ts`) cover **audio `release()`** pool clear + idempotent double-release after unmount paths.
+- **Final device soak + performance review remain a mandatory human gate** — unit green alone does **not** claim soak pass.
+
+### Soak Results (Plan 06)
+
+| Device | Build | Cycles | Continuous | Mem start | Mem end | Frame start | Frame end | Verdict | Notes |
+|--------|-------|--------|------------|-----------|---------|-------------|-----------|---------|-------|
+| Pixel 6a | profiling / `__DEV__` soak | 100 | 15 min | — | — | — | — | OPEN | Mandatory Android soak |
+| iPhone (physical) | profiling / `__DEV__` soak | 100 | 15 min | — | — | — | — | OPEN | D-16 stability companion |
+
+---
+
 _Status: protocol + thresholds locked; Results OPEN until Plan 06._
