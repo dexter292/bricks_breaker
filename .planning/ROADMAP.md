@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
 - [x] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end (completed 2026-09-20)
 - [x] **Phase 6: UI Shell, HUD, Persistence & Platform Seams** - Menus, HUD, instant retry, local high score, responsive layout, monetization seams (completed 2026-09-20)
-- [ ] **Phase 7: Feedback — Neon VFX & Audio** - Spectacle and sound that never hide the ball or cost frame time
+- [x] **Phase 7: Feedback — Neon VFX & Audio** - Spectacle and sound that never hide the ball or cost frame time (completed 2026-09-21)
 - [ ] **Phase 8: Showpiece Level, Performance Certification & Launch Baseline** - The authored challenge level, measured 60 FPS on hardware, store paperwork ready
 
 ## Phase Details
@@ -188,7 +188,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 4. Level Format & Brick Types | 5/5 | Complete | 2026-09-20 |
 | 5. Run Rules | 7/7 | Complete | 2026-09-20 |
 | 6. UI Shell, HUD & Persistence | 6/6 | Complete | 2026-09-20 |
-| 7. Feedback — Neon VFX & Audio | 0/7 | Planned | - |
+| 7. Feedback — Neon VFX & Audio | 7/7 | Complete (Human UAT approved; Pixel 6a gfxinfo → Phase 8 debt) | 2026-09-21 |
 | 8. Showpiece Level & Launch Baseline | 0/TBD | Not started | - |
 
 ## Coverage

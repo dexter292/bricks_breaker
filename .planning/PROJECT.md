@@ -22,6 +22,8 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [x] Local personal best persists offline (AsyncStorage + Results Score/Best/New Record) — Validated in Phase 6
 - [x] Responsive playfield/HUD with safe-area insets (HudStrip above letterbox) — Validated in Phase 6
 - [x] Ads/IAP/account seams as no-ops with real `onRunEnded` call sites; airplane-playable — Validated in Phase 6
+- [x] Minimal SFX: paddle hit, brick hit/break, power-up, life lost, win/lose — Validated in Phase 7: Feedback (Human UAT 2026-09-21)
+- [x] Basic neon visual effects: glowing bricks, ball trails, particle destruction, subtle screen shake — Validated in Phase 7: Feedback
 
 ### Active
 
@@ -30,8 +32,6 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [ ] Multiple brick types with different hit points and behaviors
 - [ ] One complete arcade challenge level (~2–3 min successful run) with progressive difficulty
 - [ ] Pause and resume
-- [ ] Minimal SFX: paddle hit, brick hit/break, power-up, life lost, win/lose
-- [ ] Basic neon visual effects: glowing bricks, ball trails, particle destruction, subtle screen shake
 - [ ] Performance measured on real mid-range devices (target 60 FPS)
 
 ### Out of Scope
@@ -124,4 +124,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-20 — Phase 6 complete (Title/HUD/Best/seams)*
+*Last updated: 2026-09-21 — Phase 7 complete (neon VFX + modular SFX; Human UAT approved)*

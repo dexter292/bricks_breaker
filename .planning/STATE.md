@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 7 UI-SPEC approved
+status: ready_to_plan
+stopped_at: Phase 7 complete — Human UAT approved 2026-09-21
 last_updated: "2026-09-21T03:32:25.338Z"
 last_activity: 2026-09-21
 progress:
@@ -11,26 +11,26 @@ progress:
   completed_phases: 7
   total_plans: 41
   completed_plans: 41
-  percent: 100
+  percent: 88
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-20)
+See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Phase 07 — feedback — neon vfx & audio
+**Current focus:** Phase 08 — showpiece level, performance certification & launch baseline
 
 ## Current Position
 
 Phase: 8
 Plan: Not started
-Status: Ready to execute
+Status: Ready to discuss / plan
 Last activity: 2026-09-21
 
-Progress: [████████░░] 75% phases (6/8 complete)
+Progress: [████████░░] 88% phases (7/8 complete)
 
 ## Performance Metrics
 
