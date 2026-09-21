@@ -12,6 +12,72 @@ const KIND_BRICK = 2;
 const KIND_BOTTOM = 3;
 
 /**
+ * Push circle center out of an overlapping AABB to distance radius+eps (F-12).
+ * Returns true if a correction was applied.
+ */
+function depenetrateCircleAabb(
+  world: World,
+  bi: number,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  eps: number,
+): boolean {
+  'worklet';
+  const cx = world.ballX[bi];
+  const cy = world.ballY[bi];
+  const r = world.ballRadius[bi];
+  // Closest point on AABB to center
+  let qx = cx;
+  if (qx < minX) qx = minX;
+  else if (qx > maxX) qx = maxX;
+  let qy = cy;
+  if (qy < minY) qy = minY;
+  else if (qy > maxY) qy = maxY;
+
+  let dx = cx - qx;
+  let dy = cy - qy;
+  // Center inside solid AABB — push along shallowest face
+  if (dx === 0 && dy === 0) {
+    const left = cx - minX;
+    const right = maxX - cx;
+    const top = cy - minY;
+    const bot = maxY - cy;
+    let m = left;
+    let nx = -1;
+    let ny = 0;
+    if (right < m) {
+      m = right;
+      nx = 1;
+      ny = 0;
+    }
+    if (top < m) {
+      m = top;
+      nx = 0;
+      ny = -1;
+    }
+    if (bot < m) {
+      m = bot;
+      nx = 0;
+      ny = 1;
+    }
+    world.ballX[bi] = cx + nx * (m + r + eps);
+    world.ballY[bi] = cy + ny * (m + r + eps);
+    return true;
+  }
+
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist >= r - 1e-8) {
+    return false; // not overlapping (or only grazing)
+  }
+  const scale = (r + eps) / (dist < 1e-8 ? 1e-8 : dist);
+  world.ballX[bi] = qx + dx * scale;
+  world.ballY[bi] = qy + dy * scale;
+  return true;
+}
+
+/**
  * Pack live balls into dense prefix [0, live).
  * activeBallCount === live dense count (Phase 5 / D-12).
  */
@@ -89,6 +155,63 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
 
     let remaining = dt;
     let ccd = 0;
+    let paddleHitThisStep = 0;
+
+    // F-12: resolve deep overlaps before CCD so t=0 contacts do not burn all iterations.
+    // Walls (field bounds as inward AABBs are thin — depenetrate against playfield edges).
+    {
+      const r = world.ballRadius[bi];
+      const eps = sepEps;
+      if (world.ballX[bi] < r + eps) {
+        world.ballX[bi] = r + eps;
+      } else if (world.ballX[bi] > logicalWidth - r - eps) {
+        world.ballX[bi] = logicalWidth - r - eps;
+      }
+      if (world.ballY[bi] < r + eps) {
+        world.ballY[bi] = r + eps;
+      }
+      // Do not clamp bottom — BALL_OUT owns the miss zone below the paddle.
+
+      // Bricks (breakable + steel)
+      for (let brickIndex = 0; brickIndex < world.brickCount; brickIndex++) {
+        if (world.brickHp[brickIndex] <= 0) {
+          continue;
+        }
+        depenetrateCircleAabb(
+          world,
+          bi,
+          world.brickX[brickIndex],
+          world.brickY[brickIndex],
+          world.brickX[brickIndex] + world.brickW[brickIndex],
+          world.brickY[brickIndex] + world.brickH[brickIndex],
+          eps,
+        );
+      }
+
+      // Paddle: only depenetrate when center is above the paddle bottom
+      // (underside overlaps must fall through to BALL_OUT — never hoist upward).
+      if (world.ballY[bi] <= paddleMaxY) {
+        depenetrateCircleAabb(
+          world,
+          bi,
+          paddleMinX,
+          paddleMinY,
+          paddleMaxX,
+          paddleMaxY,
+          eps,
+        );
+        // Prefer resting on top face after depenetration
+        if (
+          world.ballY[bi] > paddleMinY - r &&
+          world.ballY[bi] < paddleMinY + r &&
+          world.ballX[bi] >= paddleMinX - r &&
+          world.ballX[bi] <= paddleMaxX + r
+        ) {
+          world.ballY[bi] = paddleMinY - r - eps;
+        }
+      }
+    }
+
     while (ccd < maxCcd && remaining > toiEps) {
       ccd += 1;
 
@@ -206,7 +329,9 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       }
 
       // --- Paddle ---
-      {
+      // F-12: ignore paddle when center is already below its bottom face
+      // (player slid under a dying ball) — bottom / BALL_OUT owns that region.
+      if (cy <= paddleMaxY) {
         const h = sweepCircleAabb(
           cx,
           cy,
@@ -275,9 +400,11 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         }
       }
 
-      // Miss → advance full remaining and stop CCD for this ball
+      // Miss → advance full remaining once, then stop (F-11: zero remaining so
+      // the post-loop exhaust path cannot advance a second time).
       if (bestKind < 0 || bestT > 1) {
         advanceBall(world, bi, remaining);
+        remaining = 0;
         break;
       }
 
@@ -313,7 +440,11 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         }
         world.ballX[bi] = world.ballX[bi] + nx * sepEps;
         world.ballY[bi] = world.ballY[bi] + ny * sepEps;
-        pushEvent(world, EventCode.PADDLE_HIT, bi, -1, hx, hy);
+        // F-12 / F-48: at most one PADDLE_HIT per ball per step
+        if (paddleHitThisStep === 0) {
+          paddleHitThisStep = 1;
+          pushEvent(world, EventCode.PADDLE_HIT, bi, -1, hx, hy);
+        }
         continue;
       }
 
@@ -383,15 +514,10 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       }
     }
 
-    // Cap leftover: if CCD exhausted, advance remaining motion
-    if (remaining > toiEps && world.ballActive[bi]) {
-      // Only if we exited due to maxCcd without a final miss-advance
-      // (miss path already advanced and broke with remaining unused conceptually)
-      // After loop exit via maxCcd, consume leftover:
-      const stillHasTime = remaining > toiEps;
-      if (stillHasTime && ccd >= maxCcd) {
-        advanceBall(world, bi, remaining);
-      }
+    // Cap leftover: if CCD exhausted, discard remaining motion (F-11 / F-12).
+    // Free-integrating here tunnels through colliders the loop already failed to clear.
+    if (remaining > toiEps && world.ballActive[bi] && ccd >= maxCcd) {
+      remaining = 0;
     }
 
     // 4. Bounds backstop (clamp center inside field expanded by radius)
