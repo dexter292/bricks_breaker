@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-00-PLAN.md
-last_updated: "2026-09-21T08:27:46.292Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-09-21T08:31:36.327Z"
 last_activity: 2026-09-21
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 48
-  completed_plans: 42
-  percent: 88
+  completed_plans: 43
+  percent: 90
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 8 (Showpiece Level, Performance Certification & Launch Baseline) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-09-21
 
@@ -69,6 +69,7 @@ Progress: [████████░░] 88% phases (7/8 complete)
 | 06 | 6 | - | - |
 | 07 | 7 | - | - |
 | Phase 08 P00 | 2min | 2 tasks | 16 files |
+| Phase 08 P01 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,8 @@ Progress: [████████░░] 88% phases (7/8 complete)
 - [Phase 08]: Pin expo-device via npx expo install only — never react-native-device-info
 - [Phase 08]: Privacy assert exists and fails closed until Plan 05 fills app.json
 - [Phase 08]: Store/privacy stubs marked STATUS:STUB with LIVE_URL: TBD (no fake URL)
+- [Phase 08]: 10×16 Neon Gauntlet layout: Act1 1s → plateau → Act2 2/3 clusters → plateau → Act3 X pocket
+- [Phase 08]: Default LevelId and PlayingHost useState are level-03 (D-06); fixtures 01/02 unchanged (D-05)
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ Progress: [████████░░] 88% phases (7/8 complete)
 
 ## Session Continuity
 
-Last session: 2026-09-21T08:27:46.290Z
-Stopped at: Completed 08-00-PLAN.md
+Last session: 2026-09-21T08:31:36.324Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
