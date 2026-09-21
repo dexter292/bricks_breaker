@@ -56,13 +56,13 @@ plans:
 | 08-TIER | 02+ | 2+ | PLT-03 | — | caps only in VFX | unit | `npm test -- tests/vfx.particles.test.ts` | ✅ | ✅ green |
 | 08-CERT | last | last | PLT-03 | — | gfxinfo not RN monitor | manual-on-device | profiling + `adb dumpsys gfxinfo` | ✅ docs scaffolding | ⬜ pending device |
 | 08-SOAK | last | last | PLT-03 | T-08-04 | no DEV harness in prod | manual-on-device | 100 cycles + 15 min | ✅ harness | ⬜ pending device |
-| 08-STORE | last | last | PLT-04 | T-08-02 | policy matches deps | manual + curl | `curl -fsSI $URL` + docs checklist | ✅ in-repo | ⚠️ LIVE_URL OWNER_WAIVED (D-27) |
+| 08-STORE | last | last | PLT-04 | T-08-02 | policy matches deps | manual + curl | `curl -fsSI $URL` + docs checklist | ✅ | ✅ LIVE_URL 200 |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky / debt*
 
 **Plan 06 Task 1 gate (2026-09-21):** `npm test` 179/179 ✅ · `assert-privacy-manifest.mjs` ✅ · Results scaffolding `PENDING_DEVICE` in `docs/phase8-certification.md` · Phase 7 debt pointer + device-gate Phase 8 cross-link ✅.
 
-**Phase gate notes:** Automated suite green. Device rows (Pixel Mid gfxinfo, iPhone Instruments, soak) remain **manual-mandatory**. `LIVE_URL: OWNER_WAIVED_2026-09-21` — do **not** claim PLT-04 fully closed (D-27). `nyquist_compliant: false` until Task 2 human approval with filled (or explicitly waived) Results.
+**Phase gate notes:** Automated suite green. Device rows (Pixel Mid gfxinfo, iPhone Instruments, soak) remain **manual-mandatory**. LIVE_URL verified HTTPS 200 on GitHub Pages (2026-09-21). `nyquist_compliant: false` until Task 2 human approval with filled (or explicitly waived) Results.
 
 ---
 
@@ -85,7 +85,7 @@ plans:
 | Pixel 6a Mid 60 FPS worst-case | PLT-03 | Device gfxinfo | Scripted level-03 worst-case; profiling build; ≥2× ≥30s; worse run; follow `docs/measurement-methodology.md` + `docs/phase8-certification.md` |
 | iPhone Instruments + feel | PLT-03 | Physical device | Instruments report + render/touch/stability — install alone invalid |
 | 100 Title↔Playing + 15 min soak | PLT-03 / D-19 | Device lifecycle | DEV harness; record memory/frame-time start/end |
-| Live HTTPS privacy URL | PLT-04 | External host | `curl -fsSI $URL`; policy matches MVP data practices — **OPEN** (`OWNER_WAIVED_2026-09-21`) |
+| Live HTTPS privacy URL | PLT-04 | External host | `curl -fsSI` → HTTP/2 200 at https://dexter292.github.io/bricks_breaker/store/privacy-policy.html (2026-09-21) |
 | Store paperwork completeness | PLT-04 | Human attestation | Data Safety, age rating, name clearance, originality in repo |
 
 ---

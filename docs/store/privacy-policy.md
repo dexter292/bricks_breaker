@@ -2,9 +2,9 @@
 
 **Effective date:** 2026-09-21
 
-**LIVE_URL: https://dexter292.github.io/bricks_breaker/store/privacy-policy.html**
+LIVE_URL: https://dexter292.github.io/bricks_breaker/store/privacy-policy.html
 
-*(Published via GitHub Pages — source branch `main`, folder `/docs`. In-repo HTML is the source of truth.)*
+Published via GitHub Pages — source branch `main`, folder `/docs`. In-repo HTML is the source of truth.
 
 ## Overview
 
