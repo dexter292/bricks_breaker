@@ -345,8 +345,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       );
     }
 
-    // Cosmetic decay even while frozen (pause / won / lost) — no new audio from idle ring
-    stepVfx(vfx, fixedDt, intensity);
+    // Cosmetic decay even while frozen (pause / won / lost) — no new audio from idle ring.
+    // Use wall-clock dt (same as decayFlash) so sparks/shake match flash under dropped FPS.
+    stepVfx(vfx, dt, intensity);
     decayFlash(flash, dt);
 
     // Exactly one audio hop / frame from eventBridge (LC-07).
