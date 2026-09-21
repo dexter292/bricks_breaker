@@ -17,15 +17,23 @@ export const IMPULSE_LIFE_LOST = 2.0;
 export type VfxCaps = {
   maxBalls?: number;
   particleCap?: number;
+  /** Clamp trail ghosts; never apply < 2 (FX-01). */
+  trailMax?: number;
+  /** 0 = skip glow blit; 1 = full. */
+  glowScale?: number;
 };
 
 export type VfxState = {
   maxBalls: number;
-  /** Per-ball ring: length = maxBalls * TRAIL_MAX */
+  /** Per-ball ring: length = maxBalls * TRAIL_MAX (storage stride). */
   trailX: Float32Array;
   trailY: Float32Array;
-  /** Next write index within [0, TRAIL_MAX) per ball */
+  /** Next write index within [0, trailMax) per ball */
   trailHead: Uint8Array;
+  /** Effective trail ceiling from tier budget (≥2, ≤TRAIL_MAX). */
+  trailMax: number;
+  /** Glow blit scale from tier budget ([0,1]). */
+  glowScale: number;
 
   particleCap: number;
   px: Float32Array;
@@ -56,6 +64,15 @@ export function allocateVfx(caps?: VfxCaps): VfxState {
   if (particleCap < 1) particleCap = PARTICLE_POOL_DEFAULT;
   if (particleCap > PARTICLE_POOL_HARD_MAX) particleCap = PARTICLE_POOL_HARD_MAX;
 
+  let trailMax = Math.floor(caps?.trailMax ?? TRAIL_MAX);
+  if (!Number.isFinite(trailMax)) trailMax = TRAIL_MAX;
+  trailMax = Math.max(2, Math.min(TRAIL_MAX, trailMax));
+
+  let glowScale = caps?.glowScale ?? 1;
+  if (!Number.isFinite(glowScale)) glowScale = 1;
+  if (glowScale < 0) glowScale = 0;
+  if (glowScale > 1) glowScale = 1;
+
   const trailSlots = maxBalls * TRAIL_MAX;
 
   return {
@@ -63,6 +80,8 @@ export function allocateVfx(caps?: VfxCaps): VfxState {
     trailX: new Float32Array(trailSlots),
     trailY: new Float32Array(trailSlots),
     trailHead: new Uint8Array(maxBalls),
+    trailMax,
+    glowScale,
 
     particleCap,
     px: new Float32Array(particleCap),

@@ -106,7 +106,8 @@ function pushActiveBallTrails(
   intensity: number,
 ): void {
   'worklet';
-  const len = trailLength(intensity);
+  // Tier trailMax is hard ceiling; intensity dampens within (D-09).
+  const len = Math.min(trailLength(intensity), vfx.trailMax);
   const limit = world.activeBallCount;
   for (let i = 0; i < limit; i++) {
     if (world.ballActive[i] !== 1) {

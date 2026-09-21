@@ -1,6 +1,7 @@
 import { Skia, type SkFont, type SkImage, type SkPicture } from '@shopify/react-native-skia';
 import type { World } from '../core';
 import type { VfxState } from '../vfx';
+import { TRAIL_MAX } from '../vfx/types';
 import { trailLength } from '../vfx/intensity';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
@@ -198,13 +199,18 @@ export function recordFrame(
     const bh = world.brickH[i];
     const fill = brickFillLocal(hp, flags);
 
-    // Idle neon halo blit from bake atlas (scale alpha by intensity)
-    if (vfx != null && glowAtlas != null && intensity > 0) {
+    // Idle neon halo blit from bake atlas (scale alpha by intensity × glowScale)
+    if (
+      vfx != null &&
+      glowAtlas != null &&
+      intensity > 0 &&
+      vfx.glowScale > 0
+    ) {
       const variant = glowAtlas[fill];
       if (variant != null) {
         const img: SkImage = variant.soft;
         tools.paint.setStyle(0);
-        tools.paint.setAlphaf(intensity);
+        tools.paint.setAlphaf(intensity * vfx.glowScale);
         canvas.drawImage(img, bx - GLOW_PAD_SOFT, by - GLOW_PAD_SOFT, tools.paint);
         tools.paint.setAlphaf(1);
       }
@@ -297,14 +303,13 @@ export function recordFrame(
 
   // Trail ghosts (oldest → newest) under live ball — discrete circles, never a Path ribbon
   if (vfx != null) {
-    const ringLen = trailLength(intensity);
-    const trailMax = 5;
+    const ringLen = Math.min(trailLength(intensity), vfx.trailMax);
     const maxBallsTrail = world.maxBalls < vfx.maxBalls ? world.maxBalls : vfx.maxBalls;
     for (let bi = 0; bi < maxBallsTrail; bi++) {
       if (world.ballActive[bi] === 0) {
         continue;
       }
-      const base = bi * trailMax;
+      const base = bi * TRAIL_MAX;
       const head = vfx.trailHead[bi] % ringLen;
       const radius =
         world.ballRadius[bi] > 0 ? world.ballRadius[bi] : BALL_RADIUS_LOCAL;

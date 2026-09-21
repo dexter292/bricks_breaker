@@ -16,7 +16,8 @@ export function pushTrail(
   if (ballIndex < 0 || ballIndex >= vfx.maxBalls) {
     return;
   }
-  const ringLen = len < 2 ? 2 : len > TRAIL_MAX ? TRAIL_MAX : len | 0;
+  const cap = vfx.trailMax < 2 ? 2 : vfx.trailMax > TRAIL_MAX ? TRAIL_MAX : vfx.trailMax;
+  const ringLen = len < 2 ? 2 : len > cap ? cap : len | 0;
   const head = vfx.trailHead[ballIndex] % ringLen;
   const base = ballIndex * TRAIL_MAX;
   vfx.trailX[base + head] = x;
