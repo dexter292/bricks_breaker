@@ -188,7 +188,10 @@ export function createMemoryAudioService(): MemoryAudioService {
       }
     },
     release(): void {
+      if (released) return;
       released = true;
+      plays.length = 0;
+      cursors.clear();
     },
   };
 }
