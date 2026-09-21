@@ -36,6 +36,7 @@ import {
   createDefaultPersonalBestStore,
   evaluatePersonalBest,
 } from '../../src/services/storage';
+import { CERT_HARNESS } from '../../src/devflags';
 
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
@@ -223,22 +224,23 @@ export function PlayingHost({ onMenu }: Props) {
     camScale,
   });
 
-  const { picture, surfaceSize, setActive, retry } = useGameLoop({
-    paddleTarget,
-    launchFlag,
-    uiPhase: uiPhaseSv,
-    livesOut: livesSv,
-    simPhaseOut: simPhaseSv,
-    scoreOut: scoreSv,
-    comboOut: comboSv,
-    stallTierOut: stallTierSv,
-    compiled: compiledSv,
-    onOsPause,
-    vfxIntensity,
-    playBatch: playBatchOnJS,
-    glowAtlas: glowAtlasSv,
-    vfxBudget,
-  });
+  const { picture, surfaceSize, setActive, retry, injectCertWorstCase } =
+    useGameLoop({
+      paddleTarget,
+      launchFlag,
+      uiPhase: uiPhaseSv,
+      livesOut: livesSv,
+      simPhaseOut: simPhaseSv,
+      scoreOut: scoreSv,
+      comboOut: comboSv,
+      stallTierOut: stallTierSv,
+      compiled: compiledSv,
+      onOsPause,
+      vfxIntensity,
+      playBatch: playBatchOnJS,
+      glowAtlas: glowAtlasSv,
+      vfxBudget,
+    });
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
   // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.
@@ -455,6 +457,73 @@ export function PlayingHost({ onMenu }: Props) {
     remountDevSession();
   }, [tierOverride, remountDevSession]);
 
+  /** Pending one-shot cert inject after level-03 + Mid remount settles. */
+  const certPendingRef = useRef(false);
+  const certArmedRef = useRef(false);
+
+  const runCertWorstCase = useCallback(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) {
+      return;
+    }
+    let defer = false;
+    if (levelId !== 'level-03') {
+      setLevelId('level-03');
+      defer = true;
+    }
+    if (tierOverride !== 'mid') {
+      setTierOverride('mid');
+      defer = true;
+    }
+    if (defer) {
+      certPendingRef.current = true;
+      return;
+    }
+    injectCertWorstCase();
+  }, [levelId, tierOverride, injectCertWorstCase]);
+
+  // After remount to level-03 + Mid, fire deferred cert inject once (not per-frame).
+  useEffect(() => {
+    if (!certPendingRef.current) {
+      return;
+    }
+    if (
+      !levelReady ||
+      levelError != null ||
+      !fxReady ||
+      levelId !== 'level-03' ||
+      tierOverride !== 'mid'
+    ) {
+      return;
+    }
+    certPendingRef.current = false;
+    const t = setTimeout(() => {
+      injectCertWorstCase();
+    }, 50);
+    return () => clearTimeout(t);
+  }, [
+    levelReady,
+    levelError,
+    fxReady,
+    levelId,
+    tierOverride,
+    injectCertWorstCase,
+  ]);
+
+  // Optional auto-arm: __DEV__ && CERT_HARNESS only (never production).
+  useEffect(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) {
+      return;
+    }
+    if (!CERT_HARNESS || certArmedRef.current) {
+      return;
+    }
+    if (!levelReady || levelError != null || !fxReady) {
+      return;
+    }
+    certArmedRef.current = true;
+    runCertWorstCase();
+  }, [levelReady, levelError, fxReady, runCertWorstCase]);
+
   if (!fontsLoaded) {
     return <View style={styles.root} />;
   }
@@ -500,6 +569,15 @@ export function PlayingHost({ onMenu }: Props) {
           style={styles.devSwitch}
         >
           <Text style={styles.devSwitchLabel}>{tierLabel}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cert worst-case: level-03 Mid multi-ball particles shake"
+          onPress={runCertWorstCase}
+          hitSlop={8}
+          style={styles.devSwitch}
+        >
+          <Text style={styles.devSwitchLabel}>Cert WC</Text>
         </Pressable>
       </View>
     ) : null;

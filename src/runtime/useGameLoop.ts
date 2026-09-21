@@ -10,9 +10,11 @@ import { Skia } from '@shopify/react-native-skia';
 import {
   allocateWorld,
   applyCompiledLevel,
+  applyServe,
   dockBall,
   EventCode,
   resetWorld,
+  spawnMultiballFromPaddle,
   stepRun,
   SimPhase,
   type CompiledLevel,
@@ -28,13 +30,17 @@ import {
   appendEventsForAudio,
   consumeEventsForVfx,
   createAudioBatch,
+  IMPULSE_LIFE_LOST,
+  punchShake,
   pushTrail,
   resetAudioBatch,
+  spawnBurst,
   stepVfx,
   trailLength,
   type AudioBatchSoA,
   type VfxState,
 } from '../vfx';
+
 import { subscribeAppStateAutoPause } from './appStatePause';
 import {
   FIXED_DT,
@@ -148,6 +154,11 @@ export type GameLoopHandle = {
   surfaceSize: SharedValue<SkSize>;
   setActive: (active: boolean) => void;
   retry: () => void;
+  /**
+   * DEV-only one-shot worst-case inject (PLT-03 / D-14): ≥3 balls, particles
+   * near Mid cap, shake punched. Discrete cold path — never per-frame.
+   */
+  injectCertWorstCase: () => void;
 };
 
 export type UseGameLoopOptions = {
@@ -499,12 +510,120 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     };
   }, [setActive, uiPhase, onOsPause]);
 
+  /**
+   * DEV cert worst-case (D-14): one-shot runtime inject — not DROP_CHANCE / core RNG.
+   * No-ops outside __DEV__; adds zero per-frame work when unused.
+   */
+  const injectCertWorstCase = useCallback(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) {
+      return;
+    }
+    let w = world.value;
+    if (!w) {
+      w = allocateWorld();
+      resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
+      const level = compiled.value;
+      if (level != null) {
+        applyCompiledLevel(w, level);
+      }
+      world.value = w;
+    }
+
+    // Leave DOCKED so processDocked cannot wipe extra balls next step.
+    if (w.simPhase === SimPhase.DOCKED) {
+      applyServe(w, 360);
+      w.simPhase = SimPhase.PLAYING;
+    } else if (
+      w.simPhase === SimPhase.WON ||
+      w.simPhase === SimPhase.LOST
+    ) {
+      // Re-enter playable state for measurement window
+      resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
+      const level = compiled.value;
+      if (level != null) {
+        applyCompiledLevel(w, level);
+      }
+      applyServe(w, 360);
+      w.simPhase = SimPhase.PLAYING;
+    }
+
+    // ≥3 active balls via multiball helper (no DROP_CHANCE change).
+    let guard = 0;
+    while (w.activeBallCount < 3 && w.activeBallCount < w.maxBalls && guard < 4) {
+      const before = w.activeBallCount;
+      spawnMultiballFromPaddle(w);
+      if (w.activeBallCount <= before) {
+        break;
+      }
+      guard += 1;
+    }
+
+    let vfx = vfxSv.value;
+    if (!vfx) {
+      vfx = allocateVfx({
+        maxBalls: w.maxBalls,
+        particleCap: budgetParticleCap,
+        trailMax: budgetTrailMax,
+        glowScale: budgetGlowScale,
+      });
+      vfxSv.value = vfx;
+    }
+
+    // Flood particles near Mid particleCap (cosmetic only).
+    let seed = 0.314159;
+    const rng = () => {
+      seed = (seed * 1.6180339887) % 1;
+      return seed;
+    };
+    const nearCap = Math.max(0, vfx.particleCap - 4);
+    let bursts = 0;
+    while (vfx.particleCount < nearCap && bursts < 64) {
+      spawnBurst(vfx, {
+        kind: 'destroy',
+        x: 120 + (bursts % 8) * 24,
+        y: 160 + (bursts % 6) * 28,
+        rgb: { r: 0.2, g: 0.85, b: 1 },
+        intensity: 1,
+        rng,
+      });
+      bursts += 1;
+    }
+
+    // Punch shake so amp is decaying during the measurement window.
+    punchShake(vfx, IMPULSE_LIFE_LOST, 1);
+
+    /* eslint-disable react-hooks/immutability -- SharedValue chrome mirrors (D-14) */
+    launchFlag.value = 0;
+    paddleTarget.value = w.paddleX;
+    livesOut.value = w.lives;
+    simPhaseOut.value = w.simPhase;
+    scoreOut.value = w.score;
+    comboOut.value = w.combo;
+    stallTierOut.value = w.stallTier;
+    /* eslint-enable react-hooks/immutability */
+  }, [
+    world,
+    compiled,
+    vfxSv,
+    budgetParticleCap,
+    budgetTrailMax,
+    budgetGlowScale,
+    launchFlag,
+    paddleTarget,
+    livesOut,
+    simPhaseOut,
+    scoreOut,
+    comboOut,
+    stallTierOut,
+  ]);
+
   return {
     world,
     picture,
     surfaceSize,
     setActive,
     retry,
+    injectCertWorstCase,
     metrics,
     spriteTarget,
   };
