@@ -39,9 +39,9 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 ### Feedback (VFX / Audio)
 
-- [ ] **FX-01**: Ball has a trail that preserves readability at maximum speed (degrades to high-contrast minimum under reduced motion, never vanishes)
-- [ ] **FX-02**: Neon destruction effects (glow, particles, subtle shake) use a global intensity scalar and a hard particle budget; spectacle never hides paddle/ball or breaks frame budget
-- [ ] **FX-03**: Modular audio plays frame-accurate SFX for paddle hit, brick hit/break, power-up catch, life lost, win, and lose
+- [x] **FX-01**: Ball has a trail that preserves readability at maximum speed (degrades to high-contrast minimum under reduced motion, never vanishes)
+- [x] **FX-02**: Neon destruction effects (glow, particles, subtle shake) use a global intensity scalar and a hard particle budget; spectacle never hides paddle/ball or breaks frame budget
+- [x] **FX-03**: Modular audio plays frame-accurate SFX for paddle hit, brick hit/break, power-up catch, life lost, win, and lose
 
 ### Platform & Performance
 
@@ -117,9 +117,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PWR-01 | Phase 5 | Complete |
 | PWR-02 | Phase 5 | Complete |
 | PWR-03 | Phase 5 | Complete |
-| FX-01 | Phase 7 | Pending |
-| FX-02 | Phase 7 | Pending |
-| FX-03 | Phase 7 | Pending |
+| FX-01 | Phase 7 | Complete |
+| FX-02 | Phase 7 | Complete |
+| FX-03 | Phase 7 | Complete |
 | PLT-01 | Phase 3 | Pending |
 | PLT-02 | Phase 6 | Complete |
 | PLT-03 | Phase 8 | Pending |
