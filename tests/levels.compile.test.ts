@@ -114,4 +114,9 @@ describe('levels.compile', () => {
     const result = loadAndCompile({ schemaVersion: 99 });
     expect(result.ok).toBe(false);
   });
+
+  // 08-W0-01 — Plan 01 fills level-03 JSON + assertions
+  it.todo('level-03 validates and compiles with UNBREAKABLE present');
+  it.todo('level-03 fingerprint differs from level-01 and level-02');
+  it.todo('level-03 cols*rows and brickCount ≤ MAX_BRICKS (256)');
 });

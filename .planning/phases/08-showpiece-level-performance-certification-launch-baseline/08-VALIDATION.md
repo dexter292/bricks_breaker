@@ -3,8 +3,8 @@ phase: 8
 slug: showpiece-level-performance-certification-launch-baseline
 status: draft
 nyquist_compliant: false
-wave_0_complete: false
-# Plans landed 2026-09-21 — set wave_0_complete true after Plan 00 executes
+wave_0_complete: true
+# Wave 0 complete after Plan 00 — nyquist_compliant stays false until phase gate
 created: 2026-09-21
 plans:
   - 08-00-PLAN.md
@@ -47,12 +47,12 @@ plans:
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 08-W0-01 | 00 | 0 | LVL-04 | T-08-01 | validateLevel fail-closed | unit | `npm test -- tests/levels.compile.test.ts` | ❌ W0 | ⬜ pending |
-| 08-W0-02 | 00 | 0 | PLT-03 | — | N/A | unit | `npm test -- tests/runtime.quality-tiers.test.ts` | ❌ W0 | ⬜ pending |
+| 08-W0-01 | 00 | 0 | LVL-04 | T-08-01 | validateLevel fail-closed | unit | `npm test -- tests/levels.compile.test.ts` | ✅ | ⬜ pending |
+| 08-W0-02 | 00 | 0 | PLT-03 | — | N/A | unit | `npm test -- tests/runtime.quality-tiers.test.ts` | ✅ | ⬜ pending |
 | 08-W0-03 | 00 | 0 | PLT-03 | — | core blind to tier | unit | `npm test -- tests/core.purity.test.ts` | ✅ | ⬜ pending |
-| 08-W0-04 | 00 | 0 | Soak | — | audio.release idempotent | unit | `npm test -- tests/audio.release.test.ts` | ❌ W0 | ⬜ pending |
-| 08-W0-05 | 00 | 0 | PLT-04 | T-08-03 | privacyManifests present | smoke | `node scripts/assert-privacy-manifest.mjs` | ❌ W0 | ⬜ pending |
-| 08-LVL | 01+ | 1+ | LVL-04 | T-08-01 | corrupt JSON rejected | unit | `npm test -- tests/levels.compile.test.ts` | ❌ W0 | ⬜ pending |
+| 08-W0-04 | 00 | 0 | Soak | — | audio.release idempotent | unit | `npm test -- tests/audio.release.test.ts` | ✅ | ⬜ pending |
+| 08-W0-05 | 00 | 0 | PLT-04 | T-08-03 | privacyManifests present | smoke | `node scripts/assert-privacy-manifest.mjs` | ✅ | ⬜ pending |
+| 08-LVL | 01+ | 1+ | LVL-04 | T-08-01 | corrupt JSON rejected | unit | `npm test -- tests/levels.compile.test.ts` | ✅ | ⬜ pending |
 | 08-TIER | 02+ | 2+ | PLT-03 | — | caps only in VFX | unit | `npm test -- tests/vfx.particles.test.ts` | ✅ partial | ⬜ pending |
 | 08-CERT | last | last | PLT-03 | — | gfxinfo not RN monitor | manual-on-device | profiling + `adb dumpsys gfxinfo` | ❌ docs | ⬜ pending |
 | 08-SOAK | last | last | PLT-03 | T-08-04 | no DEV harness in prod | manual-on-device | 100 cycles + 15 min | ❌ harness | ⬜ pending |
@@ -64,13 +64,13 @@ plans:
 
 ## Wave 0 Requirements
 
-- [ ] Extend `tests/levels.compile.test.ts` — level-03 compile + structural checks; keep 01/02 fingerprints green
-- [ ] `tests/runtime.quality-tiers.test.ts` — memory heuristic + budgets + conservative null→Low
-- [ ] Extend VFX cap tests for trailMax/glowScale once API exists
-- [ ] `tests/audio.release.test.ts` (or extend mapping) — release clears / idempotent
-- [ ] Optional `scripts/assert-privacy-manifest.mjs` — `app.json` has `privacyManifests`
-- [ ] Docs stubs: `docs/phase8-certification.md`, `docs/store/*` placeholders
-- [ ] Install: `npx expo install expo-device`
+- [x] Extend `tests/levels.compile.test.ts` — level-03 compile + structural checks; keep 01/02 fingerprints green
+- [x] `tests/runtime.quality-tiers.test.ts` — memory heuristic + budgets + conservative null→Low
+- [x] Extend VFX cap tests for trailMax/glowScale once API exists
+- [x] `tests/audio.release.test.ts` (or extend mapping) — release clears / idempotent
+- [x] Optional `scripts/assert-privacy-manifest.mjs` — `app.json` has `privacyManifests`
+- [x] Docs stubs: `docs/phase8-certification.md`, `docs/store/*` placeholders
+- [x] Install: `npx expo install expo-device`
 
 ---
 

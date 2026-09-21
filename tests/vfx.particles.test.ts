@@ -154,4 +154,9 @@ describe('vfx particles (FX-02)', () => {
     }
     expect(countActiveParticles(vfx)).toBeLessThanOrEqual(PARTICLE_POOL_DEFAULT);
   });
+
+  // 08-TIER — Plan 02 fills quality-tier caps API
+  it.todo('allocateVfx respects particleCap from caps');
+  it.todo('trailMax from caps clamps trailLength result ≥2');
+  it.todo('glowScale 0 is distinguishable from 1 in caps');
 });
