@@ -75,7 +75,7 @@ Each task was committed atomically (TDD RED→GREEN):
 3. **Task 2 RED: loadLevel default tests** - `5c6bfee` (test)
 4. **Task 2 GREEN: default boot + DEV 3-way switch** - `a53988c` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `d0f2fc8` (docs: complete plan)
 
 ## Files Created/Modified
 
