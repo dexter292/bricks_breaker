@@ -75,7 +75,7 @@ Each task was committed atomically:
 1. **Task 1: DEV scripted worst-case cert trigger** - `f6ebdba` (feat)
 2. **Task 2: phase8-certification protocol + thresholds + Phase 7 pointer** - `c312f75` (docs)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `9234902` (docs: complete plan)
 
 ## Files Created/Modified
 
