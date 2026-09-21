@@ -32,7 +32,7 @@ export function CountdownOverlay({ numeral }: Props) {
 
 const styles = StyleSheet.create({
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',

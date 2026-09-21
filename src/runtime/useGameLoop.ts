@@ -9,12 +9,7 @@ import type { SkFont, SkPicture, SkSize } from '@shopify/react-native-skia';
 import { Skia } from '@shopify/react-native-skia';
 import {
   allocateWorld,
-  applyCompiledLevel,
-  applyServe,
-  dockBall,
   EventCode,
-  resetWorld,
-  spawnMultiballFromPaddle,
   stepRun,
   SimPhase,
   type CompiledLevel,
@@ -30,11 +25,8 @@ import {
   appendEventsForAudio,
   consumeEventsForVfx,
   createAudioBatch,
-  IMPULSE_LIFE_LOST,
-  punchShake,
   pushTrail,
   resetAudioBatch,
-  spawnBurst,
   stepVfx,
   trailLength,
   type AudioBatchSoA,
@@ -53,6 +45,11 @@ import { flushAudioBatchOnJS } from './eventBridge';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
 import type { VfxBudget } from './resolveQualityTier';
 import { BUDGETS } from './resolveQualityTier';
+import {
+  applyCertWorstCaseInject,
+  applyRetryWorldReset,
+  clearCosmeticVfx,
+} from './worldRequests';
 
 /** Inline in this module so Babel workletizes with the frame callback (imported worklets can stay JS remotes). */
 function clampFrameDtLocal(dtSec: number, maxFrameTime: number): number {
@@ -128,10 +125,6 @@ function pushActiveBallTrails(
 /* World / metrics live in SharedValues and are mutated on the UI runtime
  * by design (useFrameCallback). React Compiler immutability does not apply (D-14). */
 const WIN = Dimensions.get('window');
-
-/** Default RNG seeds — match allocateWorld literals. */
-const SEED_GAMEPLAY = 0xc0ffee01;
-const SEED_COSMETIC = 0xbadc0de2;
 
 /**
  * Numeric uiPhase map (mirrors gesture hook / Plan 05):
@@ -271,6 +264,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   });
   const hudFontSv = useSharedValue<SkFont | null>(null);
 
+  // RN→UI request counters (F-01): JS only bumps; frame callback applies on live World.
+  const resetRequest = useSharedValue(0);
+  const resetApplied = useSharedValue(0);
+  const certRequest = useSharedValue(0);
+  const certApplied = useSharedValue(0);
+  const accumResetRequest = useSharedValue(0);
+  const accumResetApplied = useSharedValue(0);
+
   useEffect(() => {
     hudFontSv.value = hudFont;
   }, [hudFont, hudFontSv]);
@@ -282,8 +283,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const selfCheckFrames = SELF_CHECK_FRAMES;
 
   /* eslint-disable react-hooks/immutability -- SharedValue Intent/world writes on UI runtime (D-14) */
-  // autostart false: host gates setActive until JS-thread loadAndCompile succeeds (D-13, D-14)
-  const frameCallback = useFrameCallback((frame) => {
+  // Stable callback identity (F-10): SharedValues are stable; avoid re-registering every React render.
+  const onFrame = useCallback((frame: { timeSincePreviousFrame: number | null }) => {
     'worklet';
     let w = world.value;
     let m = metrics.value;
@@ -291,11 +292,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     let batch = audioBatchSv.value;
     if (!w) {
       w = allocateWorld();
-      resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
-      const level = compiled.value;
-      if (level != null) {
-        applyCompiledLevel(w, level);
-      }
+      applyRetryWorldReset(w, compiled.value);
       paddleTarget.value = w.paddleX;
       world.value = w;
       livesOut.value = w.lives;
@@ -320,6 +317,32 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     if (!m) {
       m = createMetrics();
       metrics.value = m;
+    }
+
+    // Apply discrete RN requests on the live World (never mutate SharedValue clones on JS).
+    if (resetRequest.value !== resetApplied.value) {
+      resetApplied.value = resetRequest.value;
+      applyRetryWorldReset(w, compiled.value);
+      clearCosmeticVfx(vfx);
+      const flash = flashSv.value;
+      flash.x = 0;
+      flash.y = 0;
+      flash.life = 0;
+      flash.lifeMax = 0.1;
+      resetAudioBatch(batch);
+      launchFlag.value = 0;
+      paddleTarget.value = w.paddleX;
+      w.accumulator = 0;
+    }
+    if (certRequest.value !== certApplied.value) {
+      certApplied.value = certRequest.value;
+      applyCertWorstCaseInject(w, vfx, compiled.value);
+      launchFlag.value = 0;
+      paddleTarget.value = w.paddleX;
+    }
+    if (accumResetRequest.value !== accumResetApplied.value) {
+      accumResetApplied.value = accumResetRequest.value;
+      resetAccumulatorLocal(w);
     }
 
     // First frame after reactivate: timeSincePreviousFrame is null → ~16.67ms
@@ -410,63 +433,67 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       glowAtlas.value,
       flashArg,
     );
-  }, false);
-  /* eslint-enable react-hooks/immutability */
-
-  const setActive = useCallback(
-    (active: boolean) => {
-      frameCallback.setActive(active);
-      if (!active) {
-        const w = world.value;
-        if (w) {
-          resetAccumulatorLocal(w);
-        }
-      }
-    },
-    [frameCallback, world],
-  );
-
-  const retry = useCallback(() => {
-    // Discrete phase transition on JS thread (Plan 04 contract — app never imports core).
-    // Reloads current compiled only — never cycles levels (D-11).
-    const w = world.value;
-    if (!w) {
-      return;
-    }
-    resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
-    const level = compiled.value;
-    if (level != null) {
-      applyCompiledLevel(w, level);
-    }
-    dockBall(w);
-    /* eslint-disable react-hooks/immutability -- SharedValue writes (D-14) */
-    launchFlag.value = 0;
-    paddleTarget.value = w.paddleX;
-    livesOut.value = w.lives;
-    simPhaseOut.value = w.simPhase;
-    scoreOut.value = w.score;
-    comboOut.value = w.combo;
-    stallTierOut.value = w.stallTier;
-    // Reset cosmetic flash; keep Vfx pools (particles decay via stepVfx)
-    flashSv.value = { x: 0, y: 0, life: 0, lifeMax: 0.1 };
-    const batch = audioBatchSv.value;
-    if (batch) {
-      resetAudioBatch(batch);
-    }
-    /* eslint-enable react-hooks/immutability */
   }, [
     world,
+    metrics,
+    vfxSv,
+    audioBatchSv,
     compiled,
-    launchFlag,
     paddleTarget,
+    launchFlag,
     livesOut,
     simPhaseOut,
     scoreOut,
     comboOut,
     stallTierOut,
     flashSv,
-    audioBatchSv,
+    resetRequest,
+    resetApplied,
+    certRequest,
+    certApplied,
+    accumResetRequest,
+    accumResetApplied,
+    budgetParticleCap,
+    budgetTrailMax,
+    budgetGlowScale,
+    fixedDt,
+    maxSubsteps,
+    maxFrameTime,
+    selfCheckFrames,
+    vfxIntensity,
+    uiPhase,
+    spriteTarget,
+    playBatchFn,
+    overlayEnabled,
+    hudFontSv,
+    glowAtlas,
+    picture,
+    surfaceSize,
   ]);
+
+  // autostart false: host gates setActive until JS-thread loadAndCompile succeeds (D-13, D-14)
+  const frameCallback = useFrameCallback(onFrame, false);
+  /* eslint-enable react-hooks/immutability */
+
+  const setActive = useCallback(
+    (active: boolean) => {
+      frameCallback.setActive(active);
+      if (!active) {
+        // Request UI-runtime accumulator reset (F-01) — do not mutate world.value clone.
+        /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
+        accumResetRequest.value = accumResetRequest.value + 1;
+        /* eslint-enable react-hooks/immutability */
+      }
+    },
+    [frameCallback, accumResetRequest],
+  );
+
+  const retry = useCallback(() => {
+    // Discrete request only — UI frame applies applyRetryWorldReset on live World (F-01 / D-11).
+    /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
+    resetRequest.value = resetRequest.value + 1;
+    /* eslint-enable react-hooks/immutability */
+  }, [resetRequest]);
 
   // Tier budget change (DEV override): drop VFX pools so next frame reallocates
   // with new caps — never mutate typed-array sizes mid-frame (Pitfall 5).
@@ -489,7 +516,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       trailMax: budgetTrailMax,
       glowScale: budgetGlowScale,
     };
+    /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
     vfxSv.value = null;
+    /* eslint-enable react-hooks/immutability */
     retry();
   }, [budgetParticleCap, budgetTrailMax, budgetGlowScale, vfxSv, retry]);
 
@@ -499,7 +528,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   useEffect(() => {
     const sub = subscribeAppStateAutoPause({
       onAutoPause: () => {
-        // setActive(false) also resets accumulator via handle contract
+        // setActive(false) also requests accumulator reset via handle contract
         setActive(false);
         uiPhase.value = UiPhaseNum.PAUSED;
         onOsPause?.();
@@ -511,111 +540,17 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   }, [setActive, uiPhase, onOsPause]);
 
   /**
-   * DEV cert worst-case (D-14): one-shot runtime inject — not DROP_CHANCE / core RNG.
+   * DEV cert worst-case (D-14): bump request — UI frame injects on live World.
    * No-ops outside __DEV__; adds zero per-frame work when unused.
    */
   const injectCertWorstCase = useCallback(() => {
     if (typeof __DEV__ === 'undefined' || !__DEV__) {
       return;
     }
-    let w = world.value;
-    if (!w) {
-      w = allocateWorld();
-      resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
-      const level = compiled.value;
-      if (level != null) {
-        applyCompiledLevel(w, level);
-      }
-      world.value = w;
-    }
-
-    // Leave DOCKED so processDocked cannot wipe extra balls next step.
-    if (w.simPhase === SimPhase.DOCKED) {
-      applyServe(w, 360);
-      w.simPhase = SimPhase.PLAYING;
-    } else if (
-      w.simPhase === SimPhase.WON ||
-      w.simPhase === SimPhase.LOST
-    ) {
-      // Re-enter playable state for measurement window
-      resetWorld(w, SEED_GAMEPLAY, SEED_COSMETIC);
-      const level = compiled.value;
-      if (level != null) {
-        applyCompiledLevel(w, level);
-      }
-      applyServe(w, 360);
-      w.simPhase = SimPhase.PLAYING;
-    }
-
-    // ≥3 active balls via multiball helper (no DROP_CHANCE change).
-    let guard = 0;
-    while (w.activeBallCount < 3 && w.activeBallCount < w.maxBalls && guard < 4) {
-      const before = w.activeBallCount;
-      spawnMultiballFromPaddle(w);
-      if (w.activeBallCount <= before) {
-        break;
-      }
-      guard += 1;
-    }
-
-    let vfx = vfxSv.value;
-    if (!vfx) {
-      vfx = allocateVfx({
-        maxBalls: w.maxBalls,
-        particleCap: budgetParticleCap,
-        trailMax: budgetTrailMax,
-        glowScale: budgetGlowScale,
-      });
-      vfxSv.value = vfx;
-    }
-
-    // Flood particles near Mid particleCap (cosmetic only).
-    let seed = 0.314159;
-    const rng = () => {
-      seed = (seed * 1.6180339887) % 1;
-      return seed;
-    };
-    const nearCap = Math.max(0, vfx.particleCap - 4);
-    let bursts = 0;
-    while (vfx.particleCount < nearCap && bursts < 64) {
-      spawnBurst(vfx, {
-        kind: 'destroy',
-        x: 120 + (bursts % 8) * 24,
-        y: 160 + (bursts % 6) * 28,
-        rgb: { r: 0.2, g: 0.85, b: 1 },
-        intensity: 1,
-        rng,
-      });
-      bursts += 1;
-    }
-
-    // Punch shake so amp is decaying during the measurement window.
-    punchShake(vfx, IMPULSE_LIFE_LOST, 1);
-
-    /* eslint-disable react-hooks/immutability -- SharedValue chrome mirrors (D-14) */
-    launchFlag.value = 0;
-    paddleTarget.value = w.paddleX;
-    livesOut.value = w.lives;
-    simPhaseOut.value = w.simPhase;
-    scoreOut.value = w.score;
-    comboOut.value = w.combo;
-    stallTierOut.value = w.stallTier;
+    /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
+    certRequest.value = certRequest.value + 1;
     /* eslint-enable react-hooks/immutability */
-  }, [
-    world,
-    compiled,
-    vfxSv,
-    budgetParticleCap,
-    budgetTrailMax,
-    budgetGlowScale,
-    launchFlag,
-    paddleTarget,
-    livesOut,
-    simPhaseOut,
-    scoreOut,
-    comboOut,
-    stallTierOut,
-  ]);
+  }, [certRequest]);
 
   return {
     world,

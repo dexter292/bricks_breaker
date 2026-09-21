@@ -5,8 +5,8 @@ import { GameHost } from './_components/GameHost';
 
 export default function Index() {
   return (
-    <GestureHandlerRootView style={styles.fill}>
-      <SafeAreaProvider style={styles.fill}>
+    <GestureHandlerRootView style={styles.fills}>
+      <SafeAreaProvider style={styles.fills}>
         <GameHost />
       </SafeAreaProvider>
     </GestureHandlerRootView>
