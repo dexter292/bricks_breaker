@@ -1,6 +1,9 @@
 /**
  * UI-runtime world / VFX request helpers (audit WP-1 / F-01).
  * Pure mutations for unit tests + frame-callback application — never read SharedValue here.
+ *
+ * Worklet rule: never close over module exports (SEED_*, IMPULSE_*, SimPhase.*).
+ * Inline numeric literals inside `'worklet'` bodies; keep exported consts for JS/tests only.
  */
 
 import {
@@ -9,18 +12,12 @@ import {
   dockBall,
   resetWorld,
   spawnMultiballFromPaddle,
-  SimPhase,
   type CompiledLevel,
   type World,
 } from '../core';
-import {
-  IMPULSE_LIFE_LOST,
-  punchShake,
-  spawnBurst,
-  type VfxState,
-} from '../vfx';
+import { punchShake, spawnBurst, type VfxState } from '../vfx';
 
-/** Default RNG seeds — match allocateWorld / useGameLoop literals. */
+/** Default RNG seeds — match allocateWorld / useGameLoop literals (JS/tests only). */
 export const SEED_GAMEPLAY = 0xc0ffee01;
 export const SEED_COSMETIC = 0xbadc0de2;
 
@@ -30,11 +27,14 @@ export const SEED_COSMETIC = 0xbadc0de2;
 export function applyRetryWorldReset(
   world: World,
   level: CompiledLevel | null,
-  seedGameplay: number = SEED_GAMEPLAY,
-  seedCosmetic: number = SEED_COSMETIC,
+  seedGameplay?: number,
+  seedCosmetic?: number,
 ): void {
   'worklet';
-  resetWorld(world, seedGameplay, seedCosmetic);
+  // Defaults inlined — default-param expressions close over module bindings (UI crash).
+  const sg = seedGameplay === undefined ? 0xc0ffee01 : seedGameplay;
+  const sc = seedCosmetic === undefined ? 0xbadc0de2 : seedCosmetic;
+  resetWorld(world, sg, sc);
   if (level != null) {
     applyCompiledLevel(world, level);
   }
@@ -74,19 +74,17 @@ export function applyCertWorstCaseInject(
   level: CompiledLevel | null,
 ): void {
   'worklet';
-  if (world.simPhase === SimPhase.DOCKED) {
+  // Inline SimPhase / seeds / impulse — worklets cannot read module exports.
+  if (world.simPhase === 0 /* DOCKED */) {
     applyServe(world, 360);
-    world.simPhase = SimPhase.PLAYING;
-  } else if (
-    world.simPhase === SimPhase.WON ||
-    world.simPhase === SimPhase.LOST
-  ) {
-    resetWorld(world, SEED_GAMEPLAY, SEED_COSMETIC);
+    world.simPhase = 1; // PLAYING
+  } else if (world.simPhase === 2 /* WON */ || world.simPhase === 3 /* LOST */) {
+    resetWorld(world, 0xc0ffee01, 0xbadc0de2);
     if (level != null) {
       applyCompiledLevel(world, level);
     }
     applyServe(world, 360);
-    world.simPhase = SimPhase.PLAYING;
+    world.simPhase = 1; // PLAYING
   }
 
   let guard = 0;
@@ -105,6 +103,7 @@ export function applyCertWorstCaseInject(
 
   let seed = 0.314159;
   const rng = () => {
+    'worklet';
     seed = (seed * 1.6180339887) % 1;
     return seed;
   };
@@ -122,5 +121,5 @@ export function applyCertWorstCaseInject(
     bursts += 1;
   }
 
-  punchShake(vfx, IMPULSE_LIFE_LOST, 1);
+  punchShake(vfx, 2.0 /* IMPULSE_LIFE_LOST */, 1);
 }
