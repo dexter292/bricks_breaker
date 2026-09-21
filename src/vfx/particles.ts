@@ -30,15 +30,31 @@ export function countActiveParticles(vfx: VfxState): number {
 
 function findFreeOrEvict(vfx: VfxState): number {
   'worklet';
-  for (let i = 0; i < vfx.particleCap; i++) {
-    if (vfx.active[i] === 0) {
-      return i;
-    }
+  // F-60: O(1) free-list pop; FIFO ring only when full.
+  if (vfx.freeTop > 0) {
+    vfx.freeTop -= 1;
+    return vfx.freeStack[vfx.freeTop];
   }
-  // Oldest eviction — reuse cursor slot (pool always full)
   const slot = vfx.particleOldest % vfx.particleCap;
   vfx.particleOldest = (slot + 1) % vfx.particleCap;
   return slot;
+}
+
+function releaseSlot(vfx: VfxState, slot: number): void {
+  'worklet';
+  if (vfx.active[slot] === 0) {
+    return;
+  }
+  vfx.active[slot] = 0;
+  vfx.life[slot] = 0;
+  vfx.particleCount -= 1;
+  if (vfx.particleCount < 0) {
+    vfx.particleCount = 0;
+  }
+  if (vfx.freeTop < vfx.particleCap) {
+    vfx.freeStack[vfx.freeTop] = slot;
+    vfx.freeTop += 1;
+  }
 }
 
 /**
@@ -61,6 +77,7 @@ export function spawnBurst(vfx: VfxState, opts: SpawnBurstOpts): void {
   for (let n = 0; n < count; n++) {
     const slot = findFreeOrEvict(vfx);
     const wasInactive = vfx.active[slot] === 0;
+    // Evicting an active slot: do not push to free-list (it stays occupied).
 
     const angle = opts.rng() * Math.PI * 2;
     const spd = speed * (0.5 + opts.rng() * 0.5);
@@ -112,10 +129,7 @@ export function stepParticles(vfx: VfxState, dt: number): void {
     if (vfx.active[i] === 0) continue;
     vfx.life[i] -= dt;
     if (vfx.life[i] <= 0) {
-      vfx.active[i] = 0;
-      vfx.life[i] = 0;
-      vfx.particleCount -= 1;
-      if (vfx.particleCount < 0) vfx.particleCount = 0;
+      releaseSlot(vfx, i);
       continue;
     }
     vfx.px[i] += vfx.vx[i] * dt;

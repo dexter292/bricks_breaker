@@ -7,7 +7,13 @@ export function createMemoryPersonalBestStore(): PersonalBestStore {
       return bestScore;
     },
     async setBest(next: number): Promise<void> {
-      bestScore = Math.floor(next);
+      const n = Math.floor(next);
+      if (n > bestScore) {
+        bestScore = n;
+      }
+    },
+    async flush(): Promise<void> {
+      // in-memory — nothing to flush
     },
   };
 }

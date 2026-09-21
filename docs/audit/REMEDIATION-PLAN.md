@@ -3,11 +3,11 @@
 **Ngày audit:** 2026-09-21
 **Trạng thái:** **ĐÃ PHÊ DUYỆT** 2026-09-21 (owner: `duyệt`).  
 **Tiến độ:** WP-1 T1.1–T1.3 **DONE**.  
-WP-2 **T2.1–T2.5 + T2.6 + T2.9 + F-48 DONE**.  
-WP-3 **T3.1(b) + T3.2–T3.3 DONE** (fixed vertical serve; F-22/F-23).  
-WP-4 **T4.1–T4.5 + T4.7 DONE** (F-28/F-31).  
-WP-5 **T5.1 DONE** (F-30 BackHandler). — 2026-09-21.  
-Tiếp theo: WP-4 T4.6 alloc · WP-5 T5.2 personal-best · WP-6 device · T3.4/T3.5 decisions.
+WP-2 **T2.1–T2.6 + T2.9 + F-48 DONE**.  
+WP-3 **T3.1(b) + T3.2–T3.3 DONE**.  
+WP-4 **T4.1–T4.5 + T4.6 (partial: F-17/F-60) + T4.7 + T4.9 DONE**.  
+WP-5 **T5.1 + T5.2 DONE** (F-30 / F-26). — 2026-09-21.  
+Tiếp theo: WP-4 T4.8 audio · T4.6 remainder (step out-params) · WP-6 device.
 
 Các task được nhóm thành **8 work package** có thể dùng trực tiếp làm input cho GSD. Mỗi WP có ràng buộc thứ tự rõ ràng.
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { SOAK_HARNESS } from '../../src/devflags';
@@ -24,14 +24,24 @@ export function GameHost() {
   });
   const [shellPhase, setShellPhase] = useState<ShellPhase>('title');
   const [best, setBest] = useState(0);
+  // F-26: same singleton as PlayingHost — Title best matches Playing.
+  const store = useMemo(() => createDefaultPersonalBestStore(), []);
 
   useEffect(() => {
     if (shellPhase !== 'title') return;
-    void createDefaultPersonalBestStore()
+    let cancelled = false;
+    void store
       .getBest()
-      .then(setBest)
-      .catch(() => setBest(0));
-  }, [shellPhase]);
+      .then((b) => {
+        if (!cancelled) setBest(b);
+      })
+      .catch(() => {
+        if (!cancelled) setBest(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shellPhase, store]);
 
   // DEV soak: 100 Title↔Playing mounts then 15 min continuous (D-19…D-23).
   // Discrete setTimeout only — never useFrameCallback / per-frame work.

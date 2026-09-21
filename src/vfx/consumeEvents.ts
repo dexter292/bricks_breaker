@@ -62,12 +62,15 @@ export function consumeEventsForVfx(
   }
 
   const resolve = opts?.resolveBrickRgb ?? defaultResolveBrickRgb;
-  const rng =
-    opts?.rng ??
-    (() => {
-      'worklet';
-      return nextFloat(world.rngCosmetic, 0);
-    });
+  // F-17: avoid allocating a fresh rng closure every substep when using cosmetic stream.
+  const customRng = opts?.rng;
+  const rng = (): number => {
+    'worklet';
+    if (customRng != null) {
+      return customRng();
+    }
+    return nextFloat(world.rngCosmetic, 0);
+  };
 
   const start = (world.evHead - n + world.evCap) % world.evCap;
   for (let i = 0; i < n; i++) {

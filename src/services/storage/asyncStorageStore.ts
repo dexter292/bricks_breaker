@@ -1,5 +1,5 @@
 import { createMemoryPersonalBestStore } from './memoryStore';
-import { parsePersonalBestBlob } from './parseBlob';
+import { parsePersonalBestResult } from './parseBlob';
 import {
   PERSONAL_BEST_KEY,
   PERSONAL_BEST_VERSION,
@@ -11,6 +11,9 @@ type AsyncStorageLike = {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
 };
+
+/** Process-wide singleton — Title + Playing must share one store (F-26). */
+let sharedStore: PersonalBestStore | null = null;
 
 /**
  * Lazy-load AsyncStorage so Metro does not evaluate the native module at
@@ -35,9 +38,12 @@ function loadAsyncStorage(): AsyncStorageLike | null {
 
 /**
  * Prefer AsyncStorage when the native module is linked; otherwise memory.
- * Callers should use this as the app default (D-13 soft-fail).
+ * Always returns the same instance for the process lifetime (F-26).
  */
 export function createDefaultPersonalBestStore(): PersonalBestStore {
+  if (sharedStore != null) {
+    return sharedStore;
+  }
   const AsyncStorage = loadAsyncStorage();
   if (!AsyncStorage) {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -45,42 +51,83 @@ export function createDefaultPersonalBestStore(): PersonalBestStore {
         '[storage] AsyncStorage native module missing — using memory store. Rebuild the dev client (`npx expo run:ios` / `run:android`) for persistent high scores.',
       );
     }
-    return createMemoryPersonalBestStore();
+    sharedStore = createMemoryPersonalBestStore();
+  } else {
+    sharedStore = createAsyncStoragePersonalBestStoreFrom(AsyncStorage);
   }
-  return createAsyncStoragePersonalBestStoreFrom(AsyncStorage);
+  return sharedStore;
 }
 
 /** Explicit AsyncStorage-backed store; falls back to memory if native missing. */
 export function createAsyncStoragePersonalBestStore(): PersonalBestStore {
-  const AsyncStorage = loadAsyncStorage();
-  if (!AsyncStorage) {
-    return createMemoryPersonalBestStore();
-  }
-  return createAsyncStoragePersonalBestStoreFrom(AsyncStorage);
+  return createDefaultPersonalBestStore();
+}
+
+/** Test-only: drop the singleton between cases. */
+export function __resetSharedPersonalBestStoreForTests(): void {
+  sharedStore = null;
 }
 
 function createAsyncStoragePersonalBestStoreFrom(
   AsyncStorage: AsyncStorageLike,
 ): PersonalBestStore {
+  /** High-watermark — never lower on corrupt read (F-26). */
+  let memoryBest = 0;
+  let pendingWrite: number | null = null;
+
   return {
     async getBest(): Promise<number> {
       try {
         const raw = await AsyncStorage.getItem(PERSONAL_BEST_KEY);
-        return parsePersonalBestBlob(raw);
+        const parsed = parsePersonalBestResult(raw);
+        if (parsed.status === 'corrupt') {
+          // Refuse to treat garbage as 0 — keep watermark.
+          return memoryBest;
+        }
+        memoryBest = Math.max(memoryBest, parsed.best);
+        return memoryBest;
       } catch {
-        return 0;
+        return memoryBest;
       }
     },
     async setBest(bestScore: number): Promise<void> {
+      const next = Math.floor(bestScore);
+      if (!(next >= 0) || !Number.isFinite(next)) {
+        return;
+      }
+      // Never lower a known watermark (protects against corrupt→0 races).
+      if (next < memoryBest) {
+        return;
+      }
+      memoryBest = next;
+      pendingWrite = next;
       const blob: PersonalBestBlob = {
         v: PERSONAL_BEST_VERSION,
-        bestScore: Math.floor(bestScore),
+        bestScore: next,
         updatedAt: Date.now(),
       };
       try {
         await AsyncStorage.setItem(PERSONAL_BEST_KEY, JSON.stringify(blob));
+        pendingWrite = null;
       } catch {
-        // Soft-fail persistence (UI-SPEC / D-13)
+        // Soft-fail — pendingWrite kept for AppState flush (F-26).
+      }
+    },
+    /** Re-attempt last failed write (call on AppState background). */
+    async flush(): Promise<void> {
+      if (pendingWrite == null) {
+        return;
+      }
+      const blob: PersonalBestBlob = {
+        v: PERSONAL_BEST_VERSION,
+        bestScore: pendingWrite,
+        updatedAt: Date.now(),
+      };
+      try {
+        await AsyncStorage.setItem(PERSONAL_BEST_KEY, JSON.stringify(blob));
+        pendingWrite = null;
+      } catch {
+        // keep pending
       }
     },
   };

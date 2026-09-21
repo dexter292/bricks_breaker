@@ -128,6 +128,20 @@ function pushActiveBallTrails(
  * by design (useFrameCallback). React Compiler immutability does not apply (D-14). */
 const WIN = Dimensions.get('window');
 
+declare const global: typeof globalThis & {
+  __gameIntent?: { paddleX: number; launch: number };
+};
+
+function intentScratch(): { paddleX: number; launch: number } {
+  'worklet';
+  let intent = global.__gameIntent;
+  if (intent == null) {
+    intent = { paddleX: 0, launch: 0 };
+    global.__gameIntent = intent;
+  }
+  return intent;
+}
+
 /**
  * Numeric uiPhase map (mirrors gesture hook / Plan 05):
  * 0 = playing, 1 = paused, 2 = countdown
@@ -261,8 +275,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const metrics = useSharedValue<SpikeMetrics | null>(null);
   const spriteTarget = useSharedValue(initialSprites);
   const surfaceSize = useSharedValue<SkSize>({
-    width: WIN.width,
-    height: WIN.height,
+    width: 0,
+    height: 0,
   });
   const hudFontSv = useSharedValue<SkFont | null>(null);
 
@@ -369,10 +383,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       w.accumulator += dt;
       let steps = 0;
       while (w.accumulator >= fixedDt && steps < maxSubsteps) {
-        const intent = {
-          paddleX: paddleTarget.value,
-          launch: launchFlag.value,
-        };
+        const intent = intentScratch();
+        intent.paddleX = paddleTarget.value;
+        intent.launch = launchFlag.value;
         stepRun(w, intent, fixedDt);
         // Per-substep drain BEFORE next clearEvents (Pitfall 1 / FX-03)
         consumeEventsForVfx(w, vfx, intensity);
@@ -412,6 +425,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         spriteTarget.value,
         w.tick,
         selfCheckFrames,
+        overlayEnabled,
       );
     }
 

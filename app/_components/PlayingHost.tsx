@@ -32,11 +32,11 @@ import {
 } from '../../src/runtime/resolveQualityTier';
 import { createDefaultAudioService, createMemoryAudioService } from '../../src/services/audio';
 import { defaultPlatformServices } from '../../src/services/platform';
+import { CERT_HARNESS, PERF_OVERLAY } from '../../src/devflags';
 import {
   createDefaultPersonalBestStore,
   evaluatePersonalBest,
 } from '../../src/services/storage';
-import { CERT_HARNESS } from '../../src/devflags';
 
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
@@ -102,6 +102,7 @@ export function PlayingHost({ onMenu }: Props) {
   const [tierOverride, setTierOverride] = useState<QualityTier | null>(null);
 
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
+  // F-26: pending best write flushed on AppState background via onOsPause path.
   const platform = useMemo(() => defaultPlatformServices(), []);
   // Soft-fail: stale native binary without ExpoAudio must not crash play (D-24).
   const audio = useMemo(() => {
@@ -246,7 +247,9 @@ export function PlayingHost({ onMenu }: Props) {
     clearCountdown();
     setCountdownNumeral(null);
     setUiPhase('paused');
-  }, [clearCountdown]);
+    // F-26: re-attempt pending personal-best write on background/OS pause.
+    void store.flush?.().catch(() => {});
+  }, [clearCountdown, store]);
 
   const { paddleTarget, launchFlag, gesture } = usePaddleGesture({
     simPhase: simPhaseSv,
@@ -270,6 +273,7 @@ export function PlayingHost({ onMenu }: Props) {
       playBatch: playBatchOnJS,
       glowAtlas: glowAtlasSv,
       vfxBudget,
+      drawOverlayFlag: PERF_OVERLAY,
     });
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).

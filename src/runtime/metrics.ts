@@ -104,6 +104,8 @@ export function pushSample(
   spriteCount: number,
   tick: number,
   selfCheckFrames: number,
+  /** F-29: skip percentile sort when overlay is off (production). */
+  computePercentiles: boolean = true,
 ): void {
   'worklet';
   m.intervals[m.index] = intervalMs;
@@ -117,8 +119,10 @@ export function pushSample(
   m.spriteCount = spriteCount;
   m.lastTick = tick;
   m.rollingFps = rollingFps(m);
-  m.p95Ms = percentileMs(m, 95);
-  m.p99Ms = percentileMs(m, 99);
+  if (computePercentiles) {
+    m.p95Ms = percentileMs(m, 95);
+    m.p99Ms = percentileMs(m, 99);
+  }
 
   if (m.startTick < 0) {
     m.startTick = tick;

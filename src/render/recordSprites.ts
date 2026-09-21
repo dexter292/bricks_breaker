@@ -15,25 +15,55 @@ const LOGICAL_H = 640;
 /** Ball ghost radius (core BALL_RADIUS) — worklet literal. */
 const BALL_RADIUS_LOCAL = 6;
 
-/** Trail rim cyan — UI-SPEC #67E8F9 (TRAIL_CYAN); worklet-local. */
-const TRAIL_CYAN_LOCAL = '#67E8F9';
-
 type RecorderTools = {
   recorder: ReturnType<typeof Skia.PictureRecorder>;
   paint: ReturnType<typeof Skia.Paint>;
   fieldRect: ReturnType<typeof Skia.XYWHRect>;
   entityRect: ReturnType<typeof Skia.XYWHRect>;
+  srcRect: ReturnType<typeof Skia.XYWHRect>;
   surfaceBounds: ReturnType<typeof Skia.XYWHRect>;
+  /** Cached SkColors — Float32Array(4) reused every frame (F-17). */
+  colBlack: Float32Array;
+  colNavy: Float32Array;
+  colWhite: Float32Array;
+  colCue: Float32Array;
+  colPickup: Float32Array;
+  colTrailCyan: Float32Array;
+  colHp3: Float32Array;
+  colHp2: Float32Array;
+  colHp1: Float32Array;
+  colSteel: Float32Array;
+  /** Mutated per-particle then passed to setColor (F-17). */
+  colorScratch: Float32Array;
+  /** Cue strokes: [x0,y0,x1,y1] × up to 3 (F-17). */
+  cueScratch: Float32Array;
 };
 
 declare const global: typeof globalThis & {
   __gameRecorderTools?: RecorderTools;
+  __gameIntent?: { paddleX: number; launch: number };
 };
+
+function makeColor4(r: number, g: number, b: number, a: number = 1): Float32Array {
+  'worklet';
+  const c = new Float32Array(4);
+  c[0] = r;
+  c[1] = g;
+  c[2] = b;
+  c[3] = a;
+  return c;
+}
 
 function ensureRecorderTools(): RecorderTools {
   'worklet';
   let tools = global.__gameRecorderTools;
-  if (!tools || tools.entityRect == null || tools.surfaceBounds == null) {
+  if (
+    !tools ||
+    tools.entityRect == null ||
+    tools.surfaceBounds == null ||
+    tools.colorScratch == null ||
+    tools.srcRect == null
+  ) {
     const paint = Skia.Paint();
     paint.setAntiAlias(true); // F-15 — ball / particle / trail / cue strokes
     tools = {
@@ -41,7 +71,21 @@ function ensureRecorderTools(): RecorderTools {
       paint,
       fieldRect: Skia.XYWHRect(0, 0, 360, 640),
       entityRect: Skia.XYWHRect(0, 0, 1, 1),
+      srcRect: Skia.XYWHRect(0, 0, 1, 1),
       surfaceBounds: Skia.XYWHRect(0, 0, 360, 640),
+      // Pre-converted palette (0–1 channels) — no Skia.Color(string) per frame
+      colBlack: makeColor4(0, 0, 0),
+      colNavy: makeColor4(0.102, 0.102, 0.18), // #1a1a2e
+      colWhite: makeColor4(1, 1, 1),
+      colCue: makeColor4(0.898, 0.906, 0.922), // #E5E7EB
+      colPickup: makeColor4(0.984, 0.749, 0.141), // #FBBF24
+      colTrailCyan: makeColor4(0.404, 0.91, 0.976), // #67E8F9
+      colHp3: makeColor4(0.769, 0.271, 0.412), // #C44569
+      colHp2: makeColor4(0.878, 0.478, 0.373), // #E07A5F
+      colHp1: makeColor4(0.949, 0.8, 0.561), // #F2CC8F
+      colSteel: makeColor4(0.42, 0.447, 0.502), // #6B7280
+      colorScratch: new Float32Array(4),
+      cueScratch: new Float32Array(12),
     };
     global.__gameRecorderTools = tools;
   }
@@ -50,7 +94,7 @@ function ensureRecorderTools(): RecorderTools {
   return tools;
 }
 
-/** Flat brick fill — inlined so UI worklet never calls a JS remote (UI-SPEC). */
+/** Flat brick fill key for glow atlas — hex string matches bake keys. */
 function brickFillLocal(hp: number, flags: number): string {
   'worklet';
   if ((flags & 1) !== 0) {
@@ -65,55 +109,72 @@ function brickFillLocal(hp: number, flags: number): string {
   return '#F2CC8F';
 }
 
-type LocalCueStroke = { x0: number; y0: number; x1: number; y1: number };
+function brickColorLocal(
+  tools: RecorderTools,
+  hp: number,
+  flags: number,
+): Float32Array {
+  'worklet';
+  if ((flags & 1) !== 0) {
+    return tools.colSteel;
+  }
+  if (hp >= 3) {
+    return tools.colHp3;
+  }
+  if (hp === 2) {
+    return tools.colHp2;
+  }
+  return tools.colHp1;
+}
 
 /**
- * Worklet-local stroke geometry — keep in sync with src/core/levels/damageCues.ts.
- * Duplicated so UI worklet never calls a JS remote (same reason as brickFillLocal).
+ * Write cue strokes into scratch [x0,y0,x1,y1]*n; return stroke count (F-17).
+ * Keep in sync with src/core/levels/damageCues.ts.
  */
-function planBrickDamageCuesLocal(
+function planBrickDamageCuesInto(
+  scratch: Float32Array,
   x: number,
   y: number,
   w: number,
   h: number,
   hp: number,
   flags: number,
-): LocalCueStroke[] {
+): number {
   'worklet';
   if ((flags & 1) !== 0) {
-    return [
-      { x0: x, y0: y, x1: x + w, y1: y + h },
-      { x0: x + w * 0.5, y0: y, x1: x + w, y1: y + h * 0.5 },
-      { x0: x, y0: y + h * 0.5, x1: x + w * 0.5, y1: y + h },
-    ];
+    scratch[0] = x;
+    scratch[1] = y;
+    scratch[2] = x + w;
+    scratch[3] = y + h;
+    scratch[4] = x + w * 0.5;
+    scratch[5] = y;
+    scratch[6] = x + w;
+    scratch[7] = y + h * 0.5;
+    scratch[8] = x;
+    scratch[9] = y + h * 0.5;
+    scratch[10] = x + w * 0.5;
+    scratch[11] = y + h;
+    return 3;
   }
   if (hp <= 0 || hp >= 3) {
-    return [];
+    return 0;
   }
   if (hp === 2) {
-    return [
-      {
-        x0: x + w * 0.1,
-        y0: y + h * 0.5,
-        x1: x + w * 0.9,
-        y1: y + h * 0.35,
-      },
-    ];
+    scratch[0] = x + w * 0.1;
+    scratch[1] = y + h * 0.5;
+    scratch[2] = x + w * 0.9;
+    scratch[3] = y + h * 0.35;
+    return 1;
   }
-  return [
-    {
-      x0: x + w * 0.1,
-      y0: y + h * 0.35,
-      x1: x + w * 0.9,
-      y1: y + h * 0.55,
-    },
-    {
-      x0: x + w * 0.15,
-      y0: y + h * 0.65,
-      x1: x + w * 0.85,
-      y1: y + h * 0.45,
-    },
-  ];
+  scratch[0] = x + w * 0.1;
+  scratch[1] = y + h * 0.35;
+  scratch[2] = x + w * 0.9;
+  scratch[3] = y + h * 0.55;
+  scratch[4] = x + w * 0.15;
+  scratch[5] = y + h * 0.65;
+  scratch[6] = x + w * 0.85;
+  scratch[7] = y + h * 0.45;
+  return 2;
 }
 
 /** Optional destroy flash — life gated ≤100ms by producer (Plan 05). */
@@ -159,7 +220,7 @@ export function recordFrame(
 
   // Letterbox bars — black over entire surface
   tools.paint.setAlphaf(1);
-  tools.paint.setColor(Skia.Color('#000000'));
+  tools.paint.setColor(tools.colBlack);
   tools.entityRect.setXYWH(0, 0, wPx, hPx);
   canvas.drawRect(tools.entityRect, tools.paint);
 
@@ -185,7 +246,7 @@ export function recordFrame(
 
   // Navy field only inside logical 360×640
   tools.paint.setAlphaf(1);
-  tools.paint.setColor(Skia.Color('#1a1a2e'));
+  tools.paint.setColor(tools.colNavy);
   tools.fieldRect.setXYWH(0, 0, 360, 640);
   canvas.drawRect(tools.fieldRect, tools.paint);
 
@@ -204,7 +265,7 @@ export function recordFrame(
     const by = world.brickY[i];
     const bw = world.brickW[i];
     const bh = world.brickH[i];
-    const fill = brickFillLocal(hp, flags);
+    const fillKey = brickFillLocal(hp, flags);
 
     // Idle neon halo blit from bake atlas (scale alpha by intensity × glowScale)
     if (
@@ -213,7 +274,7 @@ export function recordFrame(
       intensity > 0 &&
       vfx.glowScale > 0
     ) {
-      const variant = glowAtlas[fill];
+      const variant = glowAtlas[fillKey];
       if (variant != null) {
         const img: SkImage = variant.soft;
         const destW = bw + GLOW_PAD_SOFT * 2;
@@ -221,10 +282,11 @@ export function recordFrame(
         tools.paint.setStyle(0);
         tools.paint.setAlphaf(intensity * vfx.glowScale);
         // F-14: scale atlas cell to live brick size (level-03 32×14 vs bake size)
+        tools.srcRect.setXYWH(0, 0, variant.atlasW, variant.atlasH);
         tools.entityRect.setXYWH(bx - GLOW_PAD_SOFT, by - GLOW_PAD_SOFT, destW, destH);
         canvas.drawImageRect(
           img,
-          Skia.XYWHRect(0, 0, variant.atlasW, variant.atlasH),
+          tools.srcRect,
           tools.entityRect,
           tools.paint,
         );
@@ -234,20 +296,28 @@ export function recordFrame(
 
     tools.paint.setStyle(0); // PaintStyle.Fill — literal avoids JS remote
     tools.paint.setAlphaf(1);
-    tools.paint.setColor(Skia.Color(fill));
+    tools.paint.setColor(brickColorLocal(tools, hp, flags));
     tools.entityRect.setXYWH(bx, by, bw, bh);
     canvas.drawRect(tools.entityRect, tools.paint);
 
     // Crack / hatch cues after fill (D-05…D-08) — flags-first, ≤3 strokes
-    const cues = planBrickDamageCuesLocal(bx, by, bw, bh, hp, flags);
-    const cueLen = cues.length;
+    const cueLen = planBrickDamageCuesInto(
+      tools.cueScratch,
+      bx,
+      by,
+      bw,
+      bh,
+      hp,
+      flags,
+    );
     if (cueLen > 0) {
       tools.paint.setStyle(1); // PaintStyle.Stroke
       tools.paint.setStrokeWidth(1.25);
-      tools.paint.setColor(Skia.Color('#E5E7EB'));
+      tools.paint.setColor(tools.colCue);
+      const cue = tools.cueScratch;
       for (let ci = 0; ci < cueLen; ci++) {
-        const s = cues[ci];
-        canvas.drawLine(s.x0, s.y0, s.x1, s.y1, tools.paint);
+        const o = ci * 4;
+        canvas.drawLine(cue[o], cue[o + 1], cue[o + 2], cue[o + 3], tools.paint);
       }
     }
   }
@@ -257,16 +327,18 @@ export function recordFrame(
   // --- Particles + destroy flash (under pickups / paddle / ball) ---
   if (vfx != null) {
     const cap = vfx.particleCap;
+    const scratch = tools.colorScratch;
     for (let pi = 0; pi < cap; pi++) {
       if (vfx.active[pi] === 0) {
         continue;
       }
-      const pr = Math.round(vfx.r[pi] * 255);
-      const pg = Math.round(vfx.g[pi] * 255);
-      const pb = Math.round(vfx.b[pi] * 255);
-      const pa = vfx.a[pi];
-      tools.paint.setColor(Skia.Color(`rgb(${pr}, ${pg}, ${pb})`));
-      tools.paint.setAlphaf(pa);
+      // F-17: write 0–1 channels directly — no rgb() string / CSS parse
+      scratch[0] = vfx.r[pi];
+      scratch[1] = vfx.g[pi];
+      scratch[2] = vfx.b[pi];
+      scratch[3] = 1;
+      tools.paint.setColor(scratch);
+      tools.paint.setAlphaf(vfx.a[pi]);
       canvas.drawCircle(vfx.px[pi], vfx.py[pi], 2, tools.paint);
     }
     tools.paint.setAlphaf(1);
@@ -278,7 +350,7 @@ export function recordFrame(
       const peak = 0.45 * intensity;
       const flashAlpha = peak * (t > 1 ? 1 : t < 0 ? 0 : t);
       if (flashAlpha > 0.001) {
-        tools.paint.setColor(Skia.Color('#FFFFFF'));
+        tools.paint.setColor(tools.colWhite);
         tools.paint.setAlphaf(flashAlpha);
         canvas.drawCircle(flash.x, flash.y, 18, tools.paint);
         tools.paint.setAlphaf(1);
@@ -291,7 +363,7 @@ export function recordFrame(
   const pickupH = 12;
   const pickupHalfW = pickupW * 0.5;
   const pickupHalfH = pickupH * 0.5;
-  tools.paint.setColor(Skia.Color('#FBBF24'));
+  tools.paint.setColor(tools.colPickup);
   const maxPickups = world.maxPickups;
   for (let pi = 0; pi < maxPickups; pi++) {
     if (world.pickupActive[pi] === 0) {
@@ -307,7 +379,7 @@ export function recordFrame(
   }
 
   // Paddle — X center-based, Y top of AABB
-  tools.paint.setColor(Skia.Color('#FFFFFF'));
+  tools.paint.setColor(tools.colWhite);
   const paddleHalfW = world.paddleW * 0.5;
   tools.entityRect.setXYWH(
     world.paddleX - paddleHalfW,
@@ -338,7 +410,7 @@ export function recordFrame(
         const tGhost = ringLen <= 1 ? 1 : k / (ringLen - 1);
         const ghostAlpha = 0.15 + 0.4 * tGhost;
         tools.paint.setStyle(0);
-        tools.paint.setColor(Skia.Color('#FFFFFF'));
+        tools.paint.setColor(tools.colWhite);
         tools.paint.setAlphaf(ghostAlpha);
         canvas.drawCircle(gx, gy, radius, tools.paint);
 
@@ -346,7 +418,7 @@ export function recordFrame(
         if (k === ringLen - 1 && intensity >= 0.75) {
           tools.paint.setStyle(1); // Stroke
           tools.paint.setStrokeWidth(1.5);
-          tools.paint.setColor(Skia.Color(TRAIL_CYAN_LOCAL));
+          tools.paint.setColor(tools.colTrailCyan);
           tools.paint.setAlphaf(0.85);
           canvas.drawCircle(gx, gy, radius, tools.paint);
           tools.paint.setStyle(0);
@@ -358,7 +430,7 @@ export function recordFrame(
   }
 
   // Active balls — full white opacity last (highest contrast token)
-  tools.paint.setColor(Skia.Color('#FFFFFF'));
+  tools.paint.setColor(tools.colWhite);
   tools.paint.setAlphaf(1);
   const maxBalls = world.maxBalls;
   for (let bi = 0; bi < maxBalls; bi++) {

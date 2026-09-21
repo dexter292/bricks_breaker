@@ -13,10 +13,13 @@ import {
  */
 export function subscribeAppStateAutoPause(handlers: {
   onAutoPause: () => void;
+  /** Optional F-26: flush pending personal-best write on background. */
+  onBackgroundFlush?: () => void;
 }): NativeEventSubscription {
   return AppState.addEventListener('change', (next: AppStateStatus) => {
     if (next === 'inactive' || next === 'background') {
       handlers.onAutoPause();
+      handlers.onBackgroundFlush?.();
     }
     // active: intentionally empty — never auto-resume (D-15)
   });

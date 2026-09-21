@@ -10,4 +10,6 @@ export type PersonalBestBlob = {
 export interface PersonalBestStore {
   getBest(): Promise<number>;
   setBest(bestScore: number): Promise<void>;
+  /** Optional: re-attempt a failed write (F-26 AppState flush). */
+  flush?(): Promise<void>;
 }

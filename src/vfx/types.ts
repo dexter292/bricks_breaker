@@ -48,8 +48,12 @@ export type VfxState = {
   active: Uint8Array;
   /** Active particle count (dense tally) */
   particleCount: number;
-  /** Oldest-active cursor for eviction when full */
+  /** Oldest-active cursor for FIFO eviction when free-list empty (F-60). */
   particleOldest: number;
+  /** Free-list stack of inactive slots (F-60). */
+  freeStack: Int16Array;
+  /** Top index into freeStack (count of free slots). */
+  freeTop: number;
 
   shakeAmp: number;
   /** Radians — advances in stepShake for oscillating camera offset (F-31). */
@@ -77,6 +81,11 @@ export function allocateVfx(caps?: VfxCaps): VfxState {
 
   const trailSlots = maxBalls * TRAIL_MAX;
 
+  const freeStack = new Int16Array(particleCap);
+  for (let i = 0; i < particleCap; i++) {
+    freeStack[i] = i;
+  }
+
   return {
     maxBalls,
     trailX: new Float32Array(trailSlots),
@@ -98,6 +107,8 @@ export function allocateVfx(caps?: VfxCaps): VfxState {
     active: new Uint8Array(particleCap),
     particleCount: 0,
     particleOldest: 0,
+    freeStack,
+    freeTop: particleCap,
 
     shakeAmp: 0,
     shakePhase: 0,

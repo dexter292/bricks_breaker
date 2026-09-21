@@ -5,9 +5,14 @@ export {
   type PersonalBestStore,
 } from './types';
 export { evaluatePersonalBest } from './compareBest';
-export { parsePersonalBestBlob } from './parseBlob';
+export {
+  parsePersonalBestBlob,
+  parsePersonalBestResult,
+  type ParseBestResult,
+} from './parseBlob';
 export { createMemoryPersonalBestStore } from './memoryStore';
 export {
   createAsyncStoragePersonalBestStore,
   createDefaultPersonalBestStore,
+  __resetSharedPersonalBestStoreForTests,
 } from './asyncStorageStore';

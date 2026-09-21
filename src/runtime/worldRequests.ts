@@ -50,6 +50,13 @@ export function clearCosmeticVfx(vfx: VfxState): void {
   for (let i = 0; i < act.length; i++) {
     act[i] = 0;
   }
+  // Rebuild free-list (F-60)
+  const cap = vfx.particleCap;
+  for (let i = 0; i < cap; i++) {
+    vfx.freeStack[i] = i;
+  }
+  vfx.freeTop = cap;
+  vfx.particleOldest = 0;
   // F-16: zero heads + sample rings (head-only clear left ghost samples drawable).
   const heads = vfx.trailHead;
   for (let i = 0; i < heads.length; i++) {
