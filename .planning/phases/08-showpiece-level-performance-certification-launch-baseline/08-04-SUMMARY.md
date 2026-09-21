@@ -73,7 +73,7 @@ Each task was committed atomically:
 1. **Task 1: Automated audio.release / lifecycle asserts** - `8d172b7` (test RED) + `d198e6b` (feat GREEN)
 2. **Task 2: GameHost DEV soak driver + docs section** - `0130970` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `8ece358` (docs: complete plan)
 
 ## Files Created/Modified
 
