@@ -1,6 +1,7 @@
 import { Skia, type SkFont, type SkImage, type SkPicture } from '@shopify/react-native-skia';
 import type { World } from '../core';
 import type { VfxState } from '../vfx';
+import { trailLength } from '../vfx/intensity';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
 import type { GlowAtlas } from './textures/bakeGlowSprites';
@@ -110,12 +111,6 @@ function planBrickDamageCuesLocal(
       y1: y + h * 0.45,
     },
   ];
-}
-
-/** Intensity → trail sample count (inline of trailLength; ≥2). */
-function trailLengthLocal(intensity: number): number {
-  'worklet';
-  return Math.max(2, Math.min(5, Math.round(5 * intensity)));
 }
 
 /** Optional destroy flash — life gated ≤100ms by producer (Plan 05). */
@@ -302,7 +297,7 @@ export function recordFrame(
 
   // Trail ghosts (oldest → newest) under live ball — discrete circles, never a Path ribbon
   if (vfx != null) {
-    const ringLen = trailLengthLocal(intensity);
+    const ringLen = trailLength(intensity);
     const trailMax = 5;
     const maxBallsTrail = world.maxBalls < vfx.maxBalls ? world.maxBalls : vfx.maxBalls;
     for (let bi = 0; bi < maxBallsTrail; bi++) {
