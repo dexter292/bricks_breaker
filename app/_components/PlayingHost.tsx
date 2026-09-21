@@ -74,7 +74,7 @@ export function PlayingHost({ onMenu }: Props) {
   const [resultBest, setResultBest] = useState(0);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
-  const [levelId, setLevelId] = useState<LevelId>('level-01');
+  const [levelId, setLevelId] = useState<LevelId>('level-03');
 
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
   const platform = useMemo(() => defaultPlatformServices(), []);
@@ -388,7 +388,11 @@ export function PlayingHost({ onMenu }: Props) {
   }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
 
   const toggleDevLevel = useCallback(() => {
-    setLevelId((prev) => (prev === 'level-01' ? 'level-02' : 'level-01'));
+    setLevelId((prev) => {
+      if (prev === 'level-01') return 'level-02';
+      if (prev === 'level-02') return 'level-03';
+      return 'level-01';
+    });
   }, []);
 
   if (!fontsLoaded) {
@@ -411,7 +415,11 @@ export function PlayingHost({ onMenu }: Props) {
         style={styles.devSwitch}
       >
         <Text style={styles.devSwitchLabel}>
-          {levelId === 'level-01' ? 'Lv 01' : 'Lv 02'}
+          {levelId === 'level-01'
+            ? 'Lv 01'
+            : levelId === 'level-02'
+              ? 'Lv 02'
+              : 'Lv 03'}
         </Text>
       </Pressable>
     ) : null;
