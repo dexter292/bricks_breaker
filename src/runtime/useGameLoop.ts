@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   useFrameCallback,
   useSharedValue,
@@ -45,6 +45,8 @@ import {
 } from './constants';
 import { flushAudioBatchOnJS } from './eventBridge';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
+import type { VfxBudget } from './resolveQualityTier';
+import { BUDGETS } from './resolveQualityTier';
 
 /** Inline in this module so Babel workletizes with the frame callback (imported worklets can stay JS remotes). */
 function clampFrameDtLocal(dtSec: number, maxFrameTime: number): number {
@@ -181,6 +183,11 @@ export type UseGameLoopOptions = {
   playBatch?: PlayBatchFn;
   /** Baked glow atlas from PlayingHost cold path; null until bake completes. */
   glowAtlas?: SharedValue<GlowAtlas | null>;
+  /**
+   * Numeric VFX budget from resolveQualityTier (plain numbers — not SharedValue).
+   * Applied once at allocateVfx; host remounts/clears VFX when budget changes.
+   */
+  vfxBudget?: VfxBudget;
 };
 
 function makeEmptyPicture(): SkPicture {
@@ -241,6 +248,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   /** Captured from RN scope into the frame worklet for scheduleOnRN. */
   const playBatchFn = options.playBatch;
   const glowAtlas = options.glowAtlas ?? defaultGlowAtlas;
+  const vfxBudget = options.vfxBudget ?? BUDGETS.mid;
+  const budgetParticleCap = vfxBudget.particleCap;
+  const budgetTrailMax = vfxBudget.trailMax;
+  const budgetGlowScale = vfxBudget.glowScale;
   const metrics = useSharedValue<SpikeMetrics | null>(null);
   const spriteTarget = useSharedValue(initialSprites);
   const surfaceSize = useSharedValue<SkSize>({
@@ -283,7 +294,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       stallTierOut.value = w.stallTier;
     }
     if (!vfx) {
-      vfx = allocateVfx({ maxBalls: w.maxBalls });
+      vfx = allocateVfx({
+        maxBalls: w.maxBalls,
+        particleCap: budgetParticleCap,
+        trailMax: budgetTrailMax,
+        glowScale: budgetGlowScale,
+      });
       vfxSv.value = vfx;
     }
     if (!batch) {
@@ -440,6 +456,31 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     flashSv,
     audioBatchSv,
   ]);
+
+  // Tier budget change (DEV override): drop VFX pools so next frame reallocates
+  // with new caps — never mutate typed-array sizes mid-frame (Pitfall 5).
+  const prevBudgetRef = useRef({
+    particleCap: budgetParticleCap,
+    trailMax: budgetTrailMax,
+    glowScale: budgetGlowScale,
+  });
+  useEffect(() => {
+    const prev = prevBudgetRef.current;
+    if (
+      prev.particleCap === budgetParticleCap &&
+      prev.trailMax === budgetTrailMax &&
+      prev.glowScale === budgetGlowScale
+    ) {
+      return;
+    }
+    prevBudgetRef.current = {
+      particleCap: budgetParticleCap,
+      trailMax: budgetTrailMax,
+      glowScale: budgetGlowScale,
+    };
+    vfxSv.value = null;
+    retry();
+  }, [budgetParticleCap, budgetTrailMax, budgetGlowScale, vfxSv, retry]);
 
   // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).

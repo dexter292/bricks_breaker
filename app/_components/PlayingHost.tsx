@@ -25,6 +25,11 @@ import {
   type PlayBatchFn,
 } from '../../src/runtime/useGameLoop';
 import { useVfxIntensity } from '../../src/runtime/useVfxIntensity';
+import {
+  readDeviceMemory,
+  resolveQualityTier,
+  type QualityTier,
+} from '../../src/runtime/resolveQualityTier';
 import { createDefaultAudioService, createMemoryAudioService } from '../../src/services/audio';
 import { defaultPlatformServices } from '../../src/services/platform';
 import {
@@ -75,6 +80,8 @@ export function PlayingHost({ onMenu }: Props) {
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
   const [levelId, setLevelId] = useState<LevelId>('level-03');
+  /** DEV-only force; null = auto from device (D-11). */
+  const [tierOverride, setTierOverride] = useState<QualityTier | null>(null);
 
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
   const platform = useMemo(() => defaultPlatformServices(), []);
@@ -93,6 +100,18 @@ export function PlayingHost({ onMenu }: Props) {
   const runEndedRef = useRef(false);
   /** Cold-path gate: SFX preload + glow bake settled (success or soft-fail). */
   const [fxReady, setFxReady] = useState(false);
+
+  // Resolve tier once per mount (+ when DEV override changes). Device read is cold-path.
+  const deviceInfo = useMemo(() => readDeviceMemory(), []);
+  const { tier: qualityTier, budget: vfxBudget } = useMemo(
+    () =>
+      resolveQualityTier({
+        override: tierOverride,
+        totalMemory: deviceInfo.totalMemory,
+        modelName: deviceInfo.modelName,
+      }),
+    [tierOverride, deviceInfo],
+  );
 
   // Sync validate+compile on JS when levelId changes (D-12, D-14) — derive UI from Result.
   const loadResult = useMemo(() => loadLevelById(levelId), [levelId]);
@@ -218,6 +237,7 @@ export function PlayingHost({ onMenu }: Props) {
     vfxIntensity,
     playBatch: playBatchOnJS,
     glowAtlas: glowAtlasSv,
+    vfxBudget,
   });
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
@@ -395,6 +415,46 @@ export function PlayingHost({ onMenu }: Props) {
     });
   }, []);
 
+  /** DEV force Low→Mid→High→auto; session remount via budget change + retry (Pitfall 5). */
+  const cycleDevTier = useCallback(() => {
+    setTierOverride((prev) => {
+      if (prev == null) return 'low';
+      if (prev === 'low') return 'mid';
+      if (prev === 'mid') return 'high';
+      return null;
+    });
+  }, []);
+
+  const remountDevSession = useCallback(() => {
+    if (!levelReady || levelError != null || !fxReady) {
+      return;
+    }
+    clearCountdown();
+    setCountdownNumeral(null);
+    setResult(null);
+    setIsNewRecord(false);
+    setResultBest(previousBestRef.current);
+    runEndedRef.current = false;
+    setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
+    setSimPhaseNum(SIM.DOCKED);
+    setUiPhase('playing');
+    retry();
+    setActive(true);
+  }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
+
+  // When DEV tier override changes, remount play session (pools reallocated via useGameLoop).
+  const tierOverrideRef = useRef(tierOverride);
+  useEffect(() => {
+    if (tierOverrideRef.current === tierOverride) {
+      return;
+    }
+    tierOverrideRef.current = tierOverride;
+    remountDevSession();
+  }, [tierOverride, remountDevSession]);
+
   if (!fontsLoaded) {
     return <View style={styles.root} />;
   }
@@ -405,23 +465,43 @@ export function PlayingHost({ onMenu }: Props) {
     uiPhase === 'playing' &&
     simPhaseNum === SIM.DOCKED;
 
+  const tierLabel =
+    tierOverride == null
+      ? `Auto ${qualityTier}`
+      : tierOverride === 'low'
+        ? 'Low'
+        : tierOverride === 'mid'
+          ? 'Mid'
+          : 'High';
+
   const devLevelSwitch =
     typeof __DEV__ !== 'undefined' && __DEV__ ? (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Switch level, current ${levelId}`}
-        onPress={toggleDevLevel}
-        hitSlop={8}
-        style={styles.devSwitch}
-      >
-        <Text style={styles.devSwitchLabel}>
-          {levelId === 'level-01'
-            ? 'Lv 01'
-            : levelId === 'level-02'
-              ? 'Lv 02'
-              : 'Lv 03'}
-        </Text>
-      </Pressable>
+      <View style={styles.devRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Switch level, current ${levelId}`}
+          onPress={toggleDevLevel}
+          hitSlop={8}
+          style={styles.devSwitch}
+        >
+          <Text style={styles.devSwitchLabel}>
+            {levelId === 'level-01'
+              ? 'Lv 01'
+              : levelId === 'level-02'
+                ? 'Lv 02'
+                : 'Lv 03'}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Force quality tier, current ${tierLabel}`}
+          onPress={cycleDevTier}
+          hitSlop={8}
+          style={styles.devSwitch}
+        >
+          <Text style={styles.devSwitchLabel}>{tierLabel}</Text>
+        </Pressable>
+      </View>
     ) : null;
 
   return (
@@ -465,6 +545,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#12121f',
     borderWidth: 1,
     borderColor: '#6B7280',
+  },
+  devRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
   devSwitchLabel: {
     color: '#FFFFFF',
