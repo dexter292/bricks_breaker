@@ -1,9 +1,18 @@
 # Phase 08 Plan Check
 
-**Checked:** 2026-09-21  
+**Checked:** 2026-09-21 (re-verify after revision)  
 **Phase:** 08-showpiece-level-performance-certification-launch-baseline  
 **Plans verified:** 7 (`08-00` … `08-06`)  
-**Status:** FAILED — 1 blocker(s), 1 warning(s), 2 info
+**Status:** PASSED — 0 blocker(s), 0 warning(s), 2 info
+
+---
+
+## Revision clearance
+
+| Prior issue | Severity | Fix verified |
+|-------------|----------|--------------|
+| Dim 11: `08-RESEARCH.md` Open Questions not `(RESOLVED)` | blocker | ✅ Section is `## Open Questions (RESOLVED)`; A1 / Cert WC / host locks each marked RESOLVED |
+| Dim 7: Plan 06 Task 2 used `D-04 preliminary` for substitute Android | warning | ✅ Now `D-17 preliminary` + “MVP still requires Pixel re-cert”; threat T-08-27 cites D-17 |
 
 ---
 
@@ -37,13 +46,13 @@ Phase goal (ROADMAP): One authored challenge level, certified at 60 FPS on real 
 | 4 | Key links planned | ✅ PASS |
 | 5 | Scope sanity | ℹ️ INFO — Plan 00 ~16 files (Wave 0 stubs); Plan 02 ~10 files (warning band) |
 | 6 | Verification derivation | ✅ PASS (user-observable truths) |
-| 7 | Context compliance | ✅ PASS (D-01…D-27 mapped; deferred excluded) |
+| 7 | Context compliance | ✅ PASS (D-01…D-27 mapped; D-17 wording fixed; deferred excluded) |
 | 7b | Scope reduction | ✅ PASS (no silent “v1 / stub instead of decision” reductions) |
 | 7c | Architectural tier | ✅ PASS (matches RESEARCH responsibility map) |
 | 8 | Nyquist compliance | ✅ PASS (VALIDATION.md present; Wave 0 + `<automated>` wired) |
 | 9 | Cross-plan data contracts | ✅ PASS |
 | 10 | `.cursor/rules/` | ✅ PASS (Expo SDK 57 docs / `npx expo install`; Vitest; no forbidden libs) |
-| 11 | Research resolution | ❌ FAIL — Open Questions not marked RESOLVED |
+| 11 | Research resolution | ✅ PASS — Open Questions (RESOLVED) with locked answers |
 | 12 | Pattern compliance | ℹ️ INFO — Plans 03–06 lean on inline shared patterns; PATTERNS.md not always in `<context>` |
 
 ### Dimension 8 detail
@@ -99,68 +108,29 @@ Watch-mode / >45s automated gates → ✅ none
 ## Structured Issues
 
 ```yaml
-issues:
-  - plan: null
-    dimension: research_resolution
-    severity: blocker
-    description: >
-      08-RESEARCH.md still has "## Open Questions" without (RESOLVED) suffix and without
-      per-item RESOLVED markers. Dimension 11 requires questions closed before execution.
-      Plans already lock answers (A1 thresholds in 08-03; DEV Cert WC in 08-03; host
-      discretion in 08-05) but RESEARCH was not updated.
-    fix_hint: >
-      Edit 08-RESEARCH.md: rename to "## Open Questions (RESOLVED)" and mark each item
-      RESOLVED with the locked answer (1=A1 p50≤16.7/p95≤20 or ≤5% jank in phase8-certification.md;
-      2=DEV Cert WC Pressable one-shot inject per 08-03; 3=static HTTPS host TBD by human at
-      Plan 05 Task 2). Same fix pattern as Phase 02 plan-check clearance.
-    file: .planning/phases/08-showpiece-level-performance-certification-launch-baseline/08-RESEARCH.md
-
-  - plan: "06"
-    dimension: context_compliance
-    severity: warning
-    description: >
-      Plan 06 Task 2 refers to "D-04 preliminary" for substitute-Android waiver language.
-      In Phase 8 CONTEXT, D-04 is deterministic physics / Act 3 fairness. Substitute Android
-      is D-17 (and Phase 1 historical D-04). Wrong ID risks executor confusion at the gate.
-    task: 2
-    fix_hint: >
-      In 08-06-PLAN.md Task 2 action/acceptance, replace "D-04 preliminary" with
-      "D-17 preliminary (substitute Android)" and keep "MVP still requires Pixel re-cert".
-    file: .planning/phases/08-showpiece-level-performance-certification-launch-baseline/08-06-PLAN.md
-
+issues: []
+# Non-blocking notes retained from first check (info only):
+notes:
   - plan: "00"
     dimension: scope_sanity
     severity: info
     description: >
-      Plan 00 lists ~16 files_modified (Wave 0 stubs + docs). At blocker threshold on paper,
-      but work is mechanical stub/install — same acceptance pattern as Phase 02 Wave plans
-      with large file sets. No split required unless executor context pressure appears.
-    metrics:
-      tasks: 2
-      files: 16
-    fix_hint: "None required — optional: move store doc stubs solely under Plan 05 files list"
-
+      Plan 00 lists ~16 files_modified (Wave 0 stubs + docs). Mechanical stub/install —
+      no split required unless executor context pressure appears.
   - plan: "02"
     dimension: scope_sanity
     severity: info
     description: "Plan 02 touches ~10 files (warning band) for tier+VFX wiring — cohesive PLT-03 slice"
-    metrics:
-      tasks: 2
-      files: 10
-    fix_hint: "None required"
 ```
 
 ---
 
 ## Recommendation
 
-**1 blocker** must be fixed before `/gsd-execute-phase 08`:
+Prior blocker and warning cleared. Plans are ready for `/gsd-execute-phase 08`.
 
-1. Mark `08-RESEARCH.md` Open Questions as **(RESOLVED)** with the three locked answers already implied by Plans 03/05.
-2. (Warning) Fix Plan 06 D-04 → D-17 wording.
-
-After revision, re-run plan-check. Execution path is otherwise sound: Wave 0 → showpiece ∥ store → tiers → cert harness → soak → device gate.
+Execution path: Wave 0 → showpiece ∥ store → tiers → cert harness → soak → device gate.
 
 ---
 
-## VERIFICATION FAILED
+## VERIFICATION PASSED
