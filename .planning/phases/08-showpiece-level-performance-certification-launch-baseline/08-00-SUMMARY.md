@@ -82,7 +82,7 @@ Each task was committed atomically:
 1. **Task 1: Install expo-device + docs stubs + privacy assert script** - `855e7f0` (feat)
 2. **Task 2: Wave 0 Nyquist stubs + VALIDATION.md** - `4d51587` (test)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `d07b317` (docs: complete plan)
 
 ## Files Created/Modified
 
