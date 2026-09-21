@@ -4,17 +4,82 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Privacy Policy — Neon Brick Breaker</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --fg: #111;
+      --muted: #444;
+      --bg: #fafafa;
+      --rule: #ddd;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fg: #f2f2f2;
+        --muted: #bbb;
+        --bg: #121212;
+        --rule: #333;
+      }
+    }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.55;
+    }
+    main {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 0.35rem; }
+    h2 { font-size: 1.15rem; margin: 1.75rem 0 0.5rem; }
+    p, li { font-size: 1rem; color: var(--fg); }
+    .meta { color: var(--muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+    hr { border: 0; border-top: 1px solid var(--rule); margin: 1.5rem 0; }
+    ul { padding-left: 1.2rem; }
+  </style>
 </head>
 <body>
-  <h1>Privacy Policy — Neon Brick Breaker</h1>
-  <p><strong>STATUS: STUB — Plan 05 fills.</strong></p>
-  <p><strong>LIVE_URL: TBD</strong></p>
-  <h2>MVP draft (placeholder)</h2>
-  <ul>
-    <li>Offline play — no network required for gameplay.</li>
-    <li>Local high score only, stored via AsyncStorage on-device.</li>
-    <li>No ads, no in-app purchases, no accounts, no analytics SDKs.</li>
-    <li>No personally identifiable information collected or transmitted.</li>
-  </ul>
+  <main>
+    <h1>Privacy Policy — Neon Brick Breaker</h1>
+    <p class="meta">Effective date: 2026-09-21 · LIVE_URL: TBD</p>
+    <hr />
+    <h2>Overview</h2>
+    <p>
+      Neon Brick Breaker (“the App”) is an offline arcade game. This policy describes how the App
+      handles data for the current MVP build.
+    </p>
+    <h2>What the App does with data</h2>
+    <ul>
+      <li><strong>Offline gameplay.</strong> Core play does not require a network connection. The App does not send gameplay state to our servers.</li>
+      <li><strong>Local high score.</strong> A personal-best score may be stored on the device using AsyncStorage (on-device key/value storage). That value stays on the device unless the user clears app data or uninstalls the App. It is not uploaded by the MVP App.</li>
+      <li><strong>No accounts.</strong> The App does not offer sign-in or user profiles.</li>
+      <li><strong>No ads or in-app purchases.</strong> The MVP App does not include advertising SDKs or IAP / store purchase SDKs.</li>
+      <li><strong>No analytics SDKs.</strong> The MVP App does not embed third-party analytics or tracking SDKs.</li>
+      <li><strong>No personally identifiable information</strong> is requested or collected by the MVP App for gameplay.</li>
+    </ul>
+    <h2>Platform and store surfaces</h2>
+    <p>
+      App Store / Play Store pages, OS crash reports, or optional developer tooling outside the App
+      binary may process data under Apple’s or Google’s policies. Those platform practices are
+      separate from the App’s own offline MVP behavior described here.
+    </p>
+    <h2>Children’s privacy</h2>
+    <p>
+      The App is suitable for a general audience and does not knowingly collect personal information
+      from children.
+    </p>
+    <h2>Changes</h2>
+    <p>
+      If this policy changes for a future build (for example if networking, ads, or accounts are
+      added), the live HTTPS copy and the in-repo source will be updated.
+    </p>
+    <h2>Contact</h2>
+    <p>
+      Questions about this policy can be raised via the project’s public repository issues (when
+      published) or the developer contact listed on the store listing when one exists.
+    </p>
+  </main>
 </body>
 </html>
