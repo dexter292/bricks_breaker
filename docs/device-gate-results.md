@@ -80,4 +80,12 @@ Pass criterion (MVP): stable ~60 FPS at 256± sprites on Pixel 6a (or documented
 
 ---
 
-_Status: Phase 1 closed under simulator-only waiver 2026-09-20; hardware gates remain MVP debt._
+---
+
+## Phase 8 / MVP re-cert (PLT-03)
+
+Phase 1 device rows above remain historical (simulator waiver). **MVP 60 FPS + soak evidence is recorded in [`docs/phase8-certification.md`](./phase8-certification.md)** (Pixel 6a Mid gfxinfo ≥2×≥30s, iPhone Instruments, soak 100+15min). Until those Results leave `PENDING_DEVICE`, Pixel / physical-iOS debt from D-04 / D-05 / D-15 / D-16 stays open. Do **not** treat Phase 1 waiver rows as Phase 8 PASS.
+
+---
+
+_Status: Phase 1 closed under simulator-only waiver 2026-09-20; hardware gates remain MVP debt — see Phase 8 Results scaffolding._

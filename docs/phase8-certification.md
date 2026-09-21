@@ -96,18 +96,18 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 
 ## Results
 
-Fill during Plan 06 device certification. Empty rows are intentional.
+Fill during Plan 06 device certification. Rows below are scaffolding only — **do not invent gfxinfo numbers**. Replace `PENDING_DEVICE` with measured values (or document blockers / waivers).
 
 | Device | Tier | Build | Run | p50 ms | p95 ms | Jank % | Verdict | Notes |
 |--------|------|-------|-----|--------|--------|--------|---------|-------|
-| Pixel 6a | Mid | profiling | run1 | — | — | — | OPEN | Mandatory Android gate |
-| Pixel 6a | Mid | profiling | run2 | — | — | — | OPEN | Keep worse of run1/run2 |
-| iPhone (physical) | Mid (auto/force) | profiling | Instruments | — | — | — | OPEN | D-16 render/touch/stability |
-| _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | OPEN | Preliminary only — not MVP close |
+| Pixel 6a | Mid | profiling | run1 | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Mandatory Android gate (D-15); level-03 Cert WC; ≥30 s after ~2 s warmup |
+| Pixel 6a | Mid | profiling | run2 | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Second run; keep **worse** of run1/run2 |
+| iPhone (physical) | Mid (auto/force) | profiling | Instruments | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | D-16: Core Animation / Game + render/touch/stability notes |
+| _Substitute Android (optional)_ | Mid | profiling | prelim | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Preliminary only (D-17) — **not** MVP close |
 
-**Worse-run summary (Pixel Mid):** _TBD — Plan 06_
+**Worse-run summary (Pixel Mid):** `PENDING_DEVICE` — fill after both Pixel runs; evaluate worse run vs A1 thresholds above.
 
-**D-04 / D-17 substitute note (if used):** _model / chipset / OS / refresh — MVP debt until Pixel 6a_
+**D-04 / D-17 substitute note (if used):** _model / chipset / OS / refresh — MVP debt until Pixel 6a; substitute alone must not close MVP_
 
 ---
 
@@ -148,9 +148,9 @@ DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loop
 
 | Device | Build | Cycles | Continuous | Mem start | Mem end | Frame start | Frame end | Verdict | Notes |
 |--------|-------|--------|------------|-----------|---------|-------------|-----------|---------|-------|
-| Pixel 6a | profiling / `__DEV__` soak | 100 | 15 min | — | — | — | — | OPEN | Mandatory Android soak |
-| iPhone (physical) | profiling / `__DEV__` soak | 100 | 15 min | — | — | — | — | OPEN | D-16 stability companion |
+| Pixel 6a | profiling / `__DEV__` soak | 100 | 15 min | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Mandatory Android soak (D-19…D-21); 100 Title↔Playing + 15 min play |
+| iPhone (physical) | profiling / `__DEV__` soak | 100 | 15 min | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | D-16 stability companion; mem + frame-time start/end |
 
 ---
 
-_Status: protocol + thresholds locked; Results OPEN until Plan 06._
+_Status: protocol + thresholds locked; Results scaffolding ready (`PENDING_DEVICE`) — Plan 06 human device gate fills real evidence._
