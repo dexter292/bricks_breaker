@@ -174,8 +174,13 @@ export function recordFrame(
   // Cosmetic camera shake — letterboxed group only (D-19); amp already × intensity at punch
   if (vfx != null) {
     const amp = vfx.shakeAmp;
-    // shakeOffset(amp, 0.85, 0.53) — fixed unit-ish direction (no World writes)
-    canvas.translate(amp * 0.85, amp * 0.53);
+    if (amp > 0) {
+      // F-31: oscillating unit direction from shakePhase (not a fixed lurch)
+      const phase = vfx.shakePhase;
+      const nx = Math.sin(phase);
+      const ny = Math.cos(phase * 1.3);
+      canvas.translate(amp * nx, amp * ny);
+    }
   }
 
   // Navy field only inside logical 360×640

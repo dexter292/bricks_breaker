@@ -52,6 +52,8 @@ export type VfxState = {
   particleOldest: number;
 
   shakeAmp: number;
+  /** Radians — advances in stepShake for oscillating camera offset (F-31). */
+  shakePhase: number;
 };
 
 /**
@@ -98,5 +100,6 @@ export function allocateVfx(caps?: VfxCaps): VfxState {
     particleOldest: 0,
 
     shakeAmp: 0,
+    shakePhase: 0,
   };
 }

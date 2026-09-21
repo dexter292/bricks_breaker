@@ -135,7 +135,7 @@ describe('vfx particles (FX-02)', () => {
     });
     vfx.shakeAmp = 1.0;
     stepVfx(vfx, 0.02, 1.0);
-    expect(vfx.shakeAmp).toBeCloseTo(0.85, 5);
+    expect(vfx.shakeAmp).toBeCloseTo(Math.pow(0.85, 0.02 * 60), 5);
     expect(countActiveParticles(vfx)).toBeGreaterThan(0);
   });
 

@@ -1,11 +1,12 @@
 /**
- * PHYS-05 — docked serve via Intent.launch + resolvePaddleEnglish.
+ * PHYS-05 — docked serve: fixed vertical launch (F-21 scope-b).
  */
 import { describe, it, expect } from 'vitest';
 import {
   allocateWorld,
   resetWorld,
   stepRun,
+  applyServe,
   SimPhase,
   SERVE_SPEED,
   FIXED_DT,
@@ -30,21 +31,36 @@ describe('serve rules (dock / launch)', () => {
     expect(w.ballActive[0]).toBe(1);
   });
 
-  it('launch=1 while docked applies upward english serve and enters PLAYING', () => {
+  it('launch=1 while docked applies fixed vertical serve (0, -SERVE_SPEED)', () => {
     const w = allocateWorld();
     resetWorld(w, 3, 4);
-    // Offset ball from paddle center so english produces non-zero vx
+    // Pre-offset is wiped by dockBall before serve — contract is always vertical.
     w.paddleX = 180;
-    w.ballX[0] = 180 + 20;
+    w.ballX[0] = 180 + 35;
 
     stepRun(w, { paddleX: 180, launch: 1 }, FIXED_DT);
 
     expect(w.simPhase).toBe(SimPhase.PLAYING);
     expect(w.ballActive[0]).toBe(1);
-    expect(w.ballVy[0]).toBeLessThan(0); // upward in y-down
-    expect(Math.abs(w.ballVy[0])).toBeGreaterThan(Math.abs(w.ballVx[0]));
-    const speed = Math.hypot(w.ballVx[0], w.ballVy[0]);
-    expect(speed).toBeCloseTo(SERVE_SPEED, 5);
+    expect(w.ballVx[0]).toBe(0);
+    expect(w.ballVy[0]).toBeCloseTo(-SERVE_SPEED, 5);
+  });
+
+  it('applyServe is independent of pre-set ballX / paddleX (F-21b)', () => {
+    const cases = [
+      { paddleX: 80, ballX: 40 },
+      { paddleX: 180, ballX: 180 },
+      { paddleX: 280, ballX: 310 },
+    ];
+    for (const c of cases) {
+      const w = allocateWorld();
+      resetWorld(w, 1, 2);
+      w.paddleX = c.paddleX;
+      w.ballX[0] = c.ballX;
+      applyServe(w, SERVE_SPEED);
+      expect(w.ballVx[0]).toBe(0);
+      expect(w.ballVy[0]).toBeCloseTo(-SERVE_SPEED, 5);
+    }
   });
 
   it('ignores non-finite launch and leaves prior paddle on non-finite paddleX', () => {

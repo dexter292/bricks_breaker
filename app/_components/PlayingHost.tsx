@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import {
@@ -438,6 +438,22 @@ export function PlayingHost({ onMenu }: Props) {
     retry();
     setActive(true);
   }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
+
+  // F-30: Android hardware Back — pause mid-run; Menu from Pause/Result.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (result != null || uiPhase === 'paused') {
+        onMenu();
+        return true;
+      }
+      if (uiPhase === 'playing' || uiPhase === 'countdown') {
+        onPause();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [uiPhase, result, onMenu, onPause]);
 
   const toggleDevLevel = useCallback(() => {
     setLevelId((prev) => {

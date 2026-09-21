@@ -10,5 +10,5 @@ import { stepShake } from './shake';
 export function stepVfx(vfx: VfxState, dt: number, intensity: number): void {
   'worklet';
   stepParticles(vfx, dt);
-  stepShake(vfx, intensity);
+  stepShake(vfx, intensity, dt);
 }

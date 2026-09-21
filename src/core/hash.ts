@@ -102,19 +102,28 @@ export function hashWorld(world: World): number {
   h = mixU32(h, world.stallIdleTicks);
   h = mixU32(h, world.stallTier);
 
+  // F-50: lives + simPhase are live run state (were omitted).
+  h = mixU32(h, world.lives);
+  h = mixU32(h, world.simPhase);
+
+  // F-32: gameplay RNG only — cosmetic stream must not affect golden/replay hash.
   h = mixU32(h, world.rngGameplay[0]);
-  h = mixU32(h, world.rngCosmetic[0]);
   h = mixU32(h, world.tick);
   h = mixF32(h, world.accumulator);
 
-  h = mixTyped(h, world.evCode);
-  h = mixTyped(h, world.evA);
-  h = mixTyped(h, world.evB);
-  h = mixTyped(h, world.evX);
-  h = mixTyped(h, world.evY);
-  h = mixU32(h, world.evHead);
-  h = mixU32(h, world.evCount);
-  h = mixU32(h, world.evCap);
+  // F-50: hash only the live ring slice [start, start+evCount), not stale payload.
+  const evN = world.evCount;
+  const evCap = world.evCap;
+  const evStart = (world.evHead - evN + evCap) % evCap;
+  for (let i = 0; i < evN; i++) {
+    const idx = (evStart + i) % evCap;
+    h = mixU32(h, world.evCode[idx]);
+    h = mixU32(h, world.evA[idx]);
+    h = mixU32(h, world.evB[idx]);
+    h = mixF32(h, world.evX[idx]);
+    h = mixF32(h, world.evY[idx]);
+  }
+  h = mixU32(h, evN);
   h = mixU32(h, world.evOverflow);
 
   return h >>> 0;

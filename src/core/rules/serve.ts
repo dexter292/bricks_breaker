@@ -1,6 +1,5 @@
 import type { Intent, World } from '../types';
 import { SimPhase } from '../types';
-import { resolvePaddleEnglish } from '../physics/resolve';
 
 /**
  * Deactivate all ball slots, then dock index 0 on paddle (activeBallCount=1).
@@ -23,8 +22,9 @@ export function dockBall(world: World): void {
 }
 
 /**
- * Launch via paddle english with upward seed velocity (0, -serveSpeed).
- * Deterministic — no host RNG.
+ * Launch docked ball straight up at serveSpeed (PHYS-05 / audit F-21 scope-b).
+ * Aimed launch deferred — dockBall snaps ballX=paddleX every docked step so
+ * paddle-english offset was always zero; keep the honest fixed-vertical contract.
  */
 export function applyServe(world: World, serveSpeed: number): void {
   'worklet';
@@ -32,16 +32,8 @@ export function applyServe(world: World, serveSpeed: number): void {
     return;
   }
   const bi = 0;
-  const half = world.paddleW * 0.5;
-  const out = resolvePaddleEnglish(
-    world.ballX[bi],
-    world.paddleX,
-    half,
-    0,
-    -serveSpeed,
-  );
-  world.ballVx[bi] = out.vx;
-  world.ballVy[bi] = out.vy;
+  world.ballVx[bi] = 0;
+  world.ballVy[bi] = -serveSpeed;
   world.ballActive[bi] = 1;
   world.activeBallCount = 1;
 }

@@ -51,6 +51,7 @@ import {
   applyRetryWorldReset,
   clearCosmeticVfx,
 } from './worldRequests';
+import { remainderAfterSubstepCap } from './substepCap';
 
 /** Inline in this module so Babel workletizes with the frame callback (imported worklets can stay JS remotes). */
 function clampFrameDtLocal(dtSec: number, maxFrameTime: number): number {
@@ -396,7 +397,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         steps += 1;
       }
       if (steps === maxSubsteps) {
-        w.accumulator = 0;
+        w.accumulator = remainderAfterSubstepCap(
+          w.accumulator,
+          steps,
+          maxSubsteps,
+          fixedDt,
+        );
       }
 
       pushSample(

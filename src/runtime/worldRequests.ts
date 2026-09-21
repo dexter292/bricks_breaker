@@ -62,6 +62,7 @@ export function clearCosmeticVfx(vfx: VfxState): void {
     ty[i] = 0;
   }
   vfx.shakeAmp = 0;
+  vfx.shakePhase = 0;
 }
 
 /**
