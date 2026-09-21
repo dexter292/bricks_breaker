@@ -115,8 +115,56 @@ describe('levels.compile', () => {
     expect(result.ok).toBe(false);
   });
 
-  // 08-W0-01 — Plan 01 fills level-03 JSON + assertions
-  it.todo('level-03 validates and compiles with UNBREAKABLE present');
-  it.todo('level-03 fingerprint differs from level-01 and level-02');
-  it.todo('level-03 cols*rows and brickCount ≤ MAX_BRICKS (256)');
+  // 08-01 — level-03 showpiece (LVL-04 / D-01…D-05)
+  it('level-03 validates and compiles with UNBREAKABLE present', () => {
+    const raw = loadLevelJson('level-03.json') as LevelFileV1;
+    const result = loadAndCompile(raw);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(raw.id).toBe('level-03');
+    expect(raw.schemaVersion).toBe(1);
+
+    const { compiled } = result;
+    let unbreakable = 0;
+    const breakableHp = new Set<number>();
+    for (let i = 0; i < compiled.brickCount; i++) {
+      if ((compiled.flags[i] & BrickFlags.UNBREAKABLE) !== 0) {
+        unbreakable += 1;
+      } else {
+        breakableHp.add(compiled.hp[i]);
+      }
+    }
+    expect(unbreakable).toBeGreaterThanOrEqual(1);
+    expect(breakableHp.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('level-03 fingerprint differs from level-01 and level-02', () => {
+    const raw01 = loadLevelJson('level-01.json') as LevelFileV1;
+    const raw02 = loadLevelJson('level-02.json') as LevelFileV1;
+    const raw03 = loadLevelJson('level-03.json') as LevelFileV1;
+    const r1 = loadAndCompile(raw01);
+    const r2 = loadAndCompile(raw02);
+    const r3 = loadAndCompile(raw03);
+    expect(r1.ok).toBe(true);
+    expect(r2.ok).toBe(true);
+    expect(r3.ok).toBe(true);
+    if (!r1.ok || !r2.ok || !r3.ok) return;
+
+    const fp1 = structuralFingerprint(r1.compiled, raw01.cells);
+    const fp2 = structuralFingerprint(r2.compiled, raw02.cells);
+    const fp3 = structuralFingerprint(r3.compiled, raw03.cells);
+    expect(fp3).not.toBe(fp1);
+    expect(fp3).not.toBe(fp2);
+  });
+
+  it('level-03 cols*rows and brickCount ≤ MAX_BRICKS (256)', () => {
+    const raw = loadLevelJson('level-03.json') as LevelFileV1;
+    const result = loadAndCompile(raw);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(raw.grid.cols * raw.grid.rows).toBeLessThanOrEqual(256);
+    expect(result.compiled.brickCount).toBeLessThanOrEqual(256);
+  });
 });
