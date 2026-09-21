@@ -2,9 +2,9 @@
 
 **Effective date:** 2026-09-21
 
-**LIVE_URL: TBD**
+**LIVE_URL: OWNER_WAIVED_2026-09-21**
 
-*(Host `privacy-policy.html` on a public HTTPS static host, then replace TBD with the live URL. See `HOSTING.md`.)*
+*(Owner instructed Phase 8 to proceed without a live public HTTPS host. In-repo `privacy-policy.html` remains the source of truth. **D-27 / PLT-04 live-URL gate stays OPEN** until a real `https://…` URL is published and verified with `curl -fsSI` — required before any store submit. See `HOSTING.md`.)*
 
 ## Overview
 

@@ -51,4 +51,8 @@ Expect `HTTP/2 200` or `HTTP/1.1 200`.
 
 Paste the live HTTPS URL in chat, **or** update `LIVE_URL` yourself and reply `hosted`. The executor will `curl -fsSI` and finish Plan 08-05 / PLT-04.
 
-**Do not mark PLT-04 complete while `LIVE_URL` remains `TBD`.**
+**Do not mark PLT-04 complete while `LIVE_URL` remains `TBD` or `OWNER_WAIVED_*`.**
+
+## Owner waiver (2026-09-21)
+
+Owner directed Phase 8 execution to continue without a live HTTPS URL (`coi như là hosted rồi đi`). Recorded as `LIVE_URL: OWNER_WAIVED_2026-09-21` in `privacy-policy.md`. **Public HTTPS publish + curl verification remain mandatory before store submit / final PLT-04 checkoff (D-27).**
