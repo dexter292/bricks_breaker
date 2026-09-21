@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 8 plans verified — ready to execute
-last_updated: "2026-09-21T08:25:04.309Z"
-last_activity: 2026-09-21 -- Phase 8 execution started
+stopped_at: Completed 08-00-PLAN.md
+last_updated: "2026-09-21T08:27:46.292Z"
+last_activity: 2026-09-21
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 48
-  completed_plans: 41
-  percent: 85
+  completed_plans: 42
+  percent: 88
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 8 (Showpiece Level, Performance Certification & Launch Baseline) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 8
-Last activity: 2026-09-21 -- Phase 8 execution started
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-09-21
 
 Progress: [████████░░] 88% phases (7/8 complete)
 
@@ -68,6 +68,7 @@ Progress: [████████░░] 88% phases (7/8 complete)
 | Phase 06 P05 | 25min | 3 tasks | 5 files |
 | 06 | 6 | - | - |
 | 07 | 7 | - | - |
+| Phase 08 P00 | 2min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,9 @@ Progress: [████████░░] 88% phases (7/8 complete)
 - [Phase 06]: playfield starts below notch + strip so opaque chrome never covers brick rows
 - [Phase 06]: Stall gate unchanged: PLAYING + stallTier > 0 (D-09)
 - [Phase 06]: Soft-fail AsyncStorage → memory when native module missing; UAT approved 2026-09-20
+- [Phase 08]: Pin expo-device via npx expo install only — never react-native-device-info
+- [Phase 08]: Privacy assert exists and fails closed until Plan 05 fills app.json
+- [Phase 08]: Store/privacy stubs marked STATUS:STUB with LIVE_URL: TBD (no fake URL)
 
 ### Pending Todos
 
@@ -136,6 +140,6 @@ Progress: [████████░░] 88% phases (7/8 complete)
 
 ## Session Continuity
 
-Last session: 2026-09-21T08:21:41.168Z
-Stopped at: Phase 8 plans verified — ready to execute
-Resume file: .planning/phases/08-showpiece-level-performance-certification-launch-baseline/08-00-PLAN.md
+Last session: 2026-09-21T08:27:46.290Z
+Stopped at: Completed 08-00-PLAN.md
+Resume file: None

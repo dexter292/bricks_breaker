@@ -172,7 +172,7 @@ Plans:
   5. A public HTTPS privacy policy URL is live, the Play Data Safety form and age rating are complete, the iOS privacy manifest is present, the name is cleared, and every asset and level layout is originally authored
 **Plans:** 7 plans
 Plans:
-- [ ] 08-00-PLAN.md — Wave 0: expo-device, Nyquist stubs, cert/store doc stubs
+- [x] 08-00-PLAN.md — Wave 0: expo-device, Nyquist stubs, cert/store doc stubs
 - [ ] 08-01-PLAN.md — level-03 showpiece + default boot + DEV level switch (LVL-04)
 - [ ] 08-02-PLAN.md — Low/Mid/High quality tiers + VfxCaps wiring (PLT-03)
 - [ ] 08-03-PLAN.md — Scripted worst-case cert harness + phase8-certification protocol (PLT-03)

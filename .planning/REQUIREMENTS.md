@@ -22,7 +22,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 - [x] **LVL-01**: Levels load from a versioned data-driven format suitable for a future level editor
 - [x] **LVL-02**: Level includes multiple brick types with different hit points and readable damage states (color + non-color cue)
 - [x] **LVL-03**: Level can include unbreakable/structural bricks that channel the ball
-- [ ] **LVL-04**: One hand-crafted ~2–3 minute arcade challenge level with progressive difficulty, authored after core feel is validated
+- [x] **LVL-04**: One hand-crafted ~2–3 minute arcade challenge level with progressive difficulty, authored after core feel is validated
 
 ### Run Loop
 
@@ -47,8 +47,8 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 - [ ] **PLT-01**: Player can pause/resume; app auto-pauses on OS background/interruption and resumes with a countdown (no physics catch-up spiral)
 - [x] **PLT-02**: Playfield layout is responsive with safe-area handling on iOS and Android
-- [ ] **PLT-03**: Stable 60 FPS is measured on a named mid-range real device (including worst-case multi-ball + particle burst); RN perf monitor alone is not acceptance
-- [ ] **PLT-04**: Store compliance baseline is prepared: public HTTPS privacy policy URL, Google Play Data Safety form, honest age rating, iOS privacy manifest as required
+- [x] **PLT-03**: Stable 60 FPS is measured on a named mid-range real device (including worst-case multi-ball + particle burst); RN perf monitor alone is not acceptance
+- [x] **PLT-04**: Store compliance baseline is prepared: public HTTPS privacy policy URL, Google Play Data Safety form, honest age rating, iOS privacy manifest as required
 
 ### Architecture (cross-cutting)
 
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LVL-01 | Phase 4 | Complete |
 | LVL-02 | Phase 4 | Complete |
 | LVL-03 | Phase 4 | Complete |
-| LVL-04 | Phase 8 | Pending |
+| LVL-04 | Phase 8 | Complete |
 | RUN-01 | Phase 5 | Complete |
 | RUN-02 | Phase 3 | Pending |
 | RUN-03 | Phase 6 | Complete |
@@ -122,8 +122,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FX-03 | Phase 7 | Complete |
 | PLT-01 | Phase 3 | Pending |
 | PLT-02 | Phase 6 | Complete |
-| PLT-03 | Phase 8 | Pending |
-| PLT-04 | Phase 8 | Pending |
+| PLT-03 | Phase 8 | Complete |
+| PLT-04 | Phase 8 | Complete |
 | ARCH-01 | Phase 1 | Complete (simulator waiver; hardware debt → MVP) |
 | ARCH-02 | Phase 6 | Complete |
 
