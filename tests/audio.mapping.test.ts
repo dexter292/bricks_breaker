@@ -93,6 +93,8 @@ describe('audio service pools (FX-03)', () => {
     // 5 rapid BRICK_HIT → brick_chip limit 3; only 3 players for that id
     const hits = [3, 3, 3, 3, 3];
     svc.playBatch(hits, hits.length);
+    // seekTo→play is microtask-chained (async seekTo race fix); flush before asserts
+    await Promise.resolve();
 
     expect(created.length).toBe(VOICE_LIMITS.brick_chip);
     // 5 plays across 3 voices: indices 0,1,2,0,1 → playCounts [2,2,1]

@@ -126,8 +126,19 @@ export function createAudioServiceWithPlayers(
           cursors.set(sfxId, cursor + 1);
           const player = voices[idx]!;
           player.volume = SFX_VOLUME[sfxId];
-          void player.seekTo(0);
-          player.play();
+          // seekTo may be sync (void) or async (Promise) — await before play to avoid
+          // truncated retriggers when reusing a voice mid-playback.
+          void Promise.resolve(player.seekTo(0))
+            .then(() => {
+              try {
+                player.play();
+              } catch {
+                // Soft-fail play — never throw into gameplay
+              }
+            })
+            .catch(() => {
+              // Soft-fail seek — never throw into gameplay
+            });
         }
       } catch {
         // Soft-fail play — never throw into gameplay
