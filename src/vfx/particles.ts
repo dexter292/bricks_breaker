@@ -1,9 +1,11 @@
 import type { VfxState } from './types';
 import { CHIP_SPARKS_AT_1, DESTROY_SPARKS_AT_1 } from './types';
 
-/** Pool caps (T-07-09) — literals kept for acceptance greps / worklet safety. */
-export const PARTICLE_POOL_DEFAULT = 128;
-export const PARTICLE_POOL_HARD_MAX = 192;
+/** Pool caps (T-07-09) — single source in types.ts; re-export for acceptance greps. */
+export {
+  PARTICLE_POOL_DEFAULT,
+  PARTICLE_POOL_HARD_MAX,
+} from './types';
 
 export type SpawnKind = 'chip' | 'destroy';
 
