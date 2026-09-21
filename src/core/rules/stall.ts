@@ -14,6 +14,7 @@
  */
 import type { World } from '../types';
 import { BrickFlags, EventCode, SimPhase } from '../types';
+import { enforceMinVerticalRatio } from '../physics/resolve';
 
 /** True if the event ring contains breakable BRICK_HIT or BRICK_BREAK. */
 function hasBreakableDamage(world: World): boolean {
@@ -74,8 +75,11 @@ function applyTier2SpeedBoost(world: World): void {
     if (!Number.isFinite(vx) || !Number.isFinite(vy)) {
       continue;
     }
-    world.ballVx[i] = vx;
-    world.ballVy[i] = vy;
+    // F-22: when already at MAX_BALL_SPEED the boost is a no-op — still
+    // lift near-horizontal headings so recovery is not deferred to tier 3.
+    const steep = enforceMinVerticalRatio(vx, vy);
+    world.ballVx[i] = steep.vx;
+    world.ballVy[i] = steep.vy;
   }
 }
 
@@ -105,12 +109,37 @@ function applyTier3AngleNudge(world: World): void {
       continue;
     }
 
-    const sign = i % 2 === 0 ? 1 : -1;
-    const theta = sign * nudgeRad;
-    const c = Math.cos(theta);
-    const s = Math.sin(theta);
-    let nvx = vx * c - vy * s;
-    let nvy = vx * s + vy * c;
+    const signParity = i % 2 === 0 ? 1 : -1;
+    // F-23: try both rotation signs; keep the one that increases |vy|/speed
+    // (steeper). XOR with parity only as a tie-break for multi-ball fan-out.
+    const candidates = [signParity, -signParity];
+    let bestVx = vx;
+    let bestVy = vy;
+    let bestRatio = Math.abs(vy) / speed;
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const theta = candidates[ci] * nudgeRad;
+      const c = Math.cos(theta);
+      const s = Math.sin(theta);
+      let nvx = vx * c - vy * s;
+      let nvy = vx * s + vy * c;
+      if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) {
+        continue;
+      }
+      const speed1 = Math.hypot(nvx, nvy);
+      if (speed1 > 0) {
+        const scale = speed / speed1;
+        nvx *= scale;
+        nvy *= scale;
+      }
+      const ratio = Math.abs(nvy) / (Math.hypot(nvx, nvy) || 1);
+      if (ratio > bestRatio + 1e-9 || (Math.abs(ratio - bestRatio) <= 1e-9 && ci === 0)) {
+        bestRatio = ratio;
+        bestVx = nvx;
+        bestVy = nvy;
+      }
+    }
+    let nvx = bestVx;
+    let nvy = bestVy;
 
     if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) {
       continue;

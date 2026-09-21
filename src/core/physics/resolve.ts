@@ -56,6 +56,37 @@ export function reflectVelocity(
 }
 
 /**
+ * Enforce |vy|/speed >= cos(62°) while preserving speed and vertical sign (F-22).
+ * Called after wall/brick reflect so near-horizontal stalls cannot persist 12s.
+ */
+export function enforceMinVerticalRatio(
+  vx: number,
+  vy: number,
+): { vx: number; vy: number } {
+  'worklet';
+  if (!Number.isFinite(vx) || !Number.isFinite(vy)) {
+    return { vx, vy };
+  }
+  const speed = Math.hypot(vx, vy);
+  if (!(speed > 0)) {
+    return { vx, vy };
+  }
+  // Literals must match constants.ts (PADDLE_ANGLE_CLAMP_DEG = 62).
+  const clampRad = (62 * Math.PI) / 180;
+  const minVert = Math.cos(clampRad);
+  const absVyRatio = Math.abs(vy) / speed;
+  if (absVyRatio >= minVert) {
+    return { vx, vy };
+  }
+  const headingSign = vx >= 0 ? 1 : -1;
+  const angle = headingSign * clampRad;
+  let ovx = Math.sin(angle) * speed;
+  // Preserve travel direction along Y (up = negative in y-down coords)
+  let ovy = vy >= 0 ? Math.cos(angle) * speed : -Math.cos(angle) * speed;
+  return { vx: ovx, vy: ovy };
+}
+
+/**
  * Classic Breakout paddle english (D-01…D-03).
  * t = clamp((ballX - paddleCx) / paddleHalfW, -1, 1)
  * angleFromUp = t * PADDLE_ANGLE_CLAMP_RAD

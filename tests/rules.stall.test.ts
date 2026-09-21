@@ -103,6 +103,7 @@ describe('stall rules (PHYS-07)', () => {
     // Near-horizontal-ish but legal trajectory so nudge + clamp is visible
     w.ballVx[0] = 500;
     w.ballVy[0] = -300;
+    const ratioBefore = Math.abs(w.ballVy[0]) / Math.hypot(w.ballVx[0], w.ballVy[0]);
     idleSteps(w, 1440);
     expect(w.stallTier).toBe(3);
     expect(w.stallIdleTicks).toBe(1440);
@@ -110,9 +111,22 @@ describe('stall rules (PHYS-07)', () => {
     expect(Number.isFinite(w.ballVy[0])).toBe(true);
     const speed = Math.hypot(w.ballVx[0], w.ballVy[0]);
     expect(speed).toBeGreaterThan(0);
-    expect(Math.abs(w.ballVy[0]) / speed).toBeGreaterThanOrEqual(
-      MIN_VERTICAL_RATIO - 1e-6,
-    );
+    const ratioAfter = Math.abs(w.ballVy[0]) / speed;
+    expect(ratioAfter).toBeGreaterThanOrEqual(MIN_VERTICAL_RATIO - 1e-6);
+    // F-23: nudge must not make the heading shallower
+    expect(ratioAfter).toBeGreaterThanOrEqual(ratioBefore - 1e-6);
+  });
+
+  it('tier 3 prefers steeper rotation even when parity sign would flatten (F-23)', () => {
+    const w = playingWorld();
+    // Ball 0 parity wants +8°; for (300,-400) that flattens — steeper choice is −8°
+    w.ballVx[0] = 300;
+    w.ballVy[0] = -400;
+    const before = Math.abs(w.ballVy[0]) / Math.hypot(w.ballVx[0], w.ballVy[0]);
+    idleSteps(w, 1440);
+    const after =
+      Math.abs(w.ballVy[0]) / Math.hypot(w.ballVx[0], w.ballVy[0]);
+    expect(after).toBeGreaterThanOrEqual(before - 1e-6);
   });
 
   it('breakable BRICK_HIT/BREAK resets stallIdleTicks and stallTier to 0', () => {

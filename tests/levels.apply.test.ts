@@ -85,4 +85,23 @@ describe('levels.apply', () => {
     expect(w.brickCount).toBe(10);
     expect(w.brickX.length).toBe(10);
   });
+
+  it('spatial refuse (cellToBrick too small) falls back to exhaustive map (F-38)', () => {
+    const raw = loadLevelJson('level-01.json');
+    const result = loadAndCompile(raw);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // level-01 is 7×5=35 cells; maxBricks=20 ⇒ cellToBrick too small for lattice
+    const w = allocateWorld({ maxBricks: 20 });
+    resetWorld(w, 1, 2);
+    applyCompiledLevel(w, result.compiled);
+
+    expect(w.brickCount).toBe(20);
+    expect(w.latticePitchX).toBe(0);
+    expect(w.gridRows).toBe(1);
+    for (let i = 0; i < w.brickCount; i++) {
+      expect(w.cellToBrick[i]).toBe(i);
+    }
+  });
 });

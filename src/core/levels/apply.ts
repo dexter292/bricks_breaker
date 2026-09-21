@@ -7,8 +7,23 @@ import type { World } from '../types';
 import type { CompiledLevel } from './schema';
 import { assignSpatialBrickCells } from './spatial';
 
+/** Packed 1-row cellToBrick[i]=i — always collidable; used when spatial fails (F-38). */
+function applyExhaustiveCellMap(world: World, n: number): void {
+  'worklet';
+  world.gridCols = n;
+  world.gridRows = n > 0 ? 1 : 0;
+  world.latticeOriginX = 0;
+  world.latticeOriginY = 0;
+  world.latticePitchX = 0;
+  world.latticePitchY = 0;
+  for (let i = 0; i < n; i++) {
+    world.cellToBrick[i] = i;
+  }
+}
+
 export function applyCompiledLevel(world: World, compiled: CompiledLevel): void {
   'worklet';
+  // F-38: never write past World brick capacity (silent truncate was latent).
   const n =
     compiled.brickCount < world.brickX.length
       ? compiled.brickCount
@@ -35,7 +50,7 @@ export function applyCompiledLevel(world: World, compiled: CompiledLevel): void 
     compiled.pitchX > 0 &&
     compiled.pitchY > 0
   ) {
-    assignSpatialBrickCells(
+    const mapped = assignSpatialBrickCells(
       world,
       compiled.gridCols,
       compiled.gridRows,
@@ -44,15 +59,11 @@ export function applyCompiledLevel(world: World, compiled: CompiledLevel): void 
       compiled.pitchX,
       compiled.pitchY,
     );
-  } else {
-    world.gridCols = n;
-    world.gridRows = n > 0 ? 1 : 0;
-    world.latticeOriginX = 0;
-    world.latticeOriginY = 0;
-    world.latticePitchX = 0;
-    world.latticePitchY = 0;
-    for (let i = 0; i < n; i++) {
-      world.cellToBrick[i] = i;
+    // F-38: spatial early-return left grid stale / all -1 — fall back exhaustive.
+    if (!mapped) {
+      applyExhaustiveCellMap(world, n);
     }
+  } else {
+    applyExhaustiveCellMap(world, n);
   }
 }

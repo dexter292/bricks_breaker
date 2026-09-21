@@ -154,10 +154,27 @@ describe('physics overlap / CCD leftover (F-11 / F-12)', () => {
     expect(w.ballActive[0]).toBe(0);
   });
 
+  it('ball inside unbreakable emits ≤1 BRICK_HIT per step (F-48)', () => {
+    const w = allocateWorld();
+    resetWorld(w, 1, 2);
+    loadTestGrid(w, [
+      { x: 160, y: 150, w: 40, h: 40, hp: 99, unbreakable: true },
+    ]);
+    w.ballX[0] = 180;
+    w.ballY[0] = 170;
+    w.ballVx[0] = 120;
+    w.ballVy[0] = -80;
+    w.ballActive[0] = 1;
+    w.activeBallCount = 1;
+
+    clearEvents(w);
+    stepWorld(w, intent, FIXED_DT);
+    expect(countCode(eventCodes(w), EventCode.BRICK_HIT)).toBeLessThanOrEqual(1);
+  });
+
   it('miss after CCD contacts does not double-advance past speed*dt', () => {
     const w = allocateWorld();
     resetWorld(w, 1, 2);
-    // Narrow steel corridor: several wall/brick contacts then free motion
     loadTestGrid(w, [
       { x: 100, y: 100, w: 20, h: 200, hp: 1, unbreakable: true },
       { x: 240, y: 100, w: 20, h: 200, hp: 1, unbreakable: true },
@@ -175,7 +192,6 @@ describe('physics overlap / CCD leftover (F-11 / F-12)', () => {
     const y0 = w.ballY[0];
     stepWorld(w, intent, FIXED_DT);
     const disp = Math.hypot(w.ballX[0] - x0, w.ballY[0] - y0);
-    // Allow tiny eps for separation nudges; must not approach 2× speed*dt
     expect(disp).toBeLessThanOrEqual(speed * FIXED_DT + 2);
   });
 });

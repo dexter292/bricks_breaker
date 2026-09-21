@@ -55,6 +55,7 @@ export {
   STALL_TIER3_EXTRA_TICKS,
   STALL_SPEED_MULT,
   STALL_ANGLE_NUDGE_DEG,
+  MIN_VERTICAL_RATIO,
 } from './constants';
 export { assignSpatialBrickCells } from './levels/spatial';
 export { applyCompiledLevel } from './levels/apply';
@@ -88,4 +89,4 @@ export { stepAntiStall } from './rules/stall';
 export { sweepCircleAabb } from './physics/sweep';
 export { forEachBrickCandidate } from './physics/broadphase';
 export { advanceBall } from './physics/integrate';
-export { resolvePaddleEnglish, reflectVelocity } from './physics/resolve';
+export { resolvePaddleEnglish, reflectVelocity, enforceMinVerticalRatio } from './physics/resolve';

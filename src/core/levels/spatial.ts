@@ -9,6 +9,7 @@ import type { World } from '../types';
  * the ball tunneled through the rest.
  *
  * Requires cellToBrick.length >= cols*rows (allocate default 256).
+ * Returns false when the grid cannot be built — caller must fall back (F-38).
  */
 export function assignSpatialBrickCells(
   world: World,
@@ -18,7 +19,7 @@ export function assignSpatialBrickCells(
   originY: number,
   pitchX: number,
   pitchY: number,
-): void {
+): boolean {
   'worklet';
   const cellCount = cols * rows;
   if (
@@ -28,7 +29,7 @@ export function assignSpatialBrickCells(
     !(pitchX > 0) ||
     !(pitchY > 0)
   ) {
-    return;
+    return false;
   }
 
   for (let i = 0; i < world.cellToBrick.length; i++) {
@@ -53,4 +54,5 @@ export function assignSpatialBrickCells(
   world.latticeOriginY = originY;
   world.latticePitchX = pitchX;
   world.latticePitchY = pitchY;
+  return true;
 }

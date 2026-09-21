@@ -3,7 +3,7 @@ import { BrickFlags, EventCode } from './types';
 import { advanceBall } from './physics/integrate';
 import { forEachBrickCandidate } from './physics/broadphase';
 import { sweepCircleAabb } from './physics/sweep';
-import { reflectVelocity, resolvePaddleEnglish } from './physics/resolve';
+import { reflectVelocity, resolvePaddleEnglish, enforceMinVerticalRatio } from './physics/resolve';
 import { pushEvent } from './events/ring';
 
 const KIND_WALL = 0;
@@ -449,12 +449,13 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       }
 
       if (bestKind === KIND_WALL) {
-        const out = reflectVelocity(
+        let out = reflectVelocity(
           world.ballVx[bi],
           world.ballVy[bi],
           bestNx,
           bestNy,
         );
+        out = enforceMinVerticalRatio(out.vx, out.vy);
         world.ballVx[bi] = out.vx;
         world.ballVy[bi] = out.vy;
         world.ballX[bi] = world.ballX[bi] + bestNx * sepEps;
@@ -466,12 +467,13 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       // KIND_BRICK
       {
         const bIdx = bestIndex;
-        const out = reflectVelocity(
+        let out = reflectVelocity(
           world.ballVx[bi],
           world.ballVy[bi],
           bestNx,
           bestNy,
         );
+        out = enforceMinVerticalRatio(out.vx, out.vy);
         world.ballVx[bi] = out.vx;
         world.ballVy[bi] = out.vy;
         world.ballX[bi] = world.ballX[bi] + bestNx * sepEps;
@@ -481,16 +483,20 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
           (world.brickFlags[bIdx] & BrickFlags.UNBREAKABLE) !== 0;
 
         if (unbreakable) {
-          // D-10: reflect only; HP unchanged; never BRICK_BREAK
-          // evA = HP snapshot for VFX color (F-13); evB = brick index
-          pushEvent(
-            world,
-            EventCode.BRICK_HIT,
-            world.brickHp[bIdx],
-            bIdx,
-            hx,
-            hy,
-          );
+          // F-48: mark touched so steel cannot spam BRICK_HIT every CCD iter
+          if (world.brickDamagedThisStep[bIdx] === 0) {
+            world.brickDamagedThisStep[bIdx] = 1;
+            // D-10: reflect only; HP unchanged; never BRICK_BREAK
+            // evA = HP snapshot for VFX color (F-13); evB = brick index
+            pushEvent(
+              world,
+              EventCode.BRICK_HIT,
+              world.brickHp[bIdx],
+              bIdx,
+              hx,
+              hy,
+            );
+          }
         } else if (world.brickDamagedThisStep[bIdx] === 0) {
           world.brickDamagedThisStep[bIdx] = 1;
           const hpBefore = world.brickHp[bIdx];
@@ -510,7 +516,7 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
             pushEvent(world, EventCode.BRICK_HIT, hpBefore, bIdx, hx, hy);
           }
         }
-        // Already damaged this step: reflect only, no further HP loss
+        // Already damaged this step: reflect only, no further HP loss / events
       }
     }
 

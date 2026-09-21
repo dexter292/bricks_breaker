@@ -96,12 +96,16 @@ export function forEachBrickCandidate(
         continue;
       }
 
-      // Unique brick index: only visit on first occurrence in this window
+      // Unique brick index: only visit on first occurrence in this window.
+      // Stop at the current cell — scanning past it false-negatives vertical
+      // duplicates (both cells clear each other → brick never visited) (F-47).
       let first = true;
-      for (let ry2 = r0; ry2 <= r1 && first; ry2++) {
+      let done = false;
+      for (let ry2 = r0; ry2 <= r1 && first && !done; ry2++) {
         const rowBase2 = ry2 * cols;
         for (let cx2 = c0; cx2 <= c1; cx2++) {
           if (ry2 === ry && cx2 === cx) {
+            done = true;
             break;
           }
           const prev = cells[rowBase2 + cx2];

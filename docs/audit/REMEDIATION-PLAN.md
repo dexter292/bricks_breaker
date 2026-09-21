@@ -3,8 +3,9 @@
 **Ngày audit:** 2026-09-21
 **Trạng thái:** **ĐÃ PHÊ DUYỆT** 2026-09-21 (owner: `duyệt`).  
 **Tiến độ:** WP-1 T1.1–T1.3 **DONE** (F-01 / F-09 / F-10) — 2026-09-21.  
-WP-2 **T2.1–T2.3 DONE** (F-08 / F-11 / F-12). WP-4 **T4.1–T4.5 DONE** (F-15 / F-14 / F-13 / F-16 / F-18) — 2026-09-21.  
-Tiếp theo: WP-2 T2.4+ (broadphase) hoặc WP-3 / phần còn lại WP-4 (T4.6+).
+WP-2 **T2.1–T2.5 + F-48 DONE** (F-08 / F-11 / F-12 / F-47 / F-38 / F-48).  
+WP-3 **T3.2–T3.3 partial DONE** (F-22 / F-23). WP-4 **T4.1–T4.5 DONE** (F-15 / F-14 / F-13 / F-16 / F-18) — 2026-09-21.  
+Tiếp theo: WP-2 T2.6+ (hash) · WP-3 T3.1 (aim decision) · WP-4 T4.6+ (alloc) · WP-5.
 
 Các task được nhóm thành **8 work package** có thể dùng trực tiếp làm input cho GSD. Mỗi WP có ràng buộc thứ tự rõ ràng.
 
