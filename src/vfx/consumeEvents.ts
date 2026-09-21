@@ -4,6 +4,7 @@
  */
 import type { World } from '../core/types';
 import { EventCode, BrickFlags } from '../core/types';
+import { nextFloat } from '../core/rng/mulberry32';
 import type { VfxState } from './types';
 import { IMPULSE_DESTROY, IMPULSE_LIFE_LOST } from './types';
 import { spawnBurst } from './particles';
@@ -40,14 +41,9 @@ export function defaultResolveBrickRgb(
   return { r: 0.949, g: 0.8, b: 0.561 }; // #F2CC8F
 }
 
-function defaultRng(): number {
-  'worklet';
-  // Deterministic fallback when caller omits rng — not host Math RNG
-  return 0.5;
-}
-
 /**
  * Scan event ring like applyScoringFromEvents; spawn chips/destroys + punch shake.
+ * When opts.rng is omitted, advances world.rngCosmetic (never rngGameplay).
  */
 export function consumeEventsForVfx(
   world: World,
@@ -62,7 +58,12 @@ export function consumeEventsForVfx(
   }
 
   const resolve = opts?.resolveBrickRgb ?? defaultResolveBrickRgb;
-  const rng = opts?.rng ?? defaultRng;
+  const rng =
+    opts?.rng ??
+    (() => {
+      'worklet';
+      return nextFloat(world.rngCosmetic, 0);
+    });
 
   const start = (world.evHead - n + world.evCap) % world.evCap;
   for (let i = 0; i < n; i++) {

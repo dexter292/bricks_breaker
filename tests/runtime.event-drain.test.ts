@@ -110,4 +110,28 @@ describe('runtime event drain (FX-03)', () => {
     consumeEventsForVfx(world, vfx, 1.0, { rng: () => 0.5 });
     expect(vfx.shakeAmp).toBe(0);
   });
+
+  it('production-style consume (no rng override) yields varied angles from rngCosmetic', () => {
+    const world = allocateWorld();
+    world.rngCosmetic[0] = 0xbadc0de2;
+    const gameplayBefore = world.rngGameplay[0];
+    world.brickHp[0] = 1;
+    world.brickFlags[0] = 0;
+    const vfx = allocateVfx();
+
+    pushEvent(world, EventCode.BRICK_BREAK, 0, 0, 100, 50);
+    // Matches useGameLoop: consumeEventsForVfx(w, vfx, intensity) — no opts
+    consumeEventsForVfx(world, vfx, 1.0);
+
+    expect(countActiveParticles(vfx)).toBe(12);
+    expect(world.rngGameplay[0]).toBe(gameplayBefore);
+
+    const velKeys = new Set<string>();
+    for (let i = 0; i < vfx.particleCap; i++) {
+      if (vfx.active[i] === 0) continue;
+      velKeys.add(`${vfx.vx[i].toFixed(4)}:${vfx.vy[i].toFixed(4)}`);
+    }
+    // Constant 0.5 fallback stacks all sparks on one fleck; cosmetic stream must fan out
+    expect(velKeys.size).toBeGreaterThan(1);
+  });
 });
