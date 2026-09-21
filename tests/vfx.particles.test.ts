@@ -9,6 +9,7 @@ import {
 } from '../src/vfx/types';
 import { spawnBurst, stepParticles, countActiveParticles } from '../src/vfx/particles';
 import { stepVfx } from '../src/vfx/stepVfx';
+import { trailLength } from '../src/vfx/intensity';
 
 /** Deterministic cosmetic RNG — never Math.random / gameplay stream. */
 function makeRng(seed = 0x12345678): { next: () => number; state: Uint32Array } {
@@ -155,8 +156,41 @@ describe('vfx particles (FX-02)', () => {
     expect(countActiveParticles(vfx)).toBeLessThanOrEqual(PARTICLE_POOL_DEFAULT);
   });
 
-  // 08-TIER — Plan 02 fills quality-tier caps API
-  it.todo('allocateVfx respects particleCap from caps');
-  it.todo('trailMax from caps clamps trailLength result ≥2');
-  it.todo('glowScale 0 is distinguishable from 1 in caps');
+  // 08-TIER — quality-tier caps API (Plan 02)
+  it('allocateVfx respects particleCap from caps', () => {
+    const vfx = allocateVfx({ particleCap: 48 });
+    expect(vfx.particleCap).toBe(48);
+    expect(vfx.px.length).toBe(48);
+    const rng = makeRng();
+    for (let i = 0; i < 20; i++) {
+      spawnBurst(vfx, {
+        kind: 'destroy',
+        x: i,
+        y: i,
+        rgb: { r: 1, g: 0, b: 0 },
+        intensity: 1.0,
+        rng: rng.next,
+      });
+    }
+    expect(countActiveParticles(vfx)).toBeLessThanOrEqual(48);
+  });
+
+  it('trailMax from caps clamps trailLength result ≥2', () => {
+    const vfx = allocateVfx({ trailMax: 2 });
+    expect(vfx.trailMax).toBe(2);
+    const len = Math.min(trailLength(1.0), vfx.trailMax);
+    expect(len).toBe(2);
+    expect(len).toBeGreaterThanOrEqual(2);
+
+    const clamped = allocateVfx({ trailMax: 1 });
+    expect(clamped.trailMax).toBe(2);
+  });
+
+  it('glowScale 0 is distinguishable from 1 in caps', () => {
+    const off = allocateVfx({ glowScale: 0 });
+    const on = allocateVfx({ glowScale: 1 });
+    expect(off.glowScale).toBe(0);
+    expect(on.glowScale).toBe(1);
+    expect(off.glowScale).not.toBe(on.glowScale);
+  });
 });
