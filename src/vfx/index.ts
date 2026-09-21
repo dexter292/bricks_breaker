@@ -22,7 +22,7 @@ export {
   clampIntensity,
 } from './intensity';
 
-export { pushTrail, allocateTrails } from './trails';
+export { pushTrail, allocateTrails, clearTrailBall, clearTrailsFromIndex } from './trails';
 
 export {
   spawnBurst,
@@ -39,6 +39,7 @@ export { stepVfx } from './stepVfx';
 export {
   consumeEventsForVfx,
   defaultResolveBrickRgb,
+  rgbFromBrickHp,
   type BrickRgb,
   type ConsumeVfxOpts,
 } from './consumeEvents';

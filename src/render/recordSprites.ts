@@ -6,6 +6,7 @@ import { trailLength } from '../vfx/intensity';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
 import type { GlowAtlas } from './textures/bakeGlowSprites';
+import { GLOW_PAD_SOFT } from './textures/bakeGlowSprites';
 
 /** Logical play-field — literals inside worklets (no cross-module const capture). */
 const LOGICAL_W = 360;
@@ -16,9 +17,6 @@ const BALL_RADIUS_LOCAL = 6;
 
 /** Trail rim cyan — UI-SPEC #67E8F9 (TRAIL_CYAN); worklet-local. */
 const TRAIL_CYAN_LOCAL = '#67E8F9';
-
-/** soft halo pad (xs) — matches bakeGlowSprites PAD_SOFT. */
-const GLOW_PAD_SOFT = 4;
 
 type RecorderTools = {
   recorder: ReturnType<typeof Skia.PictureRecorder>;
@@ -36,15 +34,19 @@ function ensureRecorderTools(): RecorderTools {
   'worklet';
   let tools = global.__gameRecorderTools;
   if (!tools || tools.entityRect == null || tools.surfaceBounds == null) {
+    const paint = Skia.Paint();
+    paint.setAntiAlias(true); // F-15 — ball / particle / trail / cue strokes
     tools = {
       recorder: Skia.PictureRecorder(),
-      paint: Skia.Paint(),
+      paint,
       fieldRect: Skia.XYWHRect(0, 0, 360, 640),
       entityRect: Skia.XYWHRect(0, 0, 1, 1),
       surfaceBounds: Skia.XYWHRect(0, 0, 360, 640),
     };
     global.__gameRecorderTools = tools;
   }
+  // Re-assert AA if tools were created before F-15 (hot reload / long session).
+  tools.paint.setAntiAlias(true);
   return tools;
 }
 
@@ -209,9 +211,18 @@ export function recordFrame(
       const variant = glowAtlas[fill];
       if (variant != null) {
         const img: SkImage = variant.soft;
+        const destW = bw + GLOW_PAD_SOFT * 2;
+        const destH = bh + GLOW_PAD_SOFT * 2;
         tools.paint.setStyle(0);
         tools.paint.setAlphaf(intensity * vfx.glowScale);
-        canvas.drawImage(img, bx - GLOW_PAD_SOFT, by - GLOW_PAD_SOFT, tools.paint);
+        // F-14: scale atlas cell to live brick size (level-03 32×14 vs bake size)
+        tools.entityRect.setXYWH(bx - GLOW_PAD_SOFT, by - GLOW_PAD_SOFT, destW, destH);
+        canvas.drawImageRect(
+          img,
+          Skia.XYWHRect(0, 0, variant.atlasW, variant.atlasH),
+          tools.entityRect,
+          tools.paint,
+        );
         tools.paint.setAlphaf(1);
       }
     }

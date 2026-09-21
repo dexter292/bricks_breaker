@@ -351,14 +351,23 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
 
         if (unbreakable) {
           // D-10: reflect only; HP unchanged; never BRICK_BREAK
-          pushEvent(world, EventCode.BRICK_HIT, bi, bIdx, hx, hy);
+          // evA = HP snapshot for VFX color (F-13); evB = brick index
+          pushEvent(
+            world,
+            EventCode.BRICK_HIT,
+            world.brickHp[bIdx],
+            bIdx,
+            hx,
+            hy,
+          );
         } else if (world.brickDamagedThisStep[bIdx] === 0) {
           world.brickDamagedThisStep[bIdx] = 1;
-          let hp = world.brickHp[bIdx] - 1;
+          const hpBefore = world.brickHp[bIdx];
+          let hp = hpBefore - 1;
           if (hp < 0) hp = 0;
           world.brickHp[bIdx] = hp;
           if (hp <= 0) {
-            pushEvent(world, EventCode.BRICK_BREAK, bi, bIdx, hx, hy);
+            pushEvent(world, EventCode.BRICK_BREAK, hpBefore, bIdx, hx, hy);
             // Clear from grid / inactive
             const cells = world.cellToBrick;
             for (let c = 0; c < cells.length; c++) {
@@ -367,7 +376,7 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
               }
             }
           } else {
-            pushEvent(world, EventCode.BRICK_HIT, bi, bIdx, hx, hy);
+            pushEvent(world, EventCode.BRICK_HIT, hpBefore, bIdx, hx, hy);
           }
         }
         // Already damaged this step: reflect only, no further HP loss

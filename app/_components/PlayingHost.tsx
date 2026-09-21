@@ -41,6 +41,23 @@ import { CERT_HARNESS } from '../../src/devflags';
 const LOGICAL_W = 360;
 const LOGICAL_H = 640;
 
+/** F-18 — release baked SkImages so remount / level change does not leak GPU memory. */
+function disposeGlowAtlas(atlas: GlowAtlas | null | undefined): void {
+  if (atlas == null) {
+    return;
+  }
+  for (const key of Object.keys(atlas)) {
+    const variant = atlas[key];
+    if (variant?.soft != null) {
+      try {
+        variant.soft.dispose();
+      } catch {
+        // Soft-fail: already disposed or native teardown raced.
+      }
+    }
+  }
+}
+
 /** Mirror SimPhase numeric — app must not import src/core (LC-05). */
 const SIM = {
   DOCKED: 0,
@@ -165,8 +182,17 @@ export function PlayingHost({ onMenu }: Props) {
   }, [store]);
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
+  // F-14: bake at active level brick size. F-18: dispose prior atlas images on cleanup.
   useEffect(() => {
     let cancelled = false;
+    const brickW =
+      loadResult.ok && loadResult.compiled.brickCount > 0
+        ? loadResult.compiled.w[0]
+        : 32;
+    const brickH =
+      loadResult.ok && loadResult.compiled.brickCount > 0
+        ? loadResult.compiled.h[0]
+        : 14;
     void (async () => {
       try {
         await audio.preload();
@@ -179,7 +205,9 @@ export function PlayingHost({ onMenu }: Props) {
         return;
       }
       try {
-        glowAtlasSv.value = bakeGlowSprites();
+        const prev = glowAtlasSv.value;
+        disposeGlowAtlas(prev);
+        glowAtlasSv.value = bakeGlowSprites(brickW, brickH);
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.warn('[glow] bake soft-fail', err);
@@ -198,9 +226,11 @@ export function PlayingHost({ onMenu }: Props) {
     return () => {
       cancelled = true;
       playBatchRef.current = null;
+      disposeGlowAtlas(glowAtlasSv.value);
+      glowAtlasSv.value = null;
       audio.release();
     };
-  }, [audio, glowAtlasSv]);
+  }, [audio, glowAtlasSv, loadResult]);
 
   useEffect(() => {
     const mapped =

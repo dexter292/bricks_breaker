@@ -22,10 +22,14 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
 
   const phase = world.simPhase;
   if (phase === SimPhase.WON || phase === SimPhase.LOST) {
+    // F-08: clear stale LIFE_LOST/WIN/LOSE so VFX/audio do not retrigger every frame.
+    clearEvents(world);
     return;
   }
 
   if (phase === SimPhase.DOCKED) {
+    // F-08: drop ring from prior PLAYING frame (e.g. LIFE_LOST) before dock tick.
+    clearEvents(world);
     // Apply finite paddleX so docked ball rides drag (T-03-01)
     // Uses current paddleW (base after life-reset; expand-aware if docked mid-expand)
     const px = intent.paddleX;

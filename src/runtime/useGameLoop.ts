@@ -29,6 +29,7 @@ import {
   resetAudioBatch,
   stepVfx,
   trailLength,
+  clearTrailsFromIndex,
   type AudioBatchSoA,
   type VfxState,
 } from '../vfx';
@@ -271,6 +272,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const certApplied = useSharedValue(0);
   const accumResetRequest = useSharedValue(0);
   const accumResetApplied = useSharedValue(0);
+  /** Prior-frame live ball count — clear trails when count drops (F-16). */
+  const lastTrailBallCount = useSharedValue(-1);
 
   useEffect(() => {
     hudFontSv.value = hudFont;
@@ -374,6 +377,16 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         consumeEventsForVfx(w, vfx, intensity);
         appendEventsForAudio(w, batch);
         updateFlashFromEvents(w, flash);
+        // F-16: ball death / compact remaps slots — wipe all rings so ghosts
+        // cannot stick to a surviving ball that moved into a dead slot.
+        const ballCount = w.activeBallCount;
+        if (
+          lastTrailBallCount.value >= 0 &&
+          ballCount < lastTrailBallCount.value
+        ) {
+          clearTrailsFromIndex(vfx, 0);
+        }
+        lastTrailBallCount.value = ballCount;
         pushActiveBallTrails(w, vfx, intensity);
         // Edge-consume launch after the step that saw it
         if (launchFlag.value !== 0) {
@@ -453,6 +466,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     certApplied,
     accumResetRequest,
     accumResetApplied,
+    lastTrailBallCount,
     budgetParticleCap,
     budgetTrailMax,
     budgetGlowScale,

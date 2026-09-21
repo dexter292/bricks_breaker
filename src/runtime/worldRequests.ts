@@ -50,9 +50,16 @@ export function clearCosmeticVfx(vfx: VfxState): void {
   for (let i = 0; i < act.length; i++) {
     act[i] = 0;
   }
+  // F-16: zero heads + sample rings (head-only clear left ghost samples drawable).
   const heads = vfx.trailHead;
   for (let i = 0; i < heads.length; i++) {
     heads[i] = 0;
+  }
+  const tx = vfx.trailX;
+  const ty = vfx.trailY;
+  for (let i = 0; i < tx.length; i++) {
+    tx[i] = 0;
+    ty[i] = 0;
   }
   vfx.shakeAmp = 0;
 }

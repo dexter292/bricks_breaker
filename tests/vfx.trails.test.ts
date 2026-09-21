@@ -2,7 +2,12 @@
 import { describe, it, expect } from 'vitest';
 import { trailLength } from '../src/vfx/intensity';
 import { allocateVfx, TRAIL_MAX } from '../src/vfx/types';
-import { pushTrail } from '../src/vfx/trails';
+import {
+  pushTrail,
+  clearTrailBall,
+  clearTrailsFromIndex,
+} from '../src/vfx/trails';
+import { clearCosmeticVfx } from '../src/runtime/worldRequests';
 
 describe('vfx trails (FX-01)', () => {
   it('trailLength(1.0) === 5', () => {
@@ -41,5 +46,53 @@ describe('vfx trails (FX-01)', () => {
     const base = 0 * TRAIL_MAX;
     expect(vfx.trailX[base + newest]).toBe(999);
     expect(vfx.trailY[base + newest]).toBe(1998);
+  });
+
+  it('clearTrailBall zeros head + samples for one slot (F-16)', () => {
+    const vfx = allocateVfx({ maxBalls: 3 });
+    const len = trailLength(1.0);
+    pushTrail(vfx, 1, 40, 80, len);
+    pushTrail(vfx, 1, 41, 81, len);
+    pushTrail(vfx, 2, 90, 10, len);
+
+    clearTrailBall(vfx, 1);
+
+    expect(vfx.trailHead[1]).toBe(0);
+    const base = 1 * TRAIL_MAX;
+    for (let i = 0; i < TRAIL_MAX; i++) {
+      expect(vfx.trailX[base + i]).toBe(0);
+      expect(vfx.trailY[base + i]).toBe(0);
+    }
+    // Sibling slot untouched
+    expect(vfx.trailHead[2]).toBe(1);
+    expect(vfx.trailX[2 * TRAIL_MAX]).toBe(90);
+  });
+
+  it('clearTrailsFromIndex after compaction leaves no ghost slots (F-16)', () => {
+    const vfx = allocateVfx({ maxBalls: 4 });
+    const len = trailLength(1.0);
+    pushTrail(vfx, 0, 10, 10, len);
+    pushTrail(vfx, 1, 20, 200, len);
+    pushTrail(vfx, 2, 30, 300, len);
+
+    clearTrailsFromIndex(vfx, 0); // runtime clears all when count drops
+
+    for (let bi = 0; bi < 4; bi++) {
+      expect(vfx.trailHead[bi]).toBe(0);
+      const base = bi * TRAIL_MAX;
+      for (let i = 0; i < TRAIL_MAX; i++) {
+        expect(vfx.trailX[base + i]).toBe(0);
+        expect(vfx.trailY[base + i]).toBe(0);
+      }
+    }
+  });
+
+  it('clearCosmeticVfx zeros trail sample rings (Retry path)', () => {
+    const vfx = allocateVfx({ maxBalls: 2 });
+    pushTrail(vfx, 0, 11, 22, 5);
+    clearCosmeticVfx(vfx);
+    expect(vfx.trailHead[0]).toBe(0);
+    expect(vfx.trailX[0]).toBe(0);
+    expect(vfx.trailY[0]).toBe(0);
   });
 });

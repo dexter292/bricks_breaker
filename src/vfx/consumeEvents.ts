@@ -19,6 +19,21 @@ export type ConsumeVfxOpts = {
 };
 
 /** Default brick body color from HP / flags (0–1 channels; core-only deps). */
+export function rgbFromBrickHp(hp: number, flags: number): BrickRgb {
+  'worklet';
+  if ((flags & BrickFlags.UNBREAKABLE) !== 0) {
+    return { r: 0.42, g: 0.447, b: 0.502 }; // #6B7280
+  }
+  if (hp >= 3) {
+    return { r: 0.769, g: 0.271, b: 0.412 }; // #C44569
+  }
+  if (hp === 2) {
+    return { r: 0.878, g: 0.478, b: 0.373 }; // #E07A5F
+  }
+  return { r: 0.949, g: 0.8, b: 0.561 }; // #F2CC8F
+}
+
+/** Resolve from live brick HP (post-damage may be 0 on BREAK — prefer event snapshot). */
 export function defaultResolveBrickRgb(
   world: World,
   brickIndex: number,
@@ -27,18 +42,7 @@ export function defaultResolveBrickRgb(
   if (brickIndex < 0 || brickIndex >= world.brickCount) {
     return { r: 1, g: 1, b: 1 };
   }
-  const flags = world.brickFlags[brickIndex];
-  if ((flags & BrickFlags.UNBREAKABLE) !== 0) {
-    return { r: 0.42, g: 0.447, b: 0.502 }; // #6B7280
-  }
-  const hp = world.brickHp[brickIndex];
-  if (hp >= 3) {
-    return { r: 0.769, g: 0.271, b: 0.412 }; // #C44569
-  }
-  if (hp === 2) {
-    return { r: 0.878, g: 0.478, b: 0.373 }; // #E07A5F
-  }
-  return { r: 0.949, g: 0.8, b: 0.561 }; // #F2CC8F
+  return rgbFromBrickHp(world.brickHp[brickIndex], world.brickFlags[brickIndex]);
 }
 
 /**
@@ -74,13 +78,30 @@ export function consumeEventsForVfx(
     const brickIndex = world.evB[idx];
 
     if (code === EventCode.BRICK_HIT) {
-      const rgb = resolve(world, brickIndex);
+      // evA = HP before damage (F-13); fall back to live HP if absent
+      const hpSnap = world.evA[idx];
+      const flags =
+        brickIndex >= 0 && brickIndex < world.brickCount
+          ? world.brickFlags[brickIndex]
+          : 0;
+      const rgb =
+        hpSnap > 0
+          ? rgbFromBrickHp(hpSnap, flags)
+          : resolve(world, brickIndex);
       spawnBurst(vfx, { kind: 'chip', x, y, rgb, intensity, rng });
       continue;
     }
 
     if (code === EventCode.BRICK_BREAK) {
-      const rgb = resolve(world, brickIndex);
+      const hpSnap = world.evA[idx];
+      const flags =
+        brickIndex >= 0 && brickIndex < world.brickCount
+          ? world.brickFlags[brickIndex]
+          : 0;
+      const rgb =
+        hpSnap > 0
+          ? rgbFromBrickHp(hpSnap, flags)
+          : resolve(world, brickIndex);
       spawnBurst(vfx, { kind: 'destroy', x, y, rgb, intensity, rng });
       punchShake(vfx, IMPULSE_DESTROY, intensity);
       continue;

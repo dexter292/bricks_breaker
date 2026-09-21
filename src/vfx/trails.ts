@@ -25,6 +25,29 @@ export function pushTrail(
   vfx.trailHead[ballIndex] = (head + 1) % ringLen;
 }
 
+/** Zero one ball's trail ring (F-16 — after death / compaction). */
+export function clearTrailBall(vfx: VfxState, ballIndex: number): void {
+  'worklet';
+  if (ballIndex < 0 || ballIndex >= vfx.maxBalls) {
+    return;
+  }
+  vfx.trailHead[ballIndex] = 0;
+  const base = ballIndex * TRAIL_MAX;
+  for (let i = 0; i < TRAIL_MAX; i++) {
+    vfx.trailX[base + i] = 0;
+    vfx.trailY[base + i] = 0;
+  }
+}
+
+/** Clear trails for every slot at/above live ball count (post-compact). */
+export function clearTrailsFromIndex(vfx: VfxState, fromIndex: number): void {
+  'worklet';
+  const start = fromIndex < 0 ? 0 : fromIndex;
+  for (let i = start; i < vfx.maxBalls; i++) {
+    clearTrailBall(vfx, i);
+  }
+}
+
 /** Alias used by barrel / allocate naming in patterns. */
 export function allocateTrails(vfx: VfxState): VfxState {
   'worklet';
