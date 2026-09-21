@@ -4,7 +4,6 @@ import {
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
-import { Dimensions } from 'react-native';
 import type { SkFont, SkPicture, SkSize } from '@shopify/react-native-skia';
 import { Skia } from '@shopify/react-native-skia';
 import {
@@ -126,7 +125,6 @@ function pushActiveBallTrails(
 
 /* World / metrics live in SharedValues and are mutated on the UI runtime
  * by design (useFrameCallback). React Compiler immutability does not apply (D-14). */
-const WIN = Dimensions.get('window');
 
 declare const global: typeof globalThis & {
   __gameIntent?: { paddleX: number; launch: number };
