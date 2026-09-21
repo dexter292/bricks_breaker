@@ -5,7 +5,7 @@ status: in-progress
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-09-20
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 
 # Phase 7 — Validation Strategy
@@ -46,11 +46,11 @@ updated: 2026-09-20
 | 07-W0-05 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/events.fx.test.ts` | ✅ | ✅ green |
 | 07-W0-06 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/audio.mapping.test.ts` | ✅ | ✅ green |
 | 07-W0-07 | 00 | 0 | FX-03 | — | N/A | unit | `npx vitest run tests/runtime.event-drain.test.ts` | ✅ | ✅ green |
-| 07-P06-DEV | 06 | 5 | FX-01/02 | T-07-25 | gfxinfo methodology; no RN Perf Monitor alone | manual-on-device | `adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats` — see [`docs/phase7-vfx-measurement.md`](../../../docs/phase7-vfx-measurement.md) | ✅ doc | ⬜ manual |
+| 07-P06-DEV | 06 | 5 | FX-01/02 | T-07-25 | gfxinfo methodology; no RN Perf Monitor alone | manual-on-device | `adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats` — see [`docs/phase7-vfx-measurement.md`](../../../docs/phase7-vfx-measurement.md) | ✅ doc | ✅ UAT |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky · ⬜ manual*
 
-**Phase gate notes (Plan 06):** Full automated suite green 2026-09-20 — `npm test` 34 files / 157 tests. Wave 0→5 automated rows above are ✅. Device gfxinfo remains **manual-only** until human measurement per `docs/phase7-vfx-measurement.md` (Pixel 6a preferred; D-04 simulator/substitute = MVP debt — physical re-cert). Human UAT (Task 2) pending.
+**Phase gate notes (Plan 06):** Full automated suite green — `npm test` 34 files / 157 tests. Wave 0→5 automated rows above are ✅. Human UAT: approved 2026-09-21 (trail/particles/shake/SFX checklist). Device gfxinfo optional follow-up per `docs/phase7-vfx-measurement.md` (Pixel 6a preferred; D-04 simulator/substitute = MVP debt — physical re-cert).
 
 ---
 
@@ -86,4 +86,4 @@ updated: 2026-09-20
 - [x] Feedback latency < 30s
 - [x] `nyquist_compliant: true` set in frontmatter (automated Wave 0→5 green; device gfxinfo remains manual)
 
-**Approval:** pending Human UAT (Plan 06 Task 2) — do not mark `Human UAT: approved` until human responds
+**Approval:** Human UAT: approved 2026-09-21
