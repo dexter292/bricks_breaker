@@ -69,10 +69,12 @@ Record gfxinfo / Instruments one-liners in the Results section below (or in `07-
 
 | Run | Device | Build | Tool | Scene notes | Frame evidence | Result |
 |-----|--------|-------|------|-------------|----------------|--------|
-| _TBD_ | Pixel 6a (preferred) or D-04 substitute | profiling | gfxinfo / Instruments | multi-ball ≥3 + particles near cap + shake + glow | _paste p95 / jank summary_ | OPEN until human UAT |
+| _TBD_ | Pixel 6a (preferred) or D-04 substitute | profiling | gfxinfo / Instruments | multi-ball ≥3 + particles near cap + shake + glow | _paste p95 / jank summary_ | OPEN — see Phase 8 |
+
+**OPEN Pixel gfxinfo debt:** Procedure and operational A1 thresholds live in [`docs/phase8-certification.md`](./phase8-certification.md) (scripted Mid / `level-03` Cert WC harness). Do **not** claim this Phase 7 Results row closed until Plan 06 fills Phase 8 Results (Pixel 6a Mid mandatory).
 
 **D-04 waiver (if used):** _model / chipset / OS / refresh — MVP debt — physical re-cert on Pixel 6a_
 
 ---
 
-_Status: procedure ready; device row remains manual until human measurement / UAT._
+_Status: procedure ready; device row remains manual until Phase 8 Plan 06 / human measurement._
