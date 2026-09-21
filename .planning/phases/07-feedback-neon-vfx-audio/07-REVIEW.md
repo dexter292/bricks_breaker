@@ -1,27 +1,30 @@
 ---
 phase: 07-feedback-neon-vfx-audio
-reviewed: 2026-09-21T06:54:00Z
+reviewed: 2026-09-21T07:48:48Z
 depth: standard
-status: issues
+status: clean
 findings:
   blocker: 0
-  warning: 1
+  warning: 0
   info: 0
-  total: 1
+  total: 0
 focus:
   - LC-07 scheduleOnRN only in eventBridge
   - soft-fail audio + RN-scoped playBatch
   - particle budget ≤192
   - no live BlurMask/MaskFilter
-  - prior fix pass (WR-01/02, IN-01..03)
-files_reviewed: 36
+  - consumeEventsForVfx uses world.rngCosmetic when opts.rng omitted
+  - stepVfx wall-clock dt; seekTo.then(play); single-source pool; shared trailLength; no unused strong glow
+files_reviewed: 38
 files_reviewed_list:
+  - AGENTS.md
   - app/_components/PlayingHost.tsx
   - app.json
   - docs/layer-contract.md
   - docs/phase7-vfx-measurement.md
   - eslint.config.js
   - package.json
+  - .planning/phases/07-feedback-neon-vfx-audio/07-REVIEW-FIX.md
   - src/core/rules/lives.ts
   - src/core/rules/pickups.ts
   - src/core/rules/win.ts
@@ -54,38 +57,35 @@ files_reviewed_list:
   - tests/vfx.trails.test.ts
 ---
 
-# Phase 7: Standard Code Review (post fix-pass)
+# Phase 7: Standard Code Review (post WR-01 rngCosmetic)
 
-**Status:** issues (0 blocker / 1 warning / 0 info)  
-**Scope:** feedback neon VFX + audio after WR-01/02 + IN-01..03 fixes  
-**Prior fix report:** `07-REVIEW-FIX.md` (IN-04 skipped by design)
+**Status:** clean (0 blocker / 0 warning / 0 info)  
+**Scope:** feedback neon VFX + audio after WR-01 fix in `8a09d4e`  
+**Prior fix report:** `07-REVIEW-FIX.md` (iteration 1, all_fixed)
 
 ## Verdict
 
-Focus contracts and the documented fix pass all hold. One new warning: the live game loop never supplies a cosmetic RNG to particle spawn, so production bursts collapse to a constant `0.5` stream.
+All focus contracts hold. Prior WR-01 (constant `0.5` RNG fallback) is resolved: production `consumeEventsForVfx` advances `world.rngCosmetic` via `nextFloat` when `opts.rng` is omitted, and the production-style drain test asserts varied particle velocities without touching `rngGameplay`.
 
 ## Focus checklist
 
 | Check | Result |
 | --- | --- |
-| LC-07: `scheduleOnRN` solely in `eventBridge` | Pass — call site only in `eventBridge.ts`; ESLint ban + file override; `useGameLoop` only calls `flushAudioBatchOnJS` |
+| LC-07: `scheduleOnRN` solely in `eventBridge` | Pass — sole call site `eventBridge.ts`; ESLint ban + file override; `useGameLoop` only calls `flushAudioBatchOnJS` |
 | Soft-fail audio + RN-scoped `playBatch` | Pass — native probe, try/catch preload/play, memory fallback; `playBatchRef` + stable `useCallback` (never SharedValue) |
-| Particle budget ≤192 | Pass — `PARTICLE_POOL_DEFAULT` 128 / `HARD_MAX` 192 in `types.ts`; allocate clamps; oldest eviction |
-| No live BlurMask/MaskFilter | Pass — concentric bake only; no matches under `src/render` |
-| WR-01 wall-clock `dt` → `stepVfx` | Pass — `stepVfx(vfx, dt, intensity)` shares frame `dt` with `decayFlash` |
-| WR-02 `seekTo` then `play` | Pass — `Promise.resolve(player.seekTo(0)).then(() => play())` + soft-fail catches; test flushes microtask |
-| IN-01 single-source pool constants | Pass — `particles.ts` re-exports from `types.ts` only |
-| IN-02 no unused strong glow | Pass — atlas is `{ soft }` only |
-| IN-03 shared `trailLength` | Pass — `recordSprites` imports `../vfx/intensity` |
+| Particle budget ≤192 | Pass — `PARTICLE_POOL_DEFAULT` 128 / `HARD_MAX` 192 in `types.ts` only; allocate clamps; oldest eviction |
+| No live BlurMask/MaskFilter | Pass — concentric bake only; zero matches under `src/` |
+| WR-01 `rngCosmetic` when `opts.rng` omitted | Pass — `nextFloat(world.rngCosmetic, 0)`; gameplay stream untouched; production-style test in `runtime.event-drain` |
+| Wall-clock `dt` → `stepVfx` | Pass — `stepVfx(vfx, dt, intensity)` shares frame `dt` with `decayFlash` |
+| `seekTo` then `play` | Pass — `Promise.resolve(player.seekTo(0)).then(() => play())` + soft-fail catches |
+| Single-source pool constants | Pass — `particles.ts` re-exports from `types.ts` only |
+| No unused strong glow | Pass — atlas is `{ soft }` only; destroy flash is separate white circle |
+| Shared `trailLength` | Pass — `recordSprites` imports `../vfx/intensity` |
 | IN-04 drop-newest overflow | Intentional non-finding — T-07-10 / JSDoc “Drop newest on overflow”; unchanged |
 
-## Warnings
+## Findings
 
-### WR-01: Production `consumeEventsForVfx` omits cosmetic RNG
-
-**File:** `src/runtime/useGameLoop.ts` (~323); `src/vfx/consumeEvents.ts` (`defaultRng`)  
-**Issue:** Frame path calls `consumeEventsForVfx(w, vfx, intensity)` with no `opts.rng`. Fallback `defaultRng` always returns `0.5`, so every spark in a chip/destroy burst gets the same angle, speed, and fleck roll — particles stack as one fleck instead of a neon burst (FX-02 / D-06–D-08). Tests pass a real RNG; PATTERNS expect `world.rngCosmetic` or a VFX-local stream.  
-**Fix:** Wire `nextFloat(world.rngCosmetic, 0)` (or allocate a VFX-local mulberry state in `allocateVfx`) into the consume call from `useGameLoop` / inside `consumeEventsForVfx` when `opts.rng` is omitted.
+None.
 
 ## Clean notes (no finding)
 
@@ -96,10 +96,11 @@ Focus contracts and the documented fix pass all hold. One new warning: the live 
 - Shake is translate-only inside letterbox; particles/flash draw under paddle/ball.
 - `app.json` expo-audio plugin: mic off; `package.json` pins `expo-audio ~57.0.5`.
 - IN-04 audio batch overflow drop-newest remains by design (not re-filed).
+- Commit `8a09d4e` + `07-REVIEW-FIX.md` match the live `consumeEvents.ts` / drain test.
 
 ---
 
-_Reviewed: 2026-09-21T06:54:00Z_  
+_Reviewed: 2026-09-21T07:48:48Z_  
 _Reviewer: Claude (gsd-code-reviewer)_  
 _Depth: standard_  
-_Iteration: 2 (post fix-pass)_
+_Iteration: 3 (fresh after WR-01)_
