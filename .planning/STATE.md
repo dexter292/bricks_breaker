@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-09-21T12:29:41.392Z"
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-09-21T12:33:15.577Z"
 last_activity: 2026-09-21
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 48
-  completed_plans: 46
-  percent: 96
+  completed_plans: 47
+  percent: 98
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 8 (Showpiece Level, Performance Certification & Launch Baseline) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-09-21
 
@@ -72,6 +72,7 @@ Progress: [████████░░] 88% phases (7/8 complete)
 | Phase 08 P01 | 2min | 2 tasks | 5 files |
 | Phase 08 P02 | 3min | 2 tasks | 9 files |
 | Phase 08 P03 | 3min | 2 tasks | 5 files |
+| Phase 08 P04 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Progress: [████████░░] 88% phases (7/8 complete)
 - [Phase 08]: Cert inject leaves DOCKED via applyServe before multiball so processDocked cannot wipe balls
 - [Phase 08]: Primary cert trigger is __DEV__ Cert WC; EXPO_PUBLIC_CERT auto-arms only under __DEV__
 - [Phase 08]: A1 lock: p50≤16.7ms; p95≤20ms OR ≤5% jank; RN Perf Monitor invalid
+- [Phase 08]: Soak dwell 750ms; continuous 15min; gated by __DEV__ && SOAK_HARNESS
+- [Phase 08]: Memory AudioService clears plays/cursors on release for soak lifecycle asserts
 
 ### Pending Todos
 
@@ -151,6 +154,6 @@ Progress: [████████░░] 88% phases (7/8 complete)
 
 ## Session Continuity
 
-Last session: 2026-09-21T12:29:41.389Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-09-21T12:33:15.574Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None

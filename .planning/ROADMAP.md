@@ -176,7 +176,7 @@ Plans:
 - [x] 08-01-PLAN.md — level-03 showpiece + default boot + DEV level switch (LVL-04)
 - [x] 08-02-PLAN.md — Low/Mid/High quality tiers + VfxCaps wiring (PLT-03)
 - [x] 08-03-PLAN.md — Scripted worst-case cert harness + phase8-certification protocol (PLT-03)
-- [ ] 08-04-PLAN.md — DEV soak harness 100× + 15 min + audio lifecycle asserts (PLT-03)
+- [x] 08-04-PLAN.md — DEV soak harness 100× + 15 min + audio lifecycle asserts (PLT-03)
 - [x] 08-05-PLAN.md — Privacy policy HTTPS + privacyManifests + store paperwork (PLT-04)
 - [ ] 08-06-PLAN.md — Device Results recording + phase gate (closes Phase 7 gfxinfo debt)
 **UI hint**: no
