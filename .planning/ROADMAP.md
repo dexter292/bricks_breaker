@@ -157,7 +157,7 @@ Plans:
 - [x] 07-03-PLAN.md — services/audio mapping + expo-audio pools (FX-03)
 - [x] 07-04-PLAN.md — Baked glow + recordFrame trails/particles/shake (FX-01/02)
 - [x] 07-05-PLAN.md — useGameLoop drain, eventBridge, intensity, PlayingHost preload
-- [ ] 07-06-PLAN.md — Pixel 6a measurement doc + human UAT checkpoint
+- [x] 07-06-PLAN.md — Pixel 6a measurement doc + human UAT checkpoint
 **UI hint**: yes
 
 ### Phase 8: Showpiece Level, Performance Certification & Launch Baseline
