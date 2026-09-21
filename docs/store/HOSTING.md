@@ -53,6 +53,14 @@ Paste the live HTTPS URL in chat, **or** update `LIVE_URL` yourself and reply `h
 
 **Do not mark PLT-04 complete while `LIVE_URL` remains `TBD` or `OWNER_WAIVED_*`.**
 
-## Owner waiver (2026-09-21)
+## Live URL (2026-09-21)
 
-Owner directed Phase 8 execution to continue without a live HTTPS URL (`coi như là hosted rồi đi`). Recorded as `LIVE_URL: OWNER_WAIVED_2026-09-21` in `privacy-policy.md`. **Public HTTPS publish + curl verification remain mandatory before store submit / final PLT-04 checkoff (D-27).**
+**LIVE_URL:** https://dexter292.github.io/bricks_breaker/store/privacy-policy.html
+
+GitHub Pages enabled: branch `main`, folder `/docs`, public repo `dexter292/bricks_breaker`.
+
+Owner waiver section below is historical — superseded by this live URL once `curl -fsSI` returns 200.
+
+## Owner waiver (2026-09-21) — superseded
+
+Owner briefly directed Phase 8 to continue without a live HTTPS URL. That waiver is **superseded** by the live Pages URL above. **PLT-04 live-URL gate closes after curl verification succeeds (D-27).**

@@ -2,9 +2,9 @@
 
 **Effective date:** 2026-09-21
 
-**LIVE_URL: OWNER_WAIVED_2026-09-21**
+**LIVE_URL: https://dexter292.github.io/bricks_breaker/store/privacy-policy.html**
 
-*(Owner instructed Phase 8 to proceed without a live public HTTPS host. In-repo `privacy-policy.html` remains the source of truth. **D-27 / PLT-04 live-URL gate stays OPEN** until a real `https://…` URL is published and verified with `curl -fsSI` — required before any store submit. See `HOSTING.md`.)*
+*(Published via GitHub Pages — source branch `main`, folder `/docs`. In-repo HTML is the source of truth.)*
 
 ## Overview
 
