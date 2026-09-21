@@ -581,22 +581,17 @@ Re-scan `node_modules/**/PrivacyInfo.xcprivacy` after any dependency change; agg
 
 **If empty table:** N/A — assumptions listed above need planner/owner awareness, not blocking research.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact numeric gfxinfo fail line**
-   - What we know: Qualitative 60 FPS / 16.7 ms; overlay tracks p95 and frames > 16.7.
-   - What's unclear: Official project cutoff for “janky frames” percentage from `framestats`.
-   - Recommendation: Lock A1 numbers into `docs/phase8-certification.md` at plan start; adjust only via optimize/retune (D-13/D-18), not by moving Pixel to Low.
+1. **Exact numeric gfxinfo fail line** — RESOLVED
+   - **Lock:** A1 thresholds in `08-03-PLAN.md` / `docs/phase8-certification.md`: p50 ≤ 16.7 ms; p95 ≤ 20 ms **OR** janky/missed-vsync share ≤ 5%; hard fail on crash / unresponsive touch / progressive degradation.
+   - Adjust only via optimize/retune (D-13/D-18), not by moving Pixel to Low.
 
-2. **Worst-case trigger UX**
-   - What we know: Need reproducible multi-ball ≥3 + particles near cap + shake + glow (D-14).
-   - What's unclear: DEV button vs seed fixture vs debug Intent injector.
-   - Recommendation: DEV-only “Cert worst-case” control that forces multi-ball spawn + particle flood **without** changing `core/` RNG rules long-term (temporary debug Intent / event inject in runtime).
+2. **Worst-case trigger UX** — RESOLVED
+   - **Lock:** DEV-only `Cert WC` one-shot runtime inject (multi-ball ≥3 + particle flood + shake) per `08-03-PLAN.md` — not a core RNG / DROP_CHANCE change.
 
-3. **Privacy policy host**
-   - What we know: Any static HTTPS is fine (D-24 discretion).
-   - What's unclear: Which account/domain the owner prefers.
-   - Recommendation: `docs/store/privacy-policy.html` + GitHub Pages on this repo (or Cloudflare Pages); verify curl HEAD 200 before PLT-04 checkoff (D-27).
+3. **Privacy policy host** — RESOLVED
+   - **Lock:** Human discretion at Plan 05 Task 2 within D-24 (static HTTPS; e.g. GitHub Pages / Cloudflare Pages). Source lives in `docs/store/`; live URL verified via `curl` before PLT-04 checkoff (D-27).
 
 ## Environment Availability
 
