@@ -4,7 +4,16 @@ slug: showpiece-level-performance-certification-launch-baseline
 status: draft
 nyquist_compliant: false
 wave_0_complete: false
+# Plans landed 2026-09-21 — set wave_0_complete true after Plan 00 executes
 created: 2026-09-21
+plans:
+  - 08-00-PLAN.md
+  - 08-01-PLAN.md
+  - 08-02-PLAN.md
+  - 08-03-PLAN.md
+  - 08-04-PLAN.md
+  - 08-05-PLAN.md
+  - 08-06-PLAN.md
 ---
 
 # Phase 8 — Validation Strategy
