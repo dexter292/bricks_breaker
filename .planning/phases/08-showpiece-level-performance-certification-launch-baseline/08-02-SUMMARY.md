@@ -79,7 +79,7 @@ Each task was committed atomically (TDD RED→GREEN for Task 1):
 2. **Task 1 GREEN: resolver + trail/glow caps** - `5707d10` (feat)
 3. **Task 2: PlayingHost wiring + DEV override** - `6cc3575` (feat)
 
-**Plan metadata:** _(see final docs commit)_
+**Plan metadata:** `756bc50` (docs: complete plan)
 
 ## Files Created/Modified
 
