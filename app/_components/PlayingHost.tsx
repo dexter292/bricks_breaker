@@ -107,9 +107,17 @@ export function PlayingHost({ onMenu }: Props) {
   const stallTierSv = useSharedValue<number>(0);
   const camScale = useSharedValue(1);
   const compiledSv = useSharedValue<CompiledLevel | null>(null);
-  const playBatchSv = useSharedValue<PlayBatchFn | null>(null);
   const glowAtlasSv = useSharedValue<GlowAtlas | null>(null);
   const vfxIntensity = useVfxIntensity();
+  /**
+   * Audio playBatch must stay on the RN runtime (ref + stable callback).
+   * Assigning a function into a SharedValue throws
+   * "Tried to synchronously call a Remote Function" under Worklets 0.10.
+   */
+  const playBatchRef = useRef<PlayBatchFn | null>(null);
+  const playBatchOnJS = useCallback<PlayBatchFn>((codes, count) => {
+    playBatchRef.current?.(codes, count);
+  }, []);
 
   const countdownTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -161,17 +169,18 @@ export function PlayingHost({ onMenu }: Props) {
       if (cancelled) {
         return;
       }
-      playBatchSv.value = (codes, count) => {
+      // Bind RN-scoped callback via ref — never assign a function into a SharedValue.
+      playBatchRef.current = (codes, count) => {
         audio.playBatch(codes, count);
       };
       setFxReady(true);
     })();
     return () => {
       cancelled = true;
-      playBatchSv.value = null;
+      playBatchRef.current = null;
       audio.release();
     };
-  }, [audio, glowAtlasSv, playBatchSv]);
+  }, [audio, glowAtlasSv]);
 
   useEffect(() => {
     const mapped =
@@ -207,7 +216,7 @@ export function PlayingHost({ onMenu }: Props) {
     compiled: compiledSv,
     onOsPause,
     vfxIntensity,
-    playBatch: playBatchSv,
+    playBatch: playBatchOnJS,
     glowAtlas: glowAtlasSv,
   });
 

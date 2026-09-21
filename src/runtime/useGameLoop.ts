@@ -172,10 +172,12 @@ export type UseGameLoopOptions = {
   /** Global VFX intensity from useVfxIntensity (D-03). Defaults to 1.0 when omitted. */
   vfxIntensity?: SharedValue<number>;
   /**
-   * JS-thread AudioService.playBatch bound by host — never import services/ here.
-   * Null → skip audio hop (soft-fail / pre-preload).
+   * RN-scoped playBatch for scheduleOnRN (must NOT live in a SharedValue —
+   * Worklets rejects assigning JS functions into SVs). Host passes a stable
+   * useCallback that reads a ref; soft-fail no-ops until preload binds it.
+   * Never import services/ here.
    */
-  playBatch?: SharedValue<PlayBatchFn | null>;
+  playBatch?: PlayBatchFn;
   /** Baked glow atlas from PlayingHost cold path; null until bake completes. */
   glowAtlas?: SharedValue<GlowAtlas | null>;
 };
@@ -233,10 +235,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     lifeMax: 0.1,
   });
   const defaultIntensity = useSharedValue(1.0);
-  const defaultPlayBatch = useSharedValue<PlayBatchFn | null>(null);
   const defaultGlowAtlas = useSharedValue<GlowAtlas | null>(null);
   const vfxIntensity = options.vfxIntensity ?? defaultIntensity;
-  const playBatch = options.playBatch ?? defaultPlayBatch;
+  /** Captured from RN scope into the frame worklet for scheduleOnRN. */
+  const playBatchFn = options.playBatch;
   const glowAtlas = options.glowAtlas ?? defaultGlowAtlas;
   const metrics = useSharedValue<SpikeMetrics | null>(null);
   const spriteTarget = useSharedValue(initialSprites);
@@ -347,10 +349,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     stepVfx(vfx, fixedDt, intensity);
     decayFlash(flash, dt);
 
-    // Exactly one audio hop / frame from eventBridge (LC-07)
-    const play = playBatch.value;
-    if (play != null && batch.count > 0) {
-      flushAudioBatchOnJS(play, batch.codes, batch.count);
+    // Exactly one audio hop / frame from eventBridge (LC-07).
+    // playBatchFn is RN-scoped (host useCallback) — never read from a SharedValue.
+    if (playBatchFn != null && batch.count > 0) {
+      flushAudioBatchOnJS(playBatchFn, batch.codes, batch.count);
       resetAudioBatch(batch);
     } else if (batch.count > 0) {
       // Soft-fail: drop batch rather than leak across frames without a player
