@@ -37,31 +37,27 @@ key-decisions:
 patterns-established:
   - "Store paperwork lives under docs/store/; LIVE_URL recorded in privacy-policy.md"
 
-requirements-completed: []  # PLT-04 partial — live HTTPS URL not verified
+requirements-completed: [PLT-04]  # live HTTPS verified 2026-09-21; in-repo paperwork + privacyManifests done
 
 duration: 15min
 completed: 2026-09-21
 ---
 
-# Phase 8: Plan 05 Summary — Store compliance baseline (partial)
+# Phase 8: Plan 05 Summary — Store compliance baseline
 
-**In-repo privacyManifests + store docs done; live HTTPS privacy URL deferred by owner waiver (D-27 debt).**
+**In-repo privacyManifests + store docs done; live HTTPS privacy policy verified on GitHub Pages.**
 
 ## Performance
 
-- **Tasks:** 2/2 (Task 2 closed via owner waiver, not curl-verified HTTPS)
+- **Tasks:** 2/2
 - **Files modified:** ~10
 
 ## Accomplishments
 
 - Configured `expo.ios.privacyManifests` with tracking off + required-reason APIs; `assert:privacy-manifest` green
 - Filled accurate MVP privacy policy + Play/age/name/originality docs (no ads/IAP/accounts; local AsyncStorage score)
-- Owner waived live host: `LIVE_URL: OWNER_WAIVED_2026-09-21` — **PLT-04 not fully closed**
+- **LIVE_URL:** https://dexter292.github.io/bricks_breaker/store/privacy-policy.html — `curl -fsSI` → HTTP/2 200 (GitHub Pages `/docs`)
 
 ## Open debt
 
-- Publish `privacy-policy.html` to public HTTPS and replace LIVE_URL with real `https://…` + `curl -fsSI` before store submit / final PLT-04
-
-## Deviations
-
-- Task 2 acceptance (`LIVE_URL: https://` + curl 200) not met; owner explicit waiver to unblock Waves 2–5
+- None for Plan 05 / PLT-04 live-URL gate (D-24/D-27 URL). Device cert (PLT-03) remains Plan 06.
