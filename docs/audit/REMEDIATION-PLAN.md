@@ -1,8 +1,8 @@
 # REMEDIATION PLAN
 
 **Ngày audit:** 2026-09-21
-**Trạng thái:** **ĐÃ PHÊ DUYỆT** 2026-09-21 (owner: `duyệt`). Bắt đầu triển khai từ WP-1.
-**Ghi chú:** Audit gốc không tự động triển khai; remediation bắt đầu sau phê duyệt này.
+**Trạng thái:** **ĐÃ PHÊ DUYỆT** 2026-09-21 (owner: `duyệt`).  
+**Tiến độ:** WP-1 T1.1–T1.3 **DONE** (F-01 / F-09 / F-10) — 2026-09-21. Tiếp theo: WP-2 hoặc WP-4 visual fixes.
 
 Các task được nhóm thành **8 work package** có thể dùng trực tiếp làm input cho GSD. Mỗi WP có ràng buộc thứ tự rõ ràng.
 
