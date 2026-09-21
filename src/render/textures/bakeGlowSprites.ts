@@ -1,6 +1,7 @@
 /**
  * Cold-path neon halo bake — call from PlayingHost/level load before setActive(true) (wire in Plan 05).
- * Two radius variants only (soft / strong). Concentric soft fills only (baked sprites, never live blur).
+ * Idle soft halo only (UI-SPEC ≤2 radius max). Concentric soft fills (baked sprites, never live blur).
+ * Destroy flash uses a separate white circle in recordSprites — no unused strong bake.
  */
 import { Skia, type SkImage } from '@shopify/react-native-skia';
 import {
@@ -14,20 +15,17 @@ import {
 const BRICK_W = 44;
 const BRICK_H = 18;
 
-/** soft = xs pad (r0); strong = sm pad (r1) — UI-SPEC ≤2 radius variants. */
+/** soft = xs pad — UI-SPEC ≤2 radius variants (idle only). */
 const PAD_SOFT = 4;
-const PAD_STRONG = 8;
 
 /** Edge falloff alpha at full intensity (UI-SPEC ≈ 0.35–0.55). */
 const EDGE_ALPHA_SOFT = 0.4;
-const EDGE_ALPHA_STRONG = 0.52;
 
 export type GlowVariant = {
   soft: SkImage;
-  strong?: SkImage;
 };
 
-/** Color-string → soft/strong halo images. */
+/** Color-string → soft idle halo images. */
 export type GlowAtlas = Record<string, GlowVariant>;
 
 /**
@@ -67,12 +65,11 @@ function bakeHalo(color: string, pad: number, edgeAlpha: number): SkImage {
 function bakeVariant(color: string): GlowVariant {
   return {
     soft: bakeHalo(color, PAD_SOFT, EDGE_ALPHA_SOFT),
-    strong: bakeHalo(color, PAD_STRONG, EDGE_ALPHA_STRONG),
   };
 }
 
 /**
- * Build ≤2-radius halo SkImages per brick fill color (JS cold path).
+ * Build idle soft-halo SkImages per brick fill color (JS cold path).
  * Keys are color hex strings matching brickFill / BRICK_* tokens.
  */
 export function bakeGlowSprites(): GlowAtlas {
