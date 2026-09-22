@@ -16,6 +16,10 @@ import {
   type GameScreenUiPhase,
 } from '../../src/runtime/GameScreen';
 import {
+  LOGICAL_H,
+  LOGICAL_W,
+} from '../../src/render/recordSprites';
+import {
   loadLevelById,
   type CompiledLevel,
   type LevelId,
@@ -40,16 +44,13 @@ import {
   evaluatePersonalBest,
 } from '../../src/services/storage';
 
-const LOGICAL_W = 360;
-const LOGICAL_H = 640;
-
 /** F-18 — release baked SkImages so remount / level change does not leak GPU memory. */
 function disposeGlowAtlas(atlas: GlowAtlas | null | undefined): void {
   if (atlas == null) {
     return;
   }
   for (const key of Object.keys(atlas)) {
-    const variant = atlas[key];
+    const variant = atlas[key as keyof GlowAtlas];
     if (variant?.soft != null) {
       try {
         variant.soft.dispose();
@@ -132,8 +133,8 @@ export function PlayingHost({ onMenu }: Props) {
   }, []);
   const previousBestRef = useRef(0);
   const runEndedRef = useRef(false);
-  /** Cold-path gate: SFX preload + glow bake settled (success or soft-fail). */
-  const [fxReady, setFxReady] = useState(false);
+  /** Cold-path: SFX + glow bake key — see loadKey / bakedKey below (NH-5). */
+  const [bakedKey, setBakedKey] = useState('');
 
   // Resolve tier once per mount (+ when DEV override changes). Device read is cold-path.
   const deviceInfo = useMemo(() => readDeviceMemory(), []);
@@ -151,6 +152,14 @@ export function PlayingHost({ onMenu }: Props) {
   const loadResult = useMemo(() => loadLevelById(levelId), [levelId]);
   const levelError = loadResult.ok ? null : loadResult.issues;
   const levelReady = loadResult.ok;
+  /**
+   * NH-5: fx ready is derived — bake key must match current loadResult identity.
+   * Changing level flips loadKey immediately so fxReady is false without setState-in-effect.
+   */
+  const loadKey = loadResult.ok
+    ? `${levelId}:${loadResult.compiled.brickCount}:${loadResult.compiled.w[0]}x${loadResult.compiled.h[0]}`
+    : `err:${levelId}`;
+  const fxReady = loadResult.ok && bakedKey === loadKey;
 
   const uiPhaseSv = useSharedValue<number>(UiPhaseNum.PLAYING);
   const chromeSv = useSharedValue<ChromeMirror>({
@@ -160,6 +169,8 @@ export function PlayingHost({ onMenu }: Props) {
     combo: 1,
     stallTier: 0,
   });
+  /** NF-8 / NG-15 — scalar bump when chrome fields change (reaction input). */
+  const chromeSeq = useSharedValue(0);
   const camScale = useSharedValue(1);
   const compiledSv = useSharedValue<CompiledLevel | null>(null);
   const glowAtlasSv = useSharedValue<GlowAtlas | null>(null);
@@ -235,6 +246,7 @@ export function PlayingHost({ onMenu }: Props) {
       launchFlag,
       uiPhase: uiPhaseSv,
       chromeOut: chromeSv,
+      chromeSeq,
       compiled: compiledSv,
       onOsPause,
       vfxIntensity,
@@ -247,7 +259,7 @@ export function PlayingHost({ onMenu }: Props) {
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
   // F-14: bake at active level brick size.
-  // NF-6 / NG-10 / NG-11 / NH-4: null SV first; flush pending dispose on cleanup (never cancel).
+  // NF-6 / NG-11 / NH-4 / NH-5: null SV first; flush dispose; fxReady derived from bakedKey.
   useEffect(() => {
     let cancelled = false;
     let pendingDispose: GlowAtlas | null = null;
@@ -262,14 +274,14 @@ export function PlayingHost({ onMenu }: Props) {
         pendingDispose = null;
       }
     };
-    // Defer ready=false so we avoid react-hooks/set-state-in-effect (NG-10).
-    const armTimer = setTimeout(() => {
-      if (cancelled) {
-        return;
+    // Pause sim while baking — fxReady is already false via loadKey mismatch (NH-5).
+    // Defer setActive so we avoid react-hooks/set-state-in-effect (NG-10).
+    const pauseTimer = setTimeout(() => {
+      if (!cancelled) {
+        setActive(false);
       }
-      setFxReady(false);
-      setActive(false);
     }, 0);
+    const bakeForKey = loadKey;
     const brickW =
       loadResult.ok && loadResult.compiled.brickCount > 0
         ? loadResult.compiled.w[0]
@@ -295,7 +307,6 @@ export function PlayingHost({ onMenu }: Props) {
         const prev = glowAtlasSv.value;
         glowAtlasSv.value = null;
         pendingDispose = prev;
-        // Delay dispose so UI observes null before SkImage free (NH-4).
         disposeTimer = setTimeout(() => {
           if (pendingDispose === prev) {
             disposeGlowAtlas(prev);
@@ -316,12 +327,11 @@ export function PlayingHost({ onMenu }: Props) {
       playBatchRef.current = (codes, count) => {
         audio.playBatch(codes, count);
       };
-      setFxReady(true);
+      setBakedKey(bakeForKey);
     })();
     return () => {
       cancelled = true;
-      clearTimeout(armTimer);
-      // NH-4: flush pending dispose — never cancel and leak SkImages.
+      clearTimeout(pauseTimer);
       flushPendingDispose();
       setActive(false);
       playBatchRef.current = null;
@@ -330,7 +340,7 @@ export function PlayingHost({ onMenu }: Props) {
       disposeGlowAtlas(atlas);
       audio.release();
     };
-  }, [audio, glowAtlasSv, loadResult, setActive]);
+  }, [audio, glowAtlasSv, loadResult, loadKey, setActive]);
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
   // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.
@@ -416,27 +426,18 @@ export function PlayingHost({ onMenu }: Props) {
     [handleRunEnded, setActive],
   );
 
-  // Single chrome bridge (F-25): one runOnJS hop batches all HUD setStates (LC-07).
+  // Single chrome bridge (F-25 / NF-8): react to chromeSeq scalar only — no per-frame tuple alloc.
   useAnimatedReaction(
-    () => {
-      const c = chromeSv.value;
-      return [c.phase, c.lives, c.score, c.combo, c.stallTier] as const;
-    },
-    (next, prev) => {
-      if (
-        prev === null ||
-        next[0] !== prev[0] ||
-        next[1] !== prev[1] ||
-        next[2] !== prev[2] ||
-        next[3] !== prev[3] ||
-        next[4] !== prev[4]
-      ) {
+    () => chromeSeq.value,
+    (seq, prev) => {
+      if (prev === null || seq !== prev) {
+        const c = chromeSv.value;
         runOnJS(applyChrome)({
-          phase: next[0],
-          lives: next[1],
-          score: next[2],
-          combo: next[3],
-          stallTier: next[4],
+          phase: c.phase,
+          lives: c.lives,
+          score: c.score,
+          combo: c.combo,
+          stallTier: c.stallTier,
         });
       }
     },

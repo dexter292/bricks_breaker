@@ -122,6 +122,29 @@ describe('lives rules (last-ball)', () => {
     expect(w.simPhase).toBe(SimPhase.LOST);
   });
 
+  it('LOST clears pickups and expires expand like life reset (F-49)', () => {
+    const w = playingWorld();
+    w.lives = 1;
+    w.score = 555;
+    w.activeBallCount = 0;
+    for (let i = 0; i < w.maxBalls; i++) {
+      w.ballActive[i] = 0;
+    }
+    w.pickupActive[0] = 1;
+    w.pickupType[0] = 1;
+    w.pickupCount = 1;
+    applyOrRefreshExpand(w);
+    expect(w.paddleW).toBe(108);
+
+    applyLivesFromBallCount(w);
+
+    expect(w.simPhase).toBe(SimPhase.LOST);
+    expect(w.score).toBe(555);
+    expect(w.pickupCount).toBe(0);
+    expect(w.effectCount).toBe(0);
+    expect(w.paddleW).toBe(72);
+  });
+
   it('WON/LOST phases are no-ops for stepRun', () => {
     const w = allocateWorld();
     resetWorld(w, 1, 2);

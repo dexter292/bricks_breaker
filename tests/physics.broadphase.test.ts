@@ -1,8 +1,15 @@
 /**
- * F-47 — forEachBrickCandidate visits each brick once even when mapped to ≥2 cells.
+ * F-47 / NF-10 — forEachBrickCandidate visits each brick once even when mapped to ≥2 cells.
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { allocateWorld, forEachBrickCandidate } from '../src/core';
+import {
+  allocateWorld,
+  forEachBrickCandidate,
+  collectBrickCandidatesInto,
+} from '../src/core';
 
 function collectVisits(
   world: ReturnType<typeof allocateWorld>,
@@ -75,5 +82,26 @@ describe('physics broadphase (F-47)', () => {
 
     const visits = collectVisits(w, 80, 40, 120, 60, 4);
     expect(visits).toEqual([3]);
+  });
+
+  it('collectBrickCandidatesInto matches forEach visits (NF-10)', () => {
+    const w = setupGrid(4, 4);
+    w.cellToBrick[1 * 4 + 1] = 0;
+    w.cellToBrick[1 * 4 + 2] = 0;
+    w.cellToBrick[2 * 4 + 1] = 0;
+    w.cellToBrick[2 * 4 + 2] = 0;
+    w.brickCount = 1;
+    const n = collectBrickCandidatesInto(w, 40, 20, 120, 60, 8, w.brickCandidateScratch);
+    expect(n).toBe(1);
+    expect(w.brickCandidateScratch[0]).toBe(0);
+  });
+
+  it('stepWorld CCD path imports collectBrickCandidatesInto (NF-10)', () => {
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '../src/core/step.ts'),
+      'utf8',
+    );
+    expect(src).toContain('collectBrickCandidatesInto');
+    expect(src).toContain('brickCandidateScratch');
   });
 });

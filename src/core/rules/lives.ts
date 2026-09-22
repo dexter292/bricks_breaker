@@ -49,6 +49,24 @@ export function applyLivesFromBallCount(world: World): void {
     world.simPhase = SimPhase.DOCKED;
     dockBall(world);
   } else {
+    // D-13 / F-49: clear falling pickups and active effects on terminal LOST
+    const maxP = world.maxPickups;
+    for (let i = 0; i < maxP; i++) {
+      world.pickupActive[i] = 0;
+      world.pickupType[i] = 0;
+      world.pickupX[i] = 0;
+      world.pickupY[i] = 0;
+    }
+    world.pickupCount = 0;
+
+    const maxE = world.maxEffects;
+    for (let i = 0; i < maxE; i++) {
+      world.effectType[i] = 0;
+      world.effectUntilTick[i] = 0;
+    }
+    world.effectCount = 0;
+    derivePaddleWidth(world);
+
     world.simPhase = SimPhase.LOST;
     pushEvent(world, EventCode.LOSE, 0, -1, world.paddleX, world.paddleY);
   }

@@ -12,7 +12,7 @@
  *   PICKUP_TYPE_EXPAND = 2
  */
 import type { World } from '../types';
-import { EventCode } from '../types';
+import { EventCode, SimPhase } from '../types';
 import { pushEvent } from '../events/ring';
 import { nextFloat } from '../rng/mulberry32';
 import { applyOrRefreshExpand } from './effects';
@@ -35,6 +35,9 @@ function findFreePickupSlot(world: World): number {
  */
 export function applyDropsFromBreaks(world: World): void {
   'worklet';
+  if (world.simPhase !== SimPhase.PLAYING) {
+    return;
+  }
   const n = world.evCount;
   if (n <= 0) {
     return;
@@ -78,6 +81,9 @@ export function applyDropsFromBreaks(world: World): void {
  */
 export function stepPickups(world: World, dt: number): void {
   'worklet';
+  if (world.simPhase !== SimPhase.PLAYING) {
+    return;
+  }
   // Allow dt===0 for catch-only steps; reject NaN/negative
   if (!Number.isFinite(dt) || dt < 0) {
     return;

@@ -25,19 +25,14 @@ import {
 } from './constants';
 import { shouldAcceptServeTap } from './gestureGates';
 import { computeRelativePaddleX } from './paddleIntent';
+import type { ChromeMirror } from '../runtime/useGameLoop';
 
 /** PADDLE_WIDTH/2 — passed as arg so input never imports core (LC-05). */
 const PADDLE_HALF_W = 36;
 
 export type PaddleGestureOptions = {
-  /** HUD chrome mirror — reads `.phase` on UI thread (shape matches runtime ChromeMirror). */
-  chrome: SharedValue<{
-    phase: number;
-    lives: number;
-    score: number;
-    combo: number;
-    stallTier: number;
-  }>;
+  /** HUD chrome mirror — reads `.phase` on UI thread. */
+  chrome: SharedValue<ChromeMirror>;
   /** SharedValue ui shell: 0=playing,1=paused,2=countdown */
   uiPhase: SharedValue<number>;
   camScale: SharedValue<number>;

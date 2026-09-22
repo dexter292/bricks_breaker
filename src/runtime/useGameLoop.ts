@@ -172,6 +172,11 @@ export type UseGameLoopOptions = {
   /** Host-owned HUD mirror written once per frame (in-place World edits are silent). */
   chromeOut: SharedValue<ChromeMirror>;
   /**
+   * Bumped only when a chrome field actually changes (NF-8 / NG-15).
+   * Reaction should listen to this scalar — not reallocate chromeOut each frame.
+   */
+  chromeSeq: SharedValue<number>;
+  /**
    * JS-thread validated/compiled level. Worklets only apply — never parse (D-04, D-14).
    * Null → skip apply (host shows LevelErrorOverlay / gate setActive).
    */
@@ -232,6 +237,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     launchFlag,
     uiPhase,
     chromeOut,
+    chromeSeq,
     compiled,
     drawOverlayFlag = false,
     hudFont = null,
@@ -299,13 +305,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       applyRetryWorldReset(w, compiled.value);
       paddleTarget.value = w.paddleX;
       world.value = w;
-      chromeOut.value = {
-        phase: w.simPhase,
-        lives: w.lives,
-        score: w.score,
-        combo: w.combo,
-        stallTier: w.stallTier,
-      };
+      const c0 = chromeOut.value;
+      c0.phase = w.simPhase;
+      c0.lives = w.lives;
+      c0.score = w.score;
+      c0.combo = w.combo;
+      c0.stallTier = w.stallTier;
+      chromeOut.value = c0;
+      chromeSeq.value = chromeSeq.value + 1;
     }
     if (!vfx) {
       vfx = allocateVfx({
@@ -433,14 +440,36 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       resetAudioBatch(batch);
     }
 
-    // Publish chrome mirror once per frame (in-place World edits are invisible to reactions)
-    chromeOut.value = {
-      phase: w.simPhase,
-      lives: w.lives,
-      score: w.score,
-      combo: w.combo,
-      stallTier: w.stallTier,
-    };
+    // Publish chrome: mutate stable mirror in place; bump chromeSeq only on change
+    // (NF-8 / NG-15 — avoid new object + tuple every frame waking the reaction).
+    {
+      const c = chromeOut.value;
+      let dirty = 0;
+      if (c.phase !== w.simPhase) {
+        c.phase = w.simPhase;
+        dirty = 1;
+      }
+      if (c.lives !== w.lives) {
+        c.lives = w.lives;
+        dirty = 1;
+      }
+      if (c.score !== w.score) {
+        c.score = w.score;
+        dirty = 1;
+      }
+      if (c.combo !== w.combo) {
+        c.combo = w.combo;
+        dirty = 1;
+      }
+      if (c.stallTier !== w.stallTier) {
+        c.stallTier = w.stallTier;
+        dirty = 1;
+      }
+      if (dirty === 1) {
+        chromeOut.value = c;
+        chromeSeq.value = chromeSeq.value + 1;
+      }
+    }
 
     const size = surfaceSize.value;
     const flashArg: DestroyFlashState | null =
@@ -466,6 +495,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     paddleTarget,
     launchFlag,
     chromeOut,
+    chromeSeq,
     flashSv,
     resetRequest,
     resetApplied,

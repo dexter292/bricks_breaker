@@ -51,25 +51,15 @@ export function clearTrailBall(
 export function clearTrailsFromIndex(
   vfx: VfxState,
   fromIndex: number,
-  ballX?: Float32Array,
-  ballY?: Float32Array,
-  ballActive?: Uint8Array,
+  ballX: Float32Array,
+  ballY: Float32Array,
+  ballActive: Uint8Array,
 ): void {
   'worklet';
   const start = fromIndex < 0 ? 0 : fromIndex;
   for (let i = start; i < vfx.maxBalls; i++) {
-    let x = 0;
-    let y = 0;
-    if (
-      ballActive != null &&
-      ballX != null &&
-      ballY != null &&
-      i < ballActive.length &&
-      ballActive[i] !== 0
-    ) {
-      x = ballX[i];
-      y = ballY[i];
-    }
+    const x = i < ballActive.length && ballActive[i] !== 0 ? ballX[i] : 0;
+    const y = i < ballActive.length && ballActive[i] !== 0 ? ballY[i] : 0;
     clearTrailBall(vfx, i, x, y);
   }
 }

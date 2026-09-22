@@ -64,8 +64,10 @@ export function allocateWorld(capacities?: WorldCapacities): World {
   const brickFlags = new Uint8Array(maxBricks);
   const brickDamagedThisStep = new Uint8Array(maxBricks);
   const cellToBrick = new Int16Array(maxBricks);
+  const brickCandidateScratch = new Int16Array(maxBricks);
   for (let i = 0; i < maxBricks; i++) {
     cellToBrick[i] = -1;
+    brickCandidateScratch[i] = -1;
   }
 
   const effectType = new Uint8Array(maxEffects);
@@ -130,6 +132,7 @@ export function allocateWorld(capacities?: WorldCapacities): World {
     gridCols: 0,
     gridRows: 0,
     cellToBrick,
+    brickCandidateScratch,
     latticeOriginX: 0,
     latticeOriginY: 0,
     latticePitchX: 0,

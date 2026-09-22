@@ -207,8 +207,7 @@ export function createMemoryAudioService(): MemoryAudioService {
         const cursor = cursors.get(sfxId) ?? 0;
         const voiceIndex = selectVoiceIndex(cursor, limit);
         cursors.set(sfxId, cursor + 1);
-        // Record one play per distinct sfx (dedupe); hits kept for test assertions via plays length
-        void hits;
+        // One play per distinct sfx per batch (dedupe); gain bump applied in real service
         plays.push({ sfxId, voiceIndex });
       }
     },

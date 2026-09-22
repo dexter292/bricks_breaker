@@ -202,7 +202,7 @@ Intensity is a single SharedValue from `AccessibilityInfo` (live `reduceMotionCh
 | Event set | Paddle hit; brick chip; brick break; power-up catch; life lost; win; lose — frame-aligned to impact |
 | Brick family | Chip = short softer; break = fuller + brief shimmer (same family) |
 | Loudness | Life lost / Win / Lose → Brick break → Paddle hit / Brick chip → Power-up catch |
-| Overlap | Pooled voices; per-category limits; reuse oldest at cap — rapid hits overlap, do not cut unbounded |
+| Overlap | Per-frame batch dedupes identical sfx to **one voice** (gain bump ×1.12/×1.25 for 2–3+ hits); cross-frame rapid hits still use pooled voices and round-robin reuse at cap |
 | UI | **No** audio settings screen; preload before active play; `playsInSilentMode: true` |
 
 ---

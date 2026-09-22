@@ -1,8 +1,8 @@
 # Deferred Items — Audit Ledger
 
-**Last updated:** 2026-09-21 (T8.2 remediation + T3.4 decision)
+**Last updated:** 2026-09-22 (post RE-AUDIT-04 remediation wave)
 
-Orphan deferred items from Phase 1/6/7 audits that need an explicit owner and Results surface before MVP close.
+Orphan deferred items that need an explicit owner and Results surface before MVP close.
 
 | ID | Item | Origin | Owner | Status | Notes |
 |----|------|--------|-------|--------|-------|
@@ -10,10 +10,14 @@ Orphan deferred items from Phase 1/6/7 audits that need an explicit owner and Re
 | **D4** | iOS profiling SC-2 re-run after HUD font fix | `01-04-SUMMARY.md`, `device-gate-results.md`; F-20 | **Phase 8 Plan 06** — dedicated Results row | **OPEN** | Untracked follow-up from Phase 1; Instruments re-run required |
 | **D13** | `tsc --noEmit` errors (~6 known; incl. overlay `absoluteFillObject` runtime bug) | Phase 6 deferred-items; F-44 | **T1.2 code fix** + **`npm run typecheck`** in Phase 8 gate (`08-06-PLAN.md`) | **CLOSED 2026-09-21** | Overlay scrim fixed (T1.2); `npm run typecheck` green; script remains in Plan 06 gate |
 | **F-45** | Ball speed ramp deferred | Owner decision 2026-09-21 | Post-MVP backlog | **DEFERRED** | No ramp in MVP; LVL-04 duration target softened — see REMEDIATION-PLAN T3.4 |
+| **F-23** | Tier-3 "prefer steeper" rotation contract | RE-AUDIT-04 / NG-1 | Superseded | **SUPERSEDED** | NG-1 escalating nudge may flatten toward mid-band when parity sign opposes steepening — intentional; old F-23 test removed |
+| **F-43** | Component/runtime boundary tests (`@testing-library/*`, `jest-expo`) | CODE-REVIEW / RE-AUDIT-02…04 | Post-MVP / device-adjacent | **DEFERRED** | Vitest covers core; UI-thread + RN mount harness needs separate Expo test runner; worklet guard now in `npm test` via `assert:worklets` |
+| **WP-6** | Device certification rows (`PENDING_DEVICE`) | Phase 8 Plan 06 | Hardware gate | **OPEN** | Cannot close in CI; fill `docs/phase8-certification.md` on device |
+| **Trademark** | Store name legal opinion | store docs | Legal / owner | **DEFERRED** | Outside code remediation |
 
 ## Gate references
 
-- Automated phase gate (Plan 06 Task 1): `npm test` + `npm run typecheck` + `node scripts/assert-privacy-manifest.mjs`
+- Automated phase gate (Plan 06 Task 1): `npm test` (+ worklet closure assert) + `npm run typecheck` + `node scripts/assert-privacy-manifest.mjs`
 - Device gate (Plan 06 Task 2): human fill of `PENDING_DEVICE` rows including D2/D4 dedicated rows
 
 ## Related

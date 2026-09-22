@@ -42,7 +42,7 @@ export function applyRetryWorldReset(
 }
 
 /** Clear cosmetic SoA so trails / sparks / shake do not leak across Retry. */
-export function clearCosmeticVfx(vfx: VfxState, world?: World | null): void {
+export function clearCosmeticVfx(vfx: VfxState, world: World): void {
   'worklet';
   vfx.particleCount = 0;
   vfx.particleOldest = 0;
@@ -58,13 +58,7 @@ export function clearCosmeticVfx(vfx: VfxState, world?: World | null): void {
   vfx.freeTop = cap;
   vfx.particleOldest = 0;
   // F-16 / NF-7: seed trail rings from live ball positions (never leave (0,0) ghosts).
-  clearTrailsFromIndex(
-    vfx,
-    0,
-    world?.ballX,
-    world?.ballY,
-    world?.ballActive,
-  );
+  clearTrailsFromIndex(vfx, 0, world.ballX, world.ballY, world.ballActive);
   vfx.shakeAmp = 0;
   vfx.shakePhase = 0;
 }

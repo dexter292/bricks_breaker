@@ -10,6 +10,7 @@ import {
   type Velocity2,
 } from './physics/resolve';
 import { pushEvent } from './events/ring';
+import { collectBrickCandidatesInto } from './physics/broadphase';
 
 const KIND_WALL = 0;
 const KIND_PADDLE = 1;
@@ -352,9 +353,16 @@ function escapeOverlappingBricks(world: World, bi: number, eps: number): void {
       world.ballVy[bi] = ovy;
     }
   } else {
+    // SERVE_SPEED literal — match constants.ts
     world.ballVx[bi] = bestNx * 360;
     world.ballVy[bi] = bestNy * 360;
   }
+  // NG-4: cluster eject must honor paddle angle floors (same as CCD resolves).
+  const floorOut: Velocity2 = { vx: 0, vy: 0 };
+  enforceMinVerticalRatioInto(floorOut, world.ballVx[bi], world.ballVy[bi]);
+  enforceMinHorizontalRatioInto(floorOut, floorOut.vx, floorOut.vy);
+  world.ballVx[bi] = floorOut.vx;
+  world.ballVy[bi] = floorOut.vy;
 }
 
 /**
@@ -620,36 +628,91 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         }
       }
 
-      // --- Bricks: flat for-loop (NO nested worklet closure). Nested
-      // considerBrick callbacks that mutate outer `let` best* are unreliable
-      // on Reanimated UI runtime and can leave the ball glued to a brick.
+      // --- Bricks: lattice broadphase when pitch is set (NF-10 / F-47).
+      // Legacy packed grids (latticePitch<=0, e.g. loadTestGrid) divide the
+      // full field into cols×rows that do NOT match brick AABBs — flat scan.
+      // No nested visit() callback — Reanimated UI mishandles nested worklet
+      // closures that mutate outer `let` best* (ball freeze on contact).
       const nBricks = world.brickCount;
-      for (let brickIndex = 0; brickIndex < nBricks; brickIndex++) {
-        if (world.brickHp[brickIndex] <= 0) {
-          continue;
-        }
-        const bx = world.brickX[brickIndex];
-        const by = world.brickY[brickIndex];
-        const bw = world.brickW[brickIndex];
-        const bh = world.brickH[brickIndex];
-        sweepCircleAabbInto(
-          sweepOut,
+      const useLattice =
+        world.latticePitchX > 0 &&
+        world.latticePitchY > 0 &&
+        world.gridCols > 0 &&
+        world.gridRows > 0;
+      let candCount = 0;
+      const candScratch = world.brickCandidateScratch;
+      if (useLattice) {
+        candCount = collectBrickCandidatesInto(
+          world,
           cx,
           cy,
+          cx + dx,
+          cy + dy,
           radius,
-          dx,
-          dy,
-          bx,
-          by,
-          bx + bw,
-          by + bh,
+          candScratch,
         );
-        if (sweepOut.hit && sweepOut.t < bestT) {
-          bestT = sweepOut.t;
-          bestNx = sweepOut.nx;
-          bestNy = sweepOut.ny;
-          bestKind = KIND_BRICK;
-          bestIndex = brickIndex;
+      }
+      if (useLattice && candCount > 0) {
+        for (let ci = 0; ci < candCount; ci++) {
+          const brickIndex = candScratch[ci];
+          if (brickIndex < 0 || brickIndex >= nBricks) {
+            continue;
+          }
+          if (world.brickHp[brickIndex] <= 0) {
+            continue;
+          }
+          const bx = world.brickX[brickIndex];
+          const by = world.brickY[brickIndex];
+          const bw = world.brickW[brickIndex];
+          const bh = world.brickH[brickIndex];
+          sweepCircleAabbInto(
+            sweepOut,
+            cx,
+            cy,
+            radius,
+            dx,
+            dy,
+            bx,
+            by,
+            bx + bw,
+            by + bh,
+          );
+          if (sweepOut.hit && sweepOut.t < bestT) {
+            bestT = sweepOut.t;
+            bestNx = sweepOut.nx;
+            bestNy = sweepOut.ny;
+            bestKind = KIND_BRICK;
+            bestIndex = brickIndex;
+          }
+        }
+      } else {
+        for (let brickIndex = 0; brickIndex < nBricks; brickIndex++) {
+          if (world.brickHp[brickIndex] <= 0) {
+            continue;
+          }
+          const bx = world.brickX[brickIndex];
+          const by = world.brickY[brickIndex];
+          const bw = world.brickW[brickIndex];
+          const bh = world.brickH[brickIndex];
+          sweepCircleAabbInto(
+            sweepOut,
+            cx,
+            cy,
+            radius,
+            dx,
+            dy,
+            bx,
+            by,
+            bx + bw,
+            by + bh,
+          );
+          if (sweepOut.hit && sweepOut.t < bestT) {
+            bestT = sweepOut.t;
+            bestNx = sweepOut.nx;
+            bestNy = sweepOut.ny;
+            bestKind = KIND_BRICK;
+            bestIndex = brickIndex;
+          }
         }
       }
 

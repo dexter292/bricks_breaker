@@ -1,22 +1,24 @@
 import type { World } from '../types';
 
 /**
- * Grid broadphase (D-12): walk cells overlapped by a swept circle segment.
+ * Grid broadphase (D-12 / NF-10): fill `out` with unique brick indices
+ * overlapped by a swept circle segment. Returns how many were written.
  *
- * Lattice mode (pitchX > 0): cells are level-grid slots at origin+pitch —
- * used by playable compiled levels.
- * Legacy mode (pitchX <= 0): divide the full logical field by gridCols×gridRows —
- * used by dense physics fixtures that fill the field 1:1.
+ * No nested callbacks — Reanimated UI runtime mishandles nested worklet
+ * closures that mutate outer `let` (see step.ts brick CCD comment).
+ *
+ * Lattice mode (pitchX > 0): cells are level-grid slots at origin+pitch.
+ * Legacy mode (pitchX <= 0): divide the full logical field by gridCols×gridRows.
  */
-export function forEachBrickCandidate(
+export function collectBrickCandidatesInto(
   world: World,
   x0: number,
   y0: number,
   x1: number,
   y1: number,
   radius: number,
-  visit: (brickIndex: number) => void,
-): void {
+  out: Int16Array,
+): number {
   'worklet';
   if (
     !Number.isFinite(x0) ||
@@ -26,13 +28,13 @@ export function forEachBrickCandidate(
     !Number.isFinite(radius) ||
     radius < 0
   ) {
-    return;
+    return 0;
   }
 
   const cols = world.gridCols | 0;
   const rows = world.gridRows | 0;
   if (cols <= 0 || rows <= 0) {
-    return;
+    return 0;
   }
 
   const useLattice = world.latticePitchX > 0 && world.latticePitchY > 0;
@@ -55,7 +57,7 @@ export function forEachBrickCandidate(
   }
 
   if (!(cellW > 0) || !(cellH > 0)) {
-    return;
+    return 0;
   }
 
   // AABB of segment expanded by radius
@@ -78,11 +80,13 @@ export function forEachBrickCandidate(
   if (c1 >= cols) c1 = cols - 1;
   if (r1 >= rows) r1 = rows - 1;
   if (c0 > c1 || r0 > r1) {
-    return;
+    return 0;
   }
 
   const cells = world.cellToBrick;
   const cellLen = cells.length;
+  const outCap = out.length;
+  let written = 0;
 
   for (let ry = r0; ry <= r1; ry++) {
     const rowBase = ry * cols;
@@ -115,9 +119,31 @@ export function forEachBrickCandidate(
           }
         }
       }
-      if (first) {
-        visit(bi);
+      if (first && written < outCap) {
+        out[written] = bi;
+        written += 1;
       }
     }
+  }
+  return written;
+}
+
+/**
+ * Callback form for tests / tooling. Hot path uses collectBrickCandidatesInto.
+ */
+export function forEachBrickCandidate(
+  world: World,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius: number,
+  visit: (brickIndex: number) => void,
+): void {
+  'worklet';
+  const scratch = world.brickCandidateScratch;
+  const n = collectBrickCandidatesInto(world, x0, y0, x1, y1, radius, scratch);
+  for (let i = 0; i < n; i++) {
+    visit(scratch[i]);
   }
 }

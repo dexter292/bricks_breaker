@@ -16,6 +16,8 @@ import {
   MAX_SUBSTEPS,
   PADDLE_ANGLE_CLAMP_DEG,
   MIN_VERTICAL_RATIO,
+  MIN_HORIZONTAL_RATIO,
+  STALL_TIER3_REPEAT_TICKS,
   BALL_RADIUS,
 } from '../src/core';
 import { BRICK_HP1, BRICK_HP2, BRICK_HP3, BRICK_UNBREAKABLE } from '../src/render/colors';
@@ -53,6 +55,16 @@ describe('constants parity (F-37 / F-63)', () => {
     expect(MIN_VERTICAL_RATIO).toBeCloseTo(Math.cos(rad), 10);
   });
 
+  it('MIN_HORIZONTAL_RATIO and STALL_TIER3_REPEAT_TICKS match worklet literals', () => {
+    const stallSrc = read('src/core/rules/stall.ts');
+    expect(stallSrc).toContain('const tier3Repeat = 240; // STALL_TIER3_REPEAT_TICKS');
+    expect(STALL_TIER3_REPEAT_TICKS).toBe(240);
+    const resolveSrc = read('src/core/physics/resolve.ts');
+    expect(resolveSrc).toContain('STALL_ANGLE_NUDGE_DEG = 8');
+    expect(resolveSrc).toMatch(/Math\.sin\(\(8 \* Math\.PI\) \/ 180\)/);
+    expect(MIN_HORIZONTAL_RATIO).toBeCloseTo(Math.sin((8 * Math.PI) / 180), 10);
+  });
+
   it('recordSprites palette hex matches render/colors.ts', () => {
     const src = read('src/render/recordSprites.ts');
     expect(src).toContain(BRICK_HP3);
@@ -62,9 +74,13 @@ describe('constants parity (F-37 / F-63)', () => {
     expect(BALL_RADIUS).toBe(6);
   });
 
-  it('PlayingHost LOGICAL mirrors core', () => {
-    const src = read('app/_components/PlayingHost.tsx');
-    expect(src).toContain(`const LOGICAL_W = ${LOGICAL_WIDTH}`);
-    expect(src).toContain(`const LOGICAL_H = ${LOGICAL_HEIGHT}`);
+  it('PlayingHost LOGICAL mirrors core via recordSprites export (NG-20)', () => {
+    const host = read('app/_components/PlayingHost.tsx');
+    expect(host).toMatch(/import\s*\{[^}]*LOGICAL_W[^}]*\}\s*from\s*['\"][^'\"]*recordSprites['\"]/);
+    expect(host).toMatch(/import\s*\{[^}]*LOGICAL_H[^}]*\}\s*from\s*['\"][^'\"]*recordSprites['\"]/);
+    const sprites = read('src/render/recordSprites.ts');
+    expect(sprites).toContain(`const LOGICAL_W = ${LOGICAL_WIDTH}`);
+    expect(sprites).toContain(`const LOGICAL_H = ${LOGICAL_HEIGHT}`);
+    expect(sprites).toContain('export { LOGICAL_W, LOGICAL_H }');
   });
 });

@@ -120,6 +120,25 @@ describe('pickup rules (PWR-01/03)', () => {
     expect(w.pickupCount).toBe(0);
   });
 
+  it('applyDropsFromBreaks and stepPickups no-op outside PLAYING (F-52)', () => {
+    const w = playingWorld(7);
+    w.simPhase = SimPhase.DOCKED;
+    pushEvent(w, EventCode.BRICK_BREAK, 0, 0, 120.5, 80.25);
+    applyDropsFromBreaks(w);
+    expect(w.pickupCount).toBe(0);
+
+    w.pickupActive[0] = 1;
+    w.pickupType[0] = PICKUP_TYPE_EXPAND;
+    w.pickupX[0] = 180;
+    w.pickupY[0] = 622;
+    w.pickupCount = 1;
+    w.paddleX = 180;
+    w.paddleY = 616;
+    stepPickups(w, 0);
+    expect(w.pickupActive[0]).toBe(1);
+    expect(w.paddleW).toBe(72);
+  });
+
   it('drop rolls never call Math.random or rngCosmetic', () => {
     const w = playingWorld(0); // no drop
     const cosmeticBefore = w.rngCosmetic[0];

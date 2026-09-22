@@ -89,7 +89,10 @@ export { spawnMultiballFromPaddle } from './rules/multiball';
 export { countBreakableAlive, applyWinCheck } from './rules/win';
 export { stepAntiStall } from './rules/stall';
 export { sweepCircleAabb } from './physics/sweep';
-export { forEachBrickCandidate } from './physics/broadphase';
+export {
+  forEachBrickCandidate,
+  collectBrickCandidatesInto,
+} from './physics/broadphase';
 export { advanceBall } from './physics/integrate';
 export {
   resolvePaddleEnglish,

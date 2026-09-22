@@ -22,7 +22,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 - [x] **LVL-01**: Levels load from a versioned data-driven format suitable for a future level editor
 - [x] **LVL-02**: Level includes multiple brick types with different hit points and readable damage states (color + non-color cue)
 - [x] **LVL-03**: Level can include unbreakable/structural bricks that channel the ball
-- [x] **LVL-04**: One hand-crafted ~2–3 minute arcade challenge level with progressive difficulty, authored after core feel is validated
+- [x] **LVL-04**: One hand-crafted arcade challenge level with progressive difficulty, authored after core feel is validated (level-03 shipped; duration band ~2–3 min deferred — T3.4 accepts ~5–6 min bot / playtest median at ship)
 
 ### Run Loop
 

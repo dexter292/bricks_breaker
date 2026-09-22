@@ -19,6 +19,7 @@ import {
   LOGICAL_HEIGHT,
   BALL_RADIUS,
   PADDLE_ANGLE_CLAMP_DEG,
+  MIN_HORIZONTAL_RATIO,
   EventCode,
   BrickFlags,
   type World,
@@ -28,6 +29,7 @@ import {
 const SPEED_EPS = 1e-4;
 const CLAMP_RAD = (PADDLE_ANGLE_CLAMP_DEG * Math.PI) / 180;
 const MIN_VERTICAL_RATIO = Math.cos(CLAMP_RAD);
+const MIN_HORIZ_RATIO = MIN_HORIZONTAL_RATIO;
 const ANGLE_EPS = 1e-3;
 
 /** Dense spatial grid: bricks aligned to broadphase cells (D-12). */
@@ -383,6 +385,9 @@ test.prop(
     expect(ang).toBeLessThanOrEqual(CLAMP_RAD + ANGLE_EPS);
     expect(Math.abs(out.vy) / speed).toBeGreaterThanOrEqual(
       MIN_VERTICAL_RATIO - 1e-4,
+    );
+    expect(Math.abs(out.vx) / speed).toBeGreaterThanOrEqual(
+      MIN_HORIZ_RATIO - ANGLE_EPS,
     );
   },
 );

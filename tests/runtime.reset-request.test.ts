@@ -94,12 +94,13 @@ describe('runtime worldRequests (F-01)', () => {
   });
 
   it('clearCosmeticVfx zeros particles, trails, shake', () => {
+    const world = allocateWorld();
     const vfx = allocateVfx({ particleCap: 32, trailMax: 3, maxBalls: 4 });
     vfx.particleCount = 10;
     vfx.active[0] = 1;
     vfx.trailHead[0] = 2;
     vfx.shakeAmp = 2;
-    clearCosmeticVfx(vfx);
+    clearCosmeticVfx(vfx, world);
     expect(vfx.particleCount).toBe(0);
     expect(vfx.active[0]).toBe(0);
     expect(vfx.trailHead[0]).toBe(0);

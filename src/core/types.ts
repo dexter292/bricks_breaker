@@ -94,6 +94,11 @@ export type World = {
   gridRows: number;
   cellToBrick: Int16Array;
   /**
+   * Scratch for CCD broadphase candidate indices (NF-10).
+   * Ephemeral — not part of hashWorld / replay identity.
+   */
+  brickCandidateScratch: Int16Array;
+  /**
    * Lattice broadphase (playable levels): world→cell uses origin + pitch.
    * pitchX/Y <= 0 → legacy full-field division (dense physics fixtures).
    */
