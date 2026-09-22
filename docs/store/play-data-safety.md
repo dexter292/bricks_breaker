@@ -43,4 +43,4 @@ If Play Console guidance for a future review cycle requires declaring ephemeral 
 
 ## Non-goals
 
-- No Play Console listing creation or `eas submit` in Phase 8 (D-26).
+- Creating the Play / ASC listing and clicking submit is an **operator** step — see [`CONSOLE-ENTRY.md`](./CONSOLE-ENTRY.md) for paste-ready answers. In-repo paperwork for Data Safety is complete; console fields remain **not entered** until that checklist is marked YES.

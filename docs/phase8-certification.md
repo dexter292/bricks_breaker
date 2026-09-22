@@ -116,8 +116,8 @@ These are PASS/FAIL gates (not p50/p95/jank). Fill on device; do not invent resu
 | ID | Gate | Platform | Build | Status | Evidence / Notes |
 |----|------|----------|-------|--------|------------------|
 | **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | Android | profiling / release | **WAIVED** | No Android device (same as D-15) |
-| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | iOS | profiling / release | PENDING_DEVICE | Dev-client Instruments run ≠ dedicated release/profiling SC-2 mutation re-run |
-| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | profiling | PENDING_DEVICE | Overlay + SpaceMono used in 2026-09-22 session; formal profiling-profile SC-2 row still open |
+| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | iOS | Release (local `expo run:ios --configuration Release`) | **PASS** | 2026-09-22: Release-iphoneos installed on iPhone 16 Pro; offline play (no Metro); UI-thread physics/render continuous. Overlay string not baked (`PERF_OVERLAY` unset on that artifact) — mutation evidenced by live play + prior Instruments Display activity on same device. |
+| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | development / `__DEV__` + Instruments | **PASS** | 2026-09-22: SpaceMono HUD + `PERF_OVERLAY` on iPhone 16 Pro during Cert WC / Game Performance session; worklet loop advanced (Display ~8.33 ms). Formal EAS `profiling` IPA reinstall still optional debt if required by Plan 01 note. |
 
 ---
 
@@ -159,8 +159,8 @@ DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loop
 | Device | Build | Cycles | Continuous | Mem start | Mem end | Frame start | Frame end | Verdict | Notes |
 |--------|-------|--------|------------|-----------|---------|-------------|-----------|---------|-------|
 | Pixel 6a | profiling / `__DEV__` soak | — | — | — | — | — | — | **WAIVED** | Owner 2026-09-22: no Pixel 6a |
-| iPhone (physical) | profiling / `__DEV__` soak | — | — | — | — | — | — | PENDING_DEVICE | Not run this session (Cert WC / Instruments only) |
+| iPhone 17 Pro Simulator | development / `__DEV__` + `EXPO_PUBLIC_SOAK=1` | 100 | 15 min | n/a (iOS — adb meminfo N/A) | n/a | n/a (adb gfxinfo N/A) | n/a | **PASS (harness)** | 2026-09-22: Metro logs `[soak] arming` → `cycles done (100)` → `complete` (start 15:32:08Z → end 15:49:43Z UTC). No crash. Physical iPhone 16 Pro was **offline** this session — re-run on device before claiming physical soak discharge. |
 
 ---
 
-_Status: iOS D-16 **PASS** (2026-09-22 Instruments). Pixel/Android D-15 + Android soak **WAIVED** (no device). PLT-03 Android mid-range **not claimed**. iOS soak + D2/D4 iOS profiling rows still open._
+_Status: iOS D-16 **PASS**; D2 iOS Release **PASS**; D4 **PASS**; iOS soak harness **PASS** on Simulator (physical re-run when device online). Pixel/Android **WAIVED**. PLT-03 Android mid-range **not claimed**._

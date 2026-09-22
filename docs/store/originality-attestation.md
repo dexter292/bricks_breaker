@@ -9,7 +9,7 @@ The MVP build of Neon Brick Breaker uses **original** gameplay levels, sound eff
 | Asset class | Attestation |
 |-------------|-------------|
 | Levels (`assets/levels/*.json`) | Hand-authored for this project; not copied from Brick Breaker Maker, Shatter, or other commercial layouts |
-| SFX (`assets/sfx/*`) | Project-authored; see `assets/sfx/README.md` for provenance (fill license/tool before store submit) |
+| SFX (`assets/sfx/*`) | Project-authored PCM cues; provenance **closed 2026-09-22** in `assets/sfx/README.md` (All rights reserved — app bundle only) |
 | Icons / splash / images under `assets/images` | Project art for this app (icon, splash, favicon, Android adaptive layers). Expo template leftovers (`expo-logo.png`, `tabIcons/*`) were removed 2026-09-21. iOS icon points at `assets/images/icon.png` (not `assets/expo.icon` — unused Expo Icon Composer template; safe to delete before store submit). |
 | Code | Original project source under this repository |
 

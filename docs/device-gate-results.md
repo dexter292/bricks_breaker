@@ -42,8 +42,8 @@ Evidence for architectural bet close. Simulators / emulators / RN perf monitor a
 | development | iOS Simulator | `worklet tick PASS`, sprites moving | **PASS (interim)** | Metro + `EXPO_PUBLIC_PERF_OVERLAY=1`; SpaceMono HUD |
 | development | iOS physical | `worklet tick PASS` | **PASS** | iPhone 16 Pro earlier in session |
 | development | Android | — | **WAIVED** | Temporary |
-| profiling/release | Android | — | **WAIVED** | Temporary |
-| profiling/release | iOS | — | **WAIVED** | Temporary — re-run before MVP |
+| profiling/release | Android | — | **WAIVED** | No Android device (owner 2026-09-22) |
+| profiling/release | iOS | Release sideload play (no Metro) | **PASS** | 2026-09-22 local Release on iPhone 16 Pro; see `phase8-certification.md` D2 |
 
 ## SC-3 FPS
 
