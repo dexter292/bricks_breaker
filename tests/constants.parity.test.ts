@@ -83,4 +83,12 @@ describe('constants parity (F-37 / F-63)', () => {
     expect(sprites).toContain(`const LOGICAL_H = ${LOGICAL_HEIGHT}`);
     expect(sprites).toContain('export { LOGICAL_W, LOGICAL_H }');
   });
+
+  it('input LOGICAL_WIDTH_VU matches core LOGICAL_WIDTH and recordSprites LOGICAL_W', async () => {
+    const { LOGICAL_WIDTH_VU } = await import('../src/input/constants');
+    expect(LOGICAL_WIDTH_VU).toBe(LOGICAL_WIDTH);
+    expect(LOGICAL_WIDTH_VU).toBe(360);
+    const sprites = read('src/render/recordSprites.ts');
+    expect(sprites).toContain(`const LOGICAL_W = ${LOGICAL_WIDTH_VU}`);
+  });
 });

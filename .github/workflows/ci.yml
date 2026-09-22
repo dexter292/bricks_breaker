@@ -17,7 +17,13 @@ jobs:
       - run: npm ci
       - run: npx expo config --type public
       - run: npm run typecheck
-      - run: npm run lint
+      - run: npm run lint -- --max-warnings 0
       - run: npm test
+      - run: npm run assert:worklets
       - run: npm run assert:skia
       - run: npm run assert:privacy-manifest
+      - name: Coverage floor
+        run: npx vitest run --coverage --coverage.thresholds.lines=40
+      - name: Expo web export
+        run: npx expo export --platform web --output-dir /tmp/expo-export-ci
+        timeout-minutes: 15

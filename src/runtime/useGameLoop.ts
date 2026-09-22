@@ -292,13 +292,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       paddleTarget.value = w.paddleX;
       world.value = w;
       const c0 = chromeOut.value;
-      publishChromeMirror(c0, {
-        phase: w.simPhase,
-        lives: w.lives,
-        score: w.score,
-        combo: w.combo,
-        stallTier: w.stallTier,
-      });
+      publishChromeMirror(
+        c0,
+        w.simPhase,
+        w.lives,
+        w.score,
+        w.combo,
+        w.stallTier,
+      );
       chromeOut.value = c0;
       chromeSeq.value = chromeSeq.value + 1;
     }
@@ -429,16 +430,17 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     }
 
     // Publish chrome: mutate stable mirror in place; bump chromeSeq only on change
-    // (NF-8 / NG-15 / NK-3 — publishChromeMirror is the tested pure path).
+    // (NF-8 / NG-15 / NK-3 / NL-1 — scalar args, zero per-frame alloc).
     {
       const c = chromeOut.value;
-      const dirty = publishChromeMirror(c, {
-        phase: w.simPhase,
-        lives: w.lives,
-        score: w.score,
-        combo: w.combo,
-        stallTier: w.stallTier,
-      });
+      const dirty = publishChromeMirror(
+        c,
+        w.simPhase,
+        w.lives,
+        w.score,
+        w.combo,
+        w.stallTier,
+      );
       if (dirty === 1) {
         chromeOut.value = c;
         chromeSeq.value = chromeSeq.value + 1;

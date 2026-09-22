@@ -11,7 +11,8 @@ export const UiPhase = {
   LOST: 'lost',
 } as const;
 
-export type UiPhase = (typeof UiPhase)[keyof typeof UiPhase];
+/** String-union of UiPhase values (separate name avoids no-redeclare with the const). */
+export type UiPhaseName = (typeof UiPhase)[keyof typeof UiPhase];
 
 export function resetAccumulator(world: { accumulator: number }): void {
   'worklet';
@@ -26,7 +27,7 @@ export function clampFrameDt(dtSec: number, maxFrameTime: number): number {
   return Math.min(dtSec, maxFrameTime);
 }
 
-export function shouldFreezeForUiPhase(phase: UiPhase): boolean {
+export function shouldFreezeForUiPhase(phase: UiPhaseName): boolean {
   'worklet';
   return phase !== UiPhase.PLAYING;
 }

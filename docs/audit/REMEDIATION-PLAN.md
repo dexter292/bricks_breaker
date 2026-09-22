@@ -93,7 +93,7 @@ WP-1 (Thread boundary & shell correctness)   ← BẮT BUỘC TRƯỚC TIÊN
 ### T2.4 — Sửa dedup của broadphase (**F-47**, Medium, latent)
 - **Hướng triển khai:** dừng quét tại cell hiện tại (cờ `done` thoát cả hai vòng), hoặc thay bằng mảng visited-stamp per-step.
 - **Acceptance criteria:** brick chiếm 2 cell cùng cột / cùng hàng / block 2×2 đều được visit **đúng một lần**.
-- **Regression test:** `tests/physics.broadphase.test.ts` — test trực tiếp `forEachBrickCandidate` cho ba layout trên. (Case dọc hiện **fail**.)
+- **Regression test:** `tests/physics.broadphase.test.ts` — test trực tiếp `collectBrickCandidatesInto` (hot path; replaces removed `forEachBrickCandidate`) cho ba layout trên.
 
 ### T2.5 — Fail-closed cho `applyCompiledLevel` + spatial grid (**F-38**, Medium)
 - **Hướng triển khai:** trả status (hoặc assert) khi `compiled.brickCount > world.brickX.length`; ở đường early-return của `assignSpatialBrickCells`, fallback về mapping exhaustive (`apply.ts:47-57`) thay vì để grid stale.

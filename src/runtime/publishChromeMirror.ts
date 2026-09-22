@@ -1,17 +1,9 @@
 /**
- * Pure chrome HUD publish (NF-8 / NG-15 / NK-3).
+ * Pure chrome HUD publish (NF-8 / NG-15 / NK-3 / NL-1).
  * Mutates the stable mirror in place; returns whether chromeSeq should bump.
- * Extracted from useGameLoop so tests assert the real path — not a local copy.
+ * Five scalar args — zero allocation on the UI-thread hot path.
  */
 export type ChromeMirror = {
-  phase: number;
-  lives: number;
-  score: number;
-  combo: number;
-  stallTier: number;
-};
-
-export type ChromeSnapshot = {
   phase: number;
   lives: number;
   score: number;
@@ -25,28 +17,32 @@ export type ChromeSnapshot = {
  */
 export function publishChromeMirror(
   mirror: ChromeMirror,
-  next: ChromeSnapshot,
+  phase: number,
+  lives: number,
+  score: number,
+  combo: number,
+  stallTier: number,
 ): number {
   'worklet';
   let dirty = 0;
-  if (mirror.phase !== next.phase) {
-    mirror.phase = next.phase;
+  if (mirror.phase !== phase) {
+    mirror.phase = phase;
     dirty = 1;
   }
-  if (mirror.lives !== next.lives) {
-    mirror.lives = next.lives;
+  if (mirror.lives !== lives) {
+    mirror.lives = lives;
     dirty = 1;
   }
-  if (mirror.score !== next.score) {
-    mirror.score = next.score;
+  if (mirror.score !== score) {
+    mirror.score = score;
     dirty = 1;
   }
-  if (mirror.combo !== next.combo) {
-    mirror.combo = next.combo;
+  if (mirror.combo !== combo) {
+    mirror.combo = combo;
     dirty = 1;
   }
-  if (mirror.stallTier !== next.stallTier) {
-    mirror.stallTier = next.stallTier;
+  if (mirror.stallTier !== stallTier) {
+    mirror.stallTier = stallTier;
     dirty = 1;
   }
   return dirty;

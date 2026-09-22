@@ -5,6 +5,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useFont } from '@shopify/react-native-skia';
 import {
   runOnJS,
+  runOnUI,
   useAnimatedReaction,
   useSharedValue,
 } from 'react-native-reanimated';
@@ -259,7 +260,8 @@ export function PlayingHost({ onMenu }: Props) {
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
   // F-14: bake at active level brick size.
-  // NF-6 / NG-11 / NH-4 / NH-5: bake → assign SV → dispose previous immediately; fxReady from bakedKey.
+  // NF-6 / NG-11 / NH-4 / NH-5 / NL-2: assign new atlas, then dispose previous from a
+  // UI-thread work item (causal vs timer) so recordFrame never draws a freed SkImage.
   useEffect(() => {
     let cancelled = false;
     // Pause sim while baking — fxReady is already false via loadKey mismatch (NH-5).
@@ -292,9 +294,17 @@ export function PlayingHost({ onMenu }: Props) {
       try {
         setActive(false);
         const prev = glowAtlasSv.value;
-        // UI holds the new ref immediately — safe to dispose previous now (NH-4).
-        glowAtlasSv.value = bakeGlowSprites(brickW, brickH);
-        disposeGlowAtlas(prev);
+        const next = bakeGlowSprites(brickW, brickH);
+        glowAtlasSv.value = next;
+        if (prev != null) {
+          // NL-2: dispose only after UI runtime has observed the new SharedValue.
+          runOnUI(() => {
+            'worklet';
+            // Touch the SV so this work item runs after the JS→UI write is visible.
+            void glowAtlasSv.value;
+            runOnJS(disposeGlowAtlas)(prev);
+          })();
+        }
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.warn('[glow] bake soft-fail', err);

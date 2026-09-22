@@ -199,100 +199,101 @@ function findLocalFnWorklet(rel, name, fileSet, seen) {
 }
 
 /**
+ * Inspect a CallExpression / OptionalCallExpression callee against bindings.
+ * NL (RE-AUDIT-07): OptionalCallExpression (`fn?.()`) must be treated like CallExpression —
+ * otherwise `?.()` call sites inside worklets are invisible to the guard.
+ */
+function inspectWorkletCall(callPath, rel, bindings, fileSet, violations) {
+  const callee = callPath.node.callee;
+  let localName = null;
+  let memberExport = null;
+  if (callee.type === 'Identifier') {
+    localName = callee.name;
+  } else if (
+    callee.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.object.type === 'Identifier' &&
+    callee.property.type === 'Identifier'
+  ) {
+    localName = callee.object.name;
+    memberExport = callee.property.name;
+  } else {
+    return;
+  }
+
+  const b = bindings.get(localName);
+  if (!b) return;
+
+  if (b.kind === 'local') {
+    if (!b.isWorklet) {
+      violations.push(
+        `${rel}: worklet calls local ${b.name} (not a worklet)`,
+      );
+    }
+    return;
+  }
+
+  if (b.kind === 'namespace') {
+    if (!memberExport) return;
+    const resolved = resolveExportWorklet(
+      rel,
+      b.from,
+      memberExport,
+      fileSet,
+    );
+    if (!resolved) {
+      violations.push(
+        `${rel}: worklet calls ${localName}.${memberExport} from ${b.from} (unresolved — fail closed)`,
+      );
+      return;
+    }
+    if (!resolved.isWorklet) {
+      violations.push(
+        `${rel}: worklet calls ${memberExport} from ${b.from} (not a worklet)`,
+      );
+    }
+    return;
+  }
+
+  // named / default import
+  const exportName = memberExport ?? b.imported;
+  if (memberExport && b.kind === 'import' && b.imported !== 'default') {
+    // foo.bar where foo is a named import of a value — unusual; skip
+    return;
+  }
+  const resolved = resolveExportWorklet(
+    rel,
+    b.from,
+    exportName,
+    fileSet,
+  );
+  if (!resolved) {
+    // Relative imports must resolve; package imports are out of scope
+    if (b.from.startsWith('.')) {
+      violations.push(
+        `${rel}: worklet calls ${exportName} from ${b.from} (unresolved — fail closed)`,
+      );
+    }
+    return;
+  }
+  if (!resolved.isWorklet) {
+    violations.push(
+      `${rel}: worklet calls ${exportName} from ${b.from} (not a worklet)`,
+    );
+  }
+}
+
+/**
  * Scan one worklet (or auto-worklet) function body for non-worklet calls.
  */
 function scanWorkletBody(fnPath, rel, bindings, fileSet, violations) {
   fnPath.traverse({
     CallExpression(callPath) {
-      // Skip nested function scopes that are not themselves worklets
-      if (
-        callPath.findParent(
-          (p) =>
-            p.isFunction() &&
-            p.node !== fnPath.node &&
-            fnIsWorklet(p.node) === false &&
-            p.node.body?.type === 'BlockStatement',
-        )
-      ) {
-        // Still check calls inside nested non-worklet? Skip — only direct worklet body.
-      }
-      const callee = callPath.node.callee;
-      let localName = null;
-      let memberExport = null;
-      if (callee.type === 'Identifier') {
-        localName = callee.name;
-      } else if (
-        callee.type === 'MemberExpression' &&
-        !callee.computed &&
-        callee.object.type === 'Identifier' &&
-        callee.property.type === 'Identifier'
-      ) {
-        localName = callee.object.name;
-        memberExport = callee.property.name;
-      } else {
-        return;
-      }
-
-      const b = bindings.get(localName);
-      if (!b) return;
-
-      if (b.kind === 'local') {
-        if (!b.isWorklet) {
-          violations.push(
-            `${rel}: worklet calls local ${b.name} (not a worklet)`,
-          );
-        }
-        return;
-      }
-
-      if (b.kind === 'namespace') {
-        if (!memberExport) return;
-        const resolved = resolveExportWorklet(
-          rel,
-          b.from,
-          memberExport,
-          fileSet,
-        );
-        if (!resolved) {
-          violations.push(
-            `${rel}: worklet calls ${localName}.${memberExport} from ${b.from} (unresolved — fail closed)`,
-          );
-          return;
-        }
-        if (!resolved.isWorklet) {
-          violations.push(
-            `${rel}: worklet calls ${memberExport} from ${b.from} (not a worklet)`,
-          );
-        }
-        return;
-      }
-
-      // named / default import
-      const exportName = memberExport ?? b.imported;
-      if (memberExport && b.kind === 'import' && b.imported !== 'default') {
-        // foo.bar where foo is a named import of a value — unusual; skip
-        return;
-      }
-      const resolved = resolveExportWorklet(
-        rel,
-        b.from,
-        exportName,
-        fileSet,
-      );
-      if (!resolved) {
-        // Relative imports must resolve; package imports are out of scope
-        if (b.from.startsWith('.')) {
-          violations.push(
-            `${rel}: worklet calls ${exportName} from ${b.from} (unresolved — fail closed)`,
-          );
-        }
-        return;
-      }
-      if (!resolved.isWorklet) {
-        violations.push(
-          `${rel}: worklet calls ${exportName} from ${b.from} (not a worklet)`,
-        );
-      }
+      inspectWorkletCall(callPath, rel, bindings, fileSet, violations);
+    },
+    // OptionalCallExpression: same callee shapes (Identifier | MemberExpression)
+    OptionalCallExpression(callPath) {
+      inspectWorkletCall(callPath, rel, bindings, fileSet, violations);
     },
   });
 }

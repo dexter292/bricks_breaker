@@ -1,6 +1,6 @@
 /**
  * F-43 — prove jsdom + @testing-library/react harness works.
- * Do NOT mount PlayingHost here (RN / Skia / Reanimated).
+ * Real component coverage lives in HudStrip / CountdownOverlay / LevelErrorOverlay.
  *
  * @vitest-environment jsdom
  */

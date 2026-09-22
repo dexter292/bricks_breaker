@@ -53,7 +53,7 @@
 | G-5 | Trail không dính vệt của ball cũ | ❌ ring không bao giờ clear (retry + slot compaction) | (b) | F-16 |
 | G-6 | Không phát lại SFX/shake trùng sau khi mất mạng | ❌ `life_lost` retrigger ~120 lần/giây, shake ghim ở max | (b) | F-08 |
 | G-7 | Ball không xuyên collider | ⚠️ tunneling ở tốc độ thiết kế đã được property-test kỹ, nhưng 3 đường còn hở: CCD miss double-advance, ball chồng collider, grid stale | (b) | F-11, F-12, F-38 |
-| G-8 | Ball không stall gần-ngang quá lâu | ⚠️ tới **12 giây** worst case (tier 2 no-op ở max speed) | (b) | F-22, F-23, F-27 |
+| G-8 | Ball không stall gần-ngang quá lâu | ⚠️ tới **12 giây** worst case (tier 2 no-op ở max speed) | (b) | F-22, F-27; F-23 → **SUPERSEDED** by NG-1 |
 | G-9 | Audio không flam/clip khi multiball | ⚠️ không dedupe `sfxId` trong batch; 3 bản sao cùng waveform ở 0.85 | (b) | F-34 |
 | G-10 | Audio không chết im lặng | ⚠️ `release()` là latch một chiều trên memo `[]` | (c) | F-35 |
 | G-11 | Shake là rung, không phải trượt một hướng | ⚠️ hướng hardcode `(0.85, 0.53)`, không jitter; decay theo frame không theo dt | (c) | F-31 |
