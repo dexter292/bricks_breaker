@@ -69,7 +69,7 @@ plans:
 ## Wave 0 Requirements
 
 - [x] Extend `tests/levels.compile.test.ts` — level-03 compile + structural checks; keep 01/02 fingerprints green
-- [x] `tests/runtime.quality-tiers.test.ts` — memory heuristic + budgets + conservative null→Low
+- [x] `tests/runtime.quality-tiers.test.ts` — memory heuristic + budgets + conservative null→mid
 - [x] Extend VFX cap tests for trailMax/glowScale once API exists
 - [x] `tests/audio.release.test.ts` (or extend mapping) — release clears / idempotent
 - [x] Optional `scripts/assert-privacy-manifest.mjs` — `app.json` has `privacyManifests`

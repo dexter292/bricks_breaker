@@ -24,14 +24,14 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [x] Ads/IAP/account seams as no-ops with real `onRunEnded` call sites; airplane-playable — Validated in Phase 6
 - [x] Minimal SFX: paddle hit, brick hit/break, power-up, life lost, win/lose — Validated in Phase 7: Feedback (Human UAT 2026-09-21)
 - [x] Basic neon visual effects: glowing bricks, ball trails, particle destruction, subtle screen shake — Validated in Phase 7: Feedback
+- [x] Touch-controlled paddle with responsive, precise control on iOS and Android — Validated in Phase 3 (gesture → SharedValue)
+- [x] Ball movement with accurate, deterministic collision detection (paddle, walls, bricks) — Validated in Phases 2–5
+- [x] Multiple brick types with different hit points and behaviors — Validated in Phase 4
+- [x] One complete arcade challenge level (~2–3 min successful run) with progressive difficulty — level-03 showpiece (Phase 8); device duration UAT still open
+- [x] Pause and resume — Validated in Phases 3/6 (countdown resume, AppState freeze)
 
 ### Active
 
-- [ ] Touch-controlled paddle with responsive, precise control on iOS and Android
-- [ ] Ball movement with accurate, deterministic collision detection (paddle, walls, bricks)
-- [ ] Multiple brick types with different hit points and behaviors
-- [ ] One complete arcade challenge level (~2–3 min successful run) with progressive difficulty
-- [ ] Pause and resume
 - [ ] Performance measured on real mid-range devices (target 60 FPS) — PLT-03 pending Phase 8 Plan 06 device evidence
 
 ### Out of Scope

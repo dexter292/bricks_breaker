@@ -133,6 +133,8 @@ export function allocateWorld(capacities?: WorldCapacities): World {
     gridRows: 0,
     cellToBrick,
     brickCandidateScratch,
+    scratchSweep: { hit: false, t: 1, nx: 0, ny: 0 },
+    scratchVel: { vx: 0, vy: 0 },
     latticeOriginX: 0,
     latticeOriginY: 0,
     latticePitchX: 0,

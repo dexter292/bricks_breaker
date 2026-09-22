@@ -9,14 +9,17 @@ Task 2 of Plan 08-05 requires a **public HTTPS** URL that serves the same policy
 Public repo: `https://github.com/dexter292/bricks_breaker`  
 GitHub Pages: branch `main`, folder `/docs`.
 
-Verify reachability **and** contact channel (F-55 / NF-3 — status code alone is not enough):
+Verify reachability **and** contact channel (F-55 / NF-3 / NJ-3 — status code alone is not enough). Use a cache-buster and `Cache-Control: no-cache` so GitHub Pages edge cache cannot hide a stale Contact block:
 
 ```bash
-curl -fsSI "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html" | head -n 1
-curl -fsS "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html" | grep -F 'github.com/dexter292/bricks_breaker/issues'
+curl -fsSI -H 'Cache-Control: no-cache' \
+  "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html?t=$(date +%s)" | head -n 1
+curl -fsS -H 'Cache-Control: no-cache' \
+  "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html?t=$(date +%s)" \
+  | grep -E 'github.com/dexter292/bricks_breaker/issues|github.com/dexter292'
 ```
 
-Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the issues URL.
+Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the issues URL (and the profile fallback).
 
 ## How it was set up
 

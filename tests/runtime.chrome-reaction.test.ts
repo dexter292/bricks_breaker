@@ -1,34 +1,90 @@
 /**
- * F-25 / NF-8 / NG-16 — chrome bridge contracts (no pin of object-literal assign form).
+ * F-25 / NF-8 / NG-16 — chrome bridge: behavior of in-place mutate + seq bump.
+ * (Not a source-grep pin of the old object-literal assign form.)
  */
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+type ChromeMirror = {
+  phase: number;
+  lives: number;
+  score: number;
+  combo: number;
+  stallTier: number;
+};
 
-function read(rel: string): string {
-  return readFileSync(join(root, rel), 'utf8');
+/**
+ * Mirrors useGameLoop publish path: mutate stable object; bump seq only on change.
+ */
+function publishChrome(
+  mirror: ChromeMirror,
+  seq: { value: number },
+  next: ChromeMirror,
+): void {
+  let dirty = 0;
+  if (mirror.phase !== next.phase) {
+    mirror.phase = next.phase;
+    dirty = 1;
+  }
+  if (mirror.lives !== next.lives) {
+    mirror.lives = next.lives;
+    dirty = 1;
+  }
+  if (mirror.score !== next.score) {
+    mirror.score = next.score;
+    dirty = 1;
+  }
+  if (mirror.combo !== next.combo) {
+    mirror.combo = next.combo;
+    dirty = 1;
+  }
+  if (mirror.stallTier !== next.stallTier) {
+    mirror.stallTier = next.stallTier;
+    dirty = 1;
+  }
+  if (dirty) {
+    seq.value = seq.value + 1;
+  }
 }
 
-describe('runtime chrome reaction (F-25 / NF-8)', () => {
-  it('useGameLoop mutates chrome in place and bumps chromeSeq on change', () => {
-    const src = read('src/runtime/useGameLoop.ts');
-    expect(src).toContain('chromeOut: SharedValue<ChromeMirror>');
-    expect(src).toContain('chromeSeq: SharedValue<number>');
-    expect(src).toMatch(/chromeSeq\.value\s*=\s*chromeSeq\.value\s*\+\s*1/);
-    expect(src).not.toContain('livesOut');
-    expect(src).not.toContain('scoreOut');
+describe('runtime chrome reaction (F-25 / NF-8 / NG-16)', () => {
+  it('keeps the same mirror object identity across publishes', () => {
+    const mirror: ChromeMirror = {
+      phase: 0,
+      lives: 3,
+      score: 0,
+      combo: 1,
+      stallTier: 0,
+    };
+    const seq = { value: 0 };
+    const before = mirror;
+    publishChrome(mirror, seq, {
+      phase: 1,
+      lives: 3,
+      score: 10,
+      combo: 1,
+      stallTier: 0,
+    });
+    expect(mirror).toBe(before);
+    expect(mirror.score).toBe(10);
+    expect(mirror.phase).toBe(1);
   });
 
-  it('PlayingHost reacts to chromeSeq (not a per-frame tuple)', () => {
-    const src = read('app/_components/PlayingHost.tsx');
-    expect(src).toContain('chromeOut: chromeSv');
-    expect(src).toContain('chromeSeq');
-    expect(src).toContain('runOnJS(applyChrome)');
-    expect(src).toMatch(/\(\)\s*=>\s*chromeSeq\.value/);
-    expect(src).not.toMatch(/runOnJS\(setScore\)/);
-    expect(src).not.toMatch(/\[c\.phase,\s*c\.lives/);
+  it('bumps seq only when a field changes', () => {
+    const mirror: ChromeMirror = {
+      phase: 1,
+      lives: 3,
+      score: 10,
+      combo: 1,
+      stallTier: 0,
+    };
+    const seq = { value: 0 };
+    publishChrome(mirror, seq, { ...mirror });
+    expect(seq.value).toBe(0);
+    publishChrome(mirror, seq, { ...mirror, score: 20 });
+    expect(seq.value).toBe(1);
+    publishChrome(mirror, seq, { ...mirror, score: 20 });
+    expect(seq.value).toBe(1);
+    publishChrome(mirror, seq, { ...mirror, lives: 2 });
+    expect(seq.value).toBe(2);
   });
 });

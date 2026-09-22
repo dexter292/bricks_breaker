@@ -90,6 +90,7 @@ function applyTier2SpeedBoost(world: World): void {
 /**
  * Rotate each live ball by escalating ±nudge (8°, 16°, 24°… capped at 30°),
  * alternating sign by ball index and repeat count; enforce both angle floors.
+ * F-23 "prefer steeper" is SUPERSEDED (NH-7): parity can flatten toward mid-band — intentional (NG-1).
  */
 function applyTier3AngleNudge(world: World, repeatN: number): void {
   'worklet';

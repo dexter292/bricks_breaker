@@ -117,10 +117,23 @@ module.exports = [
     },
   },
   {
-    // LC-07 chrome bridge: batched runOnJS from PlayingHost reactions (not per-frame hot path)
+    // LC-07 chrome bridge: allow batched runOnJS from PlayingHost reactions only;
+    // scheduleOnRN stays forbidden (audio drain remains eventBridge-only).
     files: ['app/_components/PlayingHost.tsx'],
     rules: {
-      'no-restricted-syntax': 'off',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='scheduleOnRN']",
+          message:
+            'LC-07: No scheduleOnRN on the per-frame hot path (D-14). Use eventBridge for audio drain.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='scheduleOnRN']",
+          message:
+            'LC-07: No scheduleOnRN (member call) on the per-frame hot path (D-14).',
+        },
+      ],
     },
   },
   {
@@ -135,7 +148,10 @@ module.exports = [
         { type: 'input', pattern: 'src/input/**' },
         { type: 'vfx', pattern: 'src/vfx/**' },
         { type: 'services', pattern: 'src/services/**' },
-        { type: 'devflags', pattern: 'src/devflags.ts' },
+      ],
+      // Single-file flags — element descriptors match folders; use file category (NF-16).
+      'boundaries/files': [
+        { category: 'devflags', pattern: 'src/devflags.ts' },
       ],
     },
     rules: {
@@ -183,11 +199,16 @@ module.exports = [
                         'input',
                         'app',
                         'services',
-                        'devflags',
                       ],
                     },
                   },
                 },
+              },
+            },
+            {
+              from: { element: { type: 'app' } },
+              allow: {
+                to: { file: { categories: 'devflags' } },
               },
             },
             {
@@ -209,10 +230,6 @@ module.exports = [
             {
               from: { element: { type: 'services' } },
               allow: { to: { element: { type: 'services' } } },
-            },
-            {
-              from: { element: { type: 'devflags' } },
-              allow: { to: { element: { type: 'devflags' } } },
             },
           ],
         },

@@ -98,6 +98,14 @@ export type World = {
    * Ephemeral — not part of hashWorld / replay identity.
    */
   brickCandidateScratch: Int16Array;
+  /** Preallocated CCD / resolve scratch objects (F-56 / NJ-5) — not hashed. */
+  scratchSweep: {
+    hit: boolean;
+    t: number;
+    nx: number;
+    ny: number;
+  };
+  scratchVel: { vx: number; vy: number };
   /**
    * Lattice broadphase (playable levels): world→cell uses origin + pitch.
    * pitchX/Y <= 0 → legacy full-field division (dense physics fixtures).

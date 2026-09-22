@@ -109,6 +109,16 @@ Fill during Plan 06 device certification. Rows below are scaffolding only — **
 
 **D-04 / D-17 substitute note (if used):** _model / chipset / OS / refresh — MVP debt until Pixel 6a; substitute alone must not close MVP_
 
+### Deferred gate rows (D2 / D4 — see `docs/audit/DEFERRED-ITEMS.md`)
+
+These are PASS/FAIL gates (not p50/p95/jank). Fill on device; do not invent results.
+
+| ID | Gate | Platform | Build | Status | Evidence / Notes |
+|----|------|----------|-------|--------|------------------|
+| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | Android | profiling / release | PENDING_DEVICE | PASS/FAIL + build profile + brief repro notes |
+| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | iOS | profiling / release | PENDING_DEVICE | PASS/FAIL + build profile + brief repro notes |
+| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | profiling | PENDING_DEVICE | Instruments / worklet tick; supersedes Phase 1 waived iOS profiling row |
+
 ---
 
 ## Soak test (D-19…D-23)

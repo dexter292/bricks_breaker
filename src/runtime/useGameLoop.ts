@@ -212,18 +212,6 @@ function makeEmptyPicture(): SkPicture {
 }
 
 /**
- * When frozen → setActive(false) (+ accumulator reset via setActive).
- * When unfrozen → setActive(true) only — caller owns Resume→countdown first.
- */
-export function applyFreeze(
-  _worldSv: SharedValue<World | null>,
-  setActive: (active: boolean) => void,
-  frozen: boolean,
-): void {
-  setActive(!frozen ? true : false);
-}
-
-/**
  * Playable fixed-timestep host: Intent SharedValues → stepRun → letterboxed recordFrame.
  * Freeze via setActive(false) + resetAccumulator; never auto-resume (PLT-01 / PHYS-05).
  * Phase 7: per-substep VFX/audio drain + one batched audio hop via eventBridge.

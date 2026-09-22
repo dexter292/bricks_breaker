@@ -1,13 +1,12 @@
 import type { Intent, World } from './types';
 import { BrickFlags, EventCode } from './types';
 import { advanceBall } from './physics/integrate';
-import { sweepCircleAabbInto, type SweepHit } from './physics/sweep';
+import { sweepCircleAabbInto } from './physics/sweep';
 import {
   reflectVelocityInto,
   resolvePaddleEnglishInto,
   enforceMinVerticalRatioInto,
   enforceMinHorizontalRatioInto,
-  type Velocity2,
 } from './physics/resolve';
 import { pushEvent } from './events/ring';
 import { collectBrickCandidatesInto } from './physics/broadphase';
@@ -357,8 +356,8 @@ function escapeOverlappingBricks(world: World, bi: number, eps: number): void {
     world.ballVx[bi] = bestNx * 360;
     world.ballVy[bi] = bestNy * 360;
   }
-  // NG-4: cluster eject must honor paddle angle floors (same as CCD resolves).
-  const floorOut: Velocity2 = { vx: 0, vy: 0 };
+  // NG-4 / NJ-5: cluster eject floors via World.scratchVel (no per-call alloc).
+  const floorOut = world.scratchVel;
   enforceMinVerticalRatioInto(floorOut, world.ballVx[bi], world.ballVy[bi]);
   enforceMinHorizontalRatioInto(floorOut, floorOut.vx, floorOut.vy);
   world.ballVx[bi] = floorOut.vx;
@@ -407,10 +406,17 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
   const toiEps = 1e-8;
   const serveSpeed = 360; // SERVE_SPEED — floor for nuclear unstick
 
-  // Per-step locals (NOT module mutables). Reanimated worklets can clone/share
-  // module objects incorrectly across UI frames; stack locals are reliable.
-  const sweepOut: SweepHit = { hit: false, t: 1, nx: 0, ny: 0 };
-  const velOut: Velocity2 = { vx: 0, vy: 0 };
+  // F-56 / NJ-5: reuse World-preallocated scratch (never allocate per step).
+  // Module-level mutables were unreliable across Reanimated UI frames; World
+  // fields are allocated once in allocateWorld and stay on the same object.
+  const sweepOut = world.scratchSweep;
+  const velOut = world.scratchVel;
+  sweepOut.hit = false;
+  sweepOut.t = 1;
+  sweepOut.nx = 0;
+  sweepOut.ny = 0;
+  velOut.vx = 0;
+  velOut.vy = 0;
 
   // 1. Clear per-step brick damage marks
   const nDamage = world.brickDamagedThisStep.length;
@@ -628,9 +634,10 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         }
       }
 
-      // --- Bricks: lattice broadphase when pitch is set (NF-10 / F-47).
-      // Legacy packed grids (latticePitch<=0, e.g. loadTestGrid) divide the
-      // full field into cols×rows that do NOT match brick AABBs — flat scan.
+      // --- Bricks: lattice broadphase when pitch is set (NF-10 / NJ-2).
+      // Gate on useLattice alone — candCount===0 must NOT fall back to O(n)
+      // flat scan (that erased ~99% of broadphase savings).
+      // Legacy packed grids (latticePitch<=0) still use flat scan.
       // No nested visit() callback — Reanimated UI mishandles nested worklet
       // closures that mutate outer `let` best* (ball freeze on contact).
       const nBricks = world.brickCount;
@@ -639,10 +646,9 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         world.latticePitchY > 0 &&
         world.gridCols > 0 &&
         world.gridRows > 0;
-      let candCount = 0;
-      const candScratch = world.brickCandidateScratch;
       if (useLattice) {
-        candCount = collectBrickCandidatesInto(
+        const candScratch = world.brickCandidateScratch;
+        const candCount = collectBrickCandidatesInto(
           world,
           cx,
           cy,
@@ -651,8 +657,6 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
           radius,
           candScratch,
         );
-      }
-      if (useLattice && candCount > 0) {
         for (let ci = 0; ci < candCount; ci++) {
           const brickIndex = candScratch[ci];
           if (brickIndex < 0 || brickIndex >= nBricks) {

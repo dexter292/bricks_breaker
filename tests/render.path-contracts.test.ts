@@ -1,7 +1,8 @@
 /**
- * T7.5 / F-13…F-16 — render-path regressions via source contracts.
- * Skia PictureRecorder is awkward in Node; pin the invariants that kept
- * anti-alias, glow size, trail clear, and brick-color wiring correct.
+ * T7.5 — render-path wiring contracts (source API calls, not ticket-comment greps).
+ * Skia PictureRecorder is awkward in Node; pin the call-site invariants that kept
+ * anti-alias, glow size overrides, trail clear, and brick-color wiring correct.
+ * Behavior for trails / brick RGB is covered in tests/vfx.*.test.ts.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -15,25 +16,35 @@ function read(rel: string): string {
 }
 
 describe('render path contracts (T7.5)', () => {
-  it('F-15: recordSprites enables anti-alias on ball/particle paints', () => {
+  it('recordSprites enables anti-alias on paints', () => {
     const src = read('src/render/recordSprites.ts');
     expect(src).toMatch(/setAntiAlias\s*\(\s*true\s*\)/);
   });
 
-  it('F-14: bakeGlowSprites accepts brick width/height overrides', () => {
+  it('bakeGlowSprites takes brickW/brickH overrides and sizes the atlas from them', () => {
     const src = read('src/render/textures/bakeGlowSprites.ts');
-    expect(src).toMatch(/export function bakeGlowSprites/);
-    expect(src).toMatch(/brickW|cellW|width/);
-    expect(src).toMatch(/F-14/);
+    expect(src).toMatch(
+      /export function bakeGlowSprites\s*\(\s*brickW\s*:\s*number/,
+    );
+    expect(src).toMatch(/brickH\s*:\s*number/);
+    expect(src).toMatch(/Math\.floor\(\s*brickW\s*\)/);
+    expect(src).toMatch(/Math\.floor\(\s*brickH\s*\)/);
   });
 
-  it('F-16: useGameLoop clears trails when live ball count drops', () => {
+  it('useGameLoop clears trails when live ball count drops', () => {
     const src = read('src/runtime/useGameLoop.ts');
-    expect(src).toMatch(/lastTrailBallCount|clearTrails|F-16/);
+    expect(src).toMatch(/lastTrailBallCount/);
+    expect(src).toMatch(/clearTrailsFromIndex/);
+    expect(src).toMatch(
+      /ballCount\s*<\s*lastTrailBallCount\.value/,
+    );
   });
 
-  it('F-13: consumeEvents resolves brick RGB via defaultResolveBrickRgb', () => {
+  it('consumeEvents resolves brick RGB via defaultResolveBrickRgb', () => {
     const src = read('src/vfx/consumeEvents.ts');
-    expect(src).toMatch(/defaultResolveBrickRgb|resolveBrickRgb|rgbFromBrickHp/);
+    expect(src).toMatch(/defaultResolveBrickRgb/);
+    expect(src).toMatch(
+      /resolveBrickRgb\s*\?\?\s*defaultResolveBrickRgb/,
+    );
   });
 });

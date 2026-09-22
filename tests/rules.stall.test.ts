@@ -133,6 +133,7 @@ describe('stall rules (PHYS-07)', () => {
     );
   });
 
+  // F-23 SUPERSEDED: asserts heading change, not "prefer steeper" (see DEFERRED-ITEMS / stall.ts).
   it('two consecutive tier-3 interventions change heading by >1e-6 (NG-1)', () => {
     const w = playingWorld();
     const speed = 420;

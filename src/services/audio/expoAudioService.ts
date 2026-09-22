@@ -202,12 +202,12 @@ export function createMemoryAudioService(): MemoryAudioService {
         if (!sfxId) continue;
         tallies.set(sfxId, (tallies.get(sfxId) ?? 0) + 1);
       }
-      for (const [sfxId, hits] of tallies) {
+      // One play per distinct sfx per batch (dedupe); tallies count is for gain bump in real service
+      for (const sfxId of tallies.keys()) {
         const limit = VOICE_LIMITS[sfxId];
         const cursor = cursors.get(sfxId) ?? 0;
         const voiceIndex = selectVoiceIndex(cursor, limit);
         cursors.set(sfxId, cursor + 1);
-        // One play per distinct sfx per batch (dedupe); gain bump applied in real service
         plays.push({ sfxId, voiceIndex });
       }
     },

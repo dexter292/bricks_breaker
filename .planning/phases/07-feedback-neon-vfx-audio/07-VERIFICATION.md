@@ -24,7 +24,7 @@ deferred:
 | # | Truth | Status | Evidence |
 | --- | --- | --- | --- |
 | 1 | The ball keeps a readable trail at maximum speed; under reduced motion the trail degrades to a high-contrast minimum instead of vanishing | ✓ VERIFIED | `trailLength` floors at 2 / ceilings at 5 (`src/vfx/intensity.ts`); `pushTrail` typed-array ring (`src/vfx/trails.ts`); `recordFrame` draws white ghost circles under live ball + cyan rim at intensity≥0.75 (`src/render/recordSprites.ts`); Human UAT approved 2026-09-21 |
-| 2 | Brick destruction produces glow, pooled particles, and subtle shake inside a hard particle budget; no effect obscures paddle/ball long enough to cost a rally | ✓ VERIFIED | Baked glow atlas (`bakeGlowSprites.ts`, soft/strong pads); pool 128/192 + chip=4/destroy=12 (`particles.ts`/`types.ts`); shake cap 2.5 / decay 0.85, punches only BRICK_BREAK/LIFE_LOST (`shake.ts`/`consumeEvents.ts`); draw order particles→paddle→trail→ball; Human UAT approved |
+| 2 | Brick destruction produces glow, pooled particles, and subtle shake inside a hard particle budget; no effect obscures paddle/ball long enough to cost a rally | ✓ VERIFIED | Baked glow atlas (`bakeGlowSprites.ts`, soft idle halo only — no strong pad); pool 128/192 + chip=4/destroy=12 (`particles.ts`/`types.ts`); shake cap 2.5 / decay 0.85, punches only BRICK_BREAK/LIFE_LOST (`shake.ts`/`consumeEvents.ts`); draw order particles→paddle→trail→ball; Human UAT approved |
 | 3 | One global intensity scalar — defaulting from OS reduce-motion — scales every effect, and deleting the VFX layer leaves gameplay identical | ✓ VERIFIED | `useVfxIntensity` → AccessibilityInfo → 1.0/0.2 (`useVfxIntensity.ts`); `recordFrame(..., vfx=null)` path documented deletable; `stepVfx` / consume never write World gameplay fields |
 | 4 | Paddle hit, brick hit/break, power-up catch, life lost, win, and lose each play distinct SFX aligned to impact frame; same-frame identical sfx coalesce to one voice (gain bump), cross-frame rapid hits use pooled overlap | ✓ VERIFIED | EventCodes 2/3/4/6/7/8/9 mapped (`mapping.ts`); core push sites in pickups/lives/win; per-substep `appendEventsForAudio` + one `scheduleOnRN(playBatch)` / frame (`useGameLoop.ts`/`eventBridge.ts`); `playBatch` dedupes identical sfx per batch (`expoAudioService.ts` F-34); voice pools + round-robin reuse across frames (`VOICE_LIMITS`); seven `assets/sfx/*.wav`; Human UAT approved |
 | 5 | Every effect is measured against Phase 1 frame budget on named Android reference (or documented waiver) | ✗ NOT MET (pending device) | `docs/phase7-vfx-measurement.md` has methodology + gfxinfo protocol only; Results row OPEN — no p50/p95/jank numbers. Procedure ≠ measurement (T8.1 / F-19). Evidence owed to Phase 8 Plan 06 (PLT-03). |
@@ -72,7 +72,7 @@ deferred:
 | eventBridge | AudioService.playBatch | scheduleOnRN once/frame | ✓ WIRED | only `eventBridge.ts` imports scheduleOnRN |
 | PlayingHost | createDefaultAudioService + bakeGlowSprites | useEffect → fxReady → setActive | ✓ WIRED | release on unmount |
 | recordFrame | VfxState | optional vfx param | ✓ WIRED | null = pre-Phase-7 flat draw |
-| bakeGlowSprites | brickFill colors | SkImage soft/strong | ✓ WIRED | HP1–3 + unbreakable |
+| bakeGlowSprites | brickFill colors | SkImage soft (idle) | ✓ WIRED | HP1–3 + unbreakable; destroy flash is white circle in recordSprites |
 | stepPickups / lives / win | EventCode ring | pushEvent | ✓ WIRED | POWERUP_CATCH / LIFE_LOST / LOSE / WIN |
 | mapEventToSfx | SfxId + voice pools | playBatch | ✓ WIRED | all FX-03 codes except wall/ball-out |
 
@@ -124,7 +124,7 @@ None. Human UAT already approved 2026-09-21 in `07-VALIDATION.md` (trail / parti
 
 ### Gaps Summary
 
-Code + Human UAT for FX-01…FX-04 truths 1–4 are satisfied. **SC-5 (measured frame budget on named Android device) is not met** until Phase 8 Plan 06 records real gfxinfo numbers — do not treat Phase 7 as performance-certified.
+Code + Human UAT for FX-01…FX-03 truths 1–4 are satisfied. **SC-5 (measured frame budget on named Android device) is not met** until Phase 8 Plan 06 records real gfxinfo numbers — do not treat Phase 7 as performance-certified.
 
 ---
 

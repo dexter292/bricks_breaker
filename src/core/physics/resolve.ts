@@ -6,7 +6,7 @@
 
 export type Velocity2 = { vx: number; vy: number };
 
-/** Module-level scratch for allocation-free collision resolve (F-56). */
+/** Module-level scratch for test-only wrappers (F-56). Hot path uses World.scratchVel (NJ-5). */
 const _velScratch: Velocity2 = { vx: 0, vy: 0 };
 
 /**

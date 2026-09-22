@@ -122,30 +122,29 @@ function findPrivacyInfoFiles(dir, out = []) {
 }
 
 /**
- * Minimal plist check: warn if NSPrivacyTrackingDomains key is absent or
- * DiskSpace category is missing from the generated artifact (ios/ is gitignored;
- * regenerate with `expo prebuild --clean` before release).
+ * Fail if prebuild PrivacyInfo.xcprivacy drifted from app config (F-39).
+ * ios/ is often gitignored; when present, drift must block release gates.
  */
-function warnXcprivacy(path) {
+function assertXcprivacy(path) {
   const text = readFileSync(path, 'utf8');
   const rel = path.slice(root.length + 1);
-  let drifted = false;
+  const errors = [];
 
   if (!text.includes('<key>NSPrivacyTrackingDomains</key>')) {
-    console.warn(
-      `${rel}: WARN missing NSPrivacyTrackingDomains key (prebuild drift vs app config — F-39)`,
-    );
-    drifted = true;
+    errors.push(`${rel}: missing NSPrivacyTrackingDomains key (F-39)`);
   }
-
   if (!text.includes('NSPrivacyAccessedAPICategoryDiskSpace')) {
-    console.warn(
-      `${rel}: WARN missing NSPrivacyAccessedAPICategoryDiskSpace (prebuild drift vs app config — F-39)`,
+    errors.push(
+      `${rel}: missing NSPrivacyAccessedAPICategoryDiskSpace (F-39)`,
     );
-    drifted = true;
   }
-
-  return drifted;
+  // FileTimestamp reasons must include the three codes from app.config.js
+  for (const code of ['C617.1', '0A2A.1', '3B52.1']) {
+    if (!text.includes(code)) {
+      errors.push(`${rel}: FileTimestamp missing reason ${code} (F-39)`);
+    }
+  }
+  return errors;
 }
 
 const expo = loadExpoConfig();
@@ -157,15 +156,21 @@ if (existsSync(iosRoot)) {
   const files = findPrivacyInfoFiles(iosRoot).filter(
     (p) => !p.includes(`${join('ios', 'Pods')}`),
   );
-  let anyDrift = false;
+  const driftErrors = [];
   for (const file of files) {
-    if (warnXcprivacy(file)) anyDrift = true;
+    driftErrors.push(...assertXcprivacy(file));
+  }
+  if (driftErrors.length > 0) {
+    console.error(
+      'PrivacyInfo.xcprivacy drift vs app.config.js (F-39):\n' +
+        driftErrors.join('\n') +
+        '\nRun: npx expo prebuild --clean',
+    );
+    process.exit(1);
   }
   if (files.length > 0) {
     console.log(
-      anyDrift
-        ? `privacyManifests OK (config); WARN prebuild PrivacyInfo drift — run expo prebuild --clean before release`
-        : `privacyManifests OK (config + ${files.length} PrivacyInfo.xcprivacy)`,
+      `privacyManifests OK (config + ${files.length} PrivacyInfo.xcprivacy)`,
     );
   } else {
     console.log('privacyManifests OK (config; no app PrivacyInfo.xcprivacy yet)');

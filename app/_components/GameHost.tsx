@@ -19,6 +19,8 @@ const SOAK_CONTINUOUS_MS = 15 * 60 * 1000;
  * tears down the game loop worklets (RESEARCH Pattern 1 / Pitfall 1).
  */
 export function GameHost() {
+  // Intentional second useFonts site (PlayingHost also loads SpaceMono for HUD).
+  // expo-font caches by URI — duplicate call is cheap, keeps Title self-contained when Playing unmounts.
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });

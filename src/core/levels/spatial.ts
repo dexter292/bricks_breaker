@@ -42,10 +42,16 @@ export function assignSpatialBrickCells(
     }
     const c = Math.round((world.brickX[bi] - originX) / pitchX);
     const r = Math.round((world.brickY[bi] - originY) / pitchY);
+    // NJ-2: any live brick that cannot map, or two bricks claiming one cell → fail.
+    // Silent continue / overwrite used to drop colliders while still returning true.
     if (c < 0 || r < 0 || c >= cols || r >= rows) {
-      continue;
+      return false;
     }
-    world.cellToBrick[r * cols + c] = bi;
+    const cell = r * cols + c;
+    if (world.cellToBrick[cell] >= 0) {
+      return false;
+    }
+    world.cellToBrick[cell] = bi;
   }
 
   world.gridCols = cols;
