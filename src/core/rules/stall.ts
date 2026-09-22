@@ -14,7 +14,10 @@
  */
 import type { World } from '../types';
 import { BrickFlags, EventCode, SimPhase } from '../types';
-import { enforceMinVerticalRatio } from '../physics/resolve';
+import {
+  enforceMinVerticalRatio,
+  enforceMinHorizontalRatio,
+} from '../physics/resolve';
 
 /** True if the event ring contains breakable BRICK_HIT or BRICK_BREAK. */
 function hasBreakableDamage(world: World): boolean {
@@ -77,21 +80,25 @@ function applyTier2SpeedBoost(world: World): void {
     }
     // F-22: when already at MAX_BALL_SPEED the boost is a no-op — still
     // lift near-horizontal headings so recovery is not deferred to tier 3.
-    const steep = enforceMinVerticalRatio(vx, vy);
+    let steep = enforceMinVerticalRatio(vx, vy);
+    steep = enforceMinHorizontalRatio(steep.vx, steep.vy);
     world.ballVx[i] = steep.vx;
     world.ballVy[i] = steep.vy;
   }
 }
 
 /**
- * Rotate each live ball by ±8° (even +, odd −), then enforce MIN_VERTICAL_RATIO.
+ * Rotate each live ball by escalating ±nudge (8°, 16°, 24°… capped at 30°),
+ * alternating sign by ball index and repeat count; enforce both angle floors.
  */
-function applyTier3AngleNudge(world: World): void {
+function applyTier3AngleNudge(world: World, repeatN: number): void {
   'worklet';
-  const nudgeDeg = 8;
+  const baseNudgeDeg = 8;
+  const nudgeDeg =
+    baseNudgeDeg + baseNudgeDeg * repeatN > 30
+      ? 30
+      : baseNudgeDeg + baseNudgeDeg * repeatN;
   const nudgeRad = (nudgeDeg * Math.PI) / 180;
-  const clampRad = (62 * Math.PI) / 180;
-  const minVert = Math.cos(clampRad);
   const maxSpeed = 720;
 
   const limit = world.activeBallCount;
@@ -110,42 +117,16 @@ function applyTier3AngleNudge(world: World): void {
     }
 
     const signParity = i % 2 === 0 ? 1 : -1;
-    // F-23: try both rotation signs; keep the one that increases |vy|/speed
-    // (steeper). XOR with parity only as a tie-break for multi-ball fan-out.
-    const candidates = [signParity, -signParity];
-    let bestVx = vx;
-    let bestVy = vy;
-    let bestRatio = Math.abs(vy) / speed;
-    for (let ci = 0; ci < candidates.length; ci++) {
-      const theta = candidates[ci] * nudgeRad;
-      const c = Math.cos(theta);
-      const s = Math.sin(theta);
-      let nvx = vx * c - vy * s;
-      let nvy = vx * s + vy * c;
-      if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) {
-        continue;
-      }
-      const speed1 = Math.hypot(nvx, nvy);
-      if (speed1 > 0) {
-        const scale = speed / speed1;
-        nvx *= scale;
-        nvy *= scale;
-      }
-      const ratio = Math.abs(nvy) / (Math.hypot(nvx, nvy) || 1);
-      if (ratio > bestRatio + 1e-9 || (Math.abs(ratio - bestRatio) <= 1e-9 && ci === 0)) {
-        bestRatio = ratio;
-        bestVx = nvx;
-        bestVy = nvy;
-      }
-    }
-    let nvx = bestVx;
-    let nvy = bestVy;
-
+    const signRepeat = repeatN % 2 === 0 ? 1 : -1;
+    const theta = signParity * signRepeat * nudgeRad;
+    const c = Math.cos(theta);
+    const s = Math.sin(theta);
+    let nvx = vx * c - vy * s;
+    let nvy = vx * s + vy * c;
     if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) {
       continue;
     }
 
-    // Re-normalize to prior speed (rotation should preserve; guard float drift)
     const speed1 = Math.hypot(nvx, nvy);
     if (speed1 > 0) {
       const scale = speed / speed1;
@@ -153,45 +134,17 @@ function applyTier3AngleNudge(world: World): void {
       nvy *= scale;
     }
 
-    // Enforce |vy|/speed >= MIN_VERTICAL_RATIO (toward steeper if needed)
-    let curSpeed = Math.hypot(nvx, nvy);
-    if (!(curSpeed > 0)) {
-      continue;
-    }
-    let absVyRatio = Math.abs(nvy) / curSpeed;
-    if (absVyRatio < minVert) {
-      const headingSign = nvx >= 0 ? 1 : -1;
-      const clamped = headingSign * clampRad;
-      // Reconstruct from vertical: angle from up (−y) like paddle english
-      nvx = Math.sin(clamped) * curSpeed;
-      nvy = -Math.cos(clamped) * curSpeed;
-      // Preserve original vertical direction (up vs down)
-      if (vy > 0) {
-        nvy = Math.abs(nvy);
-      } else {
-        nvy = -Math.abs(nvy);
-      }
-      curSpeed = Math.hypot(nvx, nvy);
-    }
-
-    if (curSpeed > maxSpeed && curSpeed > 0) {
-      const scale = maxSpeed / curSpeed;
+    if (speed > maxSpeed) {
+      const scale = maxSpeed / speed;
       nvx *= scale;
       nvy *= scale;
-      curSpeed = maxSpeed;
+      speed = maxSpeed;
     }
 
-    // Final finite + min-vertical guard (T-05-03)
-    if (!Number.isFinite(nvx) || !Number.isFinite(nvy) || !(curSpeed > 0)) {
-      continue;
-    }
-    absVyRatio = Math.abs(nvy) / curSpeed;
-    if (absVyRatio < minVert) {
-      const headingSign = nvx >= 0 ? 1 : -1;
-      const clamped = headingSign * clampRad;
-      nvx = Math.sin(clamped) * curSpeed;
-      nvy = vy > 0 ? Math.cos(clamped) * curSpeed : -Math.cos(clamped) * curSpeed;
-    }
+    let steep = enforceMinVerticalRatio(nvx, nvy);
+    let flat = enforceMinHorizontalRatio(steep.vx, steep.vy);
+    nvx = flat.vx;
+    nvy = flat.vy;
 
     if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) {
       continue;
@@ -215,6 +168,7 @@ export function stepAntiStall(world: World): void {
   const idleTier1 = 960;
   const idleTier2 = 1200; // 960 + 240
   const idleTier3 = 1440; // 960 + 480
+  const tier3Repeat = 240; // STALL_TIER3_REPEAT_TICKS
 
   if (hasBreakableDamage(world)) {
     world.stallIdleTicks = 0;
@@ -239,7 +193,13 @@ export function stepAntiStall(world: World): void {
   if (nextTier >= 2 && prevTier < 2) {
     applyTier2SpeedBoost(world);
   }
-  if (nextTier >= 3 && prevTier < 3) {
-    applyTier3AngleNudge(world);
+  if (nextTier >= 3) {
+    const sinceTier3 = idle - idleTier3;
+    const repeatN = Math.floor(sinceTier3 / tier3Repeat);
+    if (prevTier < 3) {
+      applyTier3AngleNudge(world, repeatN);
+    } else if (sinceTier3 > 0 && sinceTier3 % tier3Repeat === 0) {
+      applyTier3AngleNudge(world, repeatN);
+    }
   }
 }

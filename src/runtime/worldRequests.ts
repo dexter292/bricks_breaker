@@ -15,7 +15,7 @@ import {
   type CompiledLevel,
   type World,
 } from '../core';
-import { punchShake, spawnBurst, type VfxState } from '../vfx';
+import { punchShake, spawnBurst, clearTrailsFromIndex, type VfxState } from '../vfx';
 
 /** Default RNG seeds — match allocateWorld / useGameLoop literals (JS/tests only). */
 export const SEED_GAMEPLAY = 0xc0ffee01;
@@ -42,7 +42,7 @@ export function applyRetryWorldReset(
 }
 
 /** Clear cosmetic SoA so trails / sparks / shake do not leak across Retry. */
-export function clearCosmeticVfx(vfx: VfxState): void {
+export function clearCosmeticVfx(vfx: VfxState, world?: World | null): void {
   'worklet';
   vfx.particleCount = 0;
   vfx.particleOldest = 0;
@@ -57,17 +57,14 @@ export function clearCosmeticVfx(vfx: VfxState): void {
   }
   vfx.freeTop = cap;
   vfx.particleOldest = 0;
-  // F-16: zero heads + sample rings (head-only clear left ghost samples drawable).
-  const heads = vfx.trailHead;
-  for (let i = 0; i < heads.length; i++) {
-    heads[i] = 0;
-  }
-  const tx = vfx.trailX;
-  const ty = vfx.trailY;
-  for (let i = 0; i < tx.length; i++) {
-    tx[i] = 0;
-    ty[i] = 0;
-  }
+  // F-16 / NF-7: seed trail rings from live ball positions (never leave (0,0) ghosts).
+  clearTrailsFromIndex(
+    vfx,
+    0,
+    world?.ballX,
+    world?.ballY,
+    world?.ballActive,
+  );
   vfx.shakeAmp = 0;
   vfx.shakePhase = 0;
 }

@@ -30,8 +30,14 @@ import { computeRelativePaddleX } from './paddleIntent';
 const PADDLE_HALF_W = 36;
 
 export type PaddleGestureOptions = {
-  /** SharedValue 0=docked,1=playing,2=won,3=lost — mirror SimPhase numeric */
-  simPhase: SharedValue<number>;
+  /** HUD chrome mirror — reads `.phase` on UI thread (shape matches runtime ChromeMirror). */
+  chrome: SharedValue<{
+    phase: number;
+    lives: number;
+    score: number;
+    combo: number;
+    stallTier: number;
+  }>;
   /** SharedValue ui shell: 0=playing,1=paused,2=countdown */
   uiPhase: SharedValue<number>;
   camScale: SharedValue<number>;
@@ -55,7 +61,7 @@ function panModeAllowed(simPhase: number, uiPhase: number): boolean {
 export function usePaddleGesture(
   options: PaddleGestureOptions,
 ): PaddleGestureHandle {
-  const { simPhase, uiPhase, camScale, initialPaddleX } = options;
+  const { chrome, uiPhase, camScale, initialPaddleX } = options;
   const startX = initialPaddleX ?? 180;
 
   const paddleTarget = useSharedValue(startX);
@@ -67,7 +73,7 @@ export function usePaddleGesture(
     .minDistance(PAN_MIN_DISTANCE_PX)
     .onBegin(() => {
       'worklet';
-      if (!panModeAllowed(simPhase.value, uiPhase.value)) {
+      if (!panModeAllowed(chrome.value.phase, uiPhase.value)) {
         return;
       }
       // Do NOT set panActive here — onBegin fires before Race resolves Tap vs Pan.
@@ -76,7 +82,7 @@ export function usePaddleGesture(
     })
     .onStart(() => {
       'worklet';
-      if (!panModeAllowed(simPhase.value, uiPhase.value)) {
+      if (!panModeAllowed(chrome.value.phase, uiPhase.value)) {
         return;
       }
       // Pan activated (past minDistance) — cancel serve for this gesture
@@ -85,7 +91,7 @@ export function usePaddleGesture(
     })
     .onUpdate((e) => {
       'worklet';
-      if (!panModeAllowed(simPhase.value, uiPhase.value)) {
+      if (!panModeAllowed(chrome.value.phase, uiPhase.value)) {
         return;
       }
       paddleTarget.value = computeRelativePaddleX({
@@ -111,7 +117,7 @@ export function usePaddleGesture(
       // Docked + playing-shell gates + !panActive (D-11); no Resume here
       if (
         shouldAcceptServeTap({
-          simPhaseDocked: simPhase.value === 0,
+          simPhaseDocked: chrome.value.phase === 0,
           uiPaused: uiPhase.value === 1,
           countdown: uiPhase.value === 2,
           panActive: panActive.value,

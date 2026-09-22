@@ -24,6 +24,24 @@ const level01 = JSON.parse(
 ) as unknown;
 
 describe('runtime worldRequests (F-01)', () => {
+  it('T7.1/F-01: retry helper mutates the same World — tick drops after two resets', () => {
+    const result = loadAndCompile(level01);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const world = allocateWorld();
+    applyRetryWorldReset(world, result.compiled);
+    // Simulate play advancing tick on the live World reference (not a clone).
+    world.tick = 120;
+    const firstRef = world;
+    applyRetryWorldReset(world, result.compiled);
+    expect(world).toBe(firstRef);
+    expect(world.tick).toBe(0);
+    world.tick = 55;
+    applyRetryWorldReset(world, result.compiled);
+    expect(world.tick).toBe(0);
+  });
+
   it('applyRetryWorldReset restores DOCKED + full HP + zero score/tick from LOST-like state', () => {
     const result = loadAndCompile(level01);
     expect(result.ok).toBe(true);

@@ -48,51 +48,61 @@ describe('vfx trails (FX-01)', () => {
     expect(vfx.trailY[base + newest]).toBe(1998);
   });
 
-  it('clearTrailBall zeros head + samples for one slot (F-16)', () => {
+  it('clearTrailBall seeds head + samples to ball position (NF-7)', () => {
     const vfx = allocateVfx({ maxBalls: 3 });
     const len = trailLength(1.0);
     pushTrail(vfx, 1, 40, 80, len);
     pushTrail(vfx, 1, 41, 81, len);
     pushTrail(vfx, 2, 90, 10, len);
 
-    clearTrailBall(vfx, 1);
+    clearTrailBall(vfx, 1, 55, 66);
 
     expect(vfx.trailHead[1]).toBe(0);
     const base = 1 * TRAIL_MAX;
     for (let i = 0; i < TRAIL_MAX; i++) {
-      expect(vfx.trailX[base + i]).toBe(0);
-      expect(vfx.trailY[base + i]).toBe(0);
+      expect(vfx.trailX[base + i]).toBe(55);
+      expect(vfx.trailY[base + i]).toBe(66);
     }
     // Sibling slot untouched
     expect(vfx.trailHead[2]).toBe(1);
     expect(vfx.trailX[2 * TRAIL_MAX]).toBe(90);
   });
 
-  it('clearTrailsFromIndex after compaction leaves no ghost slots (F-16)', () => {
+  it('clearTrailsFromIndex seeds active balls; no (0,0) ghost samples (NF-7)', () => {
     const vfx = allocateVfx({ maxBalls: 4 });
     const len = trailLength(1.0);
     pushTrail(vfx, 0, 10, 10, len);
     pushTrail(vfx, 1, 20, 200, len);
     pushTrail(vfx, 2, 30, 300, len);
 
-    clearTrailsFromIndex(vfx, 0); // runtime clears all when count drops
+    const ballX = new Float32Array([120, 0, 0, 0]);
+    const ballY = new Float32Array([340, 0, 0, 0]);
+    const ballActive = new Uint8Array([1, 0, 0, 0]);
 
-    for (let bi = 0; bi < 4; bi++) {
+    clearTrailsFromIndex(vfx, 0, ballX, ballY, ballActive);
+
+    expect(vfx.trailHead[0]).toBe(0);
+    const base0 = 0 * TRAIL_MAX;
+    for (let i = 0; i < TRAIL_MAX; i++) {
+      expect(vfx.trailX[base0 + i]).toBe(120);
+      expect(vfx.trailY[base0 + i]).toBe(340);
+    }
+    for (let bi = 1; bi < 4; bi++) {
       expect(vfx.trailHead[bi]).toBe(0);
-      const base = bi * TRAIL_MAX;
-      for (let i = 0; i < TRAIL_MAX; i++) {
-        expect(vfx.trailX[base + i]).toBe(0);
-        expect(vfx.trailY[base + i]).toBe(0);
-      }
     }
   });
 
-  it('clearCosmeticVfx zeros trail sample rings (Retry path)', () => {
+  it('clearCosmeticVfx seeds trail rings from world ball position (Retry path)', () => {
     const vfx = allocateVfx({ maxBalls: 2 });
     pushTrail(vfx, 0, 11, 22, 5);
-    clearCosmeticVfx(vfx);
+    const world = {
+      ballX: new Float32Array([180, 0]),
+      ballY: new Float32Array([500, 0]),
+      ballActive: new Uint8Array([1, 0]),
+    };
+    clearCosmeticVfx(vfx, world as never);
     expect(vfx.trailHead[0]).toBe(0);
-    expect(vfx.trailX[0]).toBe(0);
-    expect(vfx.trailY[0]).toBe(0);
+    expect(vfx.trailX[0]).toBe(180);
+    expect(vfx.trailY[0]).toBe(500);
   });
 });

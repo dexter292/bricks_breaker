@@ -9,11 +9,11 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 ### Controls & Physics
 
-- [ ] **PHYS-01**: Player can move the paddle with relative-drag touch (not absolute finger-follow), with tuned gain and light smoothing on device
+- [x] **PHYS-01**: Player can move the paddle with relative-drag touch (not absolute finger-follow), with tuned gain and light smoothing on device
 - [x] **PHYS-02**: Ball collides with paddle, walls, and bricks using swept, deterministic collision with no tunneling at designed max speed
 - [x] **PHYS-03**: Collision and simulation logic are unit-tested (including property tests for extreme speeds / dense grids)
 - [x] **PHYS-04**: Ball bounce angle is paddle-relative with clamps that avoid near-horizontal and near-vertical degenerate trajectories
-- [ ] **PHYS-05**: On life start, ball is docked to the paddle and player launches with an aimed release/tap
+- [x] **PHYS-05**: On life start, ball is docked to the paddle and player launches with an aimed release/tap
 - [x] **PHYS-06**: Game advances on a fixed-timestep loop; React state is not updated every physics frame
 - [x] **PHYS-07**: Anti-stall mitigation uses visible, deterministic escalation (no random bounce jitter)
 
@@ -27,7 +27,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 ### Run Loop
 
 - [x] **RUN-01**: Player earns score with combo rewards for consecutive brick hits without paddle contact
-- [ ] **RUN-02**: Player has a limited number of lives (default 3) with clear win and lose presentations
+- [x] **RUN-02**: Player has a limited number of lives (default 3) with clear win and lose presentations
 - [x] **RUN-03**: Player can instantly retry from lose or pause without a confirmation dialog
 - [x] **RUN-04**: Local high score persists across app kills (offline, no account)
 
@@ -45,9 +45,9 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 ### Platform & Performance
 
-- [ ] **PLT-01**: Player can pause/resume; app auto-pauses on OS background/interruption and resumes with a countdown (no physics catch-up spiral)
+- [x] **PLT-01**: Player can pause/resume; app auto-pauses on OS background/interruption and resumes with a countdown (no physics catch-up spiral)
 - [x] **PLT-02**: Playfield layout is responsive with safe-area handling on iOS and Android
-- [x] **PLT-03**: Stable 60 FPS is measured on a named mid-range real device (including worst-case multi-ball + particle burst); RN perf monitor alone is not acceptance
+- [ ] **PLT-03**: Stable 60 FPS is measured on a named mid-range real device (including worst-case multi-ball + particle burst); RN perf monitor alone is not acceptance
 - [x] **PLT-04**: Store compliance baseline is prepared: public HTTPS privacy policy URL, Google Play Data Safety form, honest age rating, iOS privacy manifest as required
 
 ### Architecture (cross-cutting)
@@ -99,11 +99,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PHYS-01 | Phase 3 | Pending |
+| PHYS-01 | Phase 3 | Complete |
 | PHYS-02 | Phase 2 | Complete |
 | PHYS-03 | Phase 2 | Complete |
 | PHYS-04 | Phase 2 | Complete |
-| PHYS-05 | Phase 3 | Pending |
+| PHYS-05 | Phase 3 | Complete |
 | PHYS-06 | Phase 2 | Complete |
 | PHYS-07 | Phase 5 | Complete |
 | LVL-01 | Phase 4 | Complete |
@@ -111,7 +111,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LVL-03 | Phase 4 | Complete |
 | LVL-04 | Phase 8 | Complete |
 | RUN-01 | Phase 5 | Complete |
-| RUN-02 | Phase 3 | Pending |
+| RUN-02 | Phase 3 | Complete |
 | RUN-03 | Phase 6 | Complete |
 | RUN-04 | Phase 6 | Complete |
 | PWR-01 | Phase 5 | Complete |
@@ -120,9 +120,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FX-01 | Phase 7 | Complete |
 | FX-02 | Phase 7 | Complete |
 | FX-03 | Phase 7 | Complete |
-| PLT-01 | Phase 3 | Pending |
+| PLT-01 | Phase 3 | Complete |
 | PLT-02 | Phase 6 | Complete |
-| PLT-03 | Phase 8 | Complete |
+| PLT-03 | Phase 8 | Pending |
 | PLT-04 | Phase 8 | Complete |
 | ARCH-01 | Phase 1 | Complete (simulator waiver; hardware debt → MVP) |
 | ARCH-02 | Phase 6 | Complete |
@@ -147,4 +147,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-09-19*
-*Last updated: 2026-09-19 after roadmap creation (traceability mapped)*
+*Last updated: 2026-09-21 — T8.1 ledger sync (Phase 3 verified; PLT-03 reverted pending device evidence)*

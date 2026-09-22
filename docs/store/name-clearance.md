@@ -8,21 +8,22 @@
 - Application ID (Android): `com.dexter292.bricksbreaker`
 - Expo slug: `bricks-breaker`
 
-## Clearance research notes (pre-submit)
+## Clearance research log (F-54)
 
-Phase 8 does **not** create store listings (D-26). Before first store submit, complete and record:
-
-1. **App Store Connect / Play Console search** for identical or confusingly similar active titles in the same category (arcade / action).
-2. **Trademark search** (USPTO / relevant jurisdictions) for “Neon Brick Breaker” as a mark in software/games. Document date and search terms used.
-3. **Common-law / web search** for commercial products using the exact phrase as a primary brand.
-4. Confirm the title is **descriptive** of genre + aesthetic and not copying a third-party product name, logo, or tagline (including Brick Breaker Maker / Shatter branding — feel/visual references only; see `originality-attestation.md`).
+| Date | Channel | Query / action | Result |
+|------|---------|----------------|--------|
+| 2026-09-21 | Web (agent) | `"Neon Brick Breaker" app` / store | No identical commercial listing found in agent search session; many generic “brick breaker” titles exist — descriptive genre term, not exclusive. |
+| 2026-09-21 | Intent | App Store Connect / Play Console | **Pending** — run at first listing creation (no listing yet). |
+| 2026-09-21 | Intent | USPTO / trademark counsel | **Not obtained** — recommend before paid UA / trademark claim. |
+| 2026-09-21 | Product | Brick Breaker Maker / Shatter | Feel/visual references only; name is descriptive + “Neon”; see `originality-attestation.md`. |
 
 ## Current status
 
 | Item | Status |
 |------|--------|
-| Internal product name locked | Yes — matches `app.json` `expo.name` |
-| Formal trademark opinion | Not obtained (out of Phase 8 scope) |
-| Store listing uniqueness check | Deferred until listing creation |
+| Internal product name locked | Yes — matches `app.config.js` `expo.name` |
+| Informal web uniqueness skim | Done 2026-09-21 (no exact-title store hit found) |
+| Formal trademark opinion | Not obtained |
+| Store console uniqueness check | Deferred until listing creation |
 
-If a conflict appears at submit time, rename in `app.json` and store metadata together; keep this file updated with the decision date and alternative titles considered.
+If a conflict appears at submit time, rename in `app.config.js` and store metadata together; keep this file updated with the decision date and alternative titles considered.

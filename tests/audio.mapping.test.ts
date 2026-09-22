@@ -60,9 +60,10 @@ describe('audio service pools (FX-03)', () => {
     }).not.toThrow();
   });
 
-  it('voice pool reuses oldest at per-category limit (D-23)', async () => {
+  it('voice pool dedupes identical sfx in a batch and round-robins across batches (D-23 / F-34)', async () => {
     const created: AudioPlayerLike[] = [];
     const playCounts: number[] = [];
+    const volumes: number[] = [];
 
     const factory = (_source: unknown, sfxId: string): AudioPlayerLike => {
       if (sfxId !== 'brick_chip') {
@@ -80,6 +81,7 @@ describe('audio service pools (FX-03)', () => {
         seekTo: () => {},
         play: () => {
           playCounts[idx] += 1;
+          volumes[idx] = player.volume;
         },
         release: () => {},
       };
@@ -90,29 +92,43 @@ describe('audio service pools (FX-03)', () => {
     const svc = createAudioServiceWithPlayers(factory);
     await svc.preload();
 
-    // 5 rapid BRICK_HIT → brick_chip limit 3; only 3 players for that id
+    // F-34: 5 identical BRICK_HIT in one batch → one play with gain bump (cap ×3)
     const hits = [3, 3, 3, 3, 3];
     svc.playBatch(hits, hits.length);
-    // seekTo→play is microtask-chained (async seekTo race fix); flush before asserts
     await Promise.resolve();
 
     expect(created.length).toBe(VOICE_LIMITS.brick_chip);
-    // 5 plays across 3 voices: indices 0,1,2,0,1 → playCounts [2,2,1]
-    expect(playCounts.reduce((a, b) => a + b, 0)).toBe(5);
-    expect(Math.max(...playCounts)).toBe(2);
-    expect(playCounts[0]).toBe(2); // oldest reused
+    expect(playCounts.reduce((a, b) => a + b, 0)).toBe(1);
+    expect(playCounts[0]).toBe(1);
+    expect(volumes[0]).toBeCloseTo(0.7 * 1.25, 5); // SFX_VOLUME.brick_chip * DEDUPE_GAIN[2]
+
+    // Across batches: round-robin reuses oldest at limit 3
+    svc.playBatch([3], 1);
+    svc.playBatch([3], 1);
+    svc.playBatch([3], 1);
+    await Promise.resolve();
+    expect(playCounts.reduce((a, b) => a + b, 0)).toBe(4);
+    expect(playCounts[0]).toBe(2); // voices 0,1,2,0
+    expect(playCounts[1]).toBe(1);
+    expect(playCounts[2]).toBe(1);
 
     svc.release();
     expect(() => svc.release()).not.toThrow();
   });
 
-  it('memory service records plays without exceeding voice limits', async () => {
+  it('memory service records one play per distinct sfx in a batch (F-34)', async () => {
     const mem = createMemoryAudioService();
     await mem.preload();
-    const codes = [3, 3, 3, 3, 3, 3]; // BRICK_HIT ×6
+    const codes = [3, 3, 3, 3, 3, 3]; // BRICK_HIT ×6 → one brick_chip
     mem.playBatch(codes, codes.length);
-    expect(mem.plays.length).toBe(6);
-    expect(mem.plays.every((p) => p.sfxId === 'brick_chip')).toBe(true);
+    expect(mem.plays.length).toBe(1);
+    expect(mem.plays[0]?.sfxId).toBe('brick_chip');
+    expect(mem.plays[0]?.voiceIndex).toBe(0);
+
+    mem.playBatch([3], 1);
+    mem.playBatch([3], 1);
+    mem.playBatch([3], 1);
+    expect(mem.plays.length).toBe(4);
     const voiceIndices = new Set(mem.plays.map((p) => p.voiceIndex));
     expect(voiceIndices.size).toBeLessThanOrEqual(VOICE_LIMITS.brick_chip);
     expect([...voiceIndices].sort()).toEqual([0, 1, 2]);

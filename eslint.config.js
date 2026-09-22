@@ -78,7 +78,11 @@ module.exports = [
   },
   {
     // LC-07: no cross-runtime hops on the per-frame hot path (D-14)
-    files: ['src/runtime/**/*.{ts,tsx}', 'src/render/**/*.{ts,tsx}'],
+    files: [
+      'src/runtime/**/*.{ts,tsx}',
+      'src/render/**/*.{ts,tsx}',
+      'app/**/*.{ts,tsx}',
+    ],
     rules: {
       'no-restricted-syntax': [
         'error',
@@ -88,9 +92,19 @@ module.exports = [
             'LC-07: No runOnJS on the per-frame hot path (D-14).',
         },
         {
+          selector: "CallExpression[callee.property.name='runOnJS']",
+          message:
+            'LC-07: No runOnJS (member call) on the per-frame hot path (D-14).',
+        },
+        {
           selector: "CallExpression[callee.name='scheduleOnRN']",
           message:
             'LC-07: No scheduleOnRN on the per-frame hot path (D-14).',
+        },
+        {
+          selector: "CallExpression[callee.property.name='scheduleOnRN']",
+          message:
+            'LC-07: No scheduleOnRN (member call) on the per-frame hot path (D-14).',
         },
       ],
     },
@@ -98,6 +112,13 @@ module.exports = [
   {
     // LC-07 Phase 7 exception: ≤1 batched scheduleOnRN/frame from eventBridge for audio drain
     files: ['src/runtime/eventBridge.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+  {
+    // LC-07 chrome bridge: batched runOnJS from PlayingHost reactions (not per-frame hot path)
+    files: ['app/_components/PlayingHost.tsx'],
     rules: {
       'no-restricted-syntax': 'off',
     },
@@ -112,9 +133,9 @@ module.exports = [
         { type: 'render', pattern: 'src/render/**' },
         { type: 'app', pattern: 'app/**' },
         { type: 'input', pattern: 'src/input/**' },
-        { type: 'ui', pattern: 'src/ui/**' },
         { type: 'vfx', pattern: 'src/vfx/**' },
         { type: 'services', pattern: 'src/services/**' },
+        { type: 'devflags', pattern: 'src/devflags.ts' },
       ],
     },
     rules: {
@@ -156,7 +177,14 @@ module.exports = [
                 to: {
                   element: {
                     types: {
-                      anyOf: ['runtime', 'render', 'input', 'ui', 'app', 'services'],
+                      anyOf: [
+                        'runtime',
+                        'render',
+                        'input',
+                        'app',
+                        'services',
+                        'devflags',
+                      ],
                     },
                   },
                 },
@@ -171,14 +199,6 @@ module.exports = [
               },
             },
             {
-              from: { element: { type: 'ui' } },
-              allow: {
-                to: {
-                  element: { types: { anyOf: ['ui', 'services'] } },
-                },
-              },
-            },
-            {
               from: { element: { type: 'vfx' } },
               allow: {
                 to: {
@@ -189,6 +209,10 @@ module.exports = [
             {
               from: { element: { type: 'services' } },
               allow: { to: { element: { type: 'services' } } },
+            },
+            {
+              from: { element: { type: 'devflags' } },
+              allow: { to: { element: { type: 'devflags' } } },
             },
           ],
         },

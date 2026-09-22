@@ -454,5 +454,5 @@ export function recordFrame(
   return tools.recorder.finishRecordingAsPicture();
 }
 
-// Re-export logical size for GameHost / camera consumers that still import from camera.ts
+// Re-export logical size for hosts / letterbox consumers.
 export { LOGICAL_W, LOGICAL_H };

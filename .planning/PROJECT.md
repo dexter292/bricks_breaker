@@ -17,7 +17,7 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [x] Limited lives with meaningful failure risk; clear win and lose conditions — last-ball life loss refined in Phase 5 (win/lose/pause from Phase 3)
 - [x] Architecture separating game logic, physics, rendering, input, and UI—no React state updates every physics frame — Validated across Phases 1–6 (SharedValue chrome mirrors + HudStrip)
 - [x] Data-driven level format designed to support a future level editor — Validated in Phase 4
-- [x] Unit tests for game logic and collision detection — Validated in Phases 2–5 (110 green as of Phase 5)
+- [x] Unit tests for game logic and collision detection — Validated in Phases 2–8 (~250 green as of 2026-09-22)
 - [x] Instant retry from pause/results; Title shell; Menu without confirmation — Validated in Phase 6
 - [x] Local personal best persists offline (AsyncStorage + Results Score/Best/New Record) — Validated in Phase 6
 - [x] Responsive playfield/HUD with safe-area insets (HudStrip above letterbox) — Validated in Phase 6
@@ -32,7 +32,7 @@ A single level must feel arcade-punchy, skillful, and visually spectacular at a 
 - [ ] Multiple brick types with different hit points and behaviors
 - [ ] One complete arcade challenge level (~2–3 min successful run) with progressive difficulty
 - [ ] Pause and resume
-- [ ] Performance measured on real mid-range devices (target 60 FPS)
+- [ ] Performance measured on real mid-range devices (target 60 FPS) — PLT-03 pending Phase 8 Plan 06 device evidence
 
 ### Out of Scope
 
@@ -124,4 +124,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-21 — Phase 7 complete (neon VFX + modular SFX; Human UAT approved)*
+*Last updated: 2026-09-22 — Phase 8 in progress (PLT-03 device gate open); re-audit #03 remediations; ~250 tests*

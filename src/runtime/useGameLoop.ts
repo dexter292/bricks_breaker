@@ -42,6 +42,7 @@ import {
   SPRITE_CAP,
 } from './constants';
 import { flushAudioBatchOnJS } from './eventBridge';
+import { clampFrameDt, resetAccumulator } from './freeze';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
 import type { VfxBudget } from './resolveQualityTier';
 import { BUDGETS } from './resolveQualityTier';
@@ -51,20 +52,6 @@ import {
   clearCosmeticVfx,
 } from './worldRequests';
 import { remainderAfterSubstepCap } from './substepCap';
-
-/** Inline in this module so Babel workletizes with the frame callback (imported worklets can stay JS remotes). */
-function clampFrameDtLocal(dtSec: number, maxFrameTime: number): number {
-  'worklet';
-  if (!Number.isFinite(dtSec)) {
-    return 1 / 60;
-  }
-  return Math.min(dtSec, maxFrameTime);
-}
-
-function resetAccumulatorLocal(world: { accumulator: number }): void {
-  'worklet';
-  world.accumulator = 0;
-}
 
 /** Brief destroy flash ≤100ms — Plan 04 draw path; life owned here (Plan 05). */
 function punchDestroyFlash(
@@ -155,6 +142,15 @@ export type PlayBatchFn = (
   count: number,
 ) => void;
 
+/** Host-owned HUD mirror — one SharedValue write per frame (F-25 / LC-07). */
+export type ChromeMirror = {
+  phase: number;
+  lives: number;
+  score: number;
+  combo: number;
+  stallTier: number;
+};
+
 export type GameLoopHandle = {
   world: SharedValue<World | null>;
   picture: SharedValue<SkPicture>;
@@ -173,12 +169,8 @@ export type UseGameLoopOptions = {
   launchFlag: SharedValue<number>;
   /** 0 playing, 1 paused, 2 countdown */
   uiPhase: SharedValue<number>;
-  /** Host-owned mirrors written every frame (in-place World edits are silent). */
-  livesOut: SharedValue<number>;
-  simPhaseOut: SharedValue<number>;
-  scoreOut: SharedValue<number>;
-  comboOut: SharedValue<number>;
-  stallTierOut: SharedValue<number>;
+  /** Host-owned HUD mirror written once per frame (in-place World edits are silent). */
+  chromeOut: SharedValue<ChromeMirror>;
   /**
    * JS-thread validated/compiled level. Worklets only apply — never parse (D-04, D-14).
    * Null → skip apply (host shows LevelErrorOverlay / gate setActive).
@@ -239,11 +231,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     paddleTarget,
     launchFlag,
     uiPhase,
-    livesOut,
-    simPhaseOut,
-    scoreOut,
-    comboOut,
-    stallTierOut,
+    chromeOut,
     compiled,
     drawOverlayFlag = false,
     hudFont = null,
@@ -311,11 +299,13 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       applyRetryWorldReset(w, compiled.value);
       paddleTarget.value = w.paddleX;
       world.value = w;
-      livesOut.value = w.lives;
-      simPhaseOut.value = w.simPhase;
-      scoreOut.value = w.score;
-      comboOut.value = w.combo;
-      stallTierOut.value = w.stallTier;
+      chromeOut.value = {
+        phase: w.simPhase,
+        lives: w.lives,
+        score: w.score,
+        combo: w.combo,
+        stallTier: w.stallTier,
+      };
     }
     if (!vfx) {
       vfx = allocateVfx({
@@ -339,7 +329,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     if (resetRequest.value !== resetApplied.value) {
       resetApplied.value = resetRequest.value;
       applyRetryWorldReset(w, compiled.value);
-      clearCosmeticVfx(vfx);
+      clearCosmeticVfx(vfx, w);
       const flash = flashSv.value;
       flash.x = 0;
       flash.y = 0;
@@ -358,11 +348,11 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     }
     if (accumResetRequest.value !== accumResetApplied.value) {
       accumResetApplied.value = accumResetRequest.value;
-      resetAccumulatorLocal(w);
+      resetAccumulator(w);
     }
 
     // First frame after reactivate: timeSincePreviousFrame is null → ~16.67ms
-    const dt = clampFrameDtLocal(
+    const dt = clampFrameDt(
       (frame.timeSincePreviousFrame ?? 16.67) / 1000,
       maxFrameTime,
     );
@@ -396,7 +386,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
           lastTrailBallCount.value >= 0 &&
           ballCount < lastTrailBallCount.value
         ) {
-          clearTrailsFromIndex(vfx, 0);
+          clearTrailsFromIndex(vfx, 0, w.ballX, w.ballY, w.ballActive);
         }
         lastTrailBallCount.value = ballCount;
         pushActiveBallTrails(w, vfx, intensity);
@@ -423,7 +413,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         spriteTarget.value,
         w.tick,
         selfCheckFrames,
-        overlayEnabled,
+        // NG-13: skip percentile sort unless overlay can actually draw.
+        overlayEnabled && hudFontSv.value != null,
       );
     }
 
@@ -442,12 +433,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       resetAudioBatch(batch);
     }
 
-    // Publish chrome mirrors every frame (in-place World edits are invisible to reactions)
-    livesOut.value = w.lives;
-    simPhaseOut.value = w.simPhase;
-    scoreOut.value = w.score;
-    comboOut.value = w.combo;
-    stallTierOut.value = w.stallTier;
+    // Publish chrome mirror once per frame (in-place World edits are invisible to reactions)
+    chromeOut.value = {
+      phase: w.simPhase,
+      lives: w.lives,
+      score: w.score,
+      combo: w.combo,
+      stallTier: w.stallTier,
+    };
 
     const size = surfaceSize.value;
     const flashArg: DestroyFlashState | null =
@@ -472,11 +465,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     compiled,
     paddleTarget,
     launchFlag,
-    livesOut,
-    simPhaseOut,
-    scoreOut,
-    comboOut,
-    stallTierOut,
+    chromeOut,
     flashSv,
     resetRequest,
     resetApplied,

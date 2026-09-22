@@ -2,12 +2,12 @@
 
 **Ngày audit:** 2026-09-21
 **Trạng thái:** **ĐÃ PHÊ DUYỆT** 2026-09-21 (owner: `duyệt`).  
-**Tiến độ:** WP-1 T1.1–T1.3 **DONE**.  
-WP-2 **T2.1–T2.6 + T2.9 + F-48 DONE**.  
-WP-3 **T3.1(b) + T3.2–T3.3 DONE**.  
-WP-4 **T4.1–T4.5 + T4.6 (partial: F-17/F-60) + T4.7 + T4.9 DONE**.  
-WP-5 **T5.1 + T5.2 DONE** (F-30 / F-26). — 2026-09-21.  
-Tiếp theo: WP-4 T4.8 audio · T4.6 remainder (step out-params) · WP-6 device.
+**Tiến độ (2026-09-21):** Code + ledger remediations **DONE** for WP-1…5, WP-7, WP-8 (partial).  
+WP-1 includes **T1.4** (single chrome SharedValue + one reaction).  
+WP-2–5 complete in code. WP-3 **T3.4 decided** (no ramp MVP; soften duration target).  
+WP-6 **T6.1 only** — T6.2+ need hardware. WP-7 T7.1–T7.5 contracts.  
+WP-8 T8.1–T8.8 done in-repo; **T8.5** informal clearance logged (trademark opinion still not obtained); **T8.9** blocked on WP-6.  
+**Còn lại (không fix được chỉ bằng code):** WP-6 device cert/soak/playtest; formal trademark opinion; Phase 8 close (T8.9).
 
 Các task được nhóm thành **8 work package** có thể dùng trực tiếp làm input cho GSD. Mỗi WP có ràng buộc thứ tự rõ ràng.
 
@@ -148,9 +148,9 @@ WP-1 (Thread boundary & shell correctness)   ← BẮT BUỘC TRƯỚC TIÊN
   - Stall state qua life loss: idle 950 tick → ball cuối rơi → serve → assert hành vi escalation trên ball mới là **chủ ý** (hiện `lives.ts` cố ý không reset stall — cần pin).
 
 ### T3.4 — Quyết định về ball speed ramp (**F-45**, Medium)
-- **Hướng triển khai:** nếu mục tiêu 2-3 phút của LVL-04 là binding, thêm speed ramp có giới hạn (theo số brick phá và/hoặc theo tick) hướng về `MAX_BALL_SPEED`, deterministic, trong `core`. `.planning/research/ARCHITECTURE.md:632` đã hoãn việc này sang một phase 9 chưa bắt đầu — cần quyết định chính thức: làm bây giờ, hay hạ mục tiêu thời lượng.
-- **Acceptance criteria:** ramp deterministic (golden-replay vẫn pass), luôn trong `MAX_BALL_SPEED`, và playtest (WP-6) cho thời lượng trong band mục tiêu.
-- **Regression test:** golden-replay mở rộng; assert tốc độ đơn điệu không giảm và bị chặn.
+- **Quyết định 2026-09-21 (owner “fix hết”):** **không** thêm speed ramp trong MVP. Giữ `SERVE_SPEED` cố định; `MAX_BALL_SPEED` vẫn là trần an toàn. Mục tiêu thời lượng LVL-04 "~2–3 phút" được **nới** thành *"arcade challenge; đo median ở WP-6 playtest — chấp nhận >3 phút nếu feel đạt"*. Speed ramp / siết band thời lượng → backlog post-MVP (phase 9 research đã ghi).
+- **Acceptance criteria:** quyết định ghi nhận ở đây + `docs/audit/DEFERRED-ITEMS.md`; golden-replay không đổi.
+- **Regression test:** không bắt buộc (không đổi code core).
 
 ### T3.5 — Dọn level-02 (**F-02**, Medium)
 - **Hướng triển khai:** quyết định level-02 là fixture compile/regression hay level chơi được. Nếu fixture: ghi rõ trong `name`/comment. Nếu chơi được: mở hàng steel full-width (khe ≥ `2*radius` + margin) hoặc dịch cột steel khỏi tường.

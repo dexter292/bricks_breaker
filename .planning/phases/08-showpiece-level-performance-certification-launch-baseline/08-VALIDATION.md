@@ -60,7 +60,7 @@ plans:
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky / debt*
 
-**Plan 06 Task 1 gate (2026-09-21):** `npm test` 179/179 ✅ · `assert-privacy-manifest.mjs` ✅ · Results scaffolding `PENDING_DEVICE` in `docs/phase8-certification.md` · Phase 7 debt pointer + device-gate Phase 8 cross-link ✅.
+**Plan 06 Task 1 gate (2026-09-22):** `npm test` 249/249 ✅ · `assert-privacy-manifest.mjs` ✅ · Results scaffolding `PENDING_DEVICE` in `docs/phase8-certification.md` · Phase 7 debt pointer + device-gate Phase 8 cross-link ✅. *(Prior 179/179 note was Wave-0 snapshot; do not treat as current.)*
 
 **Phase gate notes:** Automated suite green. Device rows (Pixel Mid gfxinfo, iPhone Instruments, soak) remain **manual-mandatory**. LIVE_URL verified HTTPS 200 on GitHub Pages (2026-09-21). `nyquist_compliant: false` until Task 2 human approval with filled (or explicitly waived) Results.
 

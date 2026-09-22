@@ -134,3 +134,14 @@ export const STALL_SPEED_MULT = 1.08;
 
 /** Stall angle nudge in degrees (within paddle clamp). */
 export const STALL_ANGLE_NUDGE_DEG = 8;
+
+/**
+ * Minimum |vx|/speed after paddle english / reflect (≈ sin(8°)).
+ * Prevents near-vertical trajectories (PHYS-04 / NF-2).
+ */
+export const MIN_HORIZONTAL_RATIO = Math.sin(
+  (STALL_ANGLE_NUDGE_DEG * Math.PI) / 180,
+);
+
+/** Re-apply tier-3 intervention every N idle ticks while stuck at tier 3 (F-27). */
+export const STALL_TIER3_REPEAT_TICKS = 240;

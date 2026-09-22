@@ -33,4 +33,4 @@ If this policy changes for a future build (for example if networking, ads, or ac
 
 ## Contact
 
-Questions about this policy can be raised via the project’s public repository issues (when published) or the developer contact listed on the store listing when one exists.
+Questions about this policy: open an issue at https://github.com/dexter292/bricks_breaker/issues

@@ -32,6 +32,9 @@ const ALL_SFX: readonly SfxId[] = [
   'lose',
 ];
 
+/** Soft gain bumps when deduping N identical sfx in one batch (F-34). */
+const DEDUPE_GAIN = [1, 1.12, 1.25] as const;
+
 function placeholderSources(): Record<SfxId, unknown> {
   const out = {} as Record<SfxId, unknown>;
   for (const id of ALL_SFX) {
@@ -46,7 +49,6 @@ function placeholderSources(): Record<SfxId, unknown> {
  */
 function loadSfxSources(): Record<SfxId, unknown> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports -- asset requires
     return {
       paddle_hit: require('../../../assets/sfx/paddle_hit.wav'),
       brick_chip: require('../../../assets/sfx/brick_chip.wav'),
@@ -93,21 +95,50 @@ export function createAudioServiceWithPlayers(
     }
   }
 
+  function playSfx(sfxId: SfxId, gainMult: number): void {
+    const voices = pools.get(sfxId);
+    if (!voices || voices.length === 0) return;
+    const cursor = cursors.get(sfxId) ?? 0;
+    const idx = selectVoiceIndex(cursor, voices.length);
+    cursors.set(sfxId, cursor + 1);
+    const player = voices[idx]!;
+    const base = SFX_VOLUME[sfxId];
+    player.volume = Math.min(1, base * gainMult);
+    void Promise.resolve(player.seekTo(0))
+      .then(() => {
+        try {
+          player.play();
+        } catch {
+          // Soft-fail play
+        }
+      })
+      .catch(() => {
+        // Soft-fail seek
+      });
+  }
+
   return {
     async preload(): Promise<void> {
-      if (released) return;
+      // F-35: release() is reversible — clear latch so remount can rebuild pools.
+      released = false;
+      // F-33: build pools even when mode/source preload rejects.
       try {
         if (deps.setAudioModeAsync) {
           await deps.setAudioModeAsync({ playsInSilentMode: true });
         }
-        if (deps.preloadSource) {
-          for (const id of ALL_SFX) {
-            await deps.preloadSource(sources[id]);
-          }
-        }
+      } catch {
+        // soft-fail mode
+      }
+      if (deps.preloadSource) {
+        const jobs = ALL_SFX.map((id) =>
+          Promise.resolve(deps.preloadSource!(sources[id])).catch(() => undefined),
+        );
+        await Promise.allSettled(jobs);
+      }
+      try {
         ensurePools();
       } catch {
-        // Soft-fail preload (D-24 / T-07-14) — never throw into gameplay
+        // Soft-fail pool build
       }
     },
 
@@ -116,29 +147,16 @@ export function createAudioServiceWithPlayers(
       try {
         ensurePools();
         const n = Math.min(count, codes.length);
+        // F-34: count identical sfxId in batch → one play with gain bump (cap ×3).
+        const tallies = new Map<SfxId, number>();
         for (let i = 0; i < n; i++) {
           const sfxId = mapEventToSfx(codes[i]!);
           if (!sfxId) continue;
-          const voices = pools.get(sfxId);
-          if (!voices || voices.length === 0) continue;
-          const cursor = cursors.get(sfxId) ?? 0;
-          const idx = selectVoiceIndex(cursor, voices.length);
-          cursors.set(sfxId, cursor + 1);
-          const player = voices[idx]!;
-          player.volume = SFX_VOLUME[sfxId];
-          // seekTo may be sync (void) or async (Promise) — await before play to avoid
-          // truncated retriggers when reusing a voice mid-playback.
-          void Promise.resolve(player.seekTo(0))
-            .then(() => {
-              try {
-                player.play();
-              } catch {
-                // Soft-fail play — never throw into gameplay
-              }
-            })
-            .catch(() => {
-              // Soft-fail seek — never throw into gameplay
-            });
+          tallies.set(sfxId, (tallies.get(sfxId) ?? 0) + 1);
+        }
+        for (const [sfxId, hits] of tallies) {
+          const gainIdx = Math.min(hits, 3) - 1;
+          playSfx(sfxId, DEDUPE_GAIN[gainIdx]!);
         }
       } catch {
         // Soft-fail play — never throw into gameplay
@@ -172,18 +190,25 @@ export function createMemoryAudioService(): MemoryAudioService {
   return {
     plays,
     async preload(): Promise<void> {
-      // no-op — always resolves
+      // F-35: reversible after release
+      released = false;
     },
     playBatch(codes: ArrayLike<number>, count: number): void {
       if (released) return;
       const n = Math.min(count, codes.length);
+      const tallies = new Map<SfxId, number>();
       for (let i = 0; i < n; i++) {
         const sfxId = mapEventToSfx(codes[i]!);
         if (!sfxId) continue;
+        tallies.set(sfxId, (tallies.get(sfxId) ?? 0) + 1);
+      }
+      for (const [sfxId, hits] of tallies) {
         const limit = VOICE_LIMITS[sfxId];
         const cursor = cursors.get(sfxId) ?? 0;
         const voiceIndex = selectVoiceIndex(cursor, limit);
         cursors.set(sfxId, cursor + 1);
+        // Record one play per distinct sfx (dedupe); hits kept for test assertions via plays length
+        void hits;
         plays.push({ sfxId, voiceIndex });
       }
     },

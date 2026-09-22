@@ -49,6 +49,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "test:core": "vitest run src/core tests",
     "assert:skia": "node scripts/assert-skia-version.mjs",
     "assert:privacy-manifest": "node scripts/assert-privacy-manifest.mjs"

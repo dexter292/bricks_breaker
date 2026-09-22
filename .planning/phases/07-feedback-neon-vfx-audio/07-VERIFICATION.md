@@ -1,8 +1,8 @@
 ---
 phase: 07-feedback-neon-vfx-audio
 verified: 2026-09-21T03:31:34Z
-status: passed
-score: 5/5 must-haves verified
+status: passed_with_debt
+score: 4/5 must-haves verified (SC-5 pending device)
 overrides_applied: 0
 deferred:
   - truth: "Physical Pixel 6a gfxinfo worst-case VFX frame-budget numbers recorded (Results row filled)"
@@ -14,8 +14,8 @@ deferred:
 
 **Phase Goal:** Hits, breaks, and losses look and sound spectacular without ever hiding the ball or spending frame budget the game needs  
 **Verified:** 2026-09-21T03:31:34Z  
-**Status:** passed  
-**Re-verification:** No — initial verification
+**Status:** passed_with_debt (SC-5 not met — pending device)  
+**Re-verification:** No — SC-5 downgraded T8.1 (2026-09-21)
 
 ## Goal Achievement
 
@@ -27,9 +27,9 @@ deferred:
 | 2 | Brick destruction produces glow, pooled particles, and subtle shake inside a hard particle budget; no effect obscures paddle/ball long enough to cost a rally | ✓ VERIFIED | Baked glow atlas (`bakeGlowSprites.ts`, soft/strong pads); pool 128/192 + chip=4/destroy=12 (`particles.ts`/`types.ts`); shake cap 2.5 / decay 0.85, punches only BRICK_BREAK/LIFE_LOST (`shake.ts`/`consumeEvents.ts`); draw order particles→paddle→trail→ball; Human UAT approved |
 | 3 | One global intensity scalar — defaulting from OS reduce-motion — scales every effect, and deleting the VFX layer leaves gameplay identical | ✓ VERIFIED | `useVfxIntensity` → AccessibilityInfo → 1.0/0.2 (`useVfxIntensity.ts`); `recordFrame(..., vfx=null)` path documented deletable; `stepVfx` / consume never write World gameplay fields |
 | 4 | Paddle hit, brick hit/break, power-up catch, life lost, win, and lose each play distinct SFX aligned to impact frame, with rapid hits overlapping | ✓ VERIFIED | EventCodes 2/3/4/6/7/8/9 mapped (`mapping.ts`); core push sites in pickups/lives/win; per-substep `appendEventsForAudio` + one `scheduleOnRN(playBatch)` / frame (`useGameLoop.ts`/`eventBridge.ts`); voice pools + reuse (`VOICE_LIMITS`); seven `assets/sfx/*.wav`; Human UAT approved |
-| 5 | Every effect is measured against Phase 1 frame budget on named Android reference (or documented waiver) | ✓ VERIFIED (procedure + debt) | `docs/phase7-vfx-measurement.md` references methodology + gfxinfo + Pixel 6a / D-04 waiver; Results row still OPEN — physical numbers deferred to Phase 8 PLT-03 (non-blocking MVP debt) |
+| 5 | Every effect is measured against Phase 1 frame budget on named Android reference (or documented waiver) | ✗ NOT MET (pending device) | `docs/phase7-vfx-measurement.md` has methodology + gfxinfo protocol only; Results row OPEN — no p50/p95/jank numbers. Procedure ≠ measurement (T8.1 / F-19). Evidence owed to Phase 8 Plan 06 (PLT-03). |
 
-**Score:** 5/5 truths verified (1 deferred physical measurement detail — see Deferred)
+**Score:** 4/5 truths verified (SC-5 measurement criterion not met — pending device evidence)
 
 ### Deferred Items
 
@@ -124,7 +124,7 @@ None. Human UAT already approved 2026-09-21 in `07-VALIDATION.md` (trail / parti
 
 ### Gaps Summary
 
-No blocking gaps. Physical Pixel 6a gfxinfo Results capture remains optional MVP debt, explicitly deferred to Phase 8 performance certification. Phase goal achieved in codebase + approved UAT.
+Code + Human UAT for FX-01…FX-04 truths 1–4 are satisfied. **SC-5 (measured frame budget on named Android device) is not met** until Phase 8 Plan 06 records real gfxinfo numbers — do not treat Phase 7 as performance-certified.
 
 ---
 

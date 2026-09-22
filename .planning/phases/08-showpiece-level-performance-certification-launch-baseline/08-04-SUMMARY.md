@@ -40,7 +40,7 @@ patterns-established:
   - "Shell-phase soak via setState + setTimeout — never useFrameCallback"
   - "Unit audio.release ≠ device soak pass (D-22 human gate remains)"
 
-requirements-completed: [PLT-03]
+requirements-completed: []  # PLT-03 device evidence pending Plan 06
 
 duration: 2min
 completed: 2026-09-21
@@ -49,6 +49,8 @@ completed: 2026-09-21
 # Phase 8 Plan 04: DEV Soak Harness Summary
 
 **DEV-only Title↔Playing soak (100 cycles + 15 min continuous) with green audio.release lifecycle asserts and documented device memory/frame-time record fields.**
+
+> **Ledger note (T8.1):** Soak harness + unit asserts only — device soak Results remain Plan 06 / pending.
 
 ## Performance
 

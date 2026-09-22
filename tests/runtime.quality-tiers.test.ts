@@ -12,14 +12,14 @@ import {
 const GB = 1024 ** 3;
 
 describe('runtime.quality-tiers', () => {
-  it('null/invalid totalMemory → tier low (D-10)', () => {
+  it('null/invalid totalMemory → tier mid (unknown-device fallback)', () => {
     expect(tierFromMemory(null)).toBeNull();
     expect(tierFromMemory(Number.NaN)).toBeNull();
     expect(tierFromMemory(0)).toBeNull();
     expect(tierFromMemory(-1)).toBeNull();
-    expect(resolveQualityTier({ totalMemory: null }).tier).toBe('low');
-    expect(resolveQualityTier({ totalMemory: Number.NaN }).tier).toBe('low');
-    expect(resolveQualityTier({}).tier).toBe('low');
+    expect(resolveQualityTier({ totalMemory: null }).tier).toBe('mid');
+    expect(resolveQualityTier({ totalMemory: Number.NaN }).tier).toBe('mid');
+    expect(resolveQualityTier({}).tier).toBe('mid');
   });
 
   it('~6GB memory maps to mid (Pixel 6a band)', () => {
@@ -55,7 +55,7 @@ describe('runtime.quality-tiers', () => {
     });
     expect(BUDGETS.mid).toEqual({
       particleCap: 128,
-      trailMax: 5,
+      trailMax: 4,
       glowScale: 1,
     });
     expect(BUDGETS.high).toEqual({
@@ -64,6 +64,8 @@ describe('runtime.quality-tiers', () => {
       glowScale: 1,
     });
     expect(BUDGETS.mid.particleCap).toBe(128);
+    expect(BUDGETS.high.trailMax).toBeGreaterThan(BUDGETS.mid.trailMax);
+    expect(BUDGETS.low.glowScale).toBe(0);
   });
 
   it('trailMax never below 2 (FX-01)', () => {

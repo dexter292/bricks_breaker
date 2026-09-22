@@ -46,7 +46,7 @@ patterns-established:
   - "Quality tiers live in runtime/ only; core purity bans expo-device + resolveQualityTier"
   - "DEV tier UI beside level switch; production auto-select only"
 
-requirements-completed: [PLT-03]
+requirements-completed: []  # PLT-03 device evidence pending Plan 06
 
 duration: 3min
 completed: 2026-09-21
@@ -55,6 +55,8 @@ completed: 2026-09-21
 # Phase 8 Plan 02: Quality Tiers + VfxCaps Summary
 
 **Low/Mid/High device quality tiers via expo-device memory bands, with Mid as the Pixel 6a cert baseline and numeric particleCap/trailMax/glowScale wired outside core/.**
+
+> **Ledger note (T8.1):** Quality-tier wiring only — PLT-03 60 FPS device measurement remains Plan 06 / pending.
 
 ## Performance
 

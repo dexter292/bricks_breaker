@@ -61,6 +61,19 @@ export function GameHost() {
       timers.push(id);
     };
 
+    /** Operator checklist — adb cannot run from JS; paste dumpsys into Results. */
+    const logAdbChecklist = (phase: 'start' | 'end') => {
+      const ts = new Date().toISOString();
+      console.log(`[soak] meminfo REQUEST phase=${phase} ts=${ts}`);
+      console.log(
+        `[soak] meminfo CMD: adb shell dumpsys meminfo com.dexter292.bricksbreaker`,
+      );
+      console.log(`[soak] gfxinfo REQUEST phase=${phase} ts=${ts}`);
+      console.log(
+        `[soak] gfxinfo CMD: adb shell dumpsys gfxinfo com.dexter292.bricksbreaker`,
+      );
+    };
+
     const runCycle = (index: number) => {
       if (cancelled) return;
       if (index >= SOAK_CYCLE_COUNT) {
@@ -70,6 +83,7 @@ export function GameHost() {
         );
         schedule(() => {
           setShellPhase('title');
+          logAdbChecklist('end');
           console.log(
             `[soak] complete: ${SOAK_CYCLE_COUNT} Title↔Playing cycles + ${SOAK_CONTINUOUS_MS}ms continuous`,
           );
@@ -87,6 +101,7 @@ export function GameHost() {
     console.log(
       `[soak] arming: ${SOAK_CYCLE_COUNT} cycles @ ${SOAK_CYCLE_DWELL_MS}ms then ${SOAK_CONTINUOUS_MS}ms continuous`,
     );
+    logAdbChecklist('start');
     schedule(() => runCycle(0), SOAK_CYCLE_DWELL_MS);
 
     return () => {

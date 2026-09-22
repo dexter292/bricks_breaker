@@ -31,7 +31,7 @@ key-files:
     - package.json
 
 key-decisions:
-  - "Owner waived live HTTPS publish for Phase 8 continuation (2026-09-21); D-27 live-URL gate remains OPEN debt"
+  - "Live HTTPS privacy URL verified 2026-09-21 (GitHub Pages); supersedes interim waiver"
   - "No eas submit / store listings (D-26)"
 
 patterns-established:

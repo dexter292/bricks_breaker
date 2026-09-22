@@ -25,8 +25,16 @@ export function pushTrail(
   vfx.trailHead[ballIndex] = (head + 1) % ringLen;
 }
 
-/** Zero one ball's trail ring (F-16 — after death / compaction). */
-export function clearTrailBall(vfx: VfxState, ballIndex: number): void {
+/**
+ * Reset one ball's trail ring (F-16 / NF-7).
+ * Seeds every sample to (x,y) so the renderer never draws ghosts at (0,0).
+ */
+export function clearTrailBall(
+  vfx: VfxState,
+  ballIndex: number,
+  x: number,
+  y: number,
+): void {
   'worklet';
   if (ballIndex < 0 || ballIndex >= vfx.maxBalls) {
     return;
@@ -34,17 +42,35 @@ export function clearTrailBall(vfx: VfxState, ballIndex: number): void {
   vfx.trailHead[ballIndex] = 0;
   const base = ballIndex * TRAIL_MAX;
   for (let i = 0; i < TRAIL_MAX; i++) {
-    vfx.trailX[base + i] = 0;
-    vfx.trailY[base + i] = 0;
+    vfx.trailX[base + i] = x;
+    vfx.trailY[base + i] = y;
   }
 }
 
-/** Clear trails for every slot at/above live ball count (post-compact). */
-export function clearTrailsFromIndex(vfx: VfxState, fromIndex: number): void {
+/** Clear trails for every slot at/above fromIndex (post-compact / ball death). */
+export function clearTrailsFromIndex(
+  vfx: VfxState,
+  fromIndex: number,
+  ballX?: Float32Array,
+  ballY?: Float32Array,
+  ballActive?: Uint8Array,
+): void {
   'worklet';
   const start = fromIndex < 0 ? 0 : fromIndex;
   for (let i = start; i < vfx.maxBalls; i++) {
-    clearTrailBall(vfx, i);
+    let x = 0;
+    let y = 0;
+    if (
+      ballActive != null &&
+      ballX != null &&
+      ballY != null &&
+      i < ballActive.length &&
+      ballActive[i] !== 0
+    ) {
+      x = ballX[i];
+      y = ballY[i];
+    }
+    clearTrailBall(vfx, i, x, y);
   }
 }
 

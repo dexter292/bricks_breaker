@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
+import { useFont } from '@shopify/react-native-skia';
 import {
   runOnJS,
   useAnimatedReaction,
@@ -22,6 +23,7 @@ import {
 import {
   UiPhaseNum,
   useGameLoop,
+  type ChromeMirror,
   type PlayBatchFn,
 } from '../../src/runtime/useGameLoop';
 import { useVfxIntensity } from '../../src/runtime/useVfxIntensity';
@@ -70,6 +72,12 @@ type Props = {
   onMenu: () => void;
 };
 
+/** NG-14 — isolated keep-awake so unmount releases the lock; tag is component-local. */
+function KeepAwakeOn() {
+  useKeepAwake('NeonBrickPlaying');
+  return null;
+}
+
 /**
  * Playing session host: gestures + game loop + pause FSM.
  * Unmount on Menu tears down worklets (D-01 shell Pattern 1).
@@ -79,11 +87,14 @@ type Props = {
  * useGameLoop applyCompiledLevel only. Fail loudly; never play invalid.
  */
 export function PlayingHost({ onMenu }: Props) {
-  useKeepAwake();
-
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  // NG-13 / F-29 — SkFont for in-canvas PERF_OVERLAY (matchFont unreliable on sim).
+  const hudFont = useFont(
+    require('../../assets/fonts/SpaceMono-Regular.ttf'),
+    11,
+  );
 
   const [uiPhase, setUiPhase] = useState<GameScreenUiPhase>('playing');
   const [countdownNumeral, setCountdownNumeral] = useState<number | null>(
@@ -100,6 +111,10 @@ export function PlayingHost({ onMenu }: Props) {
   const [levelId, setLevelId] = useState<LevelId>('level-03');
   /** DEV-only force; null = auto from device (D-11). */
   const [tierOverride, setTierOverride] = useState<QualityTier | null>(null);
+
+  // Keep awake only while actively playing (NG-14 — useKeepAwake owns activate/deactivate).
+  const keepAwake =
+    uiPhase === 'playing' && result == null ? <KeepAwakeOn /> : null;
 
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
   // F-26: pending best write flushed on AppState background via onOsPause path.
@@ -138,11 +153,13 @@ export function PlayingHost({ onMenu }: Props) {
   const levelReady = loadResult.ok;
 
   const uiPhaseSv = useSharedValue<number>(UiPhaseNum.PLAYING);
-  const simPhaseSv = useSharedValue<number>(SIM.DOCKED);
-  const livesSv = useSharedValue<number>(3);
-  const scoreSv = useSharedValue<number>(0);
-  const comboSv = useSharedValue<number>(1);
-  const stallTierSv = useSharedValue<number>(0);
+  const chromeSv = useSharedValue<ChromeMirror>({
+    phase: SIM.DOCKED,
+    lives: 3,
+    score: 0,
+    combo: 1,
+    stallTier: 0,
+  });
   const camScale = useSharedValue(1);
   const compiledSv = useSharedValue<CompiledLevel | null>(null);
   const glowAtlasSv = useSharedValue<GlowAtlas | null>(null);
@@ -170,68 +187,23 @@ export function PlayingHost({ onMenu }: Props) {
 
   // Preload previousBest for optimistic Results (D-10 / research lock).
   useEffect(() => {
+    let cancelled = false;
     void store
       .getBest()
       .then((b) => {
+        if (cancelled) return;
         previousBestRef.current = b;
         setResultBest(b);
       })
       .catch(() => {
+        if (cancelled) return;
         previousBestRef.current = 0;
         setResultBest(0);
       });
-  }, [store]);
-
-  // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
-  // F-14: bake at active level brick size. F-18: dispose prior atlas images on cleanup.
-  useEffect(() => {
-    let cancelled = false;
-    const brickW =
-      loadResult.ok && loadResult.compiled.brickCount > 0
-        ? loadResult.compiled.w[0]
-        : 32;
-    const brickH =
-      loadResult.ok && loadResult.compiled.brickCount > 0
-        ? loadResult.compiled.h[0]
-        : 14;
-    void (async () => {
-      try {
-        await audio.preload();
-      } catch (err) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.warn('[audio] preload soft-fail', err);
-        }
-      }
-      if (cancelled) {
-        return;
-      }
-      try {
-        const prev = glowAtlasSv.value;
-        disposeGlowAtlas(prev);
-        glowAtlasSv.value = bakeGlowSprites(brickW, brickH);
-      } catch (err) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.warn('[glow] bake soft-fail', err);
-        }
-        glowAtlasSv.value = null;
-      }
-      if (cancelled) {
-        return;
-      }
-      // Bind RN-scoped callback via ref — never assign a function into a SharedValue.
-      playBatchRef.current = (codes, count) => {
-        audio.playBatch(codes, count);
-      };
-      setFxReady(true);
-    })();
     return () => {
       cancelled = true;
-      playBatchRef.current = null;
-      disposeGlowAtlas(glowAtlasSv.value);
-      glowAtlasSv.value = null;
-      audio.release();
     };
-  }, [audio, glowAtlasSv, loadResult]);
+  }, [store]);
 
   useEffect(() => {
     const mapped =
@@ -252,7 +224,7 @@ export function PlayingHost({ onMenu }: Props) {
   }, [clearCountdown, store]);
 
   const { paddleTarget, launchFlag, gesture } = usePaddleGesture({
-    simPhase: simPhaseSv,
+    chrome: chromeSv,
     uiPhase: uiPhaseSv,
     camScale,
   });
@@ -262,11 +234,7 @@ export function PlayingHost({ onMenu }: Props) {
       paddleTarget,
       launchFlag,
       uiPhase: uiPhaseSv,
-      livesOut: livesSv,
-      simPhaseOut: simPhaseSv,
-      scoreOut: scoreSv,
-      comboOut: comboSv,
-      stallTierOut: stallTierSv,
+      chromeOut: chromeSv,
       compiled: compiledSv,
       onOsPause,
       vfxIntensity,
@@ -274,13 +242,90 @@ export function PlayingHost({ onMenu }: Props) {
       glowAtlas: glowAtlasSv,
       vfxBudget,
       drawOverlayFlag: PERF_OVERLAY,
+      hudFont: hudFont ?? null,
     });
+
+  // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
+  // F-14: bake at active level brick size.
+  // NF-6 / NG-10 / NG-11: do not setState sync in effect body; null SV before delayed dispose.
+  useEffect(() => {
+    let cancelled = false;
+    let disposeTimer: ReturnType<typeof setTimeout> | null = null;
+    // Defer ready=false so we avoid react-hooks/set-state-in-effect (NG-10).
+    const armTimer = setTimeout(() => {
+      if (cancelled) {
+        return;
+      }
+      setFxReady(false);
+      setActive(false);
+    }, 0);
+    const brickW =
+      loadResult.ok && loadResult.compiled.brickCount > 0
+        ? loadResult.compiled.w[0]
+        : 32;
+    const brickH =
+      loadResult.ok && loadResult.compiled.brickCount > 0
+        ? loadResult.compiled.h[0]
+        : 14;
+    void (async () => {
+      try {
+        await audio.preload();
+      } catch (err) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('[audio] preload soft-fail', err);
+        }
+      }
+      if (cancelled) {
+        return;
+      }
+      try {
+        setActive(false);
+        const prev = glowAtlasSv.value;
+        glowAtlasSv.value = null;
+        // NG-11: dispose after UI has observed null (two frames).
+        disposeTimer = setTimeout(() => {
+          disposeGlowAtlas(prev);
+        }, 32);
+        glowAtlasSv.value = bakeGlowSprites(brickW, brickH);
+      } catch (err) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('[glow] bake soft-fail', err);
+        }
+        glowAtlasSv.value = null;
+      }
+      if (cancelled) {
+        return;
+      }
+      playBatchRef.current = (codes, count) => {
+        audio.playBatch(codes, count);
+      };
+      setFxReady(true);
+    })();
+    return () => {
+      cancelled = true;
+      clearTimeout(armTimer);
+      if (disposeTimer != null) {
+        clearTimeout(disposeTimer);
+      }
+      setActive(false);
+      playBatchRef.current = null;
+      const atlas = glowAtlasSv.value;
+      glowAtlasSv.value = null;
+      // Delay dispose so in-flight recordFrame cannot draw a freed SkImage.
+      setTimeout(() => {
+        disposeGlowAtlas(atlas);
+      }, 32);
+      audio.release();
+    };
+  }, [audio, glowAtlasSv, loadResult, setActive]);
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
   // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.
   useEffect(() => {
     if (!loadResult.ok) {
-      console.error('[level]', loadResult.issues);
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.error('[level]', loadResult.issues);
+      }
       compiledSv.value = null;
       setActive(false);
       return;
@@ -332,21 +377,24 @@ export function PlayingHost({ onMenu }: Props) {
     [platform, store],
   );
 
-  const applyWorldChrome = useCallback(
-    (phase: number, livesCount: number, runScore: number) => {
-      setSimPhaseNum(phase);
-      setLives(livesCount);
-      if (phase === SIM.WON) {
+  const applyChrome = useCallback(
+    (mirror: ChromeMirror) => {
+      setSimPhaseNum(mirror.phase);
+      setLives(mirror.lives);
+      setScore(mirror.score);
+      setCombo(mirror.combo);
+      setStallTier(mirror.stallTier);
+      if (mirror.phase === SIM.WON) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
-          handleRunEnded(runScore, 'win');
+          handleRunEnded(mirror.score, 'win');
         }
         setResult('win');
         setActive(false);
-      } else if (phase === SIM.LOST) {
+      } else if (mirror.phase === SIM.LOST) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
-          handleRunEnded(runScore, 'lose');
+          handleRunEnded(mirror.score, 'lose');
         }
         setResult('lose');
         setActive(false);
@@ -355,45 +403,28 @@ export function PlayingHost({ onMenu }: Props) {
     [handleRunEnded, setActive],
   );
 
-  // Dedicated SharedValue writes from the loop trigger this; World field
-  // mutation alone would not (LC-07 chrome bridge).
-  // Lives/phase stay packed (8-bit safe). Score/combo/stall use separate
-  // reactions — scores exceed 8 bits and must not share the pack.
-  // Read scoreSv live at fire time so WON/LOST cold path gets current run score.
+  // Single chrome bridge (F-25): one runOnJS hop batches all HUD setStates (LC-07).
   useAnimatedReaction(
-    () => (simPhaseSv.value << 8) | (livesSv.value & 0xff),
-    (packed, prev) => {
-      const phase = packed >> 8;
-      const livesCount = packed & 0xff;
-      if (prev === null || packed !== prev) {
-        runOnJS(applyWorldChrome)(phase, livesCount, scoreSv.value);
-      }
+    () => {
+      const c = chromeSv.value;
+      return [c.phase, c.lives, c.score, c.combo, c.stallTier] as const;
     },
-  );
-
-  useAnimatedReaction(
-    () => scoreSv.value,
     (next, prev) => {
-      if (prev === null || next !== prev) {
-        runOnJS(setScore)(next);
-      }
-    },
-  );
-
-  useAnimatedReaction(
-    () => comboSv.value,
-    (next, prev) => {
-      if (prev === null || next !== prev) {
-        runOnJS(setCombo)(next);
-      }
-    },
-  );
-
-  useAnimatedReaction(
-    () => stallTierSv.value,
-    (next, prev) => {
-      if (prev === null || next !== prev) {
-        runOnJS(setStallTier)(next);
+      if (
+        prev === null ||
+        next[0] !== prev[0] ||
+        next[1] !== prev[1] ||
+        next[2] !== prev[2] ||
+        next[3] !== prev[3] ||
+        next[4] !== prev[4]
+      ) {
+        runOnJS(applyChrome)({
+          phase: next[0],
+          lives: next[1],
+          score: next[2],
+          combo: next[3],
+          stallTier: next[4],
+        });
       }
     },
   );
@@ -560,6 +591,7 @@ export function PlayingHost({ onMenu }: Props) {
   ]);
 
   // Optional auto-arm: __DEV__ && CERT_HARNESS only (never production).
+  // Defer via timeout so we do not setState synchronously inside the effect body.
   useEffect(() => {
     if (typeof __DEV__ === 'undefined' || !__DEV__) {
       return;
@@ -571,7 +603,10 @@ export function PlayingHost({ onMenu }: Props) {
       return;
     }
     certArmedRef.current = true;
-    runCertWorstCase();
+    const t = setTimeout(() => {
+      runCertWorstCase();
+    }, 0);
+    return () => clearTimeout(t);
   }, [levelReady, levelError, fxReady, runCertWorstCase]);
 
   if (!fontsLoaded) {
@@ -633,28 +668,31 @@ export function PlayingHost({ onMenu }: Props) {
     ) : null;
 
   return (
-    <GameScreen
-      picture={picture}
-      surfaceSize={surfaceSize}
-      playfieldGesture={gesture}
-      uiPhase={uiPhase}
-      result={result}
-      lives={lives}
-      score={score}
-      best={resultBest}
-      isNewRecord={isNewRecord}
-      combo={combo}
-      stallTier={stallTier}
-      simPhaseNum={simPhaseNum}
-      countdownNumeral={countdownNumeral}
-      onPause={onPause}
-      onResume={onResume}
-      onRetry={onRetry}
-      onMenu={onMenu}
-      showServeHint={showServeHint}
-      levelError={levelError}
-      devLevelSwitch={devLevelSwitch}
-    />
+    <>
+      {keepAwake}
+      <GameScreen
+        picture={picture}
+        surfaceSize={surfaceSize}
+        playfieldGesture={gesture}
+        uiPhase={uiPhase}
+        result={result}
+        lives={lives}
+        score={score}
+        best={resultBest}
+        isNewRecord={isNewRecord}
+        combo={combo}
+        stallTier={stallTier}
+        simPhaseNum={simPhaseNum}
+        countdownNumeral={countdownNumeral}
+        onPause={onPause}
+        onResume={onResume}
+        onRetry={onRetry}
+        onMenu={onMenu}
+        showServeHint={showServeHint}
+        levelError={levelError}
+        devLevelSwitch={devLevelSwitch}
+      />
+    </>
   );
 }
 

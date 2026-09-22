@@ -13,10 +13,14 @@ export type VfxBudget = {
   glowScale: number;
 };
 
-/** Mid = Pixel 6a cert baseline; High bounded at PARTICLE_POOL_HARD_MAX. */
+/**
+ * Mid = Pixel 6a cert baseline; High bounded at PARTICLE_POOL_HARD_MAX.
+ * Differentiated by particleCap + trailMax (mid 4 / high 5 = TRAIL_MAX);
+ * low skips glow blit (glowScale 0 — NG-12).
+ */
 export const BUDGETS: Record<QualityTier, VfxBudget> = {
   low: { particleCap: 48, trailMax: 2, glowScale: 0 },
-  mid: { particleCap: 128, trailMax: 5, glowScale: 1 },
+  mid: { particleCap: 128, trailMax: 4, glowScale: 1 },
   high: { particleCap: 192, trailMax: 5, glowScale: 1 },
 };
 
@@ -24,7 +28,7 @@ const GB = 1024 ** 3;
 
 /**
  * Map total RAM (bytes) to a tier. Returns null when info is insufficient
- * so the caller can default conservatively to `'low'` (D-10).
+ * so the caller can default to `'mid'` (unknown devices keep mid glow).
  */
 export function tierFromMemory(totalMemory: number | null): QualityTier | null {
   if (totalMemory == null || !Number.isFinite(totalMemory) || totalMemory <= 0) {
@@ -44,7 +48,7 @@ export type ResolveQualityTierOpts = {
 
 /**
  * Resolve Low/Mid/High + numeric budget outside core/ (D-12).
- * Override → Pixel 6a model force mid → memory heuristic → low default.
+ * Override → Pixel 6a model force mid → memory heuristic → mid default.
  */
 export function resolveQualityTier(
   opts: ResolveQualityTierOpts = {},
@@ -57,7 +61,7 @@ export function resolveQualityTier(
   } else if (modelName != null && /Pixel 6a/i.test(modelName)) {
     tier = 'mid'; // D-13: never silent-map reference device to Low
   } else {
-    tier = tierFromMemory(totalMemory ?? null) ?? 'low';
+    tier = tierFromMemory(totalMemory ?? null) ?? 'mid';
   }
 
   return { tier, budget: BUDGETS[tier] };
@@ -65,7 +69,7 @@ export function resolveQualityTier(
 
 /**
  * Thin expo-device reader for PlayingHost only.
- * Soft-fail → null memory/model → conservative Low (D-10).
+ * Soft-fail → null memory/model → mid default (keeps soft glow).
  * Kept separate so Vitest never loads the native module for unit tests.
  */
 export function readDeviceMemory(): {

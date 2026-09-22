@@ -1,9 +1,14 @@
 import type { Intent, World } from './types';
 import { BrickFlags, EventCode } from './types';
 import { advanceBall } from './physics/integrate';
-import { forEachBrickCandidate } from './physics/broadphase';
-import { sweepCircleAabb } from './physics/sweep';
-import { reflectVelocity, resolvePaddleEnglish, enforceMinVerticalRatio } from './physics/resolve';
+import { sweepCircleAabbInto, type SweepHit } from './physics/sweep';
+import {
+  reflectVelocityInto,
+  resolvePaddleEnglishInto,
+  enforceMinVerticalRatioInto,
+  enforceMinHorizontalRatioInto,
+  type Velocity2,
+} from './physics/resolve';
 import { pushEvent } from './events/ring';
 
 const KIND_WALL = 0;
@@ -77,6 +82,281 @@ function depenetrateCircleAabb(
   return true;
 }
 
+/** True when circle overlaps solid AABB (shell or center-inside). */
+function circleOverlapsAabb(
+  cx: number,
+  cy: number,
+  r: number,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+): boolean {
+  'worklet';
+  let qx = cx;
+  if (qx < minX) qx = minX;
+  else if (qx > maxX) qx = maxX;
+  let qy = cy;
+  if (qy < minY) qy = minY;
+  else if (qy > maxY) qy = maxY;
+  const dx = cx - qx;
+  const dy = cy - qy;
+  if (dx === 0 && dy === 0) {
+    return true;
+  }
+  // Strict penetration only (dist < r). Flush contact (dist == r) is a valid
+  // resting/bounce surface — treating it as overlap made escape hatch teleport
+  // every frame and preferred "up" when vy < 0 (into the brick stack).
+  return dx * dx + dy * dy < r * r - 1e-8;
+}
+
+/**
+ * After CCD: if the ball still overlaps any live brick solid (common when
+ * gapY/gapX < 2r so underside contact embeds into the neighbor), eject outside
+ * the overlapping cluster. Never run a blanket per-brick depenetrate pre-pass —
+ * that pushes out of one brick into another and pins the ball.
+ */
+function escapeOverlappingBricks(world: World, bi: number, eps: number): void {
+  'worklet';
+  const r = world.ballRadius[bi];
+  const cx0 = world.ballX[bi];
+  const cy0 = world.ballY[bi];
+  const vx = world.ballVx[bi];
+  const vy = world.ballVy[bi];
+  const nBricks = world.brickCount;
+
+  let clusterMinX = 0;
+  let clusterMinY = 0;
+  let clusterMaxX = 0;
+  let clusterMaxY = 0;
+  let overlapCount = 0;
+  let deepestIdx = -1;
+  let deepestPen = -1;
+
+  for (let i = 0; i < nBricks; i++) {
+    if (world.brickHp[i] <= 0) {
+      continue;
+    }
+    const minX = world.brickX[i];
+    const minY = world.brickY[i];
+    const maxX = minX + world.brickW[i];
+    const maxY = minY + world.brickH[i];
+    if (!circleOverlapsAabb(cx0, cy0, r, minX, minY, maxX, maxY)) {
+      continue;
+    }
+    if (overlapCount === 0) {
+      clusterMinX = minX;
+      clusterMinY = minY;
+      clusterMaxX = maxX;
+      clusterMaxY = maxY;
+    } else {
+      if (minX < clusterMinX) clusterMinX = minX;
+      if (minY < clusterMinY) clusterMinY = minY;
+      if (maxX > clusterMaxX) clusterMaxX = maxX;
+      if (maxY > clusterMaxY) clusterMaxY = maxY;
+    }
+    overlapCount += 1;
+    let qx = cx0;
+    if (qx < minX) qx = minX;
+    else if (qx > maxX) qx = maxX;
+    let qy = cy0;
+    if (qy < minY) qy = minY;
+    else if (qy > maxY) qy = maxY;
+    let pen = 0;
+    if (qx === cx0 && qy === cy0) {
+      const left = cx0 - minX;
+      const right = maxX - cx0;
+      const top = cy0 - minY;
+      const bot = maxY - cy0;
+      let m = left;
+      if (right < m) m = right;
+      if (top < m) m = top;
+      if (bot < m) m = bot;
+      pen = m + r;
+    } else {
+      const dist = Math.sqrt((cx0 - qx) * (cx0 - qx) + (cy0 - qy) * (cy0 - qy));
+      pen = r - dist;
+    }
+    if (pen > deepestPen) {
+      deepestPen = pen;
+      deepestIdx = i;
+    }
+  }
+
+  if (overlapCount === 0) {
+    return;
+  }
+
+  // Isolated single-brick embed: face push is enough when it clears all solids.
+  if (overlapCount === 1 && deepestIdx >= 0) {
+    depenetrateCircleAabb(
+      world,
+      bi,
+      world.brickX[deepestIdx],
+      world.brickY[deepestIdx],
+      world.brickX[deepestIdx] + world.brickW[deepestIdx],
+      world.brickY[deepestIdx] + world.brickH[deepestIdx],
+      eps,
+    );
+    const cx1 = world.ballX[bi];
+    const cy1 = world.ballY[bi];
+    let still = 0;
+    for (let i = 0; i < nBricks; i++) {
+      if (world.brickHp[i] <= 0) {
+        continue;
+      }
+      if (
+        circleOverlapsAabb(
+          cx1,
+          cy1,
+          r,
+          world.brickX[i],
+          world.brickY[i],
+          world.brickX[i] + world.brickW[i],
+          world.brickY[i] + world.brickH[i],
+        )
+      ) {
+        still = 1;
+        break;
+      }
+    }
+    if (still === 0) {
+      return;
+    }
+    // Restore start pose — single-face push made things worse (neighbor embed).
+    world.ballX[bi] = cx0;
+    world.ballY[bi] = cy0;
+  }
+
+  // Cluster eject: keep the ORIGINAL union AABB (never shrink to one brick —
+  // "below" of a single residual brick is the death pocket between tight rows).
+  // Also expand union by scanning bricks that touch the cluster (gap bridges).
+  for (let i = 0; i < nBricks; i++) {
+    if (world.brickHp[i] <= 0) {
+      continue;
+    }
+    const minX = world.brickX[i];
+    const minY = world.brickY[i];
+    const maxX = minX + world.brickW[i];
+    const maxY = minY + world.brickH[i];
+    // Brick near the cluster (within 2r) — include so eject clears the pocket.
+    const near =
+      minX <= clusterMaxX + 2 * r &&
+      maxX >= clusterMinX - 2 * r &&
+      minY <= clusterMaxY + 2 * r &&
+      maxY >= clusterMinY - 2 * r;
+    if (!near) {
+      continue;
+    }
+    if (minX < clusterMinX) clusterMinX = minX;
+    if (minY < clusterMinY) clusterMinY = minY;
+    if (maxX > clusterMaxX) clusterMaxX = maxX;
+    if (maxY > clusterMaxY) clusterMaxY = maxY;
+  }
+
+  const candidatesX = [
+    cx0,
+    cx0,
+    clusterMinX - r - eps,
+    clusterMaxX + r + eps,
+  ];
+  const candidatesY = [
+    clusterMaxY + r + eps,
+    clusterMinY - r - eps,
+    cy0,
+    cy0,
+  ];
+  const candidatesNx = [0, 0, -1, 1];
+  const candidatesNy = [1, -1, 0, 0];
+
+  let bestCost = 1e30;
+  let bestX = cx0;
+  let bestY = cy0;
+  let bestNx = 0;
+  let bestNy = 1;
+  let foundClear = 0;
+
+  for (let c = 0; c < 4; c++) {
+    const x = candidatesX[c];
+    const y = candidatesY[c];
+    const nx = candidatesNx[c];
+    const ny = candidatesNy[c];
+    let blocked = 0;
+    for (let i = 0; i < nBricks; i++) {
+      if (world.brickHp[i] <= 0) {
+        continue;
+      }
+      if (
+        circleOverlapsAabb(
+          x,
+          y,
+          r,
+          world.brickX[i],
+          world.brickY[i],
+          world.brickX[i] + world.brickW[i],
+          world.brickY[i] + world.brickH[i],
+        )
+      ) {
+        blocked = 1;
+        break;
+      }
+    }
+    if (blocked === 1) {
+      continue;
+    }
+    const dx = x - cx0;
+    const dy = y - cy0;
+    const cost = dx * dx + dy * dy;
+    // Prefer destinations that already separate along velocity.
+    const align = vx * nx + vy * ny;
+    const adj = align >= 0 ? cost : cost + 1e6;
+    if (adj < bestCost) {
+      bestCost = adj;
+      bestX = x;
+      bestY = y;
+      bestNx = nx;
+      bestNy = ny;
+      foundClear = 1;
+    }
+  }
+
+  if (foundClear === 0) {
+    // No clear axis slot — force below the expanded cluster.
+    bestX = cx0;
+    bestY = clusterMaxY + r + eps;
+    bestNx = 0;
+    bestNy = 1;
+  }
+
+  world.ballX[bi] = bestX;
+  world.ballY[bi] = bestY;
+
+  const speed = Math.hypot(vx, vy);
+  if (speed > 0) {
+    const approach = vx * bestNx + vy * bestNy;
+    if (approach < 0) {
+      // Inline reflect — avoid module scratch / cross-fn out-params on worklets.
+      const nLen = Math.hypot(bestNx, bestNy) || 1;
+      const unx = bestNx / nLen;
+      const uny = bestNy / nLen;
+      const dot = vx * unx + vy * uny;
+      let ovx = vx - 2 * dot * unx;
+      let ovy = vy - 2 * dot * uny;
+      const s1 = Math.hypot(ovx, ovy);
+      if (s1 > 0) {
+        const scale = speed / s1;
+        ovx *= scale;
+        ovy *= scale;
+      }
+      world.ballVx[bi] = ovx;
+      world.ballVy[bi] = ovy;
+    }
+  } else {
+    world.ballVx[bi] = bestNx * 360;
+    world.ballVy[bi] = bestNy * 360;
+  }
+}
+
 /**
  * Pack live balls into dense prefix [0, live).
  * activeBallCount === live dense count (Phase 5 / D-12).
@@ -117,6 +397,12 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
   const sepEps = 1e-4; // SEPARATION_EPS
   const wallThickness = 20;
   const toiEps = 1e-8;
+  const serveSpeed = 360; // SERVE_SPEED — floor for nuclear unstick
+
+  // Per-step locals (NOT module mutables). Reanimated worklets can clone/share
+  // module objects incorrectly across UI frames; stack locals are reliable.
+  const sweepOut: SweepHit = { hit: false, t: 1, nx: 0, ny: 0 };
+  const velOut: Velocity2 = { vx: 0, vy: 0 };
 
   // 1. Clear per-step brick damage marks
   const nDamage = world.brickDamagedThisStep.length;
@@ -156,9 +442,14 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
     let remaining = dt;
     let ccd = 0;
     let paddleHitThisStep = 0;
+    let brickTouchedThisStep = 0;
+    const xStart = world.ballX[bi];
+    const yStart = world.ballY[bi];
 
-    // F-12: resolve deep overlaps before CCD so t=0 contacts do not burn all iterations.
-    // Walls (field bounds as inward AABBs are thin — depenetrate against playfield edges).
+    // F-12: resolve wall/paddle overlaps before CCD. Do NOT blanket-depenetrate
+    // all bricks — when gapY/gapX < 2r that pushes the ball out of one solid
+    // into a neighbor and permanently pins it (ball-freeze root cause #2).
+    // Brick embeds are cleared after CCD via escapeOverlappingBricks.
     {
       const r = world.ballRadius[bi];
       const eps = sepEps;
@@ -171,22 +462,6 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         world.ballY[bi] = r + eps;
       }
       // Do not clamp bottom — BALL_OUT owns the miss zone below the paddle.
-
-      // Bricks (breakable + steel)
-      for (let brickIndex = 0; brickIndex < world.brickCount; brickIndex++) {
-        if (world.brickHp[brickIndex] <= 0) {
-          continue;
-        }
-        depenetrateCircleAabb(
-          world,
-          bi,
-          world.brickX[brickIndex],
-          world.brickY[brickIndex],
-          world.brickX[brickIndex] + world.brickW[brickIndex],
-          world.brickY[brickIndex] + world.brickH[brickIndex],
-          eps,
-        );
-      }
 
       // Paddle: only depenetrate when center is above the paddle bottom
       // (underside overlaps must fall through to BALL_OUT — never hoist upward).
@@ -233,8 +508,6 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
 
       const dx = vx * remaining;
       const dy = vy * remaining;
-      const x1 = cx + dx;
-      const y1 = cy + dy;
 
       let bestT = 2; // >1 → miss
       let bestNx = 0;
@@ -244,95 +517,90 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
 
       // --- Walls (thin AABBs outside the field) ---
       // Left
-      {
-        const h = sweepCircleAabb(
-          cx,
-          cy,
-          radius,
-          dx,
-          dy,
-          -wallThickness,
-          -wallThickness,
-          0,
-          logicalHeight + wallThickness,
-        );
-        if (h.hit && h.t < bestT) {
-          bestT = h.t;
-          bestNx = h.nx;
-          bestNy = h.ny;
-          bestKind = KIND_WALL;
-          bestIndex = -1;
-        }
+      sweepCircleAabbInto(
+        sweepOut,
+        cx,
+        cy,
+        radius,
+        dx,
+        dy,
+        -wallThickness,
+        -wallThickness,
+        0,
+        logicalHeight + wallThickness,
+      );
+      if (sweepOut.hit && sweepOut.t < bestT) {
+        bestT = sweepOut.t;
+        bestNx = sweepOut.nx;
+        bestNy = sweepOut.ny;
+        bestKind = KIND_WALL;
+        bestIndex = -1;
       }
       // Right
-      {
-        const h = sweepCircleAabb(
-          cx,
-          cy,
-          radius,
-          dx,
-          dy,
-          logicalWidth,
-          -wallThickness,
-          logicalWidth + wallThickness,
-          logicalHeight + wallThickness,
-        );
-        if (h.hit && h.t < bestT) {
-          bestT = h.t;
-          bestNx = h.nx;
-          bestNy = h.ny;
-          bestKind = KIND_WALL;
-          bestIndex = -1;
-        }
+      sweepCircleAabbInto(
+        sweepOut,
+        cx,
+        cy,
+        radius,
+        dx,
+        dy,
+        logicalWidth,
+        -wallThickness,
+        logicalWidth + wallThickness,
+        logicalHeight + wallThickness,
+      );
+      if (sweepOut.hit && sweepOut.t < bestT) {
+        bestT = sweepOut.t;
+        bestNx = sweepOut.nx;
+        bestNy = sweepOut.ny;
+        bestKind = KIND_WALL;
+        bestIndex = -1;
       }
       // Top
-      {
-        const h = sweepCircleAabb(
-          cx,
-          cy,
-          radius,
-          dx,
-          dy,
-          -wallThickness,
-          -wallThickness,
-          logicalWidth + wallThickness,
-          0,
-        );
-        if (h.hit && h.t < bestT) {
-          bestT = h.t;
-          bestNx = h.nx;
-          bestNy = h.ny;
-          bestKind = KIND_WALL;
-          bestIndex = -1;
-        }
+      sweepCircleAabbInto(
+        sweepOut,
+        cx,
+        cy,
+        radius,
+        dx,
+        dy,
+        -wallThickness,
+        -wallThickness,
+        logicalWidth + wallThickness,
+        0,
+      );
+      if (sweepOut.hit && sweepOut.t < bestT) {
+        bestT = sweepOut.t;
+        bestNx = sweepOut.nx;
+        bestNy = sweepOut.ny;
+        bestKind = KIND_WALL;
+        bestIndex = -1;
       }
       // Bottom → BALL_OUT stub
-      {
-        const h = sweepCircleAabb(
-          cx,
-          cy,
-          radius,
-          dx,
-          dy,
-          -wallThickness,
-          logicalHeight,
-          logicalWidth + wallThickness,
-          logicalHeight + wallThickness,
-        );
-        if (h.hit && h.t < bestT) {
-          bestT = h.t;
-          bestNx = h.nx;
-          bestNy = h.ny;
-          bestKind = KIND_BOTTOM;
-          bestIndex = -1;
-        }
+      sweepCircleAabbInto(
+        sweepOut,
+        cx,
+        cy,
+        radius,
+        dx,
+        dy,
+        -wallThickness,
+        logicalHeight,
+        logicalWidth + wallThickness,
+        logicalHeight + wallThickness,
+      );
+      if (sweepOut.hit && sweepOut.t < bestT) {
+        bestT = sweepOut.t;
+        bestNx = sweepOut.nx;
+        bestNy = sweepOut.ny;
+        bestKind = KIND_BOTTOM;
+        bestIndex = -1;
       }
 
       // --- Paddle ---
-      // F-12: ignore paddle when center is already below its bottom face
-      // (player slid under a dying ball) — bottom / BALL_OUT owns that region.
       if (cy <= paddleMaxY) {
-        const h = sweepCircleAabb(
+        sweepCircleAabbInto(
+          sweepOut,
           cx,
           cy,
           radius,
@@ -343,36 +611,29 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
           paddleMaxX,
           paddleMaxY,
         );
-        if (h.hit && h.t < bestT) {
-          bestT = h.t;
-          bestNx = h.nx;
-          bestNy = h.ny;
+        if (sweepOut.hit && sweepOut.t < bestT) {
+          bestT = sweepOut.t;
+          bestNx = sweepOut.nx;
+          bestNy = sweepOut.ny;
           bestKind = KIND_PADDLE;
           bestIndex = -1;
         }
       }
 
-      // --- Bricks ---
-      // Exhaustive scan when brickCount is small (Phase 3 = 35). loadTestGrid's
-      // packed 1-row cellToBrick is NOT spatial — broadphase misses most bricks
-      // and the ball tunnels. Dense levels (cols×rows) still use the grid.
-      const useSpatial =
-        world.gridRows > 1 &&
-        world.gridCols > 1 &&
-        world.gridCols * world.gridRows >= world.brickCount;
-
-      const considerBrick = (brickIndex: number) => {
-        if (brickIndex < 0 || brickIndex >= world.brickCount) {
-          return;
-        }
+      // --- Bricks: flat for-loop (NO nested worklet closure). Nested
+      // considerBrick callbacks that mutate outer `let` best* are unreliable
+      // on Reanimated UI runtime and can leave the ball glued to a brick.
+      const nBricks = world.brickCount;
+      for (let brickIndex = 0; brickIndex < nBricks; brickIndex++) {
         if (world.brickHp[brickIndex] <= 0) {
-          return;
+          continue;
         }
         const bx = world.brickX[brickIndex];
         const by = world.brickY[brickIndex];
         const bw = world.brickW[brickIndex];
         const bh = world.brickH[brickIndex];
-        const h = sweepCircleAabb(
+        sweepCircleAabbInto(
+          sweepOut,
           cx,
           cy,
           radius,
@@ -383,20 +644,12 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
           bx + bw,
           by + bh,
         );
-        if (h.hit && h.t < bestT) {
-          bestT = h.t;
-          bestNx = h.nx;
-          bestNy = h.ny;
+        if (sweepOut.hit && sweepOut.t < bestT) {
+          bestT = sweepOut.t;
+          bestNx = sweepOut.nx;
+          bestNy = sweepOut.ny;
           bestKind = KIND_BRICK;
           bestIndex = brickIndex;
-        }
-      };
-
-      if (useSpatial) {
-        forEachBrickCandidate(world, cx, cy, x1, y1, radius, considerBrick);
-      } else {
-        for (let brickIndex = 0; brickIndex < world.brickCount; brickIndex++) {
-          considerBrick(brickIndex);
         }
       }
 
@@ -422,15 +675,16 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       }
 
       if (bestKind === KIND_PADDLE) {
-        const out = resolvePaddleEnglish(
+        resolvePaddleEnglishInto(
+          velOut,
           hx,
           world.paddleX,
           paddleHalfW,
           world.ballVx[bi],
           world.ballVy[bi],
         );
-        world.ballVx[bi] = out.vx;
-        world.ballVy[bi] = out.vy;
+        world.ballVx[bi] = velOut.vx;
+        world.ballVy[bi] = velOut.vy;
         // SEPARATION_EPS nudge along contact normal (prefer upward if flat)
         let nx = bestNx;
         let ny = bestNy;
@@ -449,45 +703,73 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       }
 
       if (bestKind === KIND_WALL) {
-        let out = reflectVelocity(
-          world.ballVx[bi],
-          world.ballVy[bi],
-          bestNx,
-          bestNy,
-        );
-        out = enforceMinVerticalRatio(out.vx, out.vy);
-        world.ballVx[bi] = out.vx;
-        world.ballVy[bi] = out.vy;
+        // Only reflect when approaching — separating contacts are sweep misses,
+        // but belt-and-suspenders if a t≈0 normal is noisy.
+        const approach =
+          world.ballVx[bi] * bestNx + world.ballVy[bi] * bestNy;
+        if (approach < 0) {
+          reflectVelocityInto(
+            velOut,
+            world.ballVx[bi],
+            world.ballVy[bi],
+            bestNx,
+            bestNy,
+          );
+          enforceMinVerticalRatioInto(velOut, velOut.vx, velOut.vy);
+          enforceMinHorizontalRatioInto(velOut, velOut.vx, velOut.vy);
+          world.ballVx[bi] = velOut.vx;
+          world.ballVy[bi] = velOut.vy;
+        }
         world.ballX[bi] = world.ballX[bi] + bestNx * sepEps;
         world.ballY[bi] = world.ballY[bi] + bestNy * sepEps;
         pushEvent(world, EventCode.WALL_HIT, bi, -1, hx, hy);
         continue;
       }
 
-      // KIND_BRICK
+      // KIND_BRICK — one brick contact ends CCD for this ball this step.
+      // Continuing with leftover time immediately re-hits a neighbor when
+      // gap < 2r and pins the ball (device: "bóng vừa chạm là đứng").
       {
         const bIdx = bestIndex;
-        let out = reflectVelocity(
-          world.ballVx[bi],
-          world.ballVy[bi],
-          bestNx,
-          bestNy,
+        const nx = bestNx;
+        const ny = bestNy;
+
+        brickTouchedThisStep = 1;
+        const approach =
+          world.ballVx[bi] * nx + world.ballVy[bi] * ny;
+        if (approach < 0) {
+          reflectVelocityInto(
+            velOut,
+            world.ballVx[bi],
+            world.ballVy[bi],
+            nx,
+            ny,
+          );
+          enforceMinVerticalRatioInto(velOut, velOut.vx, velOut.vy);
+          enforceMinHorizontalRatioInto(velOut, velOut.vx, velOut.vy);
+          world.ballVx[bi] = velOut.vx;
+          world.ballVy[bi] = velOut.vy;
+        }
+
+        // Push fully outside this brick's solid (+eps), not just sepEps.
+        depenetrateCircleAabb(
+          world,
+          bi,
+          world.brickX[bIdx],
+          world.brickY[bIdx],
+          world.brickX[bIdx] + world.brickW[bIdx],
+          world.brickY[bIdx] + world.brickH[bIdx],
+          sepEps,
         );
-        out = enforceMinVerticalRatio(out.vx, out.vy);
-        world.ballVx[bi] = out.vx;
-        world.ballVy[bi] = out.vy;
-        world.ballX[bi] = world.ballX[bi] + bestNx * sepEps;
-        world.ballY[bi] = world.ballY[bi] + bestNy * sepEps;
+        world.ballX[bi] = world.ballX[bi] + nx * sepEps;
+        world.ballY[bi] = world.ballY[bi] + ny * sepEps;
 
         const unbreakable =
           (world.brickFlags[bIdx] & BrickFlags.UNBREAKABLE) !== 0;
 
         if (unbreakable) {
-          // F-48: mark touched so steel cannot spam BRICK_HIT every CCD iter
           if (world.brickDamagedThisStep[bIdx] === 0) {
             world.brickDamagedThisStep[bIdx] = 1;
-            // D-10: reflect only; HP unchanged; never BRICK_BREAK
-            // evA = HP snapshot for VFX color (F-13); evB = brick index
             pushEvent(
               world,
               EventCode.BRICK_HIT,
@@ -505,7 +787,6 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
           world.brickHp[bIdx] = hp;
           if (hp <= 0) {
             pushEvent(world, EventCode.BRICK_BREAK, hpBefore, bIdx, hx, hy);
-            // Clear from grid / inactive
             const cells = world.cellToBrick;
             for (let c = 0; c < cells.length; c++) {
               if (cells[c] === bIdx) {
@@ -516,7 +797,9 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
             pushEvent(world, EventCode.BRICK_HIT, hpBefore, bIdx, hx, hy);
           }
         }
-        // Already damaged this step: reflect only, no further HP loss / events
+
+        remaining = 0;
+        break;
       }
     }
 
@@ -524,6 +807,82 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
     // Free-integrating here tunnels through colliders the loop already failed to clear.
     if (remaining > toiEps && world.ballActive[bi] && ccd >= maxCcd) {
       remaining = 0;
+    }
+
+    // Escape hatch: only when a brick was touched this step or still embedded.
+    if (world.ballActive[bi] && brickTouchedThisStep) {
+      escapeOverlappingBricks(world, bi, sepEps);
+    } else if (world.ballActive[bi]) {
+      const r = world.ballRadius[bi];
+      const cx = world.ballX[bi];
+      const cy = world.ballY[bi];
+      let stillOverlaps = 0;
+      for (let i = 0; i < world.brickCount; i++) {
+        if (world.brickHp[i] <= 0) {
+          continue;
+        }
+        if (
+          circleOverlapsAabb(
+            cx,
+            cy,
+            r,
+            world.brickX[i],
+            world.brickY[i],
+            world.brickX[i] + world.brickW[i],
+            world.brickY[i] + world.brickH[i],
+          )
+        ) {
+          stillOverlaps = 1;
+          break;
+        }
+      }
+      if (stillOverlaps) {
+        escapeOverlappingBricks(world, bi, sepEps);
+      }
+    }
+
+    // Nuclear unstick: if almost no displacement despite speed, shove AWAY from
+    // velocity (i.e. reverse) so we never push deeper into a solid we just hit.
+    if (world.ballActive[bi]) {
+      const disp = Math.hypot(
+        world.ballX[bi] - xStart,
+        world.ballY[bi] - yStart,
+      );
+      let spd = Math.hypot(world.ballVx[bi], world.ballVy[bi]);
+      if (spd > 1 && disp < 0.01) {
+        // Flip velocity and step 3px along the new heading (escape the pin).
+        world.ballVx[bi] = -world.ballVx[bi];
+        world.ballVy[bi] = -world.ballVy[bi];
+        const inv = 1 / spd;
+        world.ballX[bi] =
+          world.ballX[bi] + world.ballVx[bi] * inv * 3;
+        world.ballY[bi] =
+          world.ballY[bi] + world.ballVy[bi] * inv * 3;
+        if (spd < serveSpeed) {
+          const scale = serveSpeed / spd;
+          world.ballVx[bi] = world.ballVx[bi] * scale;
+          world.ballVy[bi] = world.ballVy[bi] * scale;
+          spd = serveSpeed;
+        }
+        enforceMinVerticalRatioInto(
+          velOut,
+          world.ballVx[bi],
+          world.ballVy[bi],
+        );
+        enforceMinHorizontalRatioInto(velOut, velOut.vx, velOut.vy);
+        world.ballVx[bi] = velOut.vx;
+        world.ballVy[bi] = velOut.vy;
+        spd = Math.hypot(world.ballVx[bi], world.ballVy[bi]);
+      }
+      // Never leave a live ball with near-zero speed (stall glue).
+      if (spd > 0 && spd < 30) {
+        const scale = serveSpeed / spd;
+        world.ballVx[bi] = world.ballVx[bi] * scale;
+        world.ballVy[bi] = world.ballVy[bi] * scale;
+      } else if (!(spd > 0)) {
+        world.ballVx[bi] = serveSpeed * 0.2;
+        world.ballVy[bi] = -serveSpeed;
+      }
     }
 
     // 4. Bounds backstop (clamp center inside field expanded by radius)

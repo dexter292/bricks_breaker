@@ -42,7 +42,7 @@ patterns-established:
   - "Discrete cert inject on GameLoopHandle — zero per-frame cost when idle"
   - "Deferred inject after level-03 + Mid remount via certPendingRef + short timeout"
 
-requirements-completed: [PLT-03]
+requirements-completed: []  # PLT-03 device evidence pending Plan 06
 
 duration: 3min
 completed: 2026-09-21
@@ -51,6 +51,8 @@ completed: 2026-09-21
 # Phase 8 Plan 03: Cert Worst-Case Harness Summary
 
 **DEV-only scripted worst-case on level-03 (Cert WC: ≥3 balls + near Mid particle cap + shake) plus locked A1 gfxinfo/Instruments protocol in phase8-certification.md.**
+
+> **Ledger note (T8.1):** Cert harness + protocol only — PLT-03 pass/fail numbers remain Plan 06 / pending device.
 
 ## Performance
 

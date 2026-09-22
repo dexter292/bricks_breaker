@@ -170,15 +170,15 @@ Plans:
   3. Device quality tiers cap particle count, trail length, and glow variants, with nothing in `core/` reading the tier
   4. A mount/unmount soak test shows no worklet or game-loop leaks and no frame-time drift over an extended session
   5. A public HTTPS privacy policy URL is live, the Play Data Safety form and age rating are complete, the iOS privacy manifest is present, the name is cleared, and every asset and level layout is originally authored
-**Plans:** 3/7 plans executed
+**Plans:** 6/7 plans executed (device gate pending)
 Plans:
 - [x] 08-00-PLAN.md — Wave 0: expo-device, Nyquist stubs, cert/store doc stubs
 - [x] 08-01-PLAN.md — level-03 showpiece + default boot + DEV level switch (LVL-04)
-- [x] 08-02-PLAN.md — Low/Mid/High quality tiers + VfxCaps wiring (PLT-03)
-- [x] 08-03-PLAN.md — Scripted worst-case cert harness + phase8-certification protocol (PLT-03)
-- [x] 08-04-PLAN.md — DEV soak harness 100× + 15 min + audio lifecycle asserts (PLT-03)
+- [x] 08-02-PLAN.md — Low/Mid/High quality tiers + VfxCaps wiring (PLT-03 prep)
+- [x] 08-03-PLAN.md — Scripted worst-case cert harness + phase8-certification protocol (PLT-03 prep)
+- [x] 08-04-PLAN.md — DEV soak harness 100× + 15 min + audio lifecycle asserts (PLT-03 prep)
 - [x] 08-05-PLAN.md — Privacy policy HTTPS + privacyManifests + store paperwork (PLT-04)
-- [ ] 08-06-PLAN.md — Device Results recording + phase gate (closes Phase 7 gfxinfo debt)
+- [ ] 08-06-PLAN.md — Device Results recording + phase gate (PLT-03 evidence; closes Phase 7 gfxinfo debt)
 **UI hint**: no
 
 ## Progress
@@ -197,7 +197,7 @@ Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7
 | 5. Run Rules | 7/7 | Complete | 2026-09-20 |
 | 6. UI Shell, HUD & Persistence | 6/6 | Complete | 2026-09-20 |
 | 7. Feedback — Neon VFX & Audio | 7/7 | Complete (Human UAT approved; Pixel 6a gfxinfo → Phase 8 debt) | 2026-09-21 |
-| 8. Showpiece Level & Launch Baseline | 3/7 | In Progress|  |
+| 8. Showpiece Level & Launch Baseline | 6/7 | In Progress — PLT-03 device gate open (Plan 06) |  |
 
 ## Coverage
 

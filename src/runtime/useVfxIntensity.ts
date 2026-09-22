@@ -15,13 +15,16 @@ export function useVfxIntensity(): SharedValue<number> {
   const vfxIntensity = useSharedValue(1.0);
 
   useEffect(() => {
+    let cancelled = false;
     let sub: EmitterSubscription | { remove: () => void } | undefined;
 
     void AccessibilityInfo.isReduceMotionEnabled()
       .then((enabled) => {
+        if (cancelled) return;
         vfxIntensity.value = intensityFromReduceMotion(enabled);
       })
       .catch(() => {
+        if (cancelled) return;
         // Soft-fail: keep default full intensity
         vfxIntensity.value = 1.0;
       });
@@ -34,6 +37,7 @@ export function useVfxIntensity(): SharedValue<number> {
     );
 
     return () => {
+      cancelled = true;
       sub?.remove();
     };
   }, [vfxIntensity]);

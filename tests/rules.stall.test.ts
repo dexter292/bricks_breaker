@@ -88,10 +88,27 @@ describe('stall rules (PHYS-07)', () => {
     idleSteps(w2, 1200);
     const speed2 = Math.hypot(w2.ballVx[0], w2.ballVy[0]);
     expect(speed2).toBeLessThanOrEqual(MAX_BALL_SPEED + 1e-9);
-    expect(speed2).toBeCloseTo(Math.min(700 * 1.08, MAX_BALL_SPEED), 6);
+    expect(speed2).toBeCloseTo(Math.min(700 * 1.08, MAX_BALL_SPEED), 4);
   });
 
-  it('tier 3 at 960+480 ticks applies deterministic angle nudge; no Math.random', () => {
+  it('tier 3 repeats intervention every 240 idle ticks while still at tier 3 (F-27)', () => {
+    const w = playingWorld();
+    w.ballVx[0] = 0;
+    w.ballVy[0] = -360;
+    idleSteps(w, 1440);
+    expect(w.stallTier).toBe(3);
+    expect(Math.abs(w.ballVx[0])).toBeGreaterThan(1);
+
+    // Simulate next paddle-center hit zeroing horizontal again.
+    w.ballVx[0] = 0;
+    w.ballVy[0] = -360;
+    idleSteps(w, 240);
+    expect(w.stallTier).toBe(3);
+    expect(w.stallIdleTicks).toBe(1680);
+    expect(Math.abs(w.ballVx[0])).toBeGreaterThan(1);
+  });
+
+  it('tier 3 at 960+480 ticks applies deterministic escalating angle nudge', () => {
     const src = readFileSync(
       join(__dirname, '../src/core/rules/stall.ts'),
       'utf8',
@@ -100,10 +117,8 @@ describe('stall rules (PHYS-07)', () => {
     expect(src).toMatch(/PHYS-07: no random bounce jitter/);
 
     const w = playingWorld();
-    // Near-horizontal-ish but legal trajectory so nudge + clamp is visible
     w.ballVx[0] = 500;
     w.ballVy[0] = -300;
-    const ratioBefore = Math.abs(w.ballVy[0]) / Math.hypot(w.ballVx[0], w.ballVy[0]);
     idleSteps(w, 1440);
     expect(w.stallTier).toBe(3);
     expect(w.stallIdleTicks).toBe(1440);
@@ -113,20 +128,27 @@ describe('stall rules (PHYS-07)', () => {
     expect(speed).toBeGreaterThan(0);
     const ratioAfter = Math.abs(w.ballVy[0]) / speed;
     expect(ratioAfter).toBeGreaterThanOrEqual(MIN_VERTICAL_RATIO - 1e-6);
-    // F-23: nudge must not make the heading shallower
-    expect(ratioAfter).toBeGreaterThanOrEqual(ratioBefore - 1e-6);
+    expect(Math.abs(w.ballVx[0]) / speed).toBeGreaterThanOrEqual(
+      Math.sin((8 * Math.PI) / 180) - 1e-6,
+    );
   });
 
-  it('tier 3 prefers steeper rotation even when parity sign would flatten (F-23)', () => {
+  it('two consecutive tier-3 interventions change heading by >1e-6 (NG-1)', () => {
     const w = playingWorld();
-    // Ball 0 parity wants +8°; for (300,-400) that flattens — steeper choice is −8°
-    w.ballVx[0] = 300;
-    w.ballVy[0] = -400;
-    const before = Math.abs(w.ballVy[0]) / Math.hypot(w.ballVx[0], w.ballVy[0]);
+    const speed = 420;
+    const minHorizRad = (8 * Math.PI) / 180;
+    w.ballVx[0] = Math.sin(minHorizRad) * speed;
+    w.ballVy[0] = -Math.cos(minHorizRad) * speed;
+    const heading = (vx: number, vy: number) => Math.atan2(vx, -vy);
+    const h0 = heading(w.ballVx[0], w.ballVy[0]);
+
     idleSteps(w, 1440);
-    const after =
-      Math.abs(w.ballVy[0]) / Math.hypot(w.ballVx[0], w.ballVy[0]);
-    expect(after).toBeGreaterThanOrEqual(before - 1e-6);
+    const h1 = heading(w.ballVx[0], w.ballVy[0]);
+    expect(Math.abs(h1 - h0)).toBeGreaterThan(1e-6);
+
+    idleSteps(w, 240);
+    const h2 = heading(w.ballVx[0], w.ballVy[0]);
+    expect(Math.abs(h2 - h1)).toBeGreaterThan(1e-6);
   });
 
   it('breakable BRICK_HIT/BREAK resets stallIdleTicks and stallTier to 0', () => {

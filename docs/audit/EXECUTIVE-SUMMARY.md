@@ -1,5 +1,10 @@
 # EXECUTIVE SUMMARY — Kiểm định toàn diện Neon Brick Breaker
 
+> **⚠️ Tài liệu này là ảnh chụp của AUDIT #01 (2026-09-21, commit `682056a`) và được giữ nguyên làm baseline.**
+> Đợt remediation sau đó đã đóng 33/63 finding, gồm **cả 5 finding Critical**. Trạng thái hiện tại,
+> bảng verdict cho từng finding, và **18 finding mới (NF-1…NF-18, trong đó 1 Critical)**
+> nằm ở **[RE-AUDIT-02.md](./RE-AUDIT-02.md)** — hãy đọc file đó trước.
+
 **Ngày audit:** 2026-09-21
 **Phạm vi:** toàn bộ repository `/Users/admin/SideProject/game/bricks_breaker` (commit HEAD `682056a`)
 **Tính chất:** kiểm định độc lập, read-only. Không có file production/test/planning nào bị sửa đổi trong quá trình audit.

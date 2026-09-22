@@ -9,6 +9,7 @@ export function remainderAfterSubstepCap(
   maxSubsteps: number,
   fixedDt: number,
 ): number {
+  'worklet';
   if (
     stepsTaken >= maxSubsteps &&
     Number.isFinite(accumulatorAfterLoop) &&

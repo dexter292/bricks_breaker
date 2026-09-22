@@ -4,7 +4,9 @@ import {
   resolvePaddleEnglish,
   reflectVelocity,
 } from '../src/core/physics/resolve';
-import { PADDLE_ANGLE_CLAMP_DEG } from '../src/core/constants';
+import {
+  PADDLE_ANGLE_CLAMP_DEG,
+} from '../src/core/constants';
 
 const CLAMP_RAD = (PADDLE_ANGLE_CLAMP_DEG * Math.PI) / 180;
 /** Min |vy|/speed after english ≈ cos(clamp). */
@@ -56,7 +58,7 @@ describe('PHYS-04 paddle english / clamps', () => {
     expect(out.vy).toBeLessThan(0);
   });
 
-  it('t=0 (center) → nearly straight up (vx≈0, vy<0)', () => {
+  it('t=0 (center) → outgoing angle ≈ +8° (min horizontal, NG-1)', () => {
     const out = resolvePaddleEnglish(
       paddleCx,
       paddleCx,
@@ -64,9 +66,9 @@ describe('PHYS-04 paddle english / clamps', () => {
       inboundVx,
       inboundVy,
     );
-    expect(out.vx).toBeCloseTo(0, 4);
+    const minHorizRad = (8 * Math.PI) / 180;
+    expect(angleFromUp(out.vx, out.vy)).toBeCloseTo(minHorizRad, 3);
     expect(out.vy).toBeLessThan(0);
-    expect(Math.abs(angleFromUp(out.vx, out.vy))).toBeLessThan(ANGLE_EPS);
   });
 
   it('preserves speed within 1e-4 (D-02)', () => {

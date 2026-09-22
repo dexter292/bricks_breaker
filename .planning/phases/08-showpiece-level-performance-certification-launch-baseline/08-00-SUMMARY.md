@@ -50,7 +50,7 @@ patterns-established:
   - "Wave 0 Nyquist: it.todo stubs so later plans never claim MISSING test files"
   - "Docs stubs with STATUS:STUB — Plan 0N fills markers for certification/store"
 
-requirements-completed: [LVL-04, PLT-03, PLT-04]
+requirements-completed: []  # Wave 0 stubs only — harness/protocol/docs; no requirement closure
 
 duration: 2min
 completed: 2026-09-21
@@ -59,6 +59,8 @@ completed: 2026-09-21
 # Phase 8 Plan 00: Wave 0 Nyquist + Install Summary
 
 **Pinned `expo-device@~57.0.2`, added fail-closed privacy assert + certification/store stubs, and landed Vitest `it.todo` Nyquist targets so Plans 01–06 have automated verify paths.**
+
+> **Ledger note (T8.1):** Wave 0 delivered install stubs, cert/store doc scaffolding, and Nyquist targets only — not LVL-04, PLT-03, or PLT-04 closure.
 
 ## Performance
 

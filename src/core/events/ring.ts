@@ -3,6 +3,10 @@ import type { World } from '../types';
 /**
  * Push an event into the fixed-capacity SoA ring (D-08).
  * Overflow policy: drop newest + set evOverflow = 1. No heap alloc.
+ * Conscious contract: dropped pushes can lose score/drops/VFX/audio;
+ * phase/lives survive via derived state. Cap 128 is sized so overflow is
+ * unreachable in normal play — if __DEV__ sees evOverflow, the flag alone
+ * is the signal (no worklet console; host/tests assert the bit).
  */
 export function pushEvent(
   world: World,

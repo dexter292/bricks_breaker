@@ -102,10 +102,10 @@ No orphaned Phase 5 requirements in REQUIREMENTS.md beyond these five. All plan-
 
 | File | Line | Pattern | Severity | Impact |
 | ---- | ---- | ------- | -------- | ------ |
-| `src/core/stepRun.ts` | ~51–53 | Lives before win on same frame (05-REVIEW WR-01) | ℹ️ Info | Edge: clear board + last ball out on final life → LOST not WON. Does not break must-haves / SC. Advisory only. |
-| `src/runtime/GameScreen.tsx` | ~115–117 | Stall! while DOCKED if tier>0 (05-REVIEW WR-02) | ℹ️ Info | D-18 keeps stall at run level; chrome not gated to PLAYING. SC-5 still met (visible escalation during play). Advisory only. |
+| `src/core/stepRun.ts` | — | Lives before win on same frame (05-REVIEW WR-01) | ✓ Fixed | `05-REVIEW-FIX.md` (2026-09-20): win check before lives; tests in `rules.win.test.ts` / `rules.lives.test.ts`. |
+| `src/runtime/GameScreen.tsx` | — | Stall! while DOCKED if tier>0 (05-REVIEW WR-02) | ✓ Fixed | `05-REVIEW-FIX.md` (2026-09-20): Stall! gated to PLAYING + `uiPhase === 'playing'`. |
 
-No blocker stubs. Wave 0 `it.todo` files are fully green. No TODO/FIXME/placeholder in Phase 5 rule path.
+No blocker stubs. Wave 0 `it.todo` files are fully green. WR-01/WR-02 closed by review-fix; verification updated T8.1 (2026-09-21).
 
 ### Human Verification Required
 
@@ -113,7 +113,7 @@ None pending. Plan 05-06 human checkpoint (Score/combo/Stall! chrome + pickup ca
 
 ### Gaps Summary
 
-No actionable gaps. All five roadmap success criteria are implemented, wired, and covered by unit tests. Advisory review findings (lives-before-win same-frame; Stall chrome while docked) do not violate must-haves or success criteria and are recorded as INFO only.
+No actionable gaps. All five roadmap success criteria are implemented, wired, and covered by unit tests. WR-01/WR-02 from initial review were fixed in `05-REVIEW-FIX.md` before phase close.
 
 **Phase can be marked complete.**
 

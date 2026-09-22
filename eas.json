@@ -20,7 +20,10 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_NO_DEV_CLIENT": "1"
+      }
     }
   }
 }

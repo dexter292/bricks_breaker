@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-04-PLAN.md
-last_updated: "2026-09-21T12:33:15.577Z"
+stopped_at: Ready for 08-06-PLAN.md (device gate)
+last_updated: "2026-09-21T14:50:00.000Z"
 last_activity: 2026-09-21
 progress:
   total_phases: 8
@@ -12,6 +12,9 @@ progress:
   total_plans: 48
   completed_plans: 47
   percent: 98
+  phase_8_status: in_progress
+  phase_8_plans: 6/7
+  plt_03: pending_device
 ---
 
 # Project State
@@ -26,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 8 (Showpiece Level, Performance Certification & Launch Baseline) — EXECUTING
-Plan: 6 of 7
-Status: Ready to execute
+Plan: 6 of 7 (08-06 device gate pending)
+Status: Blocked on hardware evidence for PLT-03
 Last activity: 2026-09-21
 
-Progress: [████████░░] 88% phases (7/8 complete)
+Progress: [████████░░] 7/8 phases code-complete; Phase 8 **not verified** (Plan 06 open)
 
 ## Performance Metrics
 
@@ -139,7 +142,8 @@ Progress: [████████░░] 88% phases (7/8 complete)
 
 ### Pending Todos
 
-- Before MVP: Pixel 6a (or D-04) gfxinfo SC-3 + physical device SC-1/SC-2
+- **Phase 8 Plan 06:** Pixel 6a gfxinfo + iPhone Instruments + device soak Results (PLT-03)
+- Before MVP: discharge D2 (SC-2 release worklet mutation), D4 (iOS profiling re-run), D13 (`tsc --noEmit` gate)
 
 ### Blockers/Concerns
 
@@ -149,11 +153,13 @@ Progress: [████████░░] 88% phases (7/8 complete)
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Device gate | Android SC-1/SC-2 + SC-3 gfxinfo (Pixel 6a) | Open — before MVP (D-04) | 2026-09-20 |
-| Device gate | iOS profiling SC-2 / physical re-check | Open — before MVP (D-05) | 2026-09-20 |
+| Device gate | Android SC-1/SC-2 + SC-3 gfxinfo (Pixel 6a) | Open — Phase 8 Plan 06 / MVP (D-04) | 2026-09-20 |
+| Device gate | iOS profiling SC-2 / physical re-check (D4) | Open — Phase 8 Plan 06 / MVP (D-05) | 2026-09-20 |
+| Release build | SC-2 worklet mutation on profiling/release (D2) | Open — Phase 8 Plan 06 Results | 2026-09-21 |
+| Typecheck | D13 — `tsc --noEmit` in phase gate | Open — see `docs/audit/DEFERRED-ITEMS.md` | 2026-09-21 |
 
 ## Session Continuity
 
 Last session: 2026-09-21T12:33:15.574Z
-Stopped at: Completed 08-04-PLAN.md
+Stopped at: Ready for 08-06-PLAN.md (device gate)
 Resume file: None
