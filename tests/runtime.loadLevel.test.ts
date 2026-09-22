@@ -1,15 +1,15 @@
 /**
  * LVL-04 — default level-03 load (Plan 01).
+ * NH-2: level-02 is a compile fixture only — not a playable LevelId.
  */
 import { describe, expect, it } from 'vitest';
 import { loadLevelById, type LevelId } from '../src/runtime/loadLevel';
 
 describe('runtime.loadLevel', () => {
-  it('LevelId includes level-03', () => {
-    const ids: LevelId[] = ['level-01', 'level-02', 'level-03'];
+  it('LevelId is playable set level-01 | level-03', () => {
+    const ids: LevelId[] = ['level-01', 'level-03'];
     expect(ids).toContain('level-03');
-    // Exhaustiveness: assigning outside the union is a type error at compile time.
-    expect(ids).toHaveLength(3);
+    expect(ids).toHaveLength(2);
   });
 
   it('loadLevelById() default is level-03', () => {

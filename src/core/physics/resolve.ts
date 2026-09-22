@@ -153,10 +153,10 @@ export function enforceMinHorizontalRatioInto(
 }
 
 /**
- * Classic Breakout paddle english (D-01…D-03).
+ * Classic Breakout paddle english (D-01…D-03 / NG-1).
  * Writes result into `out` (F-56).
  * t = clamp((ballX - paddleCx) / paddleHalfW, -1, 1)
- * angleFromUp = t * PADDLE_ANGLE_CLAMP_RAD
+ * angleFromUp = sign(t) * (8° + |t| * 54°)  // monotonic band [8°, 62°]
  * vx = sin(angle)*speed; vy = -cos(angle)*speed  // y-down → up is −vy
  */
 export function resolvePaddleEnglishInto(

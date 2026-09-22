@@ -247,10 +247,21 @@ export function PlayingHost({ onMenu }: Props) {
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
   // F-14: bake at active level brick size.
-  // NF-6 / NG-10 / NG-11: do not setState sync in effect body; null SV before delayed dispose.
+  // NF-6 / NG-10 / NG-11 / NH-4: null SV first; flush pending dispose on cleanup (never cancel).
   useEffect(() => {
     let cancelled = false;
+    let pendingDispose: GlowAtlas | null = null;
     let disposeTimer: ReturnType<typeof setTimeout> | null = null;
+    const flushPendingDispose = () => {
+      if (disposeTimer != null) {
+        clearTimeout(disposeTimer);
+        disposeTimer = null;
+      }
+      if (pendingDispose != null) {
+        disposeGlowAtlas(pendingDispose);
+        pendingDispose = null;
+      }
+    };
     // Defer ready=false so we avoid react-hooks/set-state-in-effect (NG-10).
     const armTimer = setTimeout(() => {
       if (cancelled) {
@@ -280,11 +291,17 @@ export function PlayingHost({ onMenu }: Props) {
       }
       try {
         setActive(false);
+        flushPendingDispose();
         const prev = glowAtlasSv.value;
         glowAtlasSv.value = null;
-        // NG-11: dispose after UI has observed null (two frames).
+        pendingDispose = prev;
+        // Delay dispose so UI observes null before SkImage free (NH-4).
         disposeTimer = setTimeout(() => {
-          disposeGlowAtlas(prev);
+          if (pendingDispose === prev) {
+            disposeGlowAtlas(prev);
+            pendingDispose = null;
+          }
+          disposeTimer = null;
         }, 32);
         glowAtlasSv.value = bakeGlowSprites(brickW, brickH);
       } catch (err) {
@@ -304,17 +321,13 @@ export function PlayingHost({ onMenu }: Props) {
     return () => {
       cancelled = true;
       clearTimeout(armTimer);
-      if (disposeTimer != null) {
-        clearTimeout(disposeTimer);
-      }
+      // NH-4: flush pending dispose — never cancel and leak SkImages.
+      flushPendingDispose();
       setActive(false);
       playBatchRef.current = null;
       const atlas = glowAtlasSv.value;
       glowAtlasSv.value = null;
-      // Delay dispose so in-flight recordFrame cannot draw a freed SkImage.
-      setTimeout(() => {
-        disposeGlowAtlas(atlas);
-      }, 32);
+      disposeGlowAtlas(atlas);
       audio.release();
     };
   }, [audio, glowAtlasSv, loadResult, setActive]);
@@ -491,11 +504,7 @@ export function PlayingHost({ onMenu }: Props) {
   }, [uiPhase, result, onMenu, onPause]);
 
   const toggleDevLevel = useCallback(() => {
-    setLevelId((prev) => {
-      if (prev === 'level-01') return 'level-02';
-      if (prev === 'level-02') return 'level-03';
-      return 'level-01';
-    });
+    setLevelId((prev) => (prev === 'level-01' ? 'level-03' : 'level-01'));
   }, []);
 
   /** DEV force Low→Mid→High→auto; session remount via budget change + retry (Pitfall 5). */
@@ -639,11 +648,7 @@ export function PlayingHost({ onMenu }: Props) {
           style={styles.devSwitch}
         >
           <Text style={styles.devSwitchLabel}>
-            {levelId === 'level-01'
-              ? 'Lv 01'
-              : levelId === 'level-02'
-                ? 'Lv 02'
-                : 'Lv 03'}
+            {levelId === 'level-01' ? 'Lv 01' : 'Lv 03'}
           </Text>
         </Pressable>
         <Pressable

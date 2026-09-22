@@ -1,5 +1,7 @@
 /**
  * F-25 — PlayingHost batches HUD chrome through one useAnimatedReaction bridge.
+ * NG-16: do NOT pin `chromeOut.value = {` object-literal form — that blocked
+ * the stable-mirror + chromeSeq fix for NF-8/NG-15.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -13,10 +15,10 @@ function read(rel: string): string {
 }
 
 describe('runtime chrome reaction (F-25)', () => {
-  it('useGameLoop publishes a single chromeOut mirror per frame', () => {
+  it('useGameLoop publishes a single chromeOut mirror (not five scalar outs)', () => {
     const src = read('src/runtime/useGameLoop.ts');
     expect(src).toContain('chromeOut: SharedValue<ChromeMirror>');
-    expect(src).toContain('chromeOut.value = {');
+    expect(src).toMatch(/chromeOut\.value\s*=/);
     expect(src).not.toContain('livesOut');
     expect(src).not.toContain('scoreOut');
     expect(src).not.toContain('simPhaseOut');

@@ -9,13 +9,14 @@ Task 2 of Plan 08-05 requires a **public HTTPS** URL that serves the same policy
 Public repo: `https://github.com/dexter292/bricks_breaker`  
 GitHub Pages: branch `main`, folder `/docs`.
 
-Verify:
+Verify reachability **and** contact channel (F-55 / NF-3 — status code alone is not enough):
 
 ```bash
 curl -fsSI "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html" | head -n 1
+curl -fsS "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html" | grep -F 'github.com/dexter292/bricks_breaker/issues'
 ```
 
-Expect `HTTP/2 200` or `HTTP/1.1 200`.
+Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the issues URL.
 
 ## How it was set up
 

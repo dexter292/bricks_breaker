@@ -809,40 +809,15 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       remaining = 0;
     }
 
-    // Escape hatch: only when a brick was touched this step or still embedded.
+    // Escape hatch: only when a brick was touched this step (NH-3 — no
+    // unconditional full-brick overlap scan; 0 hits in 12M probes when gated).
     if (world.ballActive[bi] && brickTouchedThisStep) {
       escapeOverlappingBricks(world, bi, sepEps);
-    } else if (world.ballActive[bi]) {
-      const r = world.ballRadius[bi];
-      const cx = world.ballX[bi];
-      const cy = world.ballY[bi];
-      let stillOverlaps = 0;
-      for (let i = 0; i < world.brickCount; i++) {
-        if (world.brickHp[i] <= 0) {
-          continue;
-        }
-        if (
-          circleOverlapsAabb(
-            cx,
-            cy,
-            r,
-            world.brickX[i],
-            world.brickY[i],
-            world.brickX[i] + world.brickW[i],
-            world.brickY[i] + world.brickH[i],
-          )
-        ) {
-          stillOverlaps = 1;
-          break;
-        }
-      }
-      if (stillOverlaps) {
-        escapeOverlappingBricks(world, bi, sepEps);
-      }
     }
 
-    // Nuclear unstick: if almost no displacement despite speed, shove AWAY from
-    // velocity (i.e. reverse) so we never push deeper into a solid we just hit.
+    // Nuclear unstick: if almost no displacement despite speed, shove along the
+    // *post-resolve* heading (NH-1). Never flip velocity — that re-approaches
+    // the brick we just reflected off and double-damages on the next step.
     if (world.ballActive[bi]) {
       const disp = Math.hypot(
         world.ballX[bi] - xStart,
@@ -850,9 +825,6 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       );
       let spd = Math.hypot(world.ballVx[bi], world.ballVy[bi]);
       if (spd > 1 && disp < 0.01) {
-        // Flip velocity and step 3px along the new heading (escape the pin).
-        world.ballVx[bi] = -world.ballVx[bi];
-        world.ballVy[bi] = -world.ballVy[bi];
         const inv = 1 / spd;
         world.ballX[bi] =
           world.ballX[bi] + world.ballVx[bi] * inv * 3;
