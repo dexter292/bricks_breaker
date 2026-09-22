@@ -138,10 +138,11 @@ WP-1 (Thread boundary & shell correctness)   ← BẮT BUỘC TRƯỚC TIÊN
 - **Regression test:** `tests/physics.min-vertical.test.ts` — property test trên `stepWorld`. **Hiện tại sẽ fail** — viết cùng fix, hoặc đánh dấu xfail có document.
 
 ### T3.3 — Làm tier-2 và tier-3 anti-stall thực sự hiệu quả (**F-22**, **F-23**, **F-27**)
-- **Hướng triển khai:** tier 2 áp angle nudge khi clamp tốc độ khiến velocity không đổi. Tier 3: lấy dấu rotation từ **heading** để `|vy|` luôn tăng (tính cả hai hướng, giữ hướng có `|vy|/speed` lớn hơn), có thể XOR với parity ball để giữ fan-out multi-ball mà vẫn deterministic. Xem xét một tier 4 lặp lại (vẫn deterministic, vẫn trong clamp) để thỏa "escalation until it breaks out".
-- **Acceptance criteria:** ball near-horizontal ở đúng `MAX_BALL_SPEED` phục hồi chuyển động dọc **trước tick 1200**, không phải 1440.
+- **SUPERSEDED (NH-7 / NG-1):** The original F-23 "prefer steeper / increase |vy| share" contract is **no longer the product behavior**. Tier-3 uses NG-1 escalating ±nudge (8°/16°/24°…cap 30°) with dual angle floors; parity-signed rotation **may flatten** toward the mid-band when the sign opposes steepening — intentional. See `docs/audit/DEFERRED-ITEMS.md` (F-23 SUPERSEDED) and `stall.ts` `applyTier3AngleNudge`.
+- **Hướng triển khai (historical):** tier 2 áp angle nudge when clamp tốc độ khiến velocity không đổi. Tier 3 (old F-23 text): lấy dấu rotation từ **heading** để `|vy|` luôn tăng — **replaced by NG-1**, do not re-assert "prefer steeper".
+- **Acceptance criteria:** ball near-horizontal ở đúng `MAX_BALL_SPEED` phục hồi chuyển động dọc **trước tick 1200**, không phải 1440 (F-22 / F-27 still apply; F-23 does not).
 - **Regression test:**
-  - Tier-3 nudge **không được làm giảm** `|vy|/speed` cho ball near-horizontal — parameterize theo 4 heading (lên-trái, lên-phải, xuống-trái, xuống-phải) **và** theo ball index 0 và 1 (vì dấu hiện phụ thuộc parity).
+  - Tier-3 nudge under NG-1: assert dual floors + escalating magnitude — **not** `|vy|/speed` never decreases (F-23 removed on purpose).
   - Ball ở `MAX_BALL_SPEED`: assert tier 2 **đổi** velocity.
   - Tier 0 → 3 trong một lần evaluate (set `stallIdleTicks = 1439` rồi step): assert cả hai effect áp đúng một lần.
   - Multi-ball tier-2/3 với ≥3 ball: mọi ball được mutate và clamp về `MAX_BALL_SPEED`.

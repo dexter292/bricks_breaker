@@ -1,6 +1,12 @@
-// tests/physics.world-shape.test.ts — D-07 / D-08 / D-09
+// tests/physics.world-shape.test.ts — D-07 / D-08 / D-09 / NK-6
 import { describe, it, expect } from 'vitest';
-import { allocateWorld, pushEvent, EventCode } from '../src/core';
+import {
+  allocateWorld,
+  pushEvent,
+  EventCode,
+  stepWorld,
+  FIXED_DT,
+} from '../src/core';
 
 describe('World SoA shape (D-07 / D-08 / D-09)', () => {
   it('reserves N balls with exactly one active', () => {
@@ -14,6 +20,20 @@ describe('World SoA shape (D-07 / D-08 / D-09)', () => {
     expect(Number.isFinite(w.ballX[0])).toBe(true);
     expect(Number.isFinite(w.ballVx[0])).toBe(true);
     expect(Math.hypot(w.ballVx[0], w.ballVy[0])).toBeLessThanOrEqual(720);
+  });
+
+  it('exposes stable scratchSweep/scratchVel across stepWorld (NJ-5 / NK-6)', () => {
+    const w = allocateWorld();
+    expect(w.scratchSweep).toBeDefined();
+    expect(w.scratchVel).toBeDefined();
+    expect(typeof w.scratchSweep.hit).toBe('boolean');
+    expect(typeof w.scratchVel.vx).toBe('number');
+    const sweep = w.scratchSweep;
+    const vel = w.scratchVel;
+    stepWorld(w, { paddleX: 180, launch: 0 }, FIXED_DT);
+    stepWorld(w, { paddleX: 180, launch: 0 }, FIXED_DT);
+    expect(w.scratchSweep).toBe(sweep);
+    expect(w.scratchVel).toBe(vel);
   });
 
   it('exposes independently seedable dual RNG slots', () => {

@@ -15,8 +15,8 @@
 import type { World } from '../types';
 import { BrickFlags, EventCode, SimPhase } from '../types';
 import {
-  enforceMinVerticalRatio,
-  enforceMinHorizontalRatio,
+  enforceMinVerticalRatioInto,
+  enforceMinHorizontalRatioInto,
 } from '../physics/resolve';
 
 /** True if the event ring contains breakable BRICK_HIT or BRICK_BREAK. */
@@ -78,12 +78,12 @@ function applyTier2SpeedBoost(world: World): void {
     if (!Number.isFinite(vx) || !Number.isFinite(vy)) {
       continue;
     }
-    // F-22: when already at MAX_BALL_SPEED the boost is a no-op — still
-    // lift near-horizontal headings so recovery is not deferred to tier 3.
-    let steep = enforceMinVerticalRatio(vx, vy);
-    steep = enforceMinHorizontalRatio(steep.vx, steep.vy);
-    world.ballVx[i] = steep.vx;
-    world.ballVy[i] = steep.vy;
+    // F-22 / NK-1: floors via World.scratchVel (*Into) — never module _velScratch.
+    const out = world.scratchVel;
+    enforceMinVerticalRatioInto(out, vx, vy);
+    enforceMinHorizontalRatioInto(out, out.vx, out.vy);
+    world.ballVx[i] = out.vx;
+    world.ballVy[i] = out.vy;
   }
 }
 
@@ -142,10 +142,12 @@ function applyTier3AngleNudge(world: World, repeatN: number): void {
       speed = maxSpeed;
     }
 
-    let steep = enforceMinVerticalRatio(nvx, nvy);
-    let flat = enforceMinHorizontalRatio(steep.vx, steep.vy);
-    nvx = flat.vx;
-    nvy = flat.vy;
+    // NK-1: sequential Into writes into the same World.scratchVel (no aliasing).
+    const out = world.scratchVel;
+    enforceMinVerticalRatioInto(out, nvx, nvy);
+    enforceMinHorizontalRatioInto(out, out.vx, out.vy);
+    nvx = out.vx;
+    nvy = out.vy;
 
     if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) {
       continue;

@@ -1,6 +1,6 @@
 # Deferred Items — Audit Ledger
 
-**Last updated:** 2026-09-22 (RE-AUDIT-05 doc/code remediation: F-23 SUPERSEDED note, D2/D4 Results rows)
+**Last updated:** 2026-09-22 (RE-AUDIT-06 remediation: NF-18f accepted, store email deferred, F-43 harness started)
 
 Orphan deferred items that need an explicit owner and Results surface before MVP close.
 
@@ -11,7 +11,9 @@ Orphan deferred items that need an explicit owner and Results surface before MVP
 | **D13** | `tsc --noEmit` errors (~6 known; incl. overlay `absoluteFillObject` runtime bug) | Phase 6 deferred-items; F-44 | **T1.2 code fix** + **`npm run typecheck`** in Phase 8 gate (`08-06-PLAN.md`) | **CLOSED 2026-09-21** | Overlay scrim fixed (T1.2); `npm run typecheck` green; script remains in Plan 06 gate |
 | **F-45** | Ball speed ramp deferred | Owner decision 2026-09-21 | Post-MVP backlog | **DEFERRED** | No ramp in MVP; LVL-04 duration target softened — see REMEDIATION-PLAN T3.4 |
 | **F-23** | Tier-3 "prefer steeper" rotation contract | RE-AUDIT-04 / NG-1 / NH-7 | — | **SUPERSEDED** | Replaced by NG-1 escalating ±nudge (8°/16°/24°…cap 30°) + dual angle floors. Nudge may flatten toward mid-band when parity opposes steepening — **intentional**, not a regression. See `stall.ts` `applyTier3AngleNudge` + `tests/rules.stall.test.ts` (NG-1). Old F-23 "prefer steeper" assertion removed on purpose. |
-| **F-43** | Component/runtime boundary tests (`@testing-library/*`, `jest-expo`) | CODE-REVIEW / RE-AUDIT-02…05 | Post-MVP / device-adjacent | **DEFERRED** | Vitest covers core; UI-thread + RN mount harness still needs separate Expo test runner. CI now runs `test`+`lint`+`typecheck`+`assert:*` (`.github/workflows/ci.yml`). Worklet guard self-checks known-good/known-bad fixtures (NJ-1). |
+| **F-43** | Full RN / PlayingHost mount harness | CODE-REVIEW / RE-AUDIT-02…06 | Post-MVP / device-adjacent | **PARTIAL** | Vitest + jsdom + `@testing-library/react` harness exists (`tests/ui/jsdom-harness.test.tsx`). Mounting PlayingHost / jest-expo still deferred. |
+| **NF-18f** | Duplicate `useFonts` (Title `GameHost` + `PlayingHost`) | RE-AUDIT-06 | — | **ACCEPTED** | Intentional: Title vs Playing hosts each load SpaceMono for their surface. `expo-font` caches; second call is cheap. Not a leak. |
+| **Store email** | App Store / Play support contact email | NJ-3 / NK-7 / store submit | Owner before App Store submit | **DEFERRED** | Privacy Contact primary is GitHub Discussions (working). Do **not** invent a personal email. A real support inbox is still required before store submit. |
 | **WP-6** | Device certification rows (`PENDING_DEVICE`) | Phase 8 Plan 06 | Hardware gate | **OPEN** | Cannot close in CI; fill `docs/phase8-certification.md` on device (D2/D4 rows present) |
 | **Trademark** | Store name legal opinion | store docs | Legal / owner | **DEFERRED** | Outside code remediation |
 

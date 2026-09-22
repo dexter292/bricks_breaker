@@ -33,6 +33,8 @@ If this policy changes for a future build (for example if networking, ads, or ac
 
 ## Contact
 
-Questions about this policy:
-- Open an issue at https://github.com/dexter292/bricks_breaker/issues
-- If issue creation is restricted on that repository, contact via Discussions https://github.com/dexter292/bricks_breaker/discussions or the maintainer profile https://github.com/dexter292
+Questions about this policy (primary channel — GitHub Discussions; no store support email yet):
+- https://github.com/dexter292/bricks_breaker/discussions
+- Maintainer profile: https://github.com/dexter292
+
+See also `SECURITY.md` at the repository root for vulnerability reporting.

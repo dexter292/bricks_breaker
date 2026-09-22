@@ -6,7 +6,11 @@
 
 export type Velocity2 = { vx: number; vy: number };
 
-/** Module-level scratch for test-only wrappers (F-56). Hot path uses World.scratchVel (NJ-5). */
+/**
+ * Module-level scratch for **test-only** returning wrappers below.
+ * Production worklets (step / stall / CCD) must use `World.scratchVel` + `*Into`
+ * (F-56 / NJ-5 / NK-1) — never these wrappers on the UI-thread hot path.
+ */
 const _velScratch: Velocity2 = { vx: 0, vy: 0 };
 
 /**

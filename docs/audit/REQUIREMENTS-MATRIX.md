@@ -77,11 +77,11 @@
 - **Khắc phục:** WP-1, WP-4
 
 ### PHYS-07 — Anti-stall uses visible, deterministic escalation (no random jitter)
-- **Implementation:** `src/core/rules/stall.ts:180-215` (ngưỡng 960/1200/1440 tick), `:50,67-71` (clamp `MAX_BALL_SPEED`), `:108-113` (tier-3 rotate ±8°); HUD `src/runtime/HudStrip.tsx:49-51` (`Stall! · N`) qua mirror `useGameLoop.ts:396`
-- **Test:** `tests/rules.stall.test.ts` (8 pass, gồm grep source chứng minh không có `Math.random`)
-- **Trạng thái:** **PARTIAL**
-- **Vấn đề:** deterministic ✓, no-jitter ✓, clamp ✓, reset-by-any-ball ✓ (`stall.ts:19-46` scan toàn ring), timer chỉ đếm active sim time ✓. Nhưng: **F-22** tier-2 là no-op ở max speed; **F-23** dấu rotation của tier-3 lấy theo **parity của ball index** (`stall.ts:108`: `sign = i % 2 === 0 ? 1 : -1`) chứ không theo heading, nên ~50% trường hợp xoay **về phía nằm ngang hơn** — trái với `05-05-PLAN.md:81` ("toward steeper") và D-16; **F-27** không có escalation sau tier 3 dù SC-5 hứa "until it breaks out"
-- **Khắc phục:** WP-3
+- **Implementation:** `src/core/rules/stall.ts` (NG-1 escalating ±nudge + dual floors); HUD `src/runtime/HudStrip.tsx` via chrome mirror
+- **Test:** `tests/rules.stall.test.ts` (includes NG-1; no `Math.random`)
+- **Trạng thái:** **PARTIAL** (F-22 / F-27 remain; **F-23 SUPERSEDED by NG-1** — see `DEFERRED-ITEMS.md`)
+- **Vấn đề:** deterministic ✓, no-jitter ✓, clamp ✓, reset-by-any-ball ✓, timer chỉ đếm active sim time ✓. **F-22** tier-2 no-op at max speed still relevant. **F-23** ("prefer steeper" / heading-based sign) is **SUPERSEDED by NG-1**: parity-signed escalating nudge may flatten toward mid-band — intentional, not a live defect vs `05-05-PLAN` historical "toward steeper" text. **F-27** escalation beyond tier 3 still open relative to SC-5 wording.
+- **Khắc phục:** WP-3 (F-22 / F-27); do not re-open F-23 as a defect
 
 ---
 

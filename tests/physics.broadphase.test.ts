@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import {
   allocateWorld,
-  forEachBrickCandidate,
   collectBrickCandidatesInto,
   assignSpatialBrickCells,
   stepWorld,
@@ -26,10 +25,19 @@ function collectVisits(
   y1: number,
   radius: number,
 ): number[] {
+  const n = collectBrickCandidatesInto(
+    world,
+    x0,
+    y0,
+    x1,
+    y1,
+    radius,
+    world.brickCandidateScratch,
+  );
   const visits: number[] = [];
-  forEachBrickCandidate(world, x0, y0, x1, y1, radius, (bi) => {
-    visits.push(bi);
-  });
+  for (let i = 0; i < n; i++) {
+    visits.push(world.brickCandidateScratch[i]!);
+  }
   return visits;
 }
 
@@ -89,7 +97,7 @@ describe('physics broadphase (F-47 / NJ-2)', () => {
     expect(visits).toEqual([3]);
   });
 
-  it('collectBrickCandidatesInto matches forEach visits', () => {
+  it('collectBrickCandidatesInto writes unique indices', () => {
     const w = setupGrid(4, 4);
     w.cellToBrick[1 * 4 + 1] = 0;
     w.cellToBrick[1 * 4 + 2] = 0;

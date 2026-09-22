@@ -69,10 +69,10 @@ function ensureRecorderTools(): RecorderTools {
     tools = {
       recorder: Skia.PictureRecorder(),
       paint,
-      fieldRect: Skia.XYWHRect(0, 0, 360, 640),
+      fieldRect: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
       entityRect: Skia.XYWHRect(0, 0, 1, 1),
       srcRect: Skia.XYWHRect(0, 0, 1, 1),
-      surfaceBounds: Skia.XYWHRect(0, 0, 360, 640),
+      surfaceBounds: Skia.XYWHRect(0, 0, LOGICAL_W, LOGICAL_H),
       // Pre-converted palette (0–1 channels) — no Skia.Color(string) per frame
       colBlack: makeColor4(0, 0, 0),
       colNavy: makeColor4(0.102, 0.102, 0.18), // #1a1a2e
@@ -212,8 +212,8 @@ export function recordFrame(
 ): SkPicture {
   'worklet';
   const tools = ensureRecorderTools();
-  const wPx = Number.isFinite(surfaceW) && surfaceW > 1 ? surfaceW : 360;
-  const hPx = Number.isFinite(surfaceH) && surfaceH > 1 ? surfaceH : 640;
+  const wPx = Number.isFinite(surfaceW) && surfaceW > 1 ? surfaceW : LOGICAL_W;
+  const hPx = Number.isFinite(surfaceH) && surfaceH > 1 ? surfaceH : LOGICAL_H;
   tools.surfaceBounds.setXYWH(0, 0, wPx, hPx);
 
   const canvas = tools.recorder.beginRecording(tools.surfaceBounds);
@@ -225,9 +225,9 @@ export function recordFrame(
   canvas.drawRect(tools.entityRect, tools.paint);
 
   // Uniform letterbox (inline makeCamera)
-  const scale = Math.min(wPx / 360, hPx / 640);
-  const ox = (wPx - 360 * scale) * 0.5;
-  const oy = (hPx - 640 * scale) * 0.5;
+  const scale = Math.min(wPx / LOGICAL_W, hPx / LOGICAL_H);
+  const ox = (wPx - LOGICAL_W * scale) * 0.5;
+  const oy = (hPx - LOGICAL_H * scale) * 0.5;
   canvas.save();
   canvas.translate(ox, oy);
   canvas.scale(scale, scale);
@@ -244,10 +244,10 @@ export function recordFrame(
     }
   }
 
-  // Navy field only inside logical 360×640
+  // Navy field only inside logical LOGICAL_W×LOGICAL_H
   tools.paint.setAlphaf(1);
   tools.paint.setColor(tools.colNavy);
-  tools.fieldRect.setXYWH(0, 0, 360, 640);
+  tools.fieldRect.setXYWH(0, 0, LOGICAL_W, LOGICAL_H);
   canvas.drawRect(tools.fieldRect, tools.paint);
 
   const intensity =

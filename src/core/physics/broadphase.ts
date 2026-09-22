@@ -127,23 +127,3 @@ export function collectBrickCandidatesInto(
   }
   return written;
 }
-
-/**
- * Callback form for tests / tooling. Hot path uses collectBrickCandidatesInto.
- */
-export function forEachBrickCandidate(
-  world: World,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  radius: number,
-  visit: (brickIndex: number) => void,
-): void {
-  'worklet';
-  const scratch = world.brickCandidateScratch;
-  const n = collectBrickCandidatesInto(world, x0, y0, x1, y1, radius, scratch);
-  for (let i = 0; i < n; i++) {
-    visit(scratch[i]);
-  }
-}

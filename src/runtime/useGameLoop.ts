@@ -44,6 +44,10 @@ import {
 import { flushAudioBatchOnJS } from './eventBridge';
 import { clampFrameDt, resetAccumulator } from './freeze';
 import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
+import {
+  publishChromeMirror,
+  type ChromeMirror,
+} from './publishChromeMirror';
 import type { VfxBudget } from './resolveQualityTier';
 import { BUDGETS } from './resolveQualityTier';
 import {
@@ -143,13 +147,7 @@ export type PlayBatchFn = (
 ) => void;
 
 /** Host-owned HUD mirror — one SharedValue write per frame (F-25 / LC-07). */
-export type ChromeMirror = {
-  phase: number;
-  lives: number;
-  score: number;
-  combo: number;
-  stallTier: number;
-};
+export type { ChromeMirror } from './publishChromeMirror';
 
 export type GameLoopHandle = {
   world: SharedValue<World | null>;
@@ -294,11 +292,13 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       paddleTarget.value = w.paddleX;
       world.value = w;
       const c0 = chromeOut.value;
-      c0.phase = w.simPhase;
-      c0.lives = w.lives;
-      c0.score = w.score;
-      c0.combo = w.combo;
-      c0.stallTier = w.stallTier;
+      publishChromeMirror(c0, {
+        phase: w.simPhase,
+        lives: w.lives,
+        score: w.score,
+        combo: w.combo,
+        stallTier: w.stallTier,
+      });
       chromeOut.value = c0;
       chromeSeq.value = chromeSeq.value + 1;
     }
@@ -429,30 +429,16 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     }
 
     // Publish chrome: mutate stable mirror in place; bump chromeSeq only on change
-    // (NF-8 / NG-15 — avoid new object + tuple every frame waking the reaction).
+    // (NF-8 / NG-15 / NK-3 — publishChromeMirror is the tested pure path).
     {
       const c = chromeOut.value;
-      let dirty = 0;
-      if (c.phase !== w.simPhase) {
-        c.phase = w.simPhase;
-        dirty = 1;
-      }
-      if (c.lives !== w.lives) {
-        c.lives = w.lives;
-        dirty = 1;
-      }
-      if (c.score !== w.score) {
-        c.score = w.score;
-        dirty = 1;
-      }
-      if (c.combo !== w.combo) {
-        c.combo = w.combo;
-        dirty = 1;
-      }
-      if (c.stallTier !== w.stallTier) {
-        c.stallTier = w.stallTier;
-        dirty = 1;
-      }
+      const dirty = publishChromeMirror(c, {
+        phase: w.simPhase,
+        lives: w.lives,
+        score: w.score,
+        combo: w.combo,
+        stallTier: w.stallTier,
+      });
       if (dirty === 1) {
         chromeOut.value = c;
         chromeSeq.value = chromeSeq.value + 1;

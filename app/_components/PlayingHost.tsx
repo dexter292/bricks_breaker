@@ -259,21 +259,9 @@ export function PlayingHost({ onMenu }: Props) {
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
   // F-14: bake at active level brick size.
-  // NF-6 / NG-11 / NH-4 / NH-5: null SV first; flush dispose; fxReady derived from bakedKey.
+  // NF-6 / NG-11 / NH-4 / NH-5: bake → assign SV → dispose previous immediately; fxReady from bakedKey.
   useEffect(() => {
     let cancelled = false;
-    let pendingDispose: GlowAtlas | null = null;
-    let disposeTimer: ReturnType<typeof setTimeout> | null = null;
-    const flushPendingDispose = () => {
-      if (disposeTimer != null) {
-        clearTimeout(disposeTimer);
-        disposeTimer = null;
-      }
-      if (pendingDispose != null) {
-        disposeGlowAtlas(pendingDispose);
-        pendingDispose = null;
-      }
-    };
     // Pause sim while baking — fxReady is already false via loadKey mismatch (NH-5).
     // Defer setActive so we avoid react-hooks/set-state-in-effect (NG-10).
     const pauseTimer = setTimeout(() => {
@@ -303,18 +291,10 @@ export function PlayingHost({ onMenu }: Props) {
       }
       try {
         setActive(false);
-        flushPendingDispose();
         const prev = glowAtlasSv.value;
-        glowAtlasSv.value = null;
-        pendingDispose = prev;
-        disposeTimer = setTimeout(() => {
-          if (pendingDispose === prev) {
-            disposeGlowAtlas(prev);
-            pendingDispose = null;
-          }
-          disposeTimer = null;
-        }, 32);
+        // UI holds the new ref immediately — safe to dispose previous now (NH-4).
         glowAtlasSv.value = bakeGlowSprites(brickW, brickH);
+        disposeGlowAtlas(prev);
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.warn('[glow] bake soft-fail', err);
@@ -332,7 +312,6 @@ export function PlayingHost({ onMenu }: Props) {
     return () => {
       cancelled = true;
       clearTimeout(pauseTimer);
-      flushPendingDispose();
       setActive(false);
       playBatchRef.current = null;
       const atlas = glowAtlasSv.value;

@@ -1,8 +1,12 @@
 /**
- * CI guard (NF-1 / NJ-1): worklet bodies must not call imported (or same-file)
+ * CI guard (NF-1 / NJ-1 / NK-2): worklet bodies must not call imported (or same-file)
  * functions that lack a 'worklet' directive.
  *
- * Self-check: scripts/fixtures/worklet-guard/{good,bad}.ts must pass/fail.
+ * Implicit worklet roots (Reanimated auto-workletize, even without a directive):
+ *   useAnimatedReaction, useFrameCallback, useAnimatedStyle, useDerivedValue,
+ *   runOnUI, and Gesture.*.onBegin/onUpdate/onEnd/onFinalize/onStart/onChange.
+ *
+ * Self-check: scripts/fixtures/worklet-guard/{good,bad,reaction-bad}.ts must pass/fail.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join, normalize } from 'node:path';
@@ -18,6 +22,25 @@ const PARSER_OPTS = {
   sourceType: 'module',
   plugins: ['typescript', 'jsx'],
 };
+
+/** Callees whose FunctionExpression/ArrowFunctionExpression args are worklet roots. */
+const AUTO_WORKLET_CALLEES = new Set([
+  'useAnimatedReaction',
+  'useFrameCallback',
+  'useAnimatedStyle',
+  'useDerivedValue',
+  'runOnUI',
+]);
+
+/** Gesture handler member methods whose callback args are worklet roots. */
+const GESTURE_HANDLER_METHODS = new Set([
+  'onBegin',
+  'onUpdate',
+  'onEnd',
+  'onFinalize',
+  'onStart',
+  'onChange',
+]);
 
 function listProjectFiles() {
   return new Set(
@@ -52,6 +75,23 @@ function fnIsWorklet(node) {
     first.expression?.type === 'StringLiteral' &&
     first.expression.value === 'worklet'
   );
+}
+
+function isAutoWorkletRootCall(callNode) {
+  const callee = callNode.callee;
+  if (callee?.type === 'Identifier') {
+    return AUTO_WORKLET_CALLEES.has(callee.name);
+  }
+  // Gesture.Pan().onUpdate(...) / Gesture.Tap().onBegin(...) — member call pattern
+  if (
+    callee?.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.property?.type === 'Identifier' &&
+    GESTURE_HANDLER_METHODS.has(callee.property.name)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function parseFile(abs) {
@@ -159,6 +199,105 @@ function findLocalFnWorklet(rel, name, fileSet, seen) {
 }
 
 /**
+ * Scan one worklet (or auto-worklet) function body for non-worklet calls.
+ */
+function scanWorkletBody(fnPath, rel, bindings, fileSet, violations) {
+  fnPath.traverse({
+    CallExpression(callPath) {
+      // Skip nested function scopes that are not themselves worklets
+      if (
+        callPath.findParent(
+          (p) =>
+            p.isFunction() &&
+            p.node !== fnPath.node &&
+            fnIsWorklet(p.node) === false &&
+            p.node.body?.type === 'BlockStatement',
+        )
+      ) {
+        // Still check calls inside nested non-worklet? Skip — only direct worklet body.
+      }
+      const callee = callPath.node.callee;
+      let localName = null;
+      let memberExport = null;
+      if (callee.type === 'Identifier') {
+        localName = callee.name;
+      } else if (
+        callee.type === 'MemberExpression' &&
+        !callee.computed &&
+        callee.object.type === 'Identifier' &&
+        callee.property.type === 'Identifier'
+      ) {
+        localName = callee.object.name;
+        memberExport = callee.property.name;
+      } else {
+        return;
+      }
+
+      const b = bindings.get(localName);
+      if (!b) return;
+
+      if (b.kind === 'local') {
+        if (!b.isWorklet) {
+          violations.push(
+            `${rel}: worklet calls local ${b.name} (not a worklet)`,
+          );
+        }
+        return;
+      }
+
+      if (b.kind === 'namespace') {
+        if (!memberExport) return;
+        const resolved = resolveExportWorklet(
+          rel,
+          b.from,
+          memberExport,
+          fileSet,
+        );
+        if (!resolved) {
+          violations.push(
+            `${rel}: worklet calls ${localName}.${memberExport} from ${b.from} (unresolved — fail closed)`,
+          );
+          return;
+        }
+        if (!resolved.isWorklet) {
+          violations.push(
+            `${rel}: worklet calls ${memberExport} from ${b.from} (not a worklet)`,
+          );
+        }
+        return;
+      }
+
+      // named / default import
+      const exportName = memberExport ?? b.imported;
+      if (memberExport && b.kind === 'import' && b.imported !== 'default') {
+        // foo.bar where foo is a named import of a value — unusual; skip
+        return;
+      }
+      const resolved = resolveExportWorklet(
+        rel,
+        b.from,
+        exportName,
+        fileSet,
+      );
+      if (!resolved) {
+        // Relative imports must resolve; package imports are out of scope
+        if (b.from.startsWith('.')) {
+          violations.push(
+            `${rel}: worklet calls ${exportName} from ${b.from} (unresolved — fail closed)`,
+          );
+        }
+        return;
+      }
+      if (!resolved.isWorklet) {
+        violations.push(
+          `${rel}: worklet calls ${exportName} from ${b.from} (not a worklet)`,
+        );
+      }
+    },
+  });
+}
+
+/**
  * Scan files for worklet→non-worklet call violations.
  * @returns {string[]} violation messages
  */
@@ -230,99 +369,26 @@ export function findWorkletClosureViolations(fileSet, root = ROOT) {
     });
 
     traverse(ast, {
+      // Explicit 'worklet' directive
       Function(path) {
         if (!fnIsWorklet(path.node)) return;
-        path.traverse({
-          CallExpression(callPath) {
-            // Skip nested function scopes that are not themselves traversed as worklets
-            if (callPath.findParent(
-              (p) =>
-                p.isFunction() &&
-                p.node !== path.node &&
-                fnIsWorklet(p.node) === false &&
-                p.node.body?.type === 'BlockStatement',
-            )) {
-              // Still check calls inside nested non-worklet? Skip — only direct worklet body.
-            }
-            const callee = callPath.node.callee;
-            let localName = null;
-            let memberExport = null;
-            if (callee.type === 'Identifier') {
-              localName = callee.name;
-            } else if (
-              callee.type === 'MemberExpression' &&
-              !callee.computed &&
-              callee.object.type === 'Identifier' &&
-              callee.property.type === 'Identifier'
-            ) {
-              localName = callee.object.name;
-              memberExport = callee.property.name;
-            } else {
-              return;
-            }
-
-            const b = bindings.get(localName);
-            if (!b) return;
-
-            if (b.kind === 'local') {
-              if (!b.isWorklet) {
-                violations.push(
-                  `${rel}: worklet calls local ${b.name} (not a worklet)`,
-                );
-              }
-              return;
-            }
-
-            if (b.kind === 'namespace') {
-              if (!memberExport) return;
-              const resolved = resolveExportWorklet(
-                rel,
-                b.from,
-                memberExport,
-                fileSet,
-              );
-              if (!resolved) {
-                violations.push(
-                  `${rel}: worklet calls ${localName}.${memberExport} from ${b.from} (unresolved — fail closed)`,
-                );
-                return;
-              }
-              if (!resolved.isWorklet) {
-                violations.push(
-                  `${rel}: worklet calls ${memberExport} from ${b.from} (not a worklet)`,
-                );
-              }
-              return;
-            }
-
-            // named / default import
-            const exportName = memberExport ?? b.imported;
-            if (memberExport && b.kind === 'import' && b.imported !== 'default') {
-              // foo.bar where foo is a named import of a value — unusual; skip
-              return;
-            }
-            const resolved = resolveExportWorklet(
-              rel,
-              b.from,
-              exportName,
-              fileSet,
-            );
-            if (!resolved) {
-              // Relative imports must resolve; package imports are out of scope
-              if (b.from.startsWith('.')) {
-                violations.push(
-                  `${rel}: worklet calls ${exportName} from ${b.from} (unresolved — fail closed)`,
-                );
-              }
-              return;
-            }
-            if (!resolved.isWorklet) {
-              violations.push(
-                `${rel}: worklet calls ${exportName} from ${b.from} (not a worklet)`,
-              );
-            }
-          },
-        });
+        scanWorkletBody(path, rel, bindings, fileSet, violations);
+      },
+      // NK-2: Reanimated / Gesture auto-workletize call sites
+      CallExpression(callPath) {
+        if (!isAutoWorkletRootCall(callPath.node)) return;
+        const argPaths = callPath.get('arguments');
+        for (const argPath of argPaths) {
+          if (
+            !argPath.isArrowFunctionExpression() &&
+            !argPath.isFunctionExpression()
+          ) {
+            continue;
+          }
+          // Explicit worklets are already scanned by the Function visitor
+          if (fnIsWorklet(argPath.node)) continue;
+          scanWorkletBody(argPath, rel, bindings, fileSet, violations);
+        }
       },
     });
   }
@@ -333,9 +399,11 @@ export function findWorkletClosureViolations(fileSet, root = ROOT) {
 function runSelfCheck() {
   const goodRel = 'scripts/fixtures/worklet-guard/good.ts';
   const badRel = 'scripts/fixtures/worklet-guard/bad.ts';
+  const reactionBadRel = 'scripts/fixtures/worklet-guard/reaction-bad.ts';
   const goodAbs = join(ROOT, goodRel);
   const badAbs = join(ROOT, badRel);
-  if (!existsSync(goodAbs) || !existsSync(badAbs)) {
+  const reactionBadAbs = join(ROOT, reactionBadRel);
+  if (!existsSync(goodAbs) || !existsSync(badAbs) || !existsSync(reactionBadAbs)) {
     console.error(
       'Worklet guard self-check missing fixtures under scripts/fixtures/worklet-guard/',
     );
@@ -362,6 +430,16 @@ function runSelfCheck() {
   if (badOnly.length === 0) {
     console.error(
       'Worklet guard self-check FAILED: known-bad fixture produced zero violations (guard is vacuous)',
+    );
+    process.exit(1);
+  }
+
+  const reactionOnly = badViolations.filter((v) =>
+    v.startsWith(reactionBadRel),
+  );
+  if (reactionOnly.length === 0) {
+    console.error(
+      'Worklet guard self-check FAILED: reaction-bad fixture (implicit useAnimatedReaction worklet) produced zero violations — NK-2 guard is blind',
     );
     process.exit(1);
   }

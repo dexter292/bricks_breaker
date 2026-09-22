@@ -196,14 +196,14 @@ export function createMemoryAudioService(): MemoryAudioService {
     playBatch(codes: ArrayLike<number>, count: number): void {
       if (released) return;
       const n = Math.min(count, codes.length);
-      const tallies = new Map<SfxId, number>();
+      // One play per distinct sfx per batch (dedupe) — Set only; gain bump lives in real service
+      const distinct = new Set<SfxId>();
       for (let i = 0; i < n; i++) {
         const sfxId = mapEventToSfx(codes[i]!);
         if (!sfxId) continue;
-        tallies.set(sfxId, (tallies.get(sfxId) ?? 0) + 1);
+        distinct.add(sfxId);
       }
-      // One play per distinct sfx per batch (dedupe); tallies count is for gain bump in real service
-      for (const sfxId of tallies.keys()) {
+      for (const sfxId of distinct) {
         const limit = VOICE_LIMITS[sfxId];
         const cursor = cursors.get(sfxId) ?? 0;
         const voiceIndex = selectVoiceIndex(cursor, limit);

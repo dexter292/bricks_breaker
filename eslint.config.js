@@ -29,6 +29,7 @@ module.exports = [
       'android/**',
       'ios/**',
       'coverage/**',
+      'scripts/fixtures/**',
     ],
   },
   {

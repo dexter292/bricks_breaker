@@ -16,10 +16,10 @@ curl -fsSI -H 'Cache-Control: no-cache' \
   "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html?t=$(date +%s)" | head -n 1
 curl -fsS -H 'Cache-Control: no-cache' \
   "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html?t=$(date +%s)" \
-  | grep -E 'github.com/dexter292/bricks_breaker/issues|github.com/dexter292'
+  | grep -F 'github.com/dexter292/bricks_breaker/discussions'
 ```
 
-Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the issues URL (and the profile fallback).
+Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the Discussions URL (primary Contact channel; issues are not the verify target).
 
 ## How it was set up
 
