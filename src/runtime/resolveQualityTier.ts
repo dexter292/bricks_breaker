@@ -77,6 +77,14 @@ export function readDeviceMemory(): {
   modelName: string | null;
 } {
   try {
+    // Probe before require — missing native module still LogBoxes inside try/catch.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- cold-path optional native
+    const { requireOptionalNativeModule } = require('expo-modules-core') as {
+      requireOptionalNativeModule: (name: string) => unknown;
+    };
+    if (requireOptionalNativeModule('ExpoDevice') == null) {
+      return { totalMemory: null, modelName: null };
+    }
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- cold-path optional native
     const Device = require('expo-device') as {
       totalMemory: number | null;

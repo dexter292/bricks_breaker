@@ -62,6 +62,25 @@ function disposeGlowAtlas(atlas: GlowAtlas | null | undefined): void {
   }
 }
 
+/**
+ * NL-2 — dispose only after the UI runtime has observed `glowAtlasSv` (null or next).
+ * Sync dispose from effect cleanup races an in-flight `recordFrame` →
+ * `drawImageRect` on a freed SkImage ("Attempted to access a disposed object").
+ */
+function scheduleDisposeGlowAtlas(
+  atlas: GlowAtlas | null | undefined,
+  glowAtlasSv: { value: GlowAtlas | null },
+): void {
+  if (atlas == null) {
+    return;
+  }
+  runOnUI(() => {
+    'worklet';
+    void glowAtlasSv.value;
+    runOnJS(disposeGlowAtlas)(atlas);
+  })();
+}
+
 /** Mirror SimPhase numeric — app must not import src/core (LC-05). */
 const SIM = {
   DOCKED: 0,
@@ -293,23 +312,22 @@ export function PlayingHost({ onMenu }: Props) {
       }
       try {
         setActive(false);
-        const prev = glowAtlasSv.value;
         const next = bakeGlowSprites(brickW, brickH);
-        glowAtlasSv.value = next;
-        if (prev != null) {
-          // NL-2: dispose only after UI runtime has observed the new SharedValue.
-          runOnUI(() => {
-            'worklet';
-            // Touch the SV so this work item runs after the JS→UI write is visible.
-            void glowAtlasSv.value;
-            runOnJS(disposeGlowAtlas)(prev);
-          })();
+        // Cancelled after bake: free the orphan atlas; do not publish to SV.
+        if (cancelled) {
+          disposeGlowAtlas(next);
+          return;
         }
+        const prev = glowAtlasSv.value;
+        glowAtlasSv.value = next;
+        scheduleDisposeGlowAtlas(prev, glowAtlasSv);
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.warn('[glow] bake soft-fail', err);
         }
-        glowAtlasSv.value = null;
+        if (!cancelled) {
+          glowAtlasSv.value = null;
+        }
       }
       if (cancelled) {
         return;
@@ -324,9 +342,11 @@ export function PlayingHost({ onMenu }: Props) {
       clearTimeout(pauseTimer);
       setActive(false);
       playBatchRef.current = null;
+      // Null SV first so any remaining frame skips the glow blit, then dispose
+      // only after the UI runtime has observed null (same handshake as bake).
       const atlas = glowAtlasSv.value;
       glowAtlasSv.value = null;
-      disposeGlowAtlas(atlas);
+      scheduleDisposeGlowAtlas(atlas, glowAtlasSv);
       audio.release();
     };
   }, [audio, glowAtlasSv, loadResult, loadKey, setActive]);

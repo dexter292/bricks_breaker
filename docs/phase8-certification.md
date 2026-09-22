@@ -5,7 +5,7 @@ Authoritative Phase 8 60 FPS gate protocol. Extends Phase 7 VFX worst-case defin
 **Methodology base:** [`docs/measurement-methodology.md`](./measurement-methodology.md)  
 **Phase 7 VFX scene:** [`docs/phase7-vfx-measurement.md`](./phase7-vfx-measurement.md)
 
-Results rows below stay **OPEN** until Plan 06 device fills. This doc locks **conditions + operational thresholds** only — it does not claim a pass.
+**Owner decision 2026-09-22:** Pixel 6a / Android gfxinfo gate **WAIVED — no device available**. PLT-03 mid-range Android evidence is **not claimed**. iOS D-16 companion filled from physical Instruments run (below).
 
 ---
 
@@ -50,7 +50,7 @@ Gate runs use a **dev-client or profiling build that still exposes `__DEV__`** s
 
 ---
 
-## Android mandatory — Pixel 6a Mid (D-15)
+## Android mandatory — Pixel 6a Mid (D-15) — **WAIVED 2026-09-22**
 
 | Rule | Detail |
 |------|--------|
@@ -59,8 +59,9 @@ Gate runs use a **dev-client or profiling build that still exposes `__DEV__`** s
 | Runs | **≥2** independent runs × **≥30 s** after ~2 s warmup |
 | Verdict input | Keep the **worse** run |
 | Substitute Android | **Preliminary only** (D-17) — Pixel 6a re-cert remains mandatory before MVP |
+| **Owner waiver** | **WAIVED** — no Pixel 6a (or other Android) available. Do **not** invent gfxinfo numbers. PLT-03 Android mid-range gate stays **unproven** until hardware exists. |
 
-### Commands
+### Commands (kept for when hardware returns)
 
 ```bash
 adb shell dumpsys gfxinfo com.dexter292.bricksbreaker reset
@@ -80,6 +81,7 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 
 - **RN Perf Monitor alone is invalid** — never declare pass from it.
 - On fail → optimize / retune budgets and **rerun the same scenario** (D-18). Do **not** silently map Pixel 6a to Low or disable required effects solely to pass (D-13).
+- A1 thresholds apply to **Android gfxinfo** runs. iOS D-16 uses Instruments Display / Hangs + touch notes (not gfxinfo p50/p95).
 
 ---
 
@@ -88,7 +90,7 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 | Rule | Detail |
 |------|--------|
 | Device | **Physical iPhone** required |
-| Tool | Instruments **Core Animation** / **Game** |
+| Tool | Instruments **Core Animation** / **Game** (Game Performance on Xcode 26+) |
 | Evidence | Render + touch + stability notes |
 | Install alone | **≠** performance evidence |
 
@@ -96,18 +98,16 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 
 ## Results
 
-Fill during Plan 06 device certification. Rows below are scaffolding only — **do not invent gfxinfo numbers**. Replace `PENDING_DEVICE` with measured values (or document blockers / waivers).
-
 | Device | Tier | Build | Run | p50 ms | p95 ms | Jank % | Verdict | Notes |
 |--------|------|-------|-----|--------|--------|--------|---------|-------|
-| Pixel 6a | Mid | profiling | run1 | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Mandatory Android gate (D-15); level-03 Cert WC; ≥30 s after ~2 s warmup |
-| Pixel 6a | Mid | profiling | run2 | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Second run; keep **worse** of run1/run2 |
-| iPhone (physical) | Mid (auto/force) | profiling | Instruments | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | D-16: Core Animation / Game + render/touch/stability notes |
-| _Substitute Android (optional)_ | Mid | profiling | prelim | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Preliminary only (D-17) — **not** MVP close |
+| Pixel 6a | Mid | profiling | run1 | — | — | — | **WAIVED** | Owner 2026-09-22: no Pixel 6a; Android gfxinfo not run |
+| Pixel 6a | Mid | profiling | run2 | — | — | — | **WAIVED** | Same waiver; no second run |
+| iPhone 16 Pro (physical) | Mid (Cert WC force) | development / `__DEV__` + `PERF_OVERLAY` | Instruments Game Performance | n/a (Display) | n/a | n/a | **PASS** | 2026-09-22: A18 Pro, iOS 26.6.1; level-03 Cert WC (multi arm); Display surface duration **8.33 ms** (120 Hz) with rare **16.67 ms** blip; **Hangs 0** on multi-Cert-WC run; prior attach run had 2×~600 ms hang (load/attach noise — not reproduced under Cert WC stress). Direct-to-Display=No (compositor — expected). Touch OK during play. |
+| _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | **WAIVED** | No Android device; D-17 substitute not used |
 
-**Worse-run summary (Pixel Mid):** `PENDING_DEVICE` — fill after both Pixel runs; evaluate worse run vs A1 thresholds above.
+**Worse-run summary (Pixel Mid):** **WAIVED** — no Pixel runs.
 
-**D-04 / D-17 substitute note (if used):** _model / chipset / OS / refresh — MVP debt until Pixel 6a; substitute alone must not close MVP_
+**D-04 / D-17 substitute note:** _Not used. Android mid-range gate remains open until hardware available._
 
 ### Deferred gate rows (D2 / D4 — see `docs/audit/DEFERRED-ITEMS.md`)
 
@@ -115,9 +115,9 @@ These are PASS/FAIL gates (not p50/p95/jank). Fill on device; do not invent resu
 
 | ID | Gate | Platform | Build | Status | Evidence / Notes |
 |----|------|----------|-------|--------|------------------|
-| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | Android | profiling / release | PENDING_DEVICE | PASS/FAIL + build profile + brief repro notes |
-| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | iOS | profiling / release | PENDING_DEVICE | PASS/FAIL + build profile + brief repro notes |
-| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | profiling | PENDING_DEVICE | Instruments / worklet tick; supersedes Phase 1 waived iOS profiling row |
+| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | Android | profiling / release | **WAIVED** | No Android device (same as D-15) |
+| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | iOS | profiling / release | PENDING_DEVICE | Dev-client Instruments run ≠ dedicated release/profiling SC-2 mutation re-run |
+| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | profiling | PENDING_DEVICE | Overlay + SpaceMono used in 2026-09-22 session; formal profiling-profile SC-2 row still open |
 
 ---
 
@@ -158,9 +158,9 @@ DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loop
 
 | Device | Build | Cycles | Continuous | Mem start | Mem end | Frame start | Frame end | Verdict | Notes |
 |--------|-------|--------|------------|-----------|---------|-------------|-----------|---------|-------|
-| Pixel 6a | profiling / `__DEV__` soak | 100 | 15 min | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | Mandatory Android soak (D-19…D-21); 100 Title↔Playing + 15 min play |
-| iPhone (physical) | profiling / `__DEV__` soak | 100 | 15 min | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | D-16 stability companion; mem + frame-time start/end |
+| Pixel 6a | profiling / `__DEV__` soak | — | — | — | — | — | — | **WAIVED** | Owner 2026-09-22: no Pixel 6a |
+| iPhone (physical) | profiling / `__DEV__` soak | — | — | — | — | — | — | PENDING_DEVICE | Not run this session (Cert WC / Instruments only) |
 
 ---
 
-_Status: protocol + thresholds locked; Results scaffolding ready (`PENDING_DEVICE`) — Plan 06 human device gate fills real evidence._
+_Status: iOS D-16 **PASS** (2026-09-22 Instruments). Pixel/Android D-15 + Android soak **WAIVED** (no device). PLT-03 Android mid-range **not claimed**. iOS soak + D2/D4 iOS profiling rows still open._

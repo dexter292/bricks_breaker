@@ -69,12 +69,13 @@ Record gfxinfo / Instruments one-liners in the Results section below (or in `07-
 
 | Run | Device | Build | Tool | Scene notes | Frame evidence | Result |
 |-----|--------|-------|------|-------------|----------------|--------|
-| Phase 8 Plan 06 | Pixel 6a Mid (mandatory) | profiling | gfxinfo | level-03 Cert WC (≥3 balls + particles near Mid cap + shake + glow) | See Phase 8 Results table | **OPEN** — `PENDING_DEVICE` in [`docs/phase8-certification.md`](./phase8-certification.md) |
+| Phase 8 Plan 06 | Pixel 6a Mid (mandatory) | profiling | gfxinfo | level-03 Cert WC (≥3 balls + particles near Mid cap + shake + glow) | See Phase 8 Results table | **WAIVED 2026-09-22** — no Pixel 6a; see [`docs/phase8-certification.md`](./phase8-certification.md) |
+| Phase 8 Plan 06 | iPhone 16 Pro Mid | development / `__DEV__` | Instruments Game Performance | level-03 Cert WC (multi arm) | Display ~8.33 ms (120 Hz); Hangs 0 | **PASS (D-16 companion)** — does **not** close Pixel/Android FX-02 debt |
 
-**OPEN Pixel gfxinfo debt (Phase 7 → Phase 8):** Authoritative Results rows (run1 / run2 / worse-run / soak) live in [`docs/phase8-certification.md`](./phase8-certification.md) under **Results** and **Soak Results**. This Phase 7 row stays **OPEN** until a human fills Pixel 6a Mid PASS (or documents FAIL / hardware blocker). Do **not** invent gfxinfo numbers. Substitute Android alone does **not** close this debt (D-17).
+**Pixel gfxinfo debt (Phase 7 → Phase 8):** **WAIVED** by owner 2026-09-22 (no hardware). Do **not** invent gfxinfo numbers. FX-02 / PLT-03 Android mid-range remain **unproven** until a Pixel (or documented substitute) run exists.
 
-**D-04 waiver (if used):** _model / chipset / OS / refresh — MVP debt — physical re-cert on Pixel 6a_
+**D-04 waiver (if used):** _Not used — no Android substitute this session._
 
 ---
 
-_Status: procedure ready; Pixel Results debt pointed at Phase 8 `PENDING_DEVICE` scaffolding — still OPEN until device fill._
+_Status: procedure ready; Pixel Results **WAIVED** (no device); iOS D-16 companion **PASS** 2026-09-22._

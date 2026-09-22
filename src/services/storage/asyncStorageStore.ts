@@ -1,3 +1,4 @@
+import { NativeModules, TurboModuleRegistry } from 'react-native';
 import { createMemoryPersonalBestStore } from './memoryStore';
 import { parsePersonalBestResult } from './parseBlob';
 import {
@@ -16,13 +17,41 @@ type AsyncStorageLike = {
 let sharedStore: PersonalBestStore | null = null;
 
 /**
+ * Probe native bridge before requiring the JS package.
+ * Requiring `@react-native-async-storage/async-storage` when the native
+ * module is missing throws a LogBox ERROR even inside try/catch (module
+ * init throws synchronously and RN still reports it).
+ */
+function hasAsyncStorageNative(): boolean {
+  try {
+    const turbo =
+      TurboModuleRegistry.get?.('RNCAsyncStorage') ??
+      TurboModuleRegistry.get?.('RNC_AsyncSQLiteDBStorage') ??
+      null;
+    if (turbo != null) {
+      return true;
+    }
+    return !!(
+      NativeModules.RNCAsyncStorage ||
+      NativeModules.RNC_AsyncSQLiteDBStorage ||
+      NativeModules.PlatformLocalStorage
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Lazy-load AsyncStorage so Metro does not evaluate the native module at
  * import time. When the native module is missing (stale expo-dev-client),
- * requiring the package throws — catch and fall back to memory.
+ * skip require and fall back to memory.
  */
 function loadAsyncStorage(): AsyncStorageLike | null {
   // Vitest/Node has no native module; avoid the package's RN entry entirely.
   if (typeof process !== 'undefined' && process.env.VITEST) {
+    return null;
+  }
+  if (!hasAsyncStorageNative()) {
     return null;
   }
   try {

@@ -2,21 +2,21 @@
 
 **Ngày:** 2026-09-22
 **Baseline:** [RE-AUDIT-08.md](./RE-AUDIT-08.md) · [DEFERRED-ITEMS.md](./DEFERRED-ITEMS.md)
-**Đối tượng:** HEAD **`54572b4`** — "fix(store): publish support email for NJ-3 privacy contact"
-**Tính chất:** acceptance check. Hardware / device rows **WAIVED for this review** (owner: skip real-device for now).
-**Gate re-run (macOS, same day):** `tsc` 0 · `lint --max-warnings 0` 0/0 · **`npm test` 267/267 (59 files, includes 6 UI `.tsx`)** · worklets OK · skia OK · privacy OK · coverage lines **87.8%** (≥40) · live policy Contact contains `dexter@lkfnb.com`
+**Đối tượng:** HEAD **`7dadd1b`** (+ uncommitted: glow dispose handshake, AsyncStorage/ExpoDevice probes, Phase 8 iOS fill + Pixel WAIVE)
+**Tính chất:** acceptance re-review 2026-09-22 evening — iOS D-16 filled; Pixel/Android **WAIVED** (owner: no device).
+**Gate re-run (macOS, same evening):** `tsc` 0 · **`vitest` 267/267 (59 files)** · worklets OK previously · privacy Contact `dexter@lkfnb.com`
 
 ---
 
-## KẾT LUẬN TỔNG QUÁT (device waived)
+## KẾT LUẬN TỔNG QUÁT (re-review)
 
-> **Acceptance không-thiết-bị: CONDITIONAL PASS cho playtest nội bộ tiếp tục.**
+> **CONDITIONAL PASS — playtest nội bộ / iOS Release sideload OK.**
 >
-> Mọi gate tự động xanh (đã chạy lại trên macOS: **267 tests**, lint 0, typecheck 0, asserts OK; privacy live + email). Code/CI/store-contact sẵn sàng cho playtest.
+> Gate tự động xanh (**267/267**). iOS D-16 Cert WC + Instruments **PASS**. Bản **Release** đã cài lên iPhone 16 Pro (chơi offline, không Metro).
 >
-> **Chưa đóng MVP / public release** vì hardware (đã bỏ qua theo yêu cầu) + **một quyết định phạm vi còn mở: PHYS-05** (ledger ghi “aimed release/tap”, code là tap → serve thẳng đứng). Owner chọn: (a) triển khai aim, hoặc (b) sửa văn bản requirement + ghi DEFERRED.
+> **Chưa đóng MVP / store submit** vì: (1) **PHYS-05** ledger vs code (aimed launch), (2) **PLT-03 Android** WAIVED/unproven (không claim Complete), (3) soak iOS + D2/D4 iOS profiling còn mở, (4) trademark / SFX provenance / console Data Safety.
 >
-> Không có blocker kỹ thuật code khác trước external testing ngoài PHYS-05 + một lần smoke Android (cũng thuộc device — waived ở đây).
+> Không blocker code khác trước internal iOS playtest ngoài quyết định PHYS-05.
 
 ---
 
@@ -48,30 +48,30 @@
 
 ---
 
-## 2. Bằng chứng thiết bị thật — **chưa có gì**
+## 2. Bằng chứng thiết bị thật — **cập nhật 2026-09-22 (owner)**
 
-Tôi đọc cả ba tài liệu và đếm trực tiếp.
+### `docs/phase8-certification.md` — iOS D-16 filled; Pixel WAIVED
+| Hàng | Verdict |
+|---|---|
+| Pixel 6a run1 / run2 | **WAIVED** — owner: không có Pixel 6a |
+| iPhone 16 Pro Instruments (Game Performance, multi Cert WC) | **PASS** — Display ~8.33 ms (120 Hz), Hangs 0; touch OK |
+| Substitute Android | **WAIVED** — không dùng |
+| D2 Android | **WAIVED** (cùng lý do) |
+| D2 iOS / D4 iOS profiling SC-2 | vẫn **PENDING_DEVICE** |
+| Soak Pixel | **WAIVED** |
+| Soak iPhone | vẫn **PENDING_DEVICE** |
 
-### `docs/phase8-certification.md` — **12 ô `PENDING_DEVICE`**
-```
-| Pixel 6a | Mid | profiling | run1 | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE | PENDING_DEVICE |
-| Pixel 6a | Mid | profiling | run2 | PENDING_DEVICE | ... (keep worse of run1/run2)
-| iPhone (physical) | Mid | profiling | Instruments | PENDING_DEVICE | ...
-| D2 | SC-2 release-build worklet mutation | Android | profiling/release | PENDING_DEVICE |
-| D2 | SC-2 release-build worklet mutation | iOS    | profiling/release | PENDING_DEVICE |
-| D4 | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | profiling | PENDING_DEVICE |
-```
-Hàng D2/D4 **nay đã tồn tại** với schema PASS/FAIL riêng (đóng NF-17) — nhưng đều PENDING.
+**PLT-03 Android mid-range vẫn không được claim.** iOS D-16 là companion, không thay gfxinfo Pixel.
 
 ### `docs/device-gate-results.md` — chỉ có smoke trên dev build
 | Hạng mục | Trạng thái thực |
 |---|---|
-| iOS physical install + render + `worklet tick PASS` (iPhone 16 Pro, iOS 26.6.1) | **PASS** — bằng chứng đáng tin (process, canvas, 256 sprite, HUD sau fix SpaceMono) nhưng **development build** |
+| iOS physical install + render + `worklet tick PASS` (iPhone 16 Pro, iOS 26.6.1) | **PASS** — development build |
+| iOS Instruments D-16 Cert WC (2026-09-22) | **PASS** — xem `phase8-certification.md` |
 | iOS simulator | PASS (interim), owner waiver — **không phải D-05 evidence** |
-| **Android — mọi hàng** | **WAIVED / OPEN** — app **chưa từng được cài trên một máy Android nào** |
-| iOS profiling/release | **WAIVED** — "re-run before MVP" |
-| Pixel 6a gfxinfo | **OPEN (D-04)**, `TBD` |
-| Con số hiệu năng duy nhất trong repo | `~16.67 ms / ~60 FPS` trên **iPhone 17 Simulator, development build, overlay-only, 256 sprite giả** — chính tài liệu đánh dấu **"not gfxinfo/Instruments — sim smoke"**, `WAIVED (interim)` |
+| **Android — mọi hàng** | **WAIVED** — không có máy Android / Pixel 6a |
+| iOS profiling/release SC-2 (D2/D4) | vẫn mở |
+| Sim overlay-only số liệu cũ | `WAIVED (interim)` — không thay Instruments |
 
 ### `docs/measurement-methodology.md` — protocol đúng chuẩn, chưa thực thi
 Yêu cầu: `gfxinfo framestats` (không phải RN Perf Monitor), profiling build, thiết bị thật (simulator không tính, D-05), ≥30s/run, **≥2 run, lấy run tệ hơn**, pass lock `p50 ≤ 16.7ms` **và** `p95 ≤ 20ms` **hoặc** jank ≤ 5%. **Không có run nào đã chạy.**
@@ -150,7 +150,7 @@ Bù lại cho tầng đó, dự án có hai kiểm soát tĩnh thật: **worklet
 | **VERIFIED** (automated đủ cho văn bản requirement) | **14** | PHYS-02, PHYS-03, PHYS-04, PHYS-06, PHYS-07, LVL-01, LVL-02, LVL-03, RUN-01, PWR-01, PWR-02, PWR-03, PLT-04, ARCH-02 |
 | **PARTIAL — chờ thiết bị** | **11** | PHYS-01, LVL-04, RUN-02, RUN-03, RUN-04, FX-01, FX-02, FX-03, PLT-01, PLT-02, ARCH-01 |
 | **NOT MET** (theo văn bản đã phê duyệt) | **1** | **PHYS-05** (aimed launch) |
-| **BLOCKED — cần hardware** | **1** | **PLT-03** (60 FPS trên máy tầm trung) |
+| **WAIVED — no Android hardware** | **1** | **PLT-03** Android mid-range (Pixel 6a) — owner waiver 2026-09-22; iOS D-16 PASS does not close this |
 
 ### Ghi chú cho từng mục PARTIAL
 | ID | Phần đã đạt (automated) | Phần còn thiếu |
@@ -178,7 +178,7 @@ Tôi kiểm tra từng mục, **không mở lại finding đã FIXED**:
 | ID | Trạng thái | Bằng chứng hiện tại | Chặn gì |
 |---|---|---|---|
 | **NJ-3** support contact | **✅ CLOSED** (mới) | Live page có `dexter@lkfnb.com` "no GitHub account required"; `SECURITY.md:13`; `HOSTING.md` grep đúng email | — |
-| **WP-6** device rows | **OPEN** | 12 × `PENDING_DEVICE` | public release |
+| **WP-6** device rows | **PARTIAL** | iOS D-16 PASS; Pixel/Android WAIVED; soak iOS + D2/D4 iOS still open | public release |
 | **D2 / D4** | **OPEN** | Hàng riêng đã tồn tại, giá trị PENDING | public release |
 | **F-21** ledger PHYS-05 | **OPEN** | `REQUIREMENTS.md:16` vẫn `[x]` "aimed release/tap" | **external testing** |
 | **NK-6** test scratch | **PARTIAL** | Grep lại: không code nào gán `scratchVel`/`scratchSweep` → `toBe` không thể fail | — (chất lượng) |
@@ -202,31 +202,37 @@ Tôi kiểm tra từng mục, **không mở lại finding đã FIXED**:
 - 14 requirement đạt hoàn toàn bằng automated tests.
 - 11 requirement đạt phần logic, còn phần cần thiết bị.
 - **PHYS-05 chưa đạt theo văn bản đã phê duyệt** — cần quyết định của owner (triển khai hoặc sửa văn bản).
-- **PLT-03 bị chặn** — cần Pixel 6a.
+- **PLT-03 Android mid-range** — **WAIVED / unproven** (no Pixel 6a, 2026-09-22). iOS D-16 companion **PASS** (Instruments).
 
 ### 7.2 Những tiêu chí nào đã được xác minh bằng automated tests?
 Toàn bộ tầng simulation: fixed timestep, swept CCD không tunneling ở 2× max speed, depenetration, hai sàn góc (dọc **và** ngang), deterministic replay + hash canonical, no-RNG/no-clock purity, event ring clear policy, scoring/combo, multi-ball + last-ball life, pickup catch-only + expand, anti-stall escalation, level schema/validate/compile fail-closed, victory chỉ tính breakable, quality tier, substep cap, trail/particle/shake budget, audio mapping + dedupe + release, personal-best parse/compare, platform seams. Cộng **3 component-contract test** cho HudStrip / CountdownOverlay / LevelErrorOverlay. Cộng hai kiểm soát tĩnh: worklet-closure guard (đã kiểm chứng bắt được lỗi) và ESLint boundaries matrix.
 
 ### 7.3 Những tiêu chí nào đã được xác minh trên thiết bị thật?
-**Rất ít, và chỉ trên iOS development build:** install + render + canvas + 256 sprite + `worklet tick PASS` trên iPhone 16 Pro (iOS 26.6.1) — `device-gate-results.md:34`, có UDID và `devicectl` launch. **Không có gì khác.** Không FPS certification, không Instruments, không soak, không Android (app chưa từng cài trên máy Android), không playtest. Con số `~60 FPS` duy nhất là từ **simulator, development build, sprite giả**, và chính tài liệu đã đánh dấu là không phải bằng chứng.
+**iOS physical (iPhone 16 Pro, iOS 26.6.1, A18 Pro):**
+- Install + render + worklet tick (dev-client) — `device-gate-results.md`
+- **D-16 Instruments Game Performance** — Cert WC multi-arm; Display ~**8.33 ms** (120 Hz); **Hangs 0**; touch OK — `phase8-certification.md` **PASS**
+- **Release sideload** — JS bundled; chơi không cần Metro/cáp (2026-09-22 evening)
+
+**Android:** **WAIVED** — không có máy (Pixel 6a / substitute). **Không claim PLT-03.**
+
+**Chưa có:** soak 100+15 min; D2/D4 formal profiling/release SC-2; human LVL-04 playtest cohort; Android smoke.
 
 ### 7.4 Còn blocker nào trước external testing?
-**Ba mục:**
-1. **PHYS-05** — quyết định phạm vi (triển khai aimed launch hoặc sửa văn bản requirement). Ledger hiện tuyên bố một tính năng không tồn tại; không nên đưa build ra tester ngoài với ledger sai.
-2. **Một device smoke trên Android** — app **chưa từng chạy trên Android**. Không cần full certification, nhưng cần biết nó cài được, render được, và không crash trước khi phát cho tester.
-3. **Nhập Data Safety + age rating vào console** (giấy tờ đã xong, chưa submit) — bắt buộc để tạo internal testing track trên Play.
+**Hai mục cứng:**
+1. **PHYS-05** — quyết định phạm vi (triển khai aimed launch hoặc sửa văn bản requirement). Ledger hiện tuyên bố một tính năng không tồn tại.
+2. **Android smoke** (nếu tester Android) — app chưa từng chạy trên Android; owner đã waive Pixel cert, nhưng smoke trên bất kỳ máy Android nào vẫn khuyến nghị trước Play internal track.
 
-*Không* phải blocker: privacy policy (live, email đã verify), gate tự động (tất cả xanh), component test.
+*Không* phải blocker cho **iOS internal playtest:** privacy + email, gate tự động, iOS D-16, Release sideload.
 
 ### 7.5 Còn blocker nào trước public release?
-1. **PLT-03** — Pixel 6a, profiling build, level-03 Cert WC, ≥2 run × ≥30s, lấy run tệ hơn, `gfxinfo framestats` p50/p95/jank. Protocol đã có sẵn và đúng chuẩn.
-2. **iOS Instruments** (Core Animation) trên iPhone vật lý, profiling build.
-3. **Soak** — 100 chu kỳ Title↔Playing + 15 phút liên tục, ghi PSS đầu/cuối và frame-time drift. Harness cần được instrument để tự ghi.
-4. **D2 / D4 discharge** — SC-2 worklet mutation trên profiling/release (iOS + Android), iOS profiling re-run sau fix HUD font.
-5. **LVL-04 playtest** — ≥5 người chơi lần đầu; ghi thời lượng và "muốn chơi lại?".
-6. **F-40** provenance SFX (tool chain + license) và **trademark opinion**.
-7. **Phase 8 close** — `08-VERIFICATION.md` hiện là stub `status: not_verified`, `waiver: WAIVED-PENDING`. Nó **trung thực** và đó là điều đúng; nhưng nó chỉ chuyển sang verified khi có §7.5.1–5.
-8. Nên sửa trước khi submit: **F-59** (`skia-version-decision.md` ghi `Confirmed` trái tiêu chí của chính nó).
+1. **PLT-03 Android** — **WAIVED** cho đến khi có mid-range Android; đừng tick Complete.
+2. **iOS soak** — 100 Title↔Playing + 15 min; mem/frame start/end (chưa chạy).
+3. **D2 / D4 iOS** — SC-2 trên profiling/release formal (dev-client D-16 ≠ discharge).
+4. **LVL-04 playtest** — cohort người chơi lần đầu.
+5. **F-40** SFX provenance + **trademark** opinion.
+6. **Console** Data Safety / age rating submit.
+7. **Phase 8 close** — `08-VERIFICATION.md` vẫn stub cho đến khi soak + (optional) Android trả nợ hoặc owner chấp nhận WAIVE công khai trong verification.
+8. Commit các fix chưa push: glow dispose handshake, native-module probes.
 
 ### 7.6 Có cần thêm remediation không?
 **Về code: gần như không.** Chỉ **một** mục có thể cần code — PHYS-05, và chỉ nếu owner chọn phương án (a).
@@ -249,13 +255,13 @@ Các mục chất lượng còn lại (**NK-6** test tautology, **F-29** `CLIFF_
 5. NK-6 (thay tautology bằng test sàn-góc-qua-scratch), F-29, NF-15, NG-20, F-59, F-03 (hoặc viết waiver tường minh cho các gate quy trình).
 
 **Đợt C — hardware, đóng MVP**
-6. Instrument soak harness để tự ghi `meminfo`/`gfxinfo`.
-7. Pixel 6a certification theo đúng protocol → điền `phase8-certification.md`.
-8. iPhone vật lý + Instruments → điền hàng iOS + discharge D2/D4.
-9. Soak 100 chu kỳ + 15 phút.
-10. LVL-04 playtest ≥5 người.
-11. F-40 provenance + trademark opinion.
-12. Tạo `08-06-SUMMARY.md`, chuyển `08-VERIFICATION.md` sang verified thật. **Chỉ khi đó** mới đánh MVP COMPLETE và tick PLT-03.
+6. (Tuỳ chọn) Soak iOS: `EXPO_PUBLIC_SOAK=1` + mem/frame đầu-cuối.
+7. Khi có Android mid-range: certification theo protocol → điền lại hàng Pixel (bỏ WAIVED) trước khi claim PLT-03.
+8. Discharge D2/D4 iOS trên profiling/release formal (D-16 dev-client chưa đủ).
+9. LVL-04 playtest ≥5 người.
+10. F-40 provenance + trademark opinion.
+11. Commit + push fix glow dispose / native probes + docs Phase 8.
+12. Tạo `08-06-SUMMARY.md`, chuyển `08-VERIFICATION.md` sang verified (với Pixel WAIVE tường minh nếu vẫn không có Android). **Không tick PLT-03 Complete** khi chỉ có iOS D-16.
 
 ---
 
