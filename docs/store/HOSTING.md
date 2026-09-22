@@ -16,10 +16,10 @@ curl -fsSI -H 'Cache-Control: no-cache' \
   "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html?t=$(date +%s)" | head -n 1
 curl -fsS -H 'Cache-Control: no-cache' \
   "https://dexter292.github.io/bricks_breaker/store/privacy-policy.html?t=$(date +%s)" \
-  | grep -F 'github.com/dexter292/bricks_breaker/discussions'
+  | grep -F 'dexter@lkfnb.com'
 ```
 
-Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the Discussions URL (primary Contact channel; issues are not the verify target).
+Expect `HTTP/2 200` (or `HTTP/1.1 200`) and a match on the support email (primary Contact; no GitHub account required).
 
 ## How it was set up
 

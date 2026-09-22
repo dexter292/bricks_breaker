@@ -33,8 +33,10 @@ If this policy changes for a future build (for example if networking, ads, or ac
 
 ## Contact
 
-Questions about this policy (primary channel — GitHub Discussions; no store support email yet):
-- https://github.com/dexter292/bricks_breaker/discussions
+Questions about this policy or the App:
+
+- **Email (no GitHub account required):** [dexter@lkfnb.com](mailto:dexter@lkfnb.com)
+- GitHub Discussions: https://github.com/dexter292/bricks_breaker/discussions
 - Maintainer profile: https://github.com/dexter292
 
 See also `SECURITY.md` at the repository root for vulnerability reporting.
