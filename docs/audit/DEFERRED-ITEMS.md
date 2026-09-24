@@ -14,10 +14,14 @@ Orphan deferred items that need an explicit owner and Results surface before MVP
 | **F-43** | Component-contract coverage (not UI-thread/worklet) | CODE-REVIEW / RE-AUDIT-02…07 | Post-MVP for PlayingHost | **CLOSED (N-QA-03)** | TitleScreen / GameScreen / GameHost Title↔Playing (PlayingHost stubbed). Still not UI-thread or worklet-loop coverage. |
 | **NF-18f** | Duplicate `useFonts` (Title `GameHost` + `PlayingHost`) | RE-AUDIT-06 | — | **ACCEPTED** | Intentional: Title vs Playing hosts each load SpaceMono for their surface. `expo-font` caches; second call is cheap. Not a leak. |
 | **Store email / NJ-3** | App Store / Play support contact email | NJ-3 / NK-7 / store submit | Owner | **CLOSED 2026-09-22** | Published `dexter@lkfnb.com` as primary Contact in privacy policy (md/html) + `SECURITY.md`; HOSTING verify greps the email |
-| **WP-6** | Device certification rows | Phase 8 / post-MVP A1 | Hardware gate | **PARTIAL** | iOS D-16 = observation; ceiling/floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**. PLT-03 **not claimed** |
+| **WP-6** | Device certification rows | Phase 8 / post-MVP A1 | Hardware gate | **PARTIAL** | iOS D-16 = observation; ceiling/floor **NOT RUN**. Physical soak **PASS** (dev-client 2026-09-24). Android **OUT OF SCOPE (D2=B)** |
 | **Trademark** | Store name | store docs | Owner | **MUST rename before ASC (D1=B)** | String TBD in `name-clearance.md`; G2 blocker |
-| **R-12** | Quality tier RAM heuristic | DECISIONS-2026-09-24 | Post-MVP N-TIER-01 | **OPEN** | 4 GB iPhones get Mid budgets certified only on A18 Pro |
+| **R-12** | Quality tier RAM heuristic | DECISIONS-2026-09-24 | Post-MVP N-TIER-01 | **OPEN** | 4 GB iPhones get Mid budgets certified only on A18 Pro — see `docs/ops/QUALITY-TIER.md` |
 | **R-15** | Store forms vs bundled Sentry | A4 / store docs | Owner + docs | **CLOSED 2026-09-24** | `CONSOLE-ENTRY.md` + `play-data-safety.md` now split DSN-off vs DSN-on; privacy policy already disclosed optional Sentry |
+| **R-16** | Dual reachability (TS lib vs CI script) | PHASE-VERIFY-A2-A4 | Dev | **OPEN** | Need parity test like `constants.parity.test.ts` over `assets/levels/*` |
+| **R-17** | Soak mem start/end ambiguous | PHASE-VERIFY-A2-A4 | Docs | **CLOSED 2026-09-24** | Title-comparable footprints + peak column/note |
+| **R-18** | Soak ledger missing pre-fix red | PHASE-VERIFY-A2-A4 | Docs | **CLOSED 2026-09-24** | phase8 Notes cite disposed HostFunction before `5144984` |
+| **R-19** | G2.3 soak wording vs __DEV__-only harness | PHASE-VERIFY-A2-A4 | Docs | **CLOSED 2026-09-24** | G2.3 + RELEASE-GATES say dev-client; no release RSS claim |
 | **F-40 SFX provenance** | Store originality | CODE-REVIEW | Owner | **CLOSED 2026-09-22** | `assets/sfx/README.md` — PCM format, ARR app-bundle license, no third-party pack |
 | **Console entry** | ASC / Play form submit | PLT-04 / D-26 | Operator | **PREPARED** | ASC in use for iOS-first; Play deferred (D2=B) |
 | **PHYS-05 aimed** | Aim drag-to-aim vs tap serve | FINAL / REQUIREMENTS | Owner | **DEFERRED 2026-09-24** | Temporary MVP accepts **tap-only**; D3 still open for post-MVP |

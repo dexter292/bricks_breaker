@@ -26,8 +26,9 @@ Simulator soak = **HARNESS-ONLY** — does not close this gate.
    - `[soak] arming`
    - cycle progress → `cycles done (100)`
    - 15 min continuous → `[soak] complete`
-4. At **start** and **end**, capture (paste into Results):
-   - Xcode Memory gauges / Instruments Allocations (RSS / dirty)
+4. At **start** and **end**, capture (paste into Results) using **Instruments Activity Monitor** (preferred) or Xcode Memory gauges — name the tool; they are not interchangeable:
+   - Prefer **same shell state** for start/end (e.g. both on Title) so growth is comparable
+   - Optionally note an in-play **peak** footprint separately (headroom, not leak proof)
    - Instruments Game Performance or Core Animation frame notes (optional cross-check)
 
 Harness also logs Android `adb` command strings — ignore on iOS-only posture; use Xcode for mem.
@@ -37,7 +38,7 @@ Harness also logs Android `adb` command strings — ignore on iOS-only posture; 
 | Fail if | |
 |---------|--|
 | Crash or hang | |
-| Sustained memory growth across start→end | |
+| Sustained memory growth **on comparable Title footprints** start→end (in-play peak is headroom, not the leak comparator) | |
 | Progressive frame-time degradation / unresponsive controls | |
 
 ## 4. Record
@@ -48,10 +49,12 @@ Fill `docs/phase8-certification.md` Soak Results row for **iPhone 16 Pro (physic
 |-------|--------|
 | Cycles | 100 |
 | Continuous | 15 min |
-| Mem start / end | _(fill)_ |
+| Mem start (Title, tool named) | _(fill)_ |
+| Mem end (Title, same tool) | _(fill)_ |
+| Peak in-play (optional) | _(fill)_ |
 | Frame start / end | _(fill or n/a + note)_ |
 | Verdict | PASS / FAIL |
-| Notes | date, build profile, iOS version |
+| Notes | date, build profile, iOS version; **include any pre-fix red run** if this PASS depends on a defect fix |
 
 ## 5. Acceptance for A2
 

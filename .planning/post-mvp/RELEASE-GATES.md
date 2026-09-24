@@ -26,7 +26,7 @@
 |------|-------------------|--------|--------|
 | **PLT-03** Android mid-range gfxinfo | Named Android + protocol PASS | Future Android release / dual-store FPS claims | **OUT OF SCOPE (iOS-first D2=B)** — do not claim Complete |
 | **Android smoke** | Physical Android install | Future Play track | **OUT OF SCOPE (D2=B)** |
-| **Physical soak** | iPhone 100+15 min + mem/frame | G2.3 | **OPEN** (sim harness only) |
+| **Physical soak** | iPhone 100+15 min + mem/frame | G2.3 | **PASS** (dev-client 2026-09-24; not release RSS) |
 | **PHYS-05 aimed** | Implement or Won’t-Do **after A3 cohort** (D3=C) | Spec hygiene | **DEFERRED — pending A3** |
 | **LVL-04 cohort** | ≥5 first-time playtests | G2.11 | **OPEN (soft)** |
 | **Console entry ASC** | ASC forms submitted | G2.4 | **PREPARED only** |
@@ -71,7 +71,7 @@
 |---|-----------|----------|
 | G2.1 | All G1 Must | — |
 | G2.2 | **iOS-only posture documented**; Android “coming later / uncertified” — **PLT-03 not Complete** | This file + REQUIREMENTS |
-| G2.3 | Physical iOS soak PASS (or owner-signed residual risk) | Soak Results |
+| G2.3 | Physical iOS soak PASS (**dev-client**; release RSS must not be claimed from this evidence) — or owner-signed residual risk | Soak Results |
 | G2.4 | **ASC** listing complete (privacy, age, screenshots, description). Play optional/deferred | Console |
 | G2.5 | Production build QA: no Cert/Soak/DEV chrome | Visual QA |
 | G2.6 | SFX provenance ARR / documented | `assets/sfx/README.md` |
