@@ -5,6 +5,8 @@
 
 Recruitment has lead time — start now even if ceiling/Sentry still open.
 
+**Device note (2026-09-24):** Release sideload installed on Dexter’s iPhone 16 Pro (`Release-iphoneos`). Unlock phone → open **Neon Brick Breaker** (no Metro). Fill roster in `PLAYTEST-FORM-A3.md`.
+
 ---
 
 ## 1. Build for testers

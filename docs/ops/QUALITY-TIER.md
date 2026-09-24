@@ -63,6 +63,8 @@ Owner should pick one (or a combination) before **G2 marketing honesty**:
 5. **Conservative unknown** — change null-memory default from Mid → Low (behavior change; needs product sign-off).
 6. **Ship with signed residual risk** — keep code; record owner acceptance in RELEASE-GATES / ledger that 4 GB Mid is unproven.
 
+**Agent recommendation (2026-09-24, not a lock):** prefer **#3 + #6** until R-10 floor hardware exists — no code change, honest store/marketing wording, residual risk signed. Pick **#1** (4 GB → Low) only if you want a safer default before any floor device arrives.
+
 ## Status
 
 | ID | State |
