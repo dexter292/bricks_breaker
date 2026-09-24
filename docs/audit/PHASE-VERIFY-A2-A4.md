@@ -210,7 +210,7 @@ Nguồn copy byte-identical với repo (`diff -rq src tests` → 0 khác biệt)
 
 | Mục | Trạng thái |
 |---|---|
-| **A1 ceiling** | `NOT RUN` — cần profiling IPA + 2×≥30 s + p50/p95/Hangs. D-16 cũ = `OBSERVATION`, không tính |
+| **A1 ceiling** | `NOT RUN` (official) — cần profiling IPA + 2×≥30 s. 2026-09-24 Metro harness Cert WC Mid trên 16 Pro: p50=p95=8.33 ms / 120 fps (≥40 s) — exploratory, không discharge G2.16. D-16 cũ = `OBSERVATION` |
 | **A2 soak** | **PASS** (dev-client) — `R-17`/`R-18`/`R-19` đã chỉnh cách ghi / lời văn gate |
 | **A3 cohort** | Chưa chạy — form sẵn ở `docs/ops/PLAYTEST-FORM-A3.md`; gate `D3` |
 | **A4** `N-OPS-01` | Wired, **chưa proven** — cần Sentry project + DSN + build + crash thật + event ID |

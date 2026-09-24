@@ -10,9 +10,15 @@ Simulator / Display-mode Instruments = **not** a ceiling PASS. Debug+Metro `[cer
 
 ## 1. Build
 
-1. Produce an EAS **`profiling`** IPA (or Xcode Profile configuration with `__DEV__` false for release-like frame path).
+1. Produce an EAS **`profiling`** IPA (or Xcode Profile configuration with `__DEV__` false for release-like frame path):
+
+   ```bash
+   eas build --platform ios --profile profiling
+   ```
+
+   Confirm `eas.json` `profiling.env` does **not** set `EXPO_PUBLIC_CERT` / `EXPO_PUBLIC_SOAK`.
 2. Install on **iPhone 16 Pro** only for this row (not Simulator).
-3. Confirm quality tier forces **Mid** Cert WC (same fixture used for D-16 / measurement doc).
+3. Confirm quality tier forces **Mid** Cert WC (same fixture used for D-16 / measurement doc). Use `__DEV__` Cert WC Pressable on a development build, or ship a temporary profiling-only arm if `__DEV__` is false.
 
 ## 2. Instruments session
 
