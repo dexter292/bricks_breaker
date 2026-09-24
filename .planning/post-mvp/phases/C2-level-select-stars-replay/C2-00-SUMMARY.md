@@ -75,7 +75,7 @@ Each task was committed atomically:
 2. **Task 1 (GREEN): stars helpers + LevelBest** - `9ca81eb` (feat)
 3. **Task 2: UI Nyquist stubs + VALIDATION Wave 0** - `24dc31c` (test)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `f047540` (docs: complete plan)
 
 ## Files Created/Modified
 
