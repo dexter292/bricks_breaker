@@ -2,7 +2,7 @@
  * Playable campaign catalog order (N-PROG-01 / D-01).
  * Matches PlayingHost DEV cycle — never includes level-02.
  */
-import type { LevelId } from '../../runtime/loadLevel';
+import type { LevelId } from '../../core';
 
 export const PLAYABLE_LEVEL_ORDER: readonly LevelId[] = [
   'level-01',

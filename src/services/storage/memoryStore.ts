@@ -1,4 +1,4 @@
-import type { LevelId } from '../../runtime/loadLevel';
+import type { LevelId } from '../../core';
 import type { PersonalBestStore, ProgressBlob, ProgressStore } from './types';
 import { defaultProgressBlob } from './types';
 import {

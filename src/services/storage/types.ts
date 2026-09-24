@@ -1,4 +1,4 @@
-import type { LevelId } from '../../runtime/loadLevel';
+import type { LevelId } from '../../core';
 
 export const PERSONAL_BEST_VERSION = 1 as const;
 export const PERSONAL_BEST_KEY = '@nbb/personal-best/v1' as const;

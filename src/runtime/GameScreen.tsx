@@ -132,18 +132,6 @@ export function GameScreen({
           right={insets.right}
         />
 
-        {devLevelSwitch != null ? (
-          <View
-            style={[
-              styles.devSwitchSlot,
-              { top: insets.top + HUD_STRIP_CONTENT + 8, right: padR },
-            ]}
-            pointerEvents="box-none"
-          >
-            {devLevelSwitch}
-          </View>
-        ) : null}
-
         {showServeHint && showPauseChrome ? (
           <Text
             pointerEvents="none"
@@ -180,6 +168,23 @@ export function GameScreen({
         ) : null}
 
         {hasLevelError ? <LevelErrorOverlay issues={levelError!} /> : null}
+
+        {/* Above pause/result scrims so __DEV__ level cycle stays tappable during smoke. */}
+        {devLevelSwitch != null ? (
+          <View
+            style={[
+              styles.devSwitchSlot,
+              {
+                top: insets.top + HUD_STRIP_CONTENT + 8,
+                right: padR,
+                zIndex: 20,
+              },
+            ]}
+            pointerEvents="box-none"
+          >
+            {devLevelSwitch}
+          </View>
+        ) : null}
       </View>
     </View>
   );

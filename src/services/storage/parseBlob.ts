@@ -3,7 +3,7 @@
  * Distinguishes absent vs corrupt so callers never treat garbage as best=0.
  */
 
-import type { LevelId } from '../../runtime/loadLevel';
+import type { LevelId } from '../../core';
 import { PLAYABLE_LEVEL_ORDER } from './catalog';
 import { defaultProgressBlob, type ProgressBlob } from './types';
 

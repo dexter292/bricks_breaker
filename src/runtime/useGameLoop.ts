@@ -519,6 +519,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     const size = surfaceSize.value;
     const flashArg: DestroyFlashState | null =
       flash.life > 0 ? flash : null;
+    // R-25: do not swallow recordFrame failures — blank playfield becomes invisible.
+    // drawImageRect soft-fail stays inside recordSprites (disposed atlas only).
     picture.value = recordFrame(
       w,
       m,

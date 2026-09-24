@@ -10,18 +10,11 @@
 import {
   loadAndCompile,
   type CompiledLevel,
+  type LevelId,
   type ValidationIssue,
 } from '../core';
 
-export type { CompiledLevel, ValidationIssue };
-
-/** Playable bundled levels only (NH-2 / N-LVL-01). */
-export type LevelId =
-  | 'level-01'
-  | 'level-03'
-  | 'level-04'
-  | 'level-05'
-  | 'level-06';
+export type { CompiledLevel, LevelId, ValidationIssue };
 
 export type LoadLevelResult =
   | { ok: true; compiled: CompiledLevel }

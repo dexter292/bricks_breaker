@@ -19,7 +19,7 @@ import {
   type ProgressBlob,
   type ProgressStore,
 } from './types';
-import type { LevelId } from '../../runtime/loadLevel';
+import type { LevelId } from '../../core';
 
 type AsyncStorageLike = {
   getItem: (key: string) => Promise<string | null>;
@@ -290,11 +290,10 @@ function createAsyncStorageProgressStoreFrom(
       const migrated = migrateOrDefault(v2Raw, v1Raw);
       memory = mergeHighWatermark(memory, migrated);
 
-      // Write-through once when we seeded from v1 (v2 was not ok).
+      // Write-through once when we seeded from v1 (v2 was absent/corrupt — already branched).
       if (
         !wroteMigrateThrough &&
-        parsePersonalBestResult(v1Raw).status === 'ok' &&
-        parsed.status !== 'ok'
+        parsePersonalBestResult(v1Raw).status === 'ok'
       ) {
         wroteMigrateThrough = true;
         await persist(memory);

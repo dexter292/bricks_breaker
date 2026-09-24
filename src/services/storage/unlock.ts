@@ -1,7 +1,7 @@
 /**
  * Pure unlock helpers — no I/O (N-PROG-01).
  */
-import type { LevelId } from '../../runtime/loadLevel';
+import type { LevelId } from '../../core';
 import { nextLevelId } from './catalog';
 
 /** True if id is unlocked; level-01 is always unlocked. */

@@ -296,16 +296,12 @@ export function PlayingHost({ onMenu }: Props) {
   // F-14: bake at active level brick size.
   // NF-6 / NG-11 / NH-4 / NH-5 / NL-2: assign new atlas, then dispose previous from a
   // UI-thread work item (causal vs timer) so recordFrame never draws a freed SkImage.
+  //
+  // R-24: never defer setActive(false) via setTimeout after bake. Once setBakedKey
+  // flips fxReady, the gate effect calls setActive(true); a deferred pause can win
+  // the race and leave the frame loop off forever (blank playfield + live HUD).
   useEffect(() => {
     let cancelled = false;
-    // Pause sim while baking — fxReady is already false via loadKey mismatch (NH-5).
-    // Defer setActive so we avoid react-hooks/set-state-in-effect (NG-10).
-    // Use setActiveRef — do not list setActive in deps (identity flaps cancel bake forever).
-    const pauseTimer = setTimeout(() => {
-      if (!cancelled) {
-        setActiveRef.current(false);
-      }
-    }, 0);
     const bakeForKey = loadKey;
     const brickW =
       loadResult.ok && loadResult.compiled.brickCount > 0
@@ -316,25 +312,11 @@ export function PlayingHost({ onMenu }: Props) {
         ? loadResult.compiled.h[0]
         : 14;
     void (async () => {
-      try {
-        await Promise.race([
-          audio.preload(),
-          new Promise<void>((_resolve, reject) => {
-            setTimeout(() => reject(new Error('audio preload timeout')), 2500);
-          }),
-        ]);
-      } catch (err) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.warn('[audio] preload soft-fail', err);
-        }
-      }
-      if (cancelled) {
-        return;
-      }
+      // Pause sync via ref (not React setState) before bake — safe in effect (NG-10).
+      // Glow first — never block fxReady on simulator audio (FigFilePlayer noise).
       try {
         setActiveRef.current(false);
         const next = bakeGlowSprites(brickW, brickH);
-        // Cancelled after bake: free the orphan atlas; do not publish to SV.
         if (cancelled) {
           disposeGlowAtlas(next);
           return;
@@ -353,14 +335,27 @@ export function PlayingHost({ onMenu }: Props) {
       if (cancelled) {
         return;
       }
+      // Flip ready before audio so playfield can paint even if preload hangs.
       playBatchRef.current = (codes, count) => {
         audio.playBatch(codes, count);
       };
       setBakedKey(bakeForKey);
+
+      try {
+        await Promise.race([
+          audio.preload(),
+          new Promise<void>((_resolve, reject) => {
+            setTimeout(() => reject(new Error('audio preload timeout')), 2500);
+          }),
+        ]);
+      } catch (err) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn('[audio] preload soft-fail', err);
+        }
+      }
     })();
     return () => {
       cancelled = true;
-      clearTimeout(pauseTimer);
       setActiveRef.current(false);
       playBatchRef.current = null;
       // Null SV first so any remaining frame skips the glow blit, then dispose
@@ -568,9 +563,28 @@ export function PlayingHost({ onMenu }: Props) {
     const order = PLAYABLE_LEVEL_ORDER;
     setLevelId((prev) => {
       const i = order.indexOf(prev);
-      return order[i < 0 ? 0 : (i + 1) % order.length]!;
+      const next = order[i < 0 ? 0 : (i + 1) % order.length]!;
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.log(`[dev] level ${prev} → ${next}`);
+      }
+      return next;
     });
-  }, []);
+    // Clear end-of-run chrome so the new layout is visible immediately.
+    // Loop re-arm: levelId → loadKey flip → bake → fxReady → gate effect
+    // (retry + setActive(true)). Do not setActive(true) here — fxReady is false
+    // until bake finishes (R-26 / R-24).
+    clearCountdown();
+    setCountdownNumeral(null);
+    setResult(null);
+    setIsNewRecord(false);
+    runEndedRef.current = false;
+    setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
+    setSimPhaseNum(SIM.DOCKED);
+    setUiPhase('playing');
+  }, [clearCountdown]);
 
   /** DEV force Low→Mid→High→auto; session remount via budget change + retry (Pitfall 5). */
   const cycleDevTier = useCallback(() => {

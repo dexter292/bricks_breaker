@@ -229,8 +229,13 @@ module.exports = [
               },
             },
             {
+              // Services may use core domain types (e.g. LevelId) — never runtime.
               from: { element: { type: 'services' } },
-              allow: { to: { element: { type: 'services' } } },
+              allow: {
+                to: {
+                  element: { types: { anyOf: ['services', 'core'] } },
+                },
+              },
             },
           ],
         },

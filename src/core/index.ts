@@ -97,6 +97,7 @@ export {
   planBrickDamageCues,
   type BrickCueStroke,
 } from './levels/damageCues';
+export type { LevelId } from './levels/levelIds';
 export { dockBall, applyServe, processDocked } from './rules/serve';
 export { applyLivesFromBallCount } from './rules/lives';
 export { applyScoringFromEvents } from './rules/scoring';
