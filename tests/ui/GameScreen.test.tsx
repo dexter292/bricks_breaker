@@ -27,14 +27,7 @@ vi.mock('react-native-gesture-handler', () => ({
 afterEach(cleanup);
 
 /** Minimal SharedValue stub — GameScreen only reads `.value` on these props. */
-function stubSharedValue<T>(value: T): {
-  value: T;
-  get: () => T;
-  set: () => void;
-  addListener: () => void;
-  removeListener: () => void;
-  modify: () => void;
-} {
+function stubSharedValue<TOut>(value: unknown): TOut {
   return {
     value,
     get: () => value,
@@ -42,15 +35,15 @@ function stubSharedValue<T>(value: T): {
     addListener: () => {},
     removeListener: () => {},
     modify: () => {},
-  };
+  } as TOut;
 }
 
 function baseProps(
   overrides: Partial<GameScreenProps> = {},
 ): GameScreenProps {
   return {
-    picture: stubSharedValue(null) as GameScreenProps['picture'],
-    surfaceSize: stubSharedValue(null) as GameScreenProps['surfaceSize'],
+    picture: stubSharedValue<GameScreenProps['picture']>(null),
+    surfaceSize: stubSharedValue<GameScreenProps['surfaceSize']>(null),
     playfieldGesture: {} as GameScreenProps['playfieldGesture'],
     uiPhase: 'playing',
     result: null,
