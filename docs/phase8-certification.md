@@ -5,7 +5,10 @@ Authoritative Phase 8 60 FPS gate protocol. Extends Phase 7 VFX worst-case defin
 **Methodology base:** [`docs/measurement-methodology.md`](./measurement-methodology.md)  
 **Phase 7 VFX scene:** [`docs/phase7-vfx-measurement.md`](./phase7-vfx-measurement.md)
 
-**Owner decision 2026-09-22:** Pixel 6a / Android gfxinfo gate **WAIVED — no device available**. PLT-03 mid-range Android evidence is **not claimed**. iOS D-16 companion filled from physical Instruments run (below).
+**Owner decision 2026-09-22:** Pixel 6a / Android gfxinfo gate **WAIVED — no device available**.  
+**Owner decision 2026-09-24 (D2=B):** Android mid-range gate is **OUT OF SCOPE** for the iOS-first public release — not Complete. Shipping quantitative gate = **iOS ceiling** in `measurement-methodology.md` (must re-run; prior D-16 ≠ ceiling PASS). iOS floor mid-tier **NOT RUN** (R-10).
+
+**Legend:** **WAIVED ≠ PASS ≠ OUT OF SCOPE ≠ NOT RUN ≠ HARNESS-ONLY**.
 
 ---
 
@@ -100,14 +103,16 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 
 | Device | Tier | Build | Run | p50 ms | p95 ms | Jank % | Verdict | Notes |
 |--------|------|-------|-----|--------|--------|--------|---------|-------|
-| Pixel 6a | Mid | profiling | run1 | — | — | — | **WAIVED** | Owner 2026-09-22: no Pixel 6a; Android gfxinfo not run |
-| Pixel 6a | Mid | profiling | run2 | — | — | — | **WAIVED** | Same waiver; no second run |
-| iPhone 16 Pro (physical) | Mid (Cert WC force) | development / `__DEV__` + `PERF_OVERLAY` | Instruments Game Performance | n/a (Display) | n/a | n/a | **PASS** | 2026-09-22: A18 Pro, iOS 26.6.1; level-03 Cert WC (multi arm); Display surface duration **8.33 ms** (120 Hz) with rare **16.67 ms** blip; **Hangs 0** on multi-Cert-WC run; prior attach run had 2×~600 ms hang (load/attach noise — not reproduced under Cert WC stress). Direct-to-Display=No (compositor — expected). Touch OK during play. |
-| _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | **WAIVED** | No Android device; D-17 substitute not used |
+| Pixel 6a | Mid | profiling | run1 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Was WAIVED no-device 2026-09-22; deferred — do not claim Complete |
+| Pixel 6a | Mid | profiling | run2 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Same |
+| iPhone 16 Pro (physical) | Mid (Cert WC force) | development / `__DEV__` + `PERF_OVERLAY` | Instruments Game Performance | n/a (Display) | n/a | n/a | **OBSERVATION (not ceiling PASS)** | 2026-09-22: A18 Pro; Display ~**8.33 ms** (120 Hz); **Hangs 0**. Single session, development build, no p50/p95 — **re-run required** for iOS ceiling row |
+| iPhone 16 Pro **ceiling** | Mid Cert WC | **profiling** | ≥2 × ≥30s | — | — | Hangs — | **NOT RUN** | Protocol: p50≤8.33 **and** p95≤11 **and** Hangs=0 |
+| iOS **floor** mid-tier | Mid | profiling | — | — | — | — | **NOT RUN** | No A13–A15 device (R-10) |
+| _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | **OUT OF SCOPE (D2=B)** | |
 
-**Worse-run summary (Pixel Mid):** **WAIVED** — no Pixel runs.
+**Worse-run summary (Pixel Mid):** **OUT OF SCOPE** — Android deferred under D2=B.
 
-**D-04 / D-17 substitute note:** _Not used. Android mid-range gate remains open until hardware available._
+**D-04 / D-17 substitute note:** _Not used. Android return will re-open Pixel / substitute protocol._
 
 ### Deferred gate rows (D2 / D4 — see `docs/audit/DEFERRED-ITEMS.md`)
 
@@ -115,9 +120,9 @@ These are PASS/FAIL gates (not p50/p95/jank). Fill on device; do not invent resu
 
 | ID | Gate | Platform | Build | Status | Evidence / Notes |
 |----|------|----------|-------|--------|------------------|
-| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | Android | profiling / release | **WAIVED** | No Android device (same as D-15) |
+| **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | Android | profiling / release | **OUT OF SCOPE (iOS-first D2=B)** | Deferred with Android platform return |
 | **D2** | SC-2 release-build worklet mutation (sim mutates World on UI thread) | iOS | Release (local `expo run:ios --configuration Release`) | **PASS** | 2026-09-22: Release-iphoneos installed on iPhone 16 Pro; offline play (no Metro); UI-thread physics/render continuous. Overlay string not baked (`PERF_OVERLAY` unset on that artifact) — mutation evidenced by live play + prior Instruments Display activity on same device. |
-| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | development / `__DEV__` + Instruments | **PASS** | 2026-09-22: SpaceMono HUD + `PERF_OVERLAY` on iPhone 16 Pro during Cert WC / Game Performance session; worklet loop advanced (Display ~8.33 ms). Formal EAS `profiling` IPA reinstall still optional debt if required by Plan 01 note. |
+| **D4** | iOS profiling SC-2 re-run after HUD font fix | iOS (physical) | development / `__DEV__` + Instruments | **PASS (dev-build; profiling IPA debt)** | 2026-09-22: SpaceMono HUD + `PERF_OVERLAY` on iPhone 16 Pro during Cert WC / Game Performance session; worklet loop advanced (Display ~8.33 ms). Formal EAS `profiling` IPA reinstall still debt for ceiling protocol. |
 
 ---
 
@@ -158,9 +163,10 @@ DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loop
 
 | Device | Build | Cycles | Continuous | Mem start | Mem end | Frame start | Frame end | Verdict | Notes |
 |--------|-------|--------|------------|-----------|---------|-------------|-----------|---------|-------|
-| Pixel 6a | profiling / `__DEV__` soak | — | — | — | — | — | — | **WAIVED** | Owner 2026-09-22: no Pixel 6a |
-| iPhone 17 Pro Simulator | development / `__DEV__` + `EXPO_PUBLIC_SOAK=1` | 100 | 15 min | n/a (iOS — adb meminfo N/A) | n/a | n/a (adb gfxinfo N/A) | n/a | **PASS (harness)** | 2026-09-22: Metro logs `[soak] arming` → `cycles done (100)` → `complete` (start 15:32:08Z → end 15:49:43Z UTC). No crash. Physical iPhone 16 Pro was **offline** this session — re-run on device before claiming physical soak discharge. |
+| Pixel 6a | profiling / `__DEV__` soak | — | — | — | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Android deferred |
+| iPhone 17 Pro Simulator | development / `__DEV__` + `EXPO_PUBLIC_SOAK=1` | 100 | 15 min | n/a (iOS — adb meminfo N/A) | n/a | n/a (adb gfxinfo N/A) | n/a | **HARNESS-ONLY (sim; no mem/frame data)** | 2026-09-22: Metro logs `[soak] arming` → `cycles done (100)` → `complete`. Simulator never counts for gate (D-05). Physical iPhone soak still owed. |
+| iPhone 16 Pro (physical) | profiling / `__DEV__` soak | — | — | — | — | — | — | **NOT RUN** | Required for G2.3 |
 
 ---
 
-_Status: iOS D-16 **PASS**; D2 iOS Release **PASS**; D4 **PASS**; iOS soak harness **PASS** on Simulator (physical re-run when device online). Pixel/Android **WAIVED**. PLT-03 Android mid-range **not claimed**._
+_Status: iOS D-16 = **OBSERVATION** (not ceiling PASS). D2 iOS Release **PASS**. D4 **PASS (dev-build; profiling IPA debt)**. Soak = **HARNESS-ONLY (sim)**. iOS ceiling/floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**. PLT-03 **not Complete**._

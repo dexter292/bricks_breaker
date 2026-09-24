@@ -1,5 +1,7 @@
 # Google Play Data Safety — Neon Brick Breaker
 
+> **Prepared; not used for the iOS-first public release (D2=B, 2026-09-24).** Keep for a future Android return. ASC privacy nutrition is the active store path.
+
 In-repo answers for the Play Console Data Safety form. Reflects the **actual MVP** binary: offline gameplay, local personal best via AsyncStorage, no ads/IAP/accounts/analytics SDKs, platform monetization seams remain no-op.
 
 ## Form answers

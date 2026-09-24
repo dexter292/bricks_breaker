@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: Temporary MVP close 2026-09-24 — docs/audit/MVP-CLOSE-REPORT.md
-last_updated: "2026-09-24T02:56:00.000Z"
+stopped_at: "FULL LOCK D1…D7 2026-09-24 — ready for GSD phase plans when owner starts"
+last_updated: "2026-09-24T04:30:00.000Z"
 last_activity: 2026-09-24
 progress:
   total_phases: 8
@@ -14,7 +14,8 @@ progress:
   percent: 98
   phase_8_status: temporary_close
   phase_8_plans: 6/7
-  plt_03: waived_temporary_mvp
+  plt_03: deferred_ios_first_d2b
+  post_mvp: full_lock_d1_through_d7
 ---
 
 # Project State
@@ -24,13 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** **Temporary MVP closed** (2026-09-24). See [`docs/audit/MVP-CLOSE-REPORT.md`](../docs/audit/MVP-CLOSE-REPORT.md). Public store submit + PLT-03 Android still open.
+**Current focus:** Temporary MVP closed + **post-MVP roadmap FULL LOCK** (D1…D7). See [`docs/audit/DECISIONS-FULL-LOCK-2026-09-24.md`](../docs/audit/DECISIONS-FULL-LOCK-2026-09-24.md) and [`.planning/post-mvp/ROADMAP-NEXT.md`](./post-mvp/ROADMAP-NEXT.md). Open ledger: display-name string, R-10 floor, R-12 tier, A3→D3 final.
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Not** authorized for public App Store / Play submit until report §6 debts cleared.  
-HEAD baseline: `2aaa9cf`.
+**Post-MVP roadmap:** ✅ **FULL LOCK** — do not auto-start phases until owner instructs.  
+**Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
+HEAD baseline: `f445e0c`.
 
 ## Performance Metrics
 

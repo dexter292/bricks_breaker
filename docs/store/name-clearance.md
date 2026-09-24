@@ -19,26 +19,34 @@
 | 2026-09-21 | Product | Brick Breaker Maker / Shatter | Feel/visual references only |
 | **2026-09-22** | App Store (web) | Exact / near title | **Conflict found:** [Neon brick breaker](https://apps.apple.com/us/app/neon-brick-breaker/id1477991378) by **Gosiha Pte. Ltd.** (Free, IAP, Watch support). Near-title also: [Neon Bricks: Brick Breaker](https://apps.apple.com/pk/app/neon-bricks-brick-breaker/id6759252636). |
 | **2026-09-22** | Google Play (web) | Neon bricks / brick breaker | Multiple neon brick-breaker genre titles (e.g. “Neon bricks”); descriptive genre crowding, not exclusive marks. |
-| **2026-09-22** | Owner decision | Soft-launch risk | **Accepted for internal / soft launch** without formal trademark opinion. Before **paid UA** or claiming “™”, either (a) obtain counsel opinion, or (b) differentiate display name (recommended if ASC rejects exact title). |
+| **2026-09-22** | Owner decision | Soft-launch risk | Accepted for internal only. |
+| **2026-09-24** | Owner decision **D1=B** | Display name | **MUST rename before ASC listing**. Bundle/package/slug unchanged. Exact string **TBD** (owner brand choice). Soft-launch-under-collision-name path closed for public G2. |
 
 ## Current status
 
 | Item | Status |
 |------|--------|
-| Internal product name locked | Yes — matches `app.config.js` |
-| Informal web uniqueness skim | **Updated 2026-09-22** — exact-title App Store listing exists (Gosiha) |
-| Formal trademark opinion | **Not obtained** — deferred; risk accepted for soft launch only |
-| Store console uniqueness check | Deferred until listing creation (`CONSOLE-ENTRY.md`) |
+| Internal / temp MVP name | Still `Neon Brick Breaker` in `app.config.js` until rename applied |
+| Public listing name | **Required rename (D1=B)** — string not chosen yet |
+| Informal web uniqueness skim | Exact-title ASC collision (Gosiha) |
+| Formal trademark opinion | Not obtained |
+| Store console uniqueness check | Run after rename, before listing create |
 
-## Differentiation options (if ASC / Play blocks the name)
+## Differentiation options
 
-Keep bundle/package IDs; change **display name** only, e.g.:
+Keep bundle/package IDs; change **display name** only. Candidates (still in collision-prone “Neon/Brick” space — owner may pick a cleaner name):
 
 1. Neon Brick Breaker DX  
 2. Neon Breakout (Arcade)  
 3. Brick Neon Rally  
 
-Record the chosen alternate + date here when decided.
+### Chosen alternate (D1=B)
+
+| Field | Value |
+|-------|--------|
+| **Chosen display name** | _TBD — owner to fill_ |
+| **Date decided** | _pending_ |
+| **Applied to `app.config.js` `name`** | No — not until string chosen |
 
 ## Product note
 

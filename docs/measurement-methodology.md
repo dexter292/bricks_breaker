@@ -19,10 +19,12 @@ Overlay text is drawn **inside** the same `SkPicture` as the sprites when `EXPO_
 
 The in-app overlay is a **cross-check**, not the gate. Prefer:
 
-- **Android:** `adb shell dumpsys gfxinfo <package> reset` → run ~30 s → `adb shell dumpsys gfxinfo <package> framestats`
-- **iOS:** Instruments (Core Animation / Game performance) on a physical iPhone
+- **Android (deferred — D2=B iOS-first):** `adb shell dumpsys gfxinfo <package> reset` → run ~30 s → `adb shell dumpsys gfxinfo <package> framestats` → derive **p50 / p95 / jank** from framestats. Keep for future Android return.
+- **iOS (shipping-platform gate):** Instruments **Game Performance** / **Core Animation** on a **physical** iPhone, **`profiling`** build, forced **Mid** Cert WC scene. Export / record **frame-duration p50 and p95** (ms) and **Hangs** count — not only a single “Display ~x ms” observation. Same hygiene as §Session hygiene (≥2 runs × ≥30 s, worse run, discard ~2 s warmup).
 
-Never declare the 60 FPS gate from the React Native performance monitor alone — it cannot see Skia's render thread, and this architecture keeps the JS thread idle by design (D-05).
+Never declare the FPS gate from the React Native performance monitor alone — it cannot see Skia's render thread, and this architecture keeps the JS thread idle by design (D-05).
+
+**Prior evidence note (2026-09-22):** iPhone 16 Pro Instruments “Display ~8.33 ms, Hangs 0” on a **development** build is an **observation**, not a ceiling-row PASS under this protocol (needs profiling build, percentiles, ≥2 runs).
 
 ## Build profile
 
@@ -34,13 +36,17 @@ Never declare the 60 FPS gate from the React Native performance monitor alone �
 
 Do **not** gate the overlay on `__DEV__` — that hides metrics in profiling/release builds.
 
-## Devices
+## Devices (post-MVP / D2=B iOS-first — 2026-09-24)
 
-| Role | Device | Notes |
-|------|--------|-------|
-| **Android FPS gate (D-01)** | Pixel 6a | Hard 60 FPS reference for Phase 1 / MVP |
-| **iOS install/feel (D-02)** | Recent physical iPhone | Install, render, touch, stability — not a hard FPS gate in Phase 1 |
-| **Substitute (D-04)** | Documented mid-range Android | Record model, chipset, OS, refresh rate, frame times; **re-certify on Pixel 6a** before final MVP acceptance |
+| Role | Device | Build | Tool | Pass lock | Status |
+|------|--------|-------|------|-----------|--------|
+| **iOS ceiling** | iPhone 16 Pro (A18 Pro, 120 Hz) | `profiling` | Instruments Game Performance | **p50 ≤ 8.33 ms** and **p95 ≤ 11 ms** and **Hangs = 0**; force quality tier **Mid** (Cert WC) | **Runnable** — must re-run under this protocol (prior D-16 ≠ PASS) |
+| **iOS floor** | Named mid-tier iOS (A13–A15, **60 Hz**) — e.g. iPhone 11 / SE 3 when available | `profiling` | Instruments Game Performance | **p50 ≤ 16.7 ms** and (**p95 ≤ 20 ms** or jank ≤ 5%) | **NOT RUN** — blocks floor claims (R-10) |
+| **Android mid (deferred)** | Pixel 6a class | `profiling` | `gfxinfo framestats` | p50 ≤ 16.7 ms and (p95 ≤ 20 ms or jank ≤ 5%) | **OUT OF SCOPE** for iOS-first release — do not tick PLT-03 Complete |
+
+**Legend:** WAIVED ≠ PASS ≠ OUT OF SCOPE ≠ NOT RUN.
+
+**Phase 1 historical note:** Android Pixel 6a was the hard FPS reference (D-01); iOS was install/feel only (D-02). Under D2=B the **shipping** quantitative gate is the **iOS ceiling** row; floor remains required before claiming mid-tier iOS performance.
 
 Simulators / emulators never count toward the gate (D-05).
 

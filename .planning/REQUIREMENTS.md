@@ -47,7 +47,8 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 
 - [x] **PLT-01**: Player can pause/resume; app auto-pauses on OS background/interruption and resumes with a countdown (no physics catch-up spiral)
 - [x] **PLT-02**: Playfield layout is responsive with safe-area handling on iOS and Android
-- [ ] **PLT-03**: Stable 60 FPS is measured on a named mid-range real device (including worst-case multi-ball + particle burst); RN perf monitor alone is not acceptance
+  - *Note:* Android half unverified on physical device (no Android install) — keep wording for D2=B return path; do not claim Android layout certified.
+- [ ] **PLT-03**: Stable 60 FPS is measured on a named mid-range real device (including worst-case multi-ball + particle burst); RN perf monitor alone is not acceptance — **deferred: iOS-first release (D2=B, 2026-09-24)**; Android gate out of scope for this release; replaced for shipping by iOS ceiling/floor locks in `docs/measurement-methodology.md` / `N-PLT-02`
 - [x] **PLT-04**: Store compliance baseline is prepared: public HTTPS privacy policy URL, Google Play Data Safety form, honest age rating, iOS privacy manifest as required
 
 ### Architecture (cross-cutting)
@@ -122,7 +123,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FX-03 | Phase 7 | Complete |
 | PLT-01 | Phase 3 | Complete |
 | PLT-02 | Phase 6 | Complete |
-| PLT-03 | Phase 8 | **WAIVED (temporary MVP)** — no Pixel 6a; iOS D-16 companion only; do not claim Complete |
+| PLT-03 | Phase 8 | **DEFERRED (iOS-first, D2=B 2026-09-24)** — Android out of scope; use iOS ceiling/floor locks (N-PLT-02). Do not claim Complete |
 | PLT-04 | Phase 8 | Complete |
 | ARCH-01 | Phase 1 | Complete (simulator waiver; hardware debt → MVP) |
 | ARCH-02 | Phase 6 | Complete |

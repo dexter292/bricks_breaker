@@ -1,9 +1,11 @@
 # MVP CLOSE REPORT (TEMPORARY)
 
 **Date:** 2026-09-24  
-**HEAD:** `2aaa9cf`  
-**Product:** Neon Brick Breaker (`com.dexter292.bricksbreaker`)  
+**HEAD:** `f445e0c` (docs close commit; gameplay baseline ancestor `2aaa9cf`)  
+**Product:** Neon Brick Breaker (`com.dexter292.bricksbreaker`) — **display name to be renamed before ASC (D1=B)**  
 **Decision:** Owner **temporary MVP close** for internal ship / soft playtest — **not** App Store / Play public submit.
+
+**Posture update 2026-09-24:** Owner locked **D2=B iOS-first** — see `docs/audit/DECISIONS-2026-09-24.md`. Public path is iOS-only; Android cert OUT OF SCOPE for this release (PLT-03 still not Complete).
 
 ---
 
@@ -12,13 +14,13 @@
 | Field | Value |
 |-------|--------|
 | **Verdict** | **TEMPORARY MVP CLOSED** |
-| **Ship posture** | iOS internal / sideload / soft playtest |
-| **Public store submit** | **NOT AUTHORIZED** until debts in §6 cleared |
+| **Ship posture** | iOS internal / sideload / soft playtest → **iOS-first public** (D2=B) |
+| **Public store submit** | **NOT AUTHORIZED** until RELEASE-GATES G2 + debts cleared |
 | **Automated gates** | **PASS** — `tsc` 0 · **267/267** tests (59 files) · worklets / privacy / skia asserts green (prior runs) |
-| **PLT-03 Android mid-range** | **WAIVED** (no Pixel 6a) — **not claimed Complete** |
-| **PHYS-05 aimed launch** | **ACCEPTED AS TAP-ONLY** for this temporary close (aimed deferred post-MVP) |
+| **PLT-03 Android mid-range** | **OUT OF SCOPE (iOS-first D2=B)** — **not claimed Complete** (was WAIVED no-device) |
+| **PHYS-05 aimed launch** | **ACCEPTED AS TAP-ONLY** for this temporary close (aimed deferred; D3 still open) |
 
-> One sentence: **Playable iOS MVP with honest waivers; Android FPS gate and store submit remain open.**
+> One sentence: **Playable iOS MVP with honest waivers; iOS-first public path chosen (D2=B); Android FPS gate deferred; rename before ASC (D1=B); store submit still open.**
 
 ---
 
@@ -116,14 +118,15 @@ Authoritative tables: [`docs/phase8-certification.md`](../phase8-certification.m
 
 | ID | Item | Blocks |
 |----|------|--------|
-| PLT-03 | Pixel / mid-range Android gfxinfo | Public performance claim / tick Complete |
-| Soak physical | Re-run soak on iPhone 16 Pro | Stronger leak evidence |
-| PHYS-05 aimed | Drag-to-aim launch | Spec fidelity / future requirement text |
-| Android smoke | Any Android install | Play internal testing |
-| Console submit | ASC + Play forms | Store listing |
-| Trademark / rename | Counsel or differentiated title | Paid UA / trademark claim |
-| LVL-04 cohort | ≥5 first-time playtests | Marketing confidence |
-| PHYS-05 ledger hygiene | Keep tap-only wording synced | Avoid over-claim |
+| PLT-03 | Pixel / mid-range Android gfxinfo | Future Android release | **OUT OF SCOPE (D2=B)** — was waived; still not Complete |
+| Soak physical | Re-run soak on iPhone 16 Pro | G2.3 | Still open |
+| PHYS-05 aimed | Drag-to-aim launch | Spec / D3 | Deferred |
+| Android smoke | Any Android install | Future Play | **OUT OF SCOPE (D2=B)** |
+| Console submit | ASC forms (Play deferred) | G2.4 | Prepared |
+| Rename (D1=B) | Differentiated display name | **G2** | MUST — string TBD |
+| LVL-04 cohort | ≥5 first-time playtests | G2.11 | Soft open |
+| iOS ceiling | New protocol on profiling | N-PLT-02 | NOT RUN |
+| Campaign D4 | Exactly 5 levels | First public | Author 3 more |
 
 ---
 
@@ -167,6 +170,7 @@ Full detail: [`DEFERRED-ITEMS.md`](./DEFERRED-ITEMS.md).
 | Role | Statement | Date |
 |------|-----------|------|
 | Owner | Temporary MVP close accepted with §6 debts | 2026-09-24 |
-| Evidence baseline | HEAD `2aaa9cf` + Phase 8 / store docs | 2026-09-24 |
+| Owner | D2=B iOS-first; D1=B rename; D4=5 levels | 2026-09-24 |
+| Evidence baseline | HEAD `f445e0c` + Phase 8 / store docs | 2026-09-24 |
 
-_Related: [FINAL-ACCEPTANCE-REPORT.md](./FINAL-ACCEPTANCE-REPORT.md) · [phase8-certification.md](../phase8-certification.md) · [CONSOLE-ENTRY.md](../store/CONSOLE-ENTRY.md)_
+_Related: [FINAL-ACCEPTANCE-REPORT.md](./FINAL-ACCEPTANCE-REPORT.md) · [DECISIONS-2026-09-24.md](./DECISIONS-2026-09-24.md) · [phase8-certification.md](../phase8-certification.md) · [CONSOLE-ENTRY.md](../store/CONSOLE-ENTRY.md)_

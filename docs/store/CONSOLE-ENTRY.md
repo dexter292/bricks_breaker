@@ -1,21 +1,25 @@
 # Store console entry checklist — Neon Brick Breaker
 
 Paste-ready answers for **App Store Connect** and **Google Play Console**.  
-**Status 2026-09-22:** answers locked in-repo. **Console fields not yet submitted** (operator must click through ASC / Play).
+**Status 2026-09-24:** answers locked in-repo. **Console fields not yet submitted.**
 
-Sources: `play-data-safety.md`, `age-rating.md`, `privacy-policy.md`, `name-clearance.md`, `HOSTING.md`.
+**Platform posture (D2=B):** **ASC checklist is in use** for the iOS-first release. **Play Console is deferred** (prepared, not blocking G2).
+
+Sources: `play-data-safety.md`, `age-rating.md`, `privacy-policy.md`, `name-clearance.md`, `HOSTING.md`, `docs/audit/DECISIONS-2026-09-24.md`.
 
 ---
 
 ## Pre-submit blockers to acknowledge
 
-1. **Display name collision risk** — App Store already lists [Neon brick breaker](https://apps.apple.com/us/app/neon-brick-breaker/id1477991378) (Gosiha). See `name-clearance.md`. Consider a differentiated title before paid UA.
-2. **Formal trademark opinion** — Not obtained (counsel). Soft-launch risk accepted until rename or opinion.
-3. **PHYS-05 ledger** — still over-claims “aimed” launch (separate from store forms).
+1. **Display name — D1=B** — **MUST rename** before creating ASC listing. Collision: [Neon brick breaker](https://apps.apple.com/us/app/neon-brick-breaker/id1477991378) (Gosiha). Fill chosen name in `name-clearance.md` first.
+2. **Formal trademark opinion** — Not obtained; rename is the G2 path.
+3. **PHYS-05** — tap-only accepted for temp MVP; aimed pending D3 (not a store-form blocker).
 
 ---
 
-## Google Play Console
+## Google Play Console (DEFERRED — D2=B)
+
+> Prepared for a future Android return. **Do not treat as a G2 blocker** for the iOS-first release.
 
 ### Listing (create when ready)
 
