@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   useFrameCallback,
   useSharedValue,
+  runOnJS,
   type SharedValue,
 } from 'react-native-reanimated';
 import type { SkFont, SkPicture, SkSize } from '@shopify/react-native-skia';
@@ -43,7 +44,7 @@ import {
 } from './constants';
 import { flushAudioBatchOnJS } from './eventBridge';
 import { clampFrameDt, resetAccumulator } from './freeze';
-import { createMetrics, pushSample, type SpikeMetrics } from './metrics';
+import { createMetrics, meanInterval, percentileMsPublic, pushSample, type SpikeMetrics } from './metrics';
 import {
   publishChromeMirror,
   type ChromeMirror,
@@ -201,6 +202,11 @@ export type UseGameLoopOptions = {
    * Applied once at allocateVfx; host remounts/clears VFX when budget changes.
    */
   vfxBudget?: VfxBudget;
+  /**
+   * When true (CERT harness), force percentile compute and emit Metro
+   * `[cert-metrics]` lines ~1/s for A1 operator logs. Cold path only.
+   */
+  certMetricsLog?: boolean;
 };
 
 function makeEmptyPicture(): SkPicture {
@@ -229,6 +235,42 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     hudFont = null,
     initialSprites = SPRITE_CAP,
   } = options;
+  const certMetricsLog = options.certMetricsLog === true;
+
+  const certLogSv = useSharedValue(certMetricsLog ? 1 : 0);
+  useEffect(() => {
+    certLogSv.value = certMetricsLog ? 1 : 0;
+  }, [certMetricsLog, certLogSv]);
+  const logCertMetricsLine = useCallback(
+    (
+      p50: number,
+      p95: number,
+      mean: number,
+      fps: number,
+      n: number,
+      over: number,
+    ) => {
+      console.log(
+        `[cert-metrics] p50=${p50.toFixed(2)} p95=${p95.toFixed(2)} mean=${mean.toFixed(2)} fps=${fps.toFixed(1)} n=${n} over16.7=${over}`,
+      );
+    },
+    [],
+  );
+  const logCertMetricsRef = useRef(logCertMetricsLine);
+  logCertMetricsRef.current = logCertMetricsLine;
+  const logCertMetricsStable = useCallback(
+    (
+      p50: number,
+      p95: number,
+      mean: number,
+      fps: number,
+      n: number,
+      over: number,
+    ) => {
+      logCertMetricsRef.current(p50, p95, mean, fps, n, over);
+    },
+    [],
+  );
 
   const picture = useSharedValue<SkPicture>(makeEmptyPicture());
   const world = useSharedValue<World | null>(null);
@@ -409,9 +451,32 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         spriteTarget.value,
         w.tick,
         selfCheckFrames,
-        // NG-13: skip percentile sort unless overlay can actually draw.
-        overlayEnabled && hudFontSv.value != null,
+        // NG-13: percentiles for overlay draw; CERT also needs them for Metro logs.
+        (overlayEnabled && hudFontSv.value != null) || certLogSv.value === 1,
       );
+      if (certLogSv.value === 1 && m.sampleCount > 0 && m.sampleCount % 120 === 0) {
+        runOnJS(logCertMetricsStable)(
+          percentileMsPublic(m, 50),
+          m.p95Ms,
+          meanInterval(m),
+          m.rollingFps,
+          m.sampleCount,
+          m.overBudget,
+        );
+      }
+    } else if (certLogSv.value === 1) {
+      // Still heartbeat while frozen so operators see the loop is alive.
+      let mFrozen = metrics.value;
+      if (mFrozen && mFrozen.sampleCount > 0 && mFrozen.sampleCount % 120 === 0) {
+        runOnJS(logCertMetricsStable)(
+          percentileMsPublic(mFrozen, 50),
+          mFrozen.p95Ms,
+          meanInterval(mFrozen),
+          mFrozen.rollingFps,
+          mFrozen.sampleCount,
+          mFrozen.overBudget,
+        );
+      }
     }
 
     // Cosmetic decay even while frozen (pause / won / lost) — no new audio from idle ring.
@@ -496,14 +561,20 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     glowAtlas,
     picture,
     surfaceSize,
+    certLogSv,
+    logCertMetricsStable,
   ]);
 
   // autostart false: host gates setActive until JS-thread loadAndCompile succeeds (D-13, D-14)
   const frameCallback = useFrameCallback(onFrame, false);
   /* eslint-enable react-hooks/immutability */
 
+  /** Survives onFrame identity churn — useFrameCallback resets to inactive when callback changes. */
+  const wantActiveRef = useRef(false);
+
   const setActive = useCallback(
     (active: boolean) => {
+      wantActiveRef.current = active;
       frameCallback.setActive(active);
       if (!active) {
         // Request UI-runtime accumulator reset (F-01) — do not mutate world.value clone.
@@ -515,13 +586,28 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     [frameCallback, accumResetRequest],
   );
 
-  // Menu / soak Title↔Playing remount: stop the UI frame before Skia atlases dispose.
-  // Without this, recordFrame can drawImageRect a freed glow soft → HostFunction disposed.
+  // Re-assert active after callback identity change (HMR / dep churn).
+  useEffect(() => {
+    if (wantActiveRef.current) {
+      frameCallback.setActive(true);
+    }
+  }, [frameCallback]);
+
+  // Stop frames when this callback instance is replaced or host unmounts.
+  // Do not clear wantActiveRef here — that would fight re-assert on identity churn.
   useEffect(() => {
     return () => {
       frameCallback.setActive(false);
     };
   }, [frameCallback]);
+
+  useEffect(() => {
+    return () => {
+      wantActiveRef.current = false;
+    };
+  }, []);
+
+  // A1 CERT: emit Metro metrics from the UI frame path only.
 
   const retry = useCallback(() => {
     // Discrete request only — UI frame applies applyRetryWorldReset on live World (F-01 / D-11).

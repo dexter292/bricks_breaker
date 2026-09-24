@@ -97,6 +97,12 @@ function percentileMs(m: SpikeMetrics, p: number): number {
   return scratch[rank];
 }
 
+/** Exported for CERT harness Metro logs (A1) — same sort as overlay p95/p99. */
+export function percentileMsPublic(m: SpikeMetrics, p: number): number {
+  'worklet';
+  return percentileMs(m, p);
+}
+
 export function pushSample(
   m: SpikeMetrics,
   intervalMs: number,

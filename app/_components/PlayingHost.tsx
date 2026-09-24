@@ -274,9 +274,12 @@ export function PlayingHost({ onMenu }: Props) {
       playBatch: playBatchOnJS,
       glowAtlas: glowAtlasSv,
       vfxBudget,
-      drawOverlayFlag: PERF_OVERLAY,
+      drawOverlayFlag: PERF_OVERLAY || CERT_HARNESS,
       hudFont: hudFont ?? null,
+      certMetricsLog: CERT_HARNESS,
     });
+  const setActiveRef = useRef(setActive);
+  setActiveRef.current = setActive;
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
   // F-14: bake at active level brick size.
@@ -286,9 +289,10 @@ export function PlayingHost({ onMenu }: Props) {
     let cancelled = false;
     // Pause sim while baking — fxReady is already false via loadKey mismatch (NH-5).
     // Defer setActive so we avoid react-hooks/set-state-in-effect (NG-10).
+    // Use setActiveRef — do not list setActive in deps (identity flaps cancel bake forever).
     const pauseTimer = setTimeout(() => {
       if (!cancelled) {
-        setActive(false);
+        setActiveRef.current(false);
       }
     }, 0);
     const bakeForKey = loadKey;
@@ -302,7 +306,12 @@ export function PlayingHost({ onMenu }: Props) {
         : 14;
     void (async () => {
       try {
-        await audio.preload();
+        await Promise.race([
+          audio.preload(),
+          new Promise<void>((_resolve, reject) => {
+            setTimeout(() => reject(new Error('audio preload timeout')), 2500);
+          }),
+        ]);
       } catch (err) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.warn('[audio] preload soft-fail', err);
@@ -312,7 +321,7 @@ export function PlayingHost({ onMenu }: Props) {
         return;
       }
       try {
-        setActive(false);
+        setActiveRef.current(false);
         const next = bakeGlowSprites(brickW, brickH);
         // Cancelled after bake: free the orphan atlas; do not publish to SV.
         if (cancelled) {
@@ -341,7 +350,7 @@ export function PlayingHost({ onMenu }: Props) {
     return () => {
       cancelled = true;
       clearTimeout(pauseTimer);
-      setActive(false);
+      setActiveRef.current(false);
       playBatchRef.current = null;
       // Null SV first so any remaining frame skips the glow blit, then dispose
       // only after the UI runtime has observed null (same handshake as bake).
@@ -350,7 +359,7 @@ export function PlayingHost({ onMenu }: Props) {
       scheduleDisposeGlowAtlas(atlas, glowAtlasSv);
       audio.release();
     };
-  }, [audio, glowAtlasSv, loadResult, loadKey, setActive]);
+  }, [audio, glowAtlasSv, loadResult, loadKey]);
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
   // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.
