@@ -77,7 +77,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Deliverables** | Playtest notes; name in name-clearance; **D3 recommendation from cohort data** |
 | **Acceptance** | Cohort done; name written; **serve-agency answered by ≥5** |
 | **Parallel?** | Yes; unblocks D2 Brand early |
-| **Progress** | Form + runbook ready (day-of checklist). **Release playtest** on 16 Pro (no CERT). **Cohort 0/5** — owner recruits ≥5 first-timers; fill `PLAYTEST-FORM-A3.md` |
+| **Progress** | **SKIPPED** 2026-09-24 — owner skipped cohort; no ≥5 Q4 data. Form/runbook remain for optional later. **N-BRAND-01 string still TBD** (no rename pulse). **D3 → B0 Won’t-Do** (see B0) |
 
 ### Phase A4 — Operational Readiness
 | Field | Content |
@@ -86,7 +86,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Acceptance** | Real crash in dashboard; OTA-or-resubmit text signed; SDK cadence dated |
 | **Gates** | N-OPS-01 → G1; N-OPS-02 → G2 |
 | **Parallel?** | Yes with A1–A3/E1a |
-| **Progress** | N-OPS-02/03 **Done**. N-OPS-01 wired + `scripts/set-sentry-dsn.sh`; **dashboard verify pending** — paste DSN → script → Debug Crash chip |
+| **Progress** | N-OPS-02/03 **Done**. N-OPS-01 code wired (DSN-off); **owner deferred** dashboard verify 2026-09-24 — resume via `./scripts/set-sentry-dsn.sh` before G1 |
 
 ---
 
@@ -100,7 +100,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Out of scope** | Fireball; sticky |
 | **Decision point after A3** | implement (→ B0) / Won’t-Do (→ close PHYS-05 debt) / defer to G |
 | **Parallel?** | With B1/B2 **if** greenlit |
-| **If cohort does not support** | Skip; do **not** mark Complete pre-data |
+| **Progress** | **Won’t-Do** 2026-09-24 — A3 cohort skipped → no serve-agency data; keep **tap-only** serve; close PHYS-05 aimed debt honestly (N-PHYS-01 not Complete) |
 
 ### Phase B1 — Schema & Explosive Bricks
 | Field | Content |
@@ -109,6 +109,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Out of scope** | Moving bricks; bosses |
 | **Acceptance** | Deterministic cascade; Mid particle budget documented |
 | **Parallel?** | With B2 after enum reserved; with B0 if active |
+| **Progress** | **Done** 2026-09-24 — `explosive` schema + `BrickFlags.EXPLOSIVE`; 8-neighbor cascade; Mid budget in `docs/ops/EXPLOSIVE-BRICKS.md`; 1-row lattice fix in `apply.ts` |
 
 ### Phase B2 — Power-up Pack (Extra Life, Slow, Exclusion)
 | Field | Content |
@@ -116,6 +117,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Goal** | N-PWR-01, N-PWR-02, N-PWR-04 |
 | **Out of scope** | Laser, shield, **sticky** |
 | **Parallel?** | With B1; with B0 if active |
+| **Progress** | **Done** 2026-09-24 — extra life (cap 5); slow 8s @0.5 scale; drop table 40/40/12/8; SLOW↔FIREBALL exclusion reserved; `docs/ops/POWERUPS-B2.md` |
 
 ### Phase B3 — Fireball Pierce
 | Field | Content |
@@ -124,6 +126,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Deps** | B2 drop table |
 | **Risks** | Highest physics risk |
 | **Parallel?** | **No** — serialize on physics hot path |
+| **Progress** | **Done** 2026-09-24 — pierce breakables / bounce steel; 8s; drop 10%; golden hash identity; `docs/ops/FIREBALL-B3.md` |
 
 ---
 
@@ -135,6 +138,13 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Goal** | Offline progress for **5-level** catalog |
 | **Scope** | N-PROG-01, N-PROG-02; storage v2 |
 | **Parallel?** | With E1a/E1b data |
+| **Plans** | 3 plans |
+| **Progress** | **Planned** 2026-09-24 — ready to execute |
+
+Plans:
+- [ ] `C1-00-PLAN.md` — Wave 0: ProgressBlob/ProgressStore contracts, catalog + unlock pure, Vitest stubs
+- [ ] `C1-01-PLAN.md` — Wave 1: parse/migrate + ProgressStore memory/AsyncStorage singleton
+- [ ] `C1-02-PLAN.md` — Wave 2: PlayingHost/GameHost wire + ops doc + device smoke
 
 ### Phase C2 — Level Select + Stars + Replay
 | Field | Content |
@@ -261,3 +271,8 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | **FULL LOCK** round 2: D3=C, D5=A, D6=A+N-LVL-03, D7+E1a/E1b |
 | 2026-09-24 | Progress sync: A2/E1a Done; A4 ops partial; A1 LC-07-clean pending Instruments; A3 cohort 0/5 |
 | 2026-09-24 | **A1 PASS** — owner locked ceiling bar §5 (60 FPS + jank OR); G2.16 closed; floor still NOT RUN |
+| 2026-09-24 | **N-OPS-01 deferred** — owner skip Sentry DSN for now; A3 cohort still OPEN; G1.9 not waived |
+| 2026-09-24 | **B1 Done** — N-BRK-01 explosive bricks (schema, cascade, Mid particle budget doc); A3 cohort still 0/5 |
+| 2026-09-24 | **B2 Done** — N-PWR-01/02/04 extra life + slow + drop table/exclusion; fireball still B3 |
+| 2026-09-24 | **B3 Done** — N-PWR-03 fireball pierce; drop table 36/36/10/10/8; Milestone B gameplay pack complete (B0 still gated on A3) |
+| 2026-09-24 | **A3 SKIPPED** (owner) → **B0 Won’t-Do** tap-only; next **C1** GSD plan |
