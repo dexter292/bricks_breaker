@@ -23,7 +23,7 @@ Runtime is **disabled** unless `EXPO_PUBLIC_SENTRY_DSN` is set. No events leave 
    ```bash
    export EXPO_PUBLIC_SENTRY_DSN='https://…@o….ingest.sentry.io/…'
    ```
-3. (Optional, for source maps on EAS) Create org auth token → `SENTRY_AUTH_TOKEN` EAS secret; then configure plugin `organization` + `project` in `app.config.js`.
+3. (Optional, for source maps on EAS) Create org auth token → `SENTRY_AUTH_TOKEN` EAS secret; then configure plugin `organization` + `project` in `app.config.js`. Until then, EAS profiles set `SENTRY_DISABLE_AUTO_UPLOAD=true` so builds do not fail on missing Sentry org.
 4. Build a **distributed** binary (TestFlight / internal, not Metro-only).
 5. Open PlayingHost → tap **Crash** (dev) **or** force a release crash once.
 6. Confirm the event appears in the Sentry Issues dashboard.
