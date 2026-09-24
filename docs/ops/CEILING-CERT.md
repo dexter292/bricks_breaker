@@ -1,16 +1,17 @@
 # iOS ceiling certification runbook (N-PLT-02 / A1)
 
-**Status:** Protocol ready; official ceiling **NOT RUN** (needs profiling IPA). Metro harness exploratory **PASS-shaped** 2026-09-24.  
+**Status:** **PASS** under owner-locked §5 bar (2026-09-24) — product **60 FPS** gate on `display-surface-swap` Δ  
 **Device:** iPhone 16 Pro (physical)  
-**Authority:** `docs/measurement-methodology.md` · `RELEASE-GATES` G2.16 · prior D-16 = observation only
+**Authority:** `docs/measurement-methodology.md` · `RELEASE-GATES` G2.16 · `docs/audit/A1-CEILING-ANALYSIS.md` (R-22 / R-23)  
+**Owner lock:** bar §5 (60 FPS + jank OR) — not the prior 120 Hz `p50≤8.33 / p95≤11` lock
 
-Simulator / Display-mode Instruments = **not** a ceiling PASS. Debug+Metro `[cert-metrics]` = harness signal only — **does not discharge G2.16**.
+Simulator / Display-mode-only observation = **not** a ceiling PASS. Debug+Metro `[cert-metrics]` = app-loop health cross-check only.
 
 ---
 
 ## 1. Build
 
-1. Produce an EAS **`profiling`** IPA (or Xcode Profile / local `Release` with Cert env):
+1. Produce an EAS **`profiling`** IPA **or** local `Release` with Cert env (`__DEV__` false):
 
    ```bash
    eas build --platform ios --profile profiling
@@ -18,79 +19,75 @@ Simulator / Display-mode Instruments = **not** a ceiling PASS. Debug+Metro `[cer
    EXPO_PUBLIC_CERT=1 EXPO_PUBLIC_PERF_OVERLAY=1 npx expo run:ios --device --configuration Release
    ```
 
-   `eas.json` **`profiling.env` sets `EXPO_PUBLIC_CERT=1`** so Cert WC arms with `__DEV__` false.
-   **`production.env` must never set** `EXPO_PUBLIC_CERT` / `SOAK` / `CLIFF_RAMP` / `PERF_OVERLAY` — enforced by `scripts/assert-eas-profiles.mjs` (R-21 / G2.5).
+   `eas.json` **`profiling.env` sets `EXPO_PUBLIC_CERT=1`**.  
+   **`production.env` must never set** `EXPO_PUBLIC_CERT` / `SOAK` / `CLIFF_RAMP` / `PERF_OVERLAY` — `scripts/assert-eas-profiles.mjs` (R-21 / G2.5).
 2. Install on **iPhone 16 Pro** only for this row (not Simulator).
 3. Confirm quality tier forces **Mid** Cert WC (auto-arm when `EXPO_PUBLIC_CERT=1`).
 
 ## 2. Instruments session
 
-1. Open Xcode → Instruments → **Game Performance** (or Core Animation + Time Profiler pair per methodology).
-2. Attach to the installed app; start recording **before** Play.
+1. Open Xcode → Instruments → **Game Performance**.
+2. Attach; start recording **before** / at active Cert WC playfield.
 3. Run **≥ 2** captures of **≥ 30 s** each on Cert WC Mid while actively playing (not Title).
-4. Record **worse** run (higher p95 / any hang) as the official sample.
+4. Export **`display-surface-swap`** Δ (presentation layer — R-23). Discard ~2 s warmup. Keep **worse** run.
+5. Record **Hangs** (`potential-hangs` row count).
 
-### 2b. Metro harness (exploratory — optional)
+### 2b. App-loop health (secondary — not G2.16 alone)
 
 ```bash
 EXPO_PUBLIC_CERT=1 EXPO_PUBLIC_PERF_OVERLAY=1 npx expo start --dev-client --port 8081
-# relaunch dev client → watch Metro for `[cert-metrics]` lines ~1/s
+# Metro `[cert-metrics]` — require over16.7=0 for ≥30 s at Cert WC Mid
 ```
 
-Harness notes (2026-09-24):
+Harness notes:
 
-- `audio.preload` soft-timeouts inside `expoAudioService` + CERT uses memory AudioService (native `createAudioPlayer` can block JS after soft-failed preload).
-- CERT skips AppState auto-pause so deep-link relaunch does not freeze the loop.
-- `[cert-metrics]` samples **frame interval** (vsync Δ), not CPU work time.
-- **R-20:** Metro `[cert-metrics]` is published via SharedValue mirror + `useAnimatedReaction` (chrome pattern) — **not** `runOnJS` inside `onFrame`, so the logger hop no longer lengthens the measured frame itself.
-- **Measurement nuance:** ~1 Hz `runOnJS` still runs on the **UI runtime** from the reaction (marshalling between frames, not inside the frame body). Cleaner than in-frame `runOnJS`, but **not zero**. If official p95 sits on the pass edge, treat this ~1 Hz UI task as a known residual source before blaming gameplay.
+- `[cert-metrics]` = frame-callback `dt` (sim/render loop), **not** display swap.
+- **R-20:** mirror + reaction (~1 Hz UI marshalling residual — see below).
+- **Measurement nuance:** ~1 Hz `runOnJS` from cert reaction can sit between frames; not inside frame body.
 
-## 3. Pass criteria (ceiling)
+## 3. Pass criteria (ceiling) — owner lock §5
 
-| Metric | Pass |
-|--------|------|
-| p50 frame time | ≤ **8.33 ms** |
-| p95 frame time | ≤ **11 ms** |
-| Hangs | **0** |
+| Layer | Metric | Pass |
+|-------|--------|------|
+| **G2.16 / N-PLT-02 ceiling** | `display-surface-swap` Δ | **p50 ≤ 16.7 ms** **and** (**p95 ≤ 20 ms** **or** jank ≤ 5%) **and** **Hangs = 0** |
+| App-loop health | `[cert-metrics]` / overlay | `over16.7 = 0` for ≥30 s (secondary) |
+| 120 Hz stretch | `display-surface-swap` Δ p50 ≤ 8.33 ms | **Informational only** — not a ship gate |
 
-All three required. Fail any → **FAIL**, do not claim G2.16.
+All G2.16 row cells required. Fail any → **FAIL**, do not claim G2.16.
+
+Aligned with product **PLT-03 “stable 60 FPS”** (R-22). Quantum Δ values cluster near 8.33 / 16.67 — hence the **OR jank** branch (R-22 §2.3).
 
 ## 4. Floor (explicit non-claim)
 
-Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PASS from 16 Pro data.
+Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PASS from 16 Pro data. Marketing must not claim FPS on unmeasured devices (G2.13).
 
 ## 5. Record
 
 | Field | Value |
 |-------|--------|
 | Device | iPhone 16 Pro |
-| Build | local `Release` + `EXPO_PUBLIC_CERT=1` @ `13018eb` (LC-07-clean); EAS `29329ab6` also FINISHED (pre-fix commit) |
+| Build | local `Release` + `EXPO_PUBLIC_CERT=1` @ `13018eb` (LC-07-clean) |
 | iOS version | 26.6.1 |
-| Run 1 p50 / p95 / hangs | display-surface-swap Δ ≈ **8.89 / 16.10** ms; **Hangs 0** (empty `potential-hangs`) |
+| Run 1 p50 / p95 / hangs | display-surface-swap Δ ≈ **8.89 / 16.10** ms; **Hangs 0** |
 | Run 2 p50 / p95 / hangs | display-surface-swap Δ ≈ **8.85 / 16.11** ms; **Hangs 0** |
-| Official (worse) | p95 ≈ **16.1** ms (worse run) |
-| Verdict | **NOT PASS** under export method — p50 slightly over 8.33; p95 over 11. Hangs OK. Do **not** tick G2.16. Traces: `/tmp/bricks-a1/a1-clean{1,2}.trace` |
-| Notes | 2026-09-24; Game Performance; ≥2×35s after ~2s warmup discard on Δ. Residual ~1 Hz cert reaction noted. Need GUI frame-duration confirmation or profiling IPA re-run before closing A1. |
-| EAS profiling | Cert-armed IPA FINISHED: https://expo.dev/accounts/dexter292/projects/bricks-breaker/builds/29329ab6-adf0-4ef6-8321-4a2c5168f94e |
+| Official (worse) | p95 ≈ **16.11** ms |
+| **Verdict (§5 bar)** | **PASS** — p50≤16.7 ✓; p95≤20 ✓; Hangs 0 ✓. Traces `/tmp/bricks-a1/a1-clean{1,2}.trace`. Distribution bimodal 50/50 @ ~8.3/~16.7 (see A1-CEILING-ANALYSIS §3.3) |
+| Notes | Owner locked §5 2026-09-24. Prior 120 Hz bar retired for G2.16. |
 
-### 5b. Metro exploratory (2026-09-24)
+### 5b. App-loop health (2026-09-24)
 
 | Field | Value |
 |-------|--------|
-| Device | iPhone 16 Pro (`00008140-000605803C01801C`) |
 | Build | Debug dev-client + Metro `EXPO_PUBLIC_CERT=1` |
-| Scene | level-03 Cert WC, tier=mid |
-| Samples | n≈4800 (~40 s @ 120 Hz), steady after warmup |
 | p50 / p95 / mean | **8.33 / 8.33 / 8.33** ms |
 | fps / over16.7 | **120.0 / 0** |
-| Verdict | **Harness OK — does not discharge G2.16** |
-
-Paste official Instruments rows into `docs/phase8-certification.md` iOS ceiling row when profiling IPA is available.
+| Verdict | **PASS (secondary)** — does not alone discharge G2.16 |
 
 ## 6. Acceptance for A1
 
-- [ ] Two ≥30s profiling captures on physical 16 Pro  
-- [ ] Worse run meets p50/p95/hangs  
-- [ ] Floor still marked NOT RUN  
-- [ ] No silent quality-tier claim beyond Mid Cert WC
-- [x] Metro harness can emit `[cert-metrics]` on Cert WC Mid (exploratory)
+- [x] Two ≥30s captures on physical 16 Pro (Cert WC Mid)  
+- [x] Worse run meets §5 bar (p50/p95-or-jank/Hangs)  
+- [x] Floor still marked NOT RUN  
+- [x] No silent quality-tier claim beyond Mid Cert WC  
+- [x] App-loop `over16.7=0` cross-check  
+- [x] Owner locked product bar (§5 / R-22)

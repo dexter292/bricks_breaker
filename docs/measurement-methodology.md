@@ -20,7 +20,7 @@ Overlay text is drawn **inside** the same `SkPicture` as the sprites when `EXPO_
 The in-app overlay is a **cross-check**, not the gate. Prefer:
 
 - **Android (deferred — D2=B iOS-first):** `adb shell dumpsys gfxinfo <package> reset` → run ~30 s → `adb shell dumpsys gfxinfo <package> framestats` → derive **p50 / p95 / jank** from framestats. Keep for future Android return.
-- **iOS (shipping-platform gate):** Instruments **Game Performance** / **Core Animation** on a **physical** iPhone, **`profiling`** build, forced **Mid** Cert WC scene. Export / record **frame-duration p50 and p95** (ms) and **Hangs** count — not only a single “Display ~x ms” observation. Same hygiene as §Session hygiene (≥2 runs × ≥30 s, worse run, discard ~2 s warmup).
+- **iOS (shipping-platform gate):** Instruments **Game Performance** on a **physical** iPhone, **`profiling`** or Release+CERT (`__DEV__` false), forced **Mid** Cert WC. Gate metric = **`display-surface-swap` Δ** p50/p95 (presentation layer, R-23) + **Hangs**. Same hygiene (≥2 runs × ≥30 s, worse run, discard ~2 s warmup). App-loop `[cert-metrics]` is a secondary cross-check only.
 
 Never declare the FPS gate from the React Native performance monitor alone — it cannot see Skia's render thread, and this architecture keeps the JS thread idle by design (D-05).
 
@@ -40,13 +40,15 @@ Do **not** gate the overlay on `__DEV__` — that hides metrics in profiling/rel
 
 | Role | Device | Build | Tool | Pass lock | Status |
 |------|--------|-------|------|-----------|--------|
-| **iOS ceiling** | iPhone 16 Pro (A18 Pro, 120 Hz) | `profiling` | Instruments Game Performance | **p50 ≤ 8.33 ms** and **p95 ≤ 11 ms** and **Hangs = 0**; force quality tier **Mid** (Cert WC) | **Runnable** — must re-run under this protocol (prior D-16 ≠ PASS) |
+| **iOS ceiling** | iPhone 16 Pro (A18 Pro, 120 Hz) | `profiling` or Release+CERT | Instruments Game Performance — **`display-surface-swap` Δ** | **p50 ≤ 16.7 ms** and (**p95 ≤ 20 ms** or jank ≤ 5%) and **Hangs = 0**; force Mid Cert WC | **PASS** 2026-09-24 (owner lock §5 / R-22; see `CEILING-CERT.md`) |
+| **iOS ceiling — 120 Hz stretch** | same | same | same | p50 ≤ 8.33 ms | **Informational only** — not G2.16 |
+| **App-loop health** | same | CERT harness | frame-callback `dt` / `[cert-metrics]` | `over16.7 = 0` ≥30 s | Secondary cross-check |
 | **iOS floor** | Named mid-tier iOS (A13–A15, **60 Hz**) — e.g. iPhone 11 / SE 3 when available | `profiling` | Instruments Game Performance | **p50 ≤ 16.7 ms** and (**p95 ≤ 20 ms** or jank ≤ 5%) | **NOT RUN** — blocks floor claims (R-10) |
 | **Android mid (deferred)** | Pixel 6a class | `profiling` | `gfxinfo framestats` | p50 ≤ 16.7 ms and (p95 ≤ 20 ms or jank ≤ 5%) | **OUT OF SCOPE** for iOS-first release — do not tick PLT-03 Complete |
 
 **Legend:** WAIVED ≠ PASS ≠ OUT OF SCOPE ≠ NOT RUN.
 
-**Phase 1 historical note:** Android Pixel 6a was the hard FPS reference (D-01); iOS was install/feel only (D-02). Under D2=B the **shipping** quantitative gate is the **iOS ceiling** row; floor remains required before claiming mid-tier iOS performance. See also: `docs/ops/QUALITY-TIER.md` (RAM→Mid/Low heuristic; R-12).
+**Phase 1 historical note:** Android Pixel 6a was the hard FPS reference (D-01); iOS was install/feel only (D-02). Under D2=B the **shipping** quantitative gate is the **iOS ceiling** row at the **60 FPS product bar** (owner lock 2026-09-24 / R-22 — not a mandatory 120 FPS lock). Floor remains required before claiming mid-tier iOS performance. See also: `docs/ops/QUALITY-TIER.md` (RAM→Mid/Low heuristic; R-12).
 
 Simulators / emulators never count toward the gate (D-05).
 

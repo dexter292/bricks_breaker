@@ -56,9 +56,9 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Goal** | Close N-PLT-02 **ceiling** under new protocol |
 | **Scope** | Cert WC Mid on iPhone 16 Pro, **profiling**, ≥2×≥30s, worse run |
 | **Out of scope** | Floor mid-tier (`NOT RUN` deliverable); Android; features |
-| **Acceptance** | p50≤8.33ms **and** p95≤11ms **and** Hangs=0 (forced Mid) |
+| **Acceptance** | p50≤16.7ms **and** (p95≤20ms **or** jank≤5%) **and** Hangs=0 on `display-surface-swap` Δ (forced Mid); floor deliverable stays `NOT RUN` |
 | **Parallel?** | With A2/A3/A4/**E1a** |
-| **Progress** | LC-07-clean cert mirror (`33ad226`). 2026-09-24 local Release+CERT Instruments 2×35s: Hangs=0; `display-surface-swap` Δ p50≈8.9 / p95≈**16.1** → **NOT PASS** under export method (see `CEILING-CERT.md`). G2.16 still open. Metro harness earlier was exploratory only. EAS Cert IPA `29329ab6` FINISHED (pre–LC-07). Next: GUI frame-duration confirm or budget/jank chase |
+| **Progress** | **Done / PASS** 2026-09-24 — owner locked §5 (60 FPS + jank OR). Worse run p50≈8.9 / p95≈16.1 / Hangs 0. G2.16 ceiling closed. Floor still R-10 |
 
 ### Phase A2 — Physical Soak & Automated Regression Floor
 | Field | Content |
@@ -260,3 +260,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | Applied DECISIONS round 1: D1=B, D2=B, D4=5, R-02 A4, A1 ceiling, B0/B3 split |
 | 2026-09-24 | **FULL LOCK** round 2: D3=C, D5=A, D6=A+N-LVL-03, D7+E1a/E1b |
 | 2026-09-24 | Progress sync: A2/E1a Done; A4 ops partial; A1 LC-07-clean pending Instruments; A3 cohort 0/5 |
+| 2026-09-24 | **A1 PASS** — owner locked ceiling bar §5 (60 FPS + jank OR); G2.16 closed; floor still NOT RUN |

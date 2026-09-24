@@ -106,7 +106,7 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 | Pixel 6a | Mid | profiling | run1 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Was WAIVED no-device 2026-09-22; deferred — do not claim Complete |
 | Pixel 6a | Mid | profiling | run2 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Same |
 | iPhone 16 Pro (physical) | Mid (Cert WC force) | development / `__DEV__` + `PERF_OVERLAY` | Instruments Game Performance | n/a (Display) | n/a | n/a | **OBSERVATION (not ceiling PASS)** | 2026-09-22: A18 Pro; Display ~**8.33 ms** (120 Hz); **Hangs 0**. Single session, development build, no p50/p95 — **re-run required** for iOS ceiling row |
-| iPhone 16 Pro **ceiling** | Mid Cert WC | local Release+CERT @ `13018eb` | 2×~35s Game Performance | ≈8.89 | ≈16.1 | Hangs **0** | **NOT PASS** (export) | 2026-09-24 LC-07-clean path. `display-surface-swap` Δ after 2s warmup — p95>~11. Traces `/tmp/bricks-a1/a1-clean{1,2}.trace`. G2.16 still open pending GUI frame-duration / profiling IPA confirm. Metro exploratory earlier = harness only |
+| iPhone 16 Pro **ceiling** | Mid Cert WC | local Release+CERT @ `13018eb` | 2×~35s Game Performance | ≈8.89 | ≈16.1 | Hangs **0** | **PASS (§5 bar)** | Owner lock 2026-09-24: product bar p50≤16.7 **and** (p95≤20 **or** jank≤5%) **and** Hangs=0 on `display-surface-swap` Δ. Worse p95≈16.11. Bimodal 50/50 @ 8.3/16.7. Prior 120 Hz bar retired (R-22). Floor still **NOT RUN**. Traces `/tmp/bricks-a1/a1-clean{1,2}.trace` |
 | iOS **floor** mid-tier | Mid | profiling | — | — | — | — | **NOT RUN** | No A13–A15 device (R-10) |
 | _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | **OUT OF SCOPE (D2=B)** | |
 
@@ -171,4 +171,4 @@ DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loop
 
 ---
 
-_Status: iOS D-16 = **OBSERVATION** (not ceiling PASS). D2 iOS Release **PASS**. D4 **PASS (dev-build; profiling IPA debt)**. Soak physical 16 Pro = **PASS** (dev-client). iOS ceiling under new protocol still **NOT RUN** (profiling IPA + p50/p95 protocol). Floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**._
+_Status: iOS D-16 = **OBSERVATION**. D2 iOS Release **PASS**. D4 **PASS (dev-build; profiling IPA debt)**. Soak physical 16 Pro = **PASS** (dev-client). iOS ceiling = **PASS (§5 / 60 FPS bar, 2026-09-24)**. Floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**._

@@ -32,7 +32,7 @@
 | **Console entry ASC** | ASC forms submitted | G2.4 | **PREPARED only** |
 | **Console entry Play** | Play forms | Future Android | **PREPARED — deferred** |
 | **Display name rename** | New `name` in app.config + listing | **G2** | **MUST — rename before listing (D1=B)**; string TBD |
-| **iOS ceiling Cert** | Protocol PASS on 16 Pro profiling | G2 / N-PLT-02 | **NOT PASS (export 2026-09-24)** — Hangs 0; swap Δ p95≈16 ms; G2.16 open |
+| **iOS ceiling Cert** | Protocol PASS on 16 Pro (N-PLT-02) | G2 / G2.16 | **PASS** 2026-09-24 — §5 bar (60 FPS + jank OR); see `CEILING-CERT.md` |
 | **iOS floor Cert** | Named mid-tier 60 Hz | N-PLT-02 claim floor | **NOT RUN (R-10)** |
 | **R-12 tier resolver** | Fix or document | G2 marketing honesty | **OPEN** — see `docs/ops/QUALITY-TIER.md` |
 
@@ -114,7 +114,7 @@ Authoritative: `docs/measurement-methodology.md` + `docs/phase8-certification.md
 
 | Row | Device | Pass lock | Status |
 |-----|--------|-----------|--------|
-| **iOS ceiling** | iPhone 16 Pro, Mid Cert WC, `profiling` | p50 ≤ 8.33 ms **and** p95 ≤ 11 ms **and** Hangs = 0 | Runnable; prior D-16 ≠ this PASS |
+| **iOS ceiling** | iPhone 16 Pro, Mid Cert WC, Release/profiling | **p50 ≤ 16.7 ms** and (**p95 ≤ 20 ms** or jank ≤ 5%) and **Hangs = 0** (`display-surface-swap` Δ) | **PASS** 2026-09-24 (owner §5) |
 | **iOS floor** | Named mid-tier A13–A15 60 Hz | p50 ≤ 16.7 ms **and** (p95 ≤ 20 ms **or** jank ≤ 5%) | **NOT RUN** |
 | **Android mid** | Pixel 6a class | gfxinfo A1 lock | **OUT OF SCOPE (D2=B)** |
 

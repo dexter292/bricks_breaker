@@ -64,7 +64,7 @@
 | Soak harness | PASS on **Simulator** only; physical soak owed |
 | Pixel 6a / Android mid-range gfxinfo (PLT-03) | **OUT OF SCOPE (D2=B)** — do not claim Complete |
 | Android install smoke | **OUT OF SCOPE (D2=B)** — never run; deferred |
-| iOS ceiling Cert (new protocol) | **NOT RUN** — prior D-16 = observation only |
+| iOS ceiling Cert (new protocol) | **PASS** 2026-09-24 (§5 / 60 FPS bar) |
 | iOS floor mid-tier | **NOT RUN (R-10)** — no device |
 
 ---
@@ -114,7 +114,7 @@ From `MVP-CLOSE-REPORT.md` §6 + `DEFERRED-ITEMS.md` — verified not closed by 
 | **PLT-03** | Android mid-range gfxinfo | Future Android / dual-store FPS claim | **OUT OF SCOPE (D2=B)** |
 | **Android smoke** | Any physical Android install | Future Play | **OUT OF SCOPE (D2=B)** |
 | **Soak physical** | 100 cycle + 15 min on iPhone + mem/frame | G2.3 | **PASS** (dev-client 2026-09-24) |
-| **iOS ceiling** | Profiling Cert WC per new protocol | N-PLT-02 | **NOT RUN** (LC-07-clean path ready) |
+| **iOS ceiling** | Profiling Cert WC per new protocol | N-PLT-02 | **PASS** (§5 bar 2026-09-24) |
 | **iOS floor** | Named mid-tier 60 Hz | Floor claims | **NOT RUN (R-10)** |
 | **PHYS-05 aimed** | Drag-to-aim launch | Spec / D3 | **DEFERRED** |
 | **LVL-04 cohort** | ≥5 first-time playtests | G2.11 | **OPEN** |

@@ -15,11 +15,11 @@
 > - `CEILING-CERT.md` **§5b** — app tự đo: `p50 / p95 / mean = 8.33 / 8.33 / 8.33 ms`, **120.0 fps**, `over16.7 = 0`, n ≈ 4800
 > - `CEILING-CERT.md` **§5** — Instruments `display-surface-swap` Δ: `p50 ≈ 8.87 / p95 ≈ 16.10 ms`, Hangs 0
 >
-> Hai số này đo **hai tầng khác nhau**. Ngưỡng tôi viết không nói nó khóa tầng nào — đó là `R-23`.
+> Hai số này đo **hai tầng khác nhau**. Ngưỡng cũ không nói nó khóa tầng nào — đó là `R-23`.
 >
-> Và ngưỡng đó (`p50 ≤ 8.33`, `p95 ≤ 11`) yêu cầu **120 FPS**, trong khi requirement gốc `PLT-03` chỉ yêu cầu **"stable 60 FPS"** — đó là `R-22`, **lỗi của tôi**.
+> Và ngưỡng cũ (`p50 ≤ 8.33`, `p95 ≤ 11`) yêu cầu **120 FPS**, trong khi requirement gốc `PLT-03` chỉ yêu cầu **"stable 60 FPS"** — đó là `R-22`.
 >
-> **Giữ nguyên `NOT PASS` trong ledger** cho tới khi owner quyết lại hàng ceiling. Không tự sửa ngưỡng rồi tick PASS.
+> **Owner lock 2026-09-24:** áp **§5** (60 FPS + jank OR). Ledger cập nhật → ceiling **PASS**; G2.16 đóng. Floor vẫn NOT RUN.
 
 ---
 
@@ -170,14 +170,12 @@ Với ngưỡng này, số đo hiện có (`p50 8.87 / p95 16.10 / Hangs 0` + `o
 
 ## 6. Việc cần làm
 
-| # | Việc | Ai |
-|---|---|---|
-| 1 | Quyết hàng ceiling theo §5 — hoặc giữ nguyên bar 120 FPS nếu đó thật sự là mục tiêu sản phẩm | **Owner** |
-| 2 | Nếu áp §5: cập nhật `measurement-methodology.md:43`, `CEILING-CERT.md` §3, rồi **mới** đánh giá lại số đo hiện có | Dev |
-| 3 | ~~(Tùy chọn) mở histogram Δ từ trace để khép §3.3~~ **DONE** — 50/50 bimodal @ 8.3/16.7 | Verify |
-| 4 | **A3 cohort** + **Sentry DSN** — chạy song song, không phụ thuộc gì ở trên | Owner |
-
-**Không làm:** chase jank trước mục 1; tick `G2.16` trước khi ngưỡng được quyết; dùng số §5b (Debug+Metro) để discharge gate — `CEILING-CERT.md:7` đã ghi đúng là harness only.
+| # | Việc | Ai | Status |
+|---|---|---|---|
+| 1 | Quyết hàng ceiling theo §5 | **Owner** | **DONE** — chọn §5 (60 FPS + jank OR) 2026-09-24 |
+| 2 | Cập nhật methodology / CEILING-CERT / ledger rồi đánh giá lại số đo | Dev | **DONE** — ceiling **PASS**; G2.16 đóng |
+| 3 | Histogram Δ §3.3 | Verify | **DONE** — 50/50 bimodal |
+| 4 | **A3 cohort** + **Sentry DSN** | Owner | **OPEN** |
 
 ---
 

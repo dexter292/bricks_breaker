@@ -37,7 +37,7 @@
 | ID | Requirement | Status | Notes |
 |----|-------------|--------|-------|
 | **N-PLT-01** | Android install smoke | **Deferred** | D2=B — no Play track this release |
-| **N-PLT-02** | iOS **ceiling** lock PASS on iPhone 16 Pro per `measurement-methodology.md` (profiling, ≥2×≥30s, worse run, Mid Cert WC); iOS **floor** lock on a named mid-tier (A13–A15, 60 Hz) — **floor NOT RUN, must not claim** | **Approved** | Ceiling-only until floor hardware exists (R-10) |
+| **N-PLT-02** | iOS **ceiling** lock PASS on iPhone 16 Pro per `measurement-methodology.md` (**§5 bar:** `display-surface-swap` Δ p50≤16.7 and (p95≤20 or jank≤5%) and Hangs=0; Mid Cert WC; ≥2×≥30s); iOS **floor** on named mid-tier (A13–A15, 60 Hz) — **floor NOT RUN, must not claim** | **Ceiling Done** 2026-09-24; floor open (R-10) | Owner lock retired prior 120 Hz `p50≤8.33/p95≤11` ship gate (R-22) |
 | **N-PLT-03** | Physical iOS soak: 100 Title↔Playing + 15 min continuous; no crash; mem/frame notes recorded | **Done** (2026-09-24 physical 16 Pro, dev-client) | Formal profiling IPA soak optional; see phase8 Results |
 | **N-QA-01** | Automated gates remain green: `tsc`, lint, 267+ tests, worklet/skia/privacy asserts | **Approved** | |
 | **N-QA-02** | First-time player cohort ≥5 completes playtest form covering controls clarity, desire to replay, pain points, **and** serve-agency: *"Khi bóng gắn vào paddle đầu mỗi lượt, bạn có muốn điều khiển hướng phóng không? (có / không / không để ý)"* | **Approved** | D3=C — "không để ý" is decisive |
