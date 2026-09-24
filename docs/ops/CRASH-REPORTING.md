@@ -1,8 +1,8 @@
 # Crash reporting (N-OPS-01)
 
-**Status:** Code wired; **dashboard verification pending owner Sentry project**  
+**Status:** Code wired (DSN-off). **Owner deferred 2026-09-24** — skip Sentry project/DSN for now; N-OPS-01 / G1.9 remain open until resumed  
 **Date:** 2026-09-24  
-**Gate:** Must before **G1** (`RELEASE-GATES` G1.9)
+**Gate:** Must before **G1** (`RELEASE-GATES` G1.9) — not waived, only paused
 
 ## What shipped
 
@@ -16,7 +16,7 @@
 
 Runtime is **disabled** unless `EXPO_PUBLIC_SENTRY_DSN` is set. No events leave the device without a DSN — matches offline-first privacy until provisioned.
 
-## Owner setup (required to close N-OPS-01)
+## Owner setup (when resumed — required to close N-OPS-01)
 
 1. Create a Sentry project (React Native / Expo). Free tier is fine — signup: https://sentry.io/signup/
 2. Copy **Client Key (DSN)** and run:

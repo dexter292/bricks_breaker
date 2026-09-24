@@ -1,11 +1,11 @@
 # A3 cohort runbook — playtest + D3 + rename pulse
 
-**Status:** Form ready; **cohort 0/5** — Release playtest build on 16 Pro (no CERT/SOAK)  
+**Status:** Form ready; **cohort 0/5** — Release playtest on 16 Pro **Title OK** (no CERT/SOAK), owner-confirmed 2026-09-24  
 **Authority:** N-QA-02 · D3=C · N-BRAND-01 · `docs/ops/PLAYTEST-FORM-A3.md`
 
-Recruitment has lead time — start **today**. A1 ceiling is PASS; do not wait on Sentry for cohort sessions.
+Recruitment has lead time — start **today**. A1 ceiling is PASS; Sentry deferred — do not block cohort on N-OPS-01.
 
-**Device note (2026-09-24):** Unlock Dexter’s iPhone 16 Pro → open **Neon Brick Breaker** → confirm **Title** (not auto Cert WC). No Metro required.
+**Device note (2026-09-24):** 16 Pro Title confirmed (not auto Cert WC). No Metro required.
 
 ---
 

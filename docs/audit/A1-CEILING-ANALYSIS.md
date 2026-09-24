@@ -175,7 +175,8 @@ Với ngưỡng này, số đo hiện có (`p50 8.87 / p95 16.10 / Hangs 0` + `o
 | 1 | Quyết hàng ceiling theo §5 | **Owner** | **DONE** — chọn §5 (60 FPS + jank OR) 2026-09-24 |
 | 2 | Cập nhật methodology / CEILING-CERT / ledger rồi đánh giá lại số đo | Dev | **DONE** — ceiling **PASS**; G2.16 đóng |
 | 3 | Histogram Δ §3.3 | Verify | **DONE** — 50/50 bimodal |
-| 4 | **A3 cohort** + **Sentry DSN** | Owner | **OPEN** |
+| 4 | **A3 cohort** (≥5 first-timers) | Owner | **OPEN** |
+| 5 | Sentry DSN / N-OPS-01 verify | Owner | **DEFERRED** 2026-09-24 (skip for now; G1.9 still required later) |
 
 ---
 

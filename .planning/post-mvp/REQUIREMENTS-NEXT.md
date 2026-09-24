@@ -55,11 +55,11 @@
 | ID | Requirement | Status | Notes |
 |----|-------------|--------|-------|
 | **N-PHYS-01** | Aimed docked serve (drag-to-aim; tap = vertical) | **Deferred — pending A3 cohort (D3=C)** | B0 only if cohort supports; else Won’t-Do or defer G |
-| **N-BRK-01** | Explosive brick type; AoE; deterministic + unit-tested | **Approved** | |
-| **N-PWR-01** | Extra-life pickup; hard cap; rare drops | **Approved** | |
-| **N-PWR-02** | Timed slow-ball; clean expire; hashWorld tested | **Approved** | |
-| **N-PWR-03** | Timed fireball/pierce; golden-replay updated | **Approved** | Highest physics risk — phase B3 alone |
-| **N-PWR-04** | Drop table + mutual exclusion | **Approved** | |
+| **N-BRK-01** | Explosive brick type; AoE; deterministic + unit-tested | **Done** 2026-09-24 | `docs/ops/EXPLOSIVE-BRICKS.md` |
+| **N-PWR-01** | Extra-life pickup; hard cap; rare drops | **Done** 2026-09-24 | MAX_LIVES=5; 8% of drops |
+| **N-PWR-02** | Timed slow-ball; clean expire; hashWorld tested | **Done** 2026-09-24 | 8s @ 0.5 live scale |
+| **N-PWR-03** | Timed fireball/pierce; golden-replay updated | **Done** 2026-09-24 | Pierce breakables; steel bounces; `FIREBALL-B3.md` |
+| **N-PWR-04** | Drop table + mutual exclusion | **Done** 2026-09-24 | 36/36/10/10/8; SLOW XOR FIREBALL |
 | **N-PWR-05** | Sticky paddle | **Deferred** | Unified R-05 — not in v1.x set |
 
 **Out of scope for B:** laser, shield, moving bricks, bosses, sticky.
