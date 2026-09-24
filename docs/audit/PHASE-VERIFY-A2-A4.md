@@ -195,7 +195,7 @@ Nguồn copy byte-identical với repo (`diff -rq src tests` → 0 khác biệt)
 | ID | Mức | Trạng thái |
 |---|---|---|
 | `R-15` Sentry vs bề mặt store | Cao | **ĐÓNG** — `CONSOLE-ENTRY.md:38-45` hai nhánh DSN |
-| `R-16` reachability nhân đôi | TB | **MỞ** — chưa có parity test (chỉ được ghi nhận trong doc này) |
+| `R-16` reachability nhân đôi | TB | **ĐÓNG** — `scripts/lib/levelSolvability.mjs` + `tests/levels.solvability-parity.test.ts` |
 | `R-17` hàng memory không phản chứng được | TB | **ĐÓNG** (cách ghi) — phase8 tách Title start/end vs peak; SOAK-PHYSICAL comparator = Title |
 | `R-18` chỉ lưu lần chạy xanh | TB | **ĐÓNG** (cách ghi) — note pre-fix red `disposed` cùng ngày trước `5144984` |
 | `R-19` soak Release bất khả thi | Thấp | **ĐÓNG** (lời văn) — `G2.3` + RELEASE-GATES Physical soak ghi dev-client |

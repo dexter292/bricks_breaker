@@ -18,7 +18,7 @@ Orphan deferred items that need an explicit owner and Results surface before MVP
 | **Trademark** | Store name | store docs | Owner | **MUST rename before ASC (D1=B)** | String TBD in `name-clearance.md`; G2 blocker |
 | **R-12** | Quality tier RAM heuristic | DECISIONS-2026-09-24 | Post-MVP N-TIER-01 | **OPEN** | 4 GB iPhones get Mid budgets certified only on A18 Pro — see `docs/ops/QUALITY-TIER.md` |
 | **R-15** | Store forms vs bundled Sentry | A4 / store docs | Owner + docs | **CLOSED 2026-09-24** | `CONSOLE-ENTRY.md` + `play-data-safety.md` now split DSN-off vs DSN-on; privacy policy already disclosed optional Sentry |
-| **R-16** | Dual reachability (TS lib vs CI script) | PHASE-VERIFY-A2-A4 | Dev | **OPEN** | Need parity test like `constants.parity.test.ts` over `assets/levels/*` |
+| **R-16** | Dual reachability (TS lib vs CI script) | PHASE-VERIFY-A2-A4 | Dev | **CLOSED 2026-09-24** | Shared `scripts/lib/levelSolvability.mjs` + `tests/levels.solvability-parity.test.ts` |
 | **R-17** | Soak mem start/end ambiguous | PHASE-VERIFY-A2-A4 | Docs | **CLOSED 2026-09-24** | Title-comparable footprints + peak column/note |
 | **R-18** | Soak ledger missing pre-fix red | PHASE-VERIFY-A2-A4 | Docs | **CLOSED 2026-09-24** | phase8 Notes cite disposed HostFunction before `5144984` |
 | **R-19** | G2.3 soak wording vs __DEV__-only harness | PHASE-VERIFY-A2-A4 | Docs | **CLOSED 2026-09-24** | G2.3 + RELEASE-GATES say dev-client; no release RSS claim |
