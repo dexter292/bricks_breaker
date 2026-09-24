@@ -1,7 +1,8 @@
 # A3 playtest form — first-time players (N-QA-02)
 
 **Goal:** ≥5 first-time players. Start recruiting **now** (lead time); run sessions when a build is ready.  
-**Also collects:** display-name reactions (feeds N-BRAND-01) and **D3 serve-agency** data.
+**Also collects:** display-name reactions (feeds N-BRAND-01) and **D3 serve-agency** data.  
+**Operator runbook:** [`A3-COHORT-RUNBOOK.md`](./A3-COHORT-RUNBOOK.md)
 
 ## Script (read aloud / show)
 
@@ -24,22 +25,50 @@ Q4 must not be skipped. **“không để ý” is decisive** for Won’t-Do vs 
 
 | # | Question |
 |---|----------|
-| Q5 | Any reaction to the name “Neon Brick Breaker”? Confusion with other apps? |
+| Q5 | Any reaction to the name “Neon Brick Breaker”? Confusion with other apps? Prefer one of: **Pulse Paddle**, **Grid Ricochet**, **Lumen Break**, or another short name? |
 | Q6 | Approximate clear time / lives left (if they finished) |
+
+Name shortlist for Q5 (avoid exact “Neon Brick Breaker” — ASC collision; see `docs/store/name-clearance.md`):
+
+1. **Pulse Paddle**  
+2. **Grid Ricochet**  
+3. **Lumen Break**  
+4. Owner write-in
 
 ## Roster (fill as you recruit)
 
-| # | Initials / alias | Date | Q4 | Notes |
-|---|------------------|------|-----|-------|
-| 1 | | | | |
-| 2 | | | | |
-| 3 | | | | |
-| 4 | | | | |
-| 5 | | | | |
+| # | Initials / alias | Date | Q1 | Q2 | Q4 | Q5 name pulse | Notes |
+|---|------------------|------|----|----|-----|----------------|-------|
+| 1 | | | | | | | |
+| 2 | | | | | | | |
+| 3 | | | | | | | |
+| 4 | | | | | | | |
+| 5 | | | | | | | |
 
-## After ≥5
+## Running tally (update after each session)
 
-Write a short D3 recommendation in `.planning/post-mvp/` or this file:
+| Metric | Count |
+|--------|------:|
+| Sessions complete | 0 / 5 |
+| Q4 **có** | 0 |
+| Q4 **không** | 0 |
+| Q4 **không để ý** | 0 |
+| Q1 clarity = yes | 0 |
+| Q2 replay = yes | 0 |
+
+## After ≥5 — D3 recommendation
+
+Write here (date + initials):
+
+| Field | Value |
+|-------|--------|
+| Date | |
+| Q4 majority | có / không / không để ý / split |
+| **Recommendation** | B0 greenlight / Won’t-Do PHYS-05 aimed / defer + more cohort |
+| Rationale (2–3 sentences) | |
+| Rename pulse (optional) | Top write-in / shortlist pick → copy to `name-clearance.md` when owner confirms |
+
+Rules of thumb:
 
 - Majority **có** → greenlight Phase B0  
 - Majority **không để ý** or **không** → Won’t-Do PHYS-05 aimed (close debt honestly)  

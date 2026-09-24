@@ -42,6 +42,8 @@ When DSN is set, crash reports may include stack traces, device model/OS, and ap
 
 Do not declare “Data Not Collected” / “no crash data” for a **DSN-on** binary. Default engineering builds stay DSN-off until verification log below is filled.
 
+Local template: [`.env.example`](../../.env.example) → copy to `.env.local`.
+
 **Not** an ads/analytics SDK for G2.17 — crash reporting is N-OPS-01 operational tooling (still declare when it transmits).
 
 ## Verification log

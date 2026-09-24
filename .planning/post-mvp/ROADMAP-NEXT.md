@@ -77,6 +77,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Deliverables** | Playtest notes; name in name-clearance; **D3 recommendation from cohort data** |
 | **Acceptance** | Cohort done; name written; **serve-agency answered by ≥5** |
 | **Parallel?** | Yes; unblocks D2 Brand early |
+| **Progress** | Form + runbook ready (`docs/ops/PLAYTEST-FORM-A3.md`, `A3-COHORT-RUNBOOK.md`). **Cohort 0/5**. Rename shortlist updated (Pulse Paddle / Grid Ricochet / Lumen Break) |
 
 ### Phase A4 — Operational Readiness
 | Field | Content |
