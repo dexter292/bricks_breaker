@@ -92,6 +92,7 @@ export type TestBrickSpec = {
   h: number;
   hp: number;
   unbreakable?: boolean;
+  explosive?: boolean;
 };
 
 /**
@@ -112,7 +113,14 @@ export function loadTestGrid(world: World, bricks: TestBrickSpec[]): void {
     world.brickW[i] = b.w;
     world.brickH[i] = b.h;
     world.brickHp[i] = b.hp;
-    world.brickFlags[i] = b.unbreakable ? BrickFlags.UNBREAKABLE : 0;
+    let flags = 0;
+    if (b.unbreakable) {
+      flags |= BrickFlags.UNBREAKABLE;
+    }
+    if (b.explosive) {
+      flags |= BrickFlags.EXPLOSIVE;
+    }
+    world.brickFlags[i] = flags;
     world.cellToBrick[i] = i;
   }
   world.brickCount = n;

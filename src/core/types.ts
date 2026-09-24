@@ -18,9 +18,11 @@ export const EventCode = {
   LOSE: 9,
 } as const;
 
-/** Brick flag bits (D-10). */
+/** Brick flag bits (D-10 / N-BRK-01). */
 export const BrickFlags = {
   UNBREAKABLE: 1,
+  /** Break → 8-neighbor 1 HP AoE cascade (deterministic neighbor order). */
+  EXPLOSIVE: 2,
 } as const;
 
 /** Run-state machine phases (Phase 3 serve / lives / win). */
@@ -31,15 +33,21 @@ export const SimPhase = {
   LOST: 3,
 } as const;
 
-/** Pickup type codes in pickup SoA (D-06). */
+/** Pickup type codes in pickup SoA (D-06 / N-PWR-01…04). */
 export const PickupType = {
   MULTIBALL: 1,
   EXPAND: 2,
+  EXTRA_LIFE: 3,
+  SLOW: 4,
+  FIREBALL: 5,
 } as const;
 
 /** Active effect type codes in effects SoA. */
 export const EffectType = {
   EXPAND: 1,
+  SLOW: 2,
+  /** Reserved for B3 fireball (N-PWR-03) — mutual exclusion with SLOW. */
+  FIREBALL: 3,
 } as const;
 
 export type Intent = {

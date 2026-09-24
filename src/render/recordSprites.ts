@@ -28,11 +28,17 @@ type RecorderTools = {
   colWhite: Float32Array;
   colCue: Float32Array;
   colPickup: Float32Array;
+  colPickupExpand: Float32Array;
+  colPickupExtraLife: Float32Array;
+  colPickupSlow: Float32Array;
+  colPickupMultiball: Float32Array;
+  colPickupFireball: Float32Array;
   colTrailCyan: Float32Array;
   colHp3: Float32Array;
   colHp2: Float32Array;
   colHp1: Float32Array;
   colSteel: Float32Array;
+  colExplosive: Float32Array;
   /** Mutated per-particle then passed to setColor (F-17). */
   colorScratch: Float32Array;
   /** Cue strokes: [x0,y0,x1,y1] × up to 3 (F-17). */
@@ -62,7 +68,10 @@ function ensureRecorderTools(): RecorderTools {
     tools.entityRect == null ||
     tools.surfaceBounds == null ||
     tools.colorScratch == null ||
-    tools.srcRect == null
+    tools.srcRect == null ||
+    tools.colExplosive == null ||
+    tools.colPickupSlow == null ||
+    tools.colPickupFireball == null
   ) {
     const paint = Skia.Paint();
     paint.setAntiAlias(true); // F-15 — ball / particle / trail / cue strokes
@@ -78,12 +87,18 @@ function ensureRecorderTools(): RecorderTools {
       colNavy: makeColor4(0.102, 0.102, 0.18), // #1a1a2e
       colWhite: makeColor4(1, 1, 1),
       colCue: makeColor4(0.898, 0.906, 0.922), // #E5E7EB
-      colPickup: makeColor4(0.984, 0.749, 0.141), // #FBBF24
+      colPickup: makeColor4(0.984, 0.749, 0.141), // #FBBF24 expand (legacy default)
+      colPickupExpand: makeColor4(0.984, 0.749, 0.141), // #FBBF24
+      colPickupExtraLife: makeColor4(0.29, 0.871, 0.502), // #4ADE80
+      colPickupSlow: makeColor4(0.404, 0.91, 0.976), // #67E8F9
+      colPickupMultiball: makeColor4(0.976, 0.451, 0.086), // #F97316
+      colPickupFireball: makeColor4(0.937, 0.267, 0.267), // #EF4444
       colTrailCyan: makeColor4(0.404, 0.91, 0.976), // #67E8F9
       colHp3: makeColor4(0.769, 0.271, 0.412), // #C44569
       colHp2: makeColor4(0.878, 0.478, 0.373), // #E07A5F
       colHp1: makeColor4(0.949, 0.8, 0.561), // #F2CC8F
       colSteel: makeColor4(0.42, 0.447, 0.502), // #6B7280
+      colExplosive: makeColor4(0.976, 0.451, 0.086), // #F97316
       colorScratch: new Float32Array(4),
       cueScratch: new Float32Array(12),
     };
@@ -94,11 +109,17 @@ function ensureRecorderTools(): RecorderTools {
   return tools;
 }
 
+/** When false, skip idle neon halo blit (flat fills still draw). */
+const GLOW_BLIT_ENABLED = true;
+
 /** Flat brick fill key for glow atlas — hex string matches bake keys. */
 function brickFillLocal(hp: number, flags: number): string {
   'worklet';
   if ((flags & 1) !== 0) {
     return '#6B7280';
+  }
+  if ((flags & 2) !== 0) {
+    return '#F97316';
   }
   if (hp >= 3) {
     return '#C44569';
@@ -117,6 +138,9 @@ function brickColorLocal(
   'worklet';
   if ((flags & 1) !== 0) {
     return tools.colSteel;
+  }
+  if ((flags & 2) !== 0) {
+    return tools.colExplosive;
   }
   if (hp >= 3) {
     return tools.colHp3;
@@ -155,6 +179,18 @@ function planBrickDamageCuesInto(
     scratch[10] = x + w * 0.5;
     scratch[11] = y + h;
     return 3;
+  }
+  if ((flags & 2) !== 0) {
+    // X mark — sync with damageCues.ts EXPLOSIVE
+    scratch[0] = x + w * 0.15;
+    scratch[1] = y + h * 0.2;
+    scratch[2] = x + w * 0.85;
+    scratch[3] = y + h * 0.8;
+    scratch[4] = x + w * 0.85;
+    scratch[5] = y + h * 0.2;
+    scratch[6] = x + w * 0.15;
+    scratch[7] = y + h * 0.8;
+    return 2;
   }
   if (hp <= 0 || hp >= 3) {
     return 0;
@@ -267,8 +303,10 @@ export function recordFrame(
     const bh = world.brickH[i];
     const fillKey = brickFillLocal(hp, flags);
 
-    // Idle neon halo blit from bake atlas (scale alpha by intensity × glowScale)
+    // Idle neon halo blit from bake atlas (scale alpha by intensity × glowScale).
+    // Soft-fail disposed SkImage only — never abort the whole frame (R-25).
     if (
+      GLOW_BLIT_ENABLED &&
       vfx != null &&
       glowAtlas != null &&
       intensity > 0 &&
@@ -284,12 +322,16 @@ export function recordFrame(
         // F-14: scale atlas cell to live brick size (level-03 32×14 vs bake size)
         tools.srcRect.setXYWH(0, 0, variant.atlasW, variant.atlasH);
         tools.entityRect.setXYWH(bx - GLOW_PAD_SOFT, by - GLOW_PAD_SOFT, destW, destH);
-        canvas.drawImageRect(
-          img,
-          tools.srcRect,
-          tools.entityRect,
-          tools.paint,
-        );
+        try {
+          canvas.drawImageRect(
+            img,
+            tools.srcRect,
+            tools.entityRect,
+            tools.paint,
+          );
+        } catch {
+          // Atlas raced with bake dispose; flat fill below still draws.
+        }
         tools.paint.setAlphaf(1);
       }
     }
@@ -358,16 +400,27 @@ export function recordFrame(
     }
   }
 
-  // Active pickups — flat amber rects (no glow/shadow); sparse pool scan
+  // Active pickups — typed flat rects (no glow/shadow); sparse pool scan
   const pickupW = 20;
   const pickupH = 12;
   const pickupHalfW = pickupW * 0.5;
   const pickupHalfH = pickupH * 0.5;
-  tools.paint.setColor(tools.colPickup);
   const maxPickups = world.maxPickups;
   for (let pi = 0; pi < maxPickups; pi++) {
     if (world.pickupActive[pi] === 0) {
       continue;
+    }
+    const pType = world.pickupType[pi];
+    if (pType === 3) {
+      tools.paint.setColor(tools.colPickupExtraLife);
+    } else if (pType === 4) {
+      tools.paint.setColor(tools.colPickupSlow);
+    } else if (pType === 5) {
+      tools.paint.setColor(tools.colPickupFireball);
+    } else if (pType === 1) {
+      tools.paint.setColor(tools.colPickupMultiball);
+    } else {
+      tools.paint.setColor(tools.colPickupExpand);
     }
     tools.entityRect.setXYWH(
       world.pickupX[pi] - pickupHalfW,
@@ -429,8 +482,16 @@ export function recordFrame(
     tools.paint.setStyle(0);
   }
 
-  // Active balls — full white opacity last (highest contrast token)
-  tools.paint.setColor(tools.colWhite);
+  // Active balls — white normally; fireball tint when EFFECT_TYPE_FIREBALL=3 active
+  let fireball = false;
+  const effectN = world.effectCount;
+  for (let ei = 0; ei < effectN; ei++) {
+    if (world.effectType[ei] === 3) {
+      fireball = true;
+      break;
+    }
+  }
+  tools.paint.setColor(fireball ? tools.colPickupFireball : tools.colWhite);
   tools.paint.setAlphaf(1);
   const maxBalls = world.maxBalls;
   for (let bi = 0; bi < maxBalls; bi++) {

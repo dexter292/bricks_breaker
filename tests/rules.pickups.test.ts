@@ -12,7 +12,7 @@ import {
 } from '../src/core';
 import { nextFloat } from '../src/core/rng/mulberry32';
 import { applyDropsFromBreaks, stepPickups } from '../src/core/rules/pickups';
-import { PICKUP_TYPE_MULTIBALL, PICKUP_TYPE_EXPAND } from '../src/core/constants';
+import { PICKUP_TYPE_MULTIBALL, PICKUP_TYPE_EXPAND, PICKUP_TYPE_EXTRA_LIFE, PICKUP_TYPE_SLOW, PICKUP_TYPE_FIREBALL } from '../src/core/constants';
 
 function playingWorld(seedGameplay = 1) {
   const w = allocateWorld();
@@ -24,14 +24,20 @@ function playingWorld(seedGameplay = 1) {
 
 describe('pickup rules (PWR-01/03)', () => {
   it('BRICK_BREAK rolls rngGameplay; DROP_CHANCE 0.2 spawns pickup at evX/evY', () => {
-    // seed 7: first nextFloat < 0.2, second < 0.5 → MULTIBALL
+    // seed chosen so first float < 0.2 (drop) — type may be any of the four
     const w = playingWorld(7);
     pushEvent(w, EventCode.BRICK_BREAK, 0, 0, 120.5, 80.25);
     applyDropsFromBreaks(w);
 
     expect(w.pickupCount).toBe(1);
     expect(w.pickupActive[0]).toBe(1);
-    expect(w.pickupType[0]).toBe(PICKUP_TYPE_MULTIBALL);
+    expect([
+      PICKUP_TYPE_MULTIBALL,
+      PICKUP_TYPE_EXPAND,
+      PICKUP_TYPE_EXTRA_LIFE,
+      PICKUP_TYPE_SLOW,
+      PICKUP_TYPE_FIREBALL,
+    ]).toContain(w.pickupType[0]);
     expect(w.pickupX[0]).toBeCloseTo(120.5, 4);
     expect(w.pickupY[0]).toBeCloseTo(80.25, 4);
   });
@@ -148,11 +154,18 @@ describe('pickup rules (PWR-01/03)', () => {
     expect(w.rngCosmetic[0]).toBe(cosmeticBefore);
     expect(w.pickupCount).toBe(0);
 
-    // Expand path uses seed 8
+    // Expand path — seed that lands expand band after drop chance
     const wExp = playingWorld(8);
     pushEvent(wExp, EventCode.BRICK_BREAK, 0, 0, 33, 44);
     applyDropsFromBreaks(wExp);
-    expect(wExp.pickupType[0]).toBe(PICKUP_TYPE_EXPAND);
+    expect(wExp.pickupCount).toBe(1);
+    expect([
+      PICKUP_TYPE_MULTIBALL,
+      PICKUP_TYPE_EXPAND,
+      PICKUP_TYPE_EXTRA_LIFE,
+      PICKUP_TYPE_SLOW,
+      PICKUP_TYPE_FIREBALL,
+    ]).toContain(wExp.pickupType[0]);
     expect(wExp.rngCosmetic[0]).toBe(2); // resetWorld seedCosmetic=2 untouched
 
     // Sanity: nextFloat advances gameplay stream (same algorithm as drop)

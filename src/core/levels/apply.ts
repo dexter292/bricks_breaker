@@ -45,8 +45,11 @@ export function applyCompiledLevel(world: World, compiled: CompiledLevel): void 
 
   world.brickCount = n;
 
+  // Lattice for any authored grid with valid pitch — including 1-row boards
+  // (N-BRK-01 AoE needs pitch). Exhaustive fallback only when spatial fails / no pitch.
   if (
-    compiled.gridRows > 1 &&
+    compiled.gridCols > 0 &&
+    compiled.gridRows > 0 &&
     compiled.pitchX > 0 &&
     compiled.pitchY > 0
   ) {

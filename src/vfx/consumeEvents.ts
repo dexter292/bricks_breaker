@@ -24,6 +24,9 @@ export function rgbFromBrickHp(hp: number, flags: number): BrickRgb {
   if ((flags & BrickFlags.UNBREAKABLE) !== 0) {
     return { r: 0.42, g: 0.447, b: 0.502 }; // #6B7280
   }
+  if ((flags & BrickFlags.EXPLOSIVE) !== 0) {
+    return { r: 0.976, g: 0.451, b: 0.086 }; // #F97316
+  }
   if (hp >= 3) {
     return { r: 0.769, g: 0.271, b: 0.412 }; // #C44569
   }
@@ -105,8 +108,18 @@ export function consumeEventsForVfx(
         hpSnap > 0
           ? rgbFromBrickHp(hpSnap, flags)
           : resolve(world, brickIndex);
-      spawnBurst(vfx, { kind: 'destroy', x, y, rgb, intensity, rng });
-      punchShake(vfx, IMPULSE_DESTROY, intensity);
+      // Explosive break: 1.25× intensity — Mid cap 128 / FIFO eviction (see EXPLOSIVE-BRICKS.md)
+      const burstIntensity =
+        (flags & BrickFlags.EXPLOSIVE) !== 0 ? intensity * 1.25 : intensity;
+      spawnBurst(vfx, {
+        kind: 'destroy',
+        x,
+        y,
+        rgb,
+        intensity: burstIntensity,
+        rng,
+      });
+      punchShake(vfx, IMPULSE_DESTROY, burstIntensity);
       continue;
     }
 

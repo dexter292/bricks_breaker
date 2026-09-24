@@ -73,4 +73,23 @@ describe('levels.damage-cues', () => {
     expect(steelAsHp1.length).toBeGreaterThanOrEqual(2);
     expect(steelAsHp1.map(strokeKey).sort().join('|')).not.toEqual(hp1Keys);
   });
+
+  it('explosive uses X cue (2 strokes), distinct from steel hatch', () => {
+    const boom = planBrickDamageCues({
+      ...BOX,
+      hp: 1,
+      flags: BrickFlags.EXPLOSIVE,
+    });
+    const steel = planBrickDamageCues({
+      ...BOX,
+      hp: 99,
+      flags: BrickFlags.UNBREAKABLE,
+    });
+    expect(boom).toHaveLength(2);
+    expect(steel).toHaveLength(3);
+    expect(boom.map(strokeKey).sort().join('|')).not.toEqual(
+      steel.map(strokeKey).sort().join('|'),
+    );
+    assertInsideAabb(boom, BOX.x, BOX.y, BOX.w, BOX.h);
+  });
 });

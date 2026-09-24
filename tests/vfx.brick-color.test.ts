@@ -48,6 +48,11 @@ describe('vfx brick color (F-13)', () => {
       g: 0.447,
       b: 0.502,
     });
+    expect(rgbFromBrickHp(1, BrickFlags.EXPLOSIVE)).toEqual({
+      r: 0.976,
+      g: 0.451,
+      b: 0.086,
+    });
   });
 
   it('defaultResolveBrickRgb reads live brick SoA', () => {

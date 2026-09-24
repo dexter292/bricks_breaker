@@ -1,5 +1,5 @@
 import type { Intent, World } from './types';
-import { BrickFlags, EventCode } from './types';
+import { EventCode, BrickFlags } from './types';
 import { advanceBall } from './physics/integrate';
 import { sweepCircleAabbInto } from './physics/sweep';
 import {
@@ -10,6 +10,8 @@ import {
 } from './physics/resolve';
 import { pushEvent } from './events/ring';
 import { collectBrickCandidatesInto } from './physics/broadphase';
+import { applyBrickHpDamage } from './rules/brickDamage';
+import { ballSpeedScale, isFireballActive } from './rules/effects';
 
 const KIND_WALL = 0;
 const KIND_PADDLE = 1;
@@ -459,6 +461,8 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
     let brickTouchedThisStep = 0;
     const xStart = world.ballX[bi];
     const yStart = world.ballY[bi];
+    // N-PWR-02 — live scale; stored vx/vy unchanged
+    const speedScale = ballSpeedScale(world);
 
     // F-12: resolve wall/paddle overlaps before CCD. Do NOT blanket-depenetrate
     // all bricks — when gapY/gapX < 2r that pushes the ball out of one solid
@@ -520,8 +524,8 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         break;
       }
 
-      const dx = vx * remaining;
-      const dy = vy * remaining;
+      const dx = vx * remaining * speedScale;
+      const dy = vy * remaining * speedScale;
 
       let bestT = 2; // >1 → miss
       let bestNx = 0;
@@ -723,13 +727,13 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
       // Miss → advance full remaining once, then stop (F-11: zero remaining so
       // the post-loop exhaust path cannot advance a second time).
       if (bestKind < 0 || bestT > 1) {
-        advanceBall(world, bi, remaining);
+        advanceBall(world, bi, remaining, speedScale);
         remaining = 0;
         break;
       }
 
       const tAbs = bestT * remaining;
-      advanceBall(world, bi, tAbs);
+      advanceBall(world, bi, tAbs, speedScale);
       remaining -= tAbs;
 
       const hx = world.ballX[bi];
@@ -793,15 +797,31 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         continue;
       }
 
-      // KIND_BRICK — one brick contact ends CCD for this ball this step.
-      // Continuing with leftover time immediately re-hits a neighbor when
-      // gap < 2r and pins the ball (device: "bóng vừa chạm là đứng").
+      // KIND_BRICK — default: one contact ends CCD this step (neighbor pin).
+      // N-PWR-03 fireball: pierce breakables (no reflect, continue CCD); steel bounces.
       {
         const bIdx = bestIndex;
         const nx = bestNx;
         const ny = bestNy;
+        const unbreakable =
+          (world.brickFlags[bIdx] & BrickFlags.UNBREAKABLE) !== 0;
+        const pierce = isFireballActive(world) && !unbreakable;
 
         brickTouchedThisStep = 1;
+
+        if (pierce) {
+          applyBrickHpDamage(world, bIdx, hx, hy, true);
+          // Exit along travel direction so CCD can hit the next brick.
+          const spd = Math.hypot(world.ballVx[bi], world.ballVy[bi]);
+          if (spd > 1e-6) {
+            const push = world.ballRadius[bi] * 2 + sepEps * 4;
+            const inv = 1 / spd;
+            world.ballX[bi] = world.ballX[bi] + world.ballVx[bi] * inv * push;
+            world.ballY[bi] = world.ballY[bi] + world.ballVy[bi] * inv * push;
+          }
+          continue;
+        }
+
         const approach =
           world.ballVx[bi] * nx + world.ballVy[bi] * ny;
         if (approach < 0) {
@@ -831,39 +851,7 @@ export function stepWorld(world: World, intent: Intent, dt: number): void {
         world.ballX[bi] = world.ballX[bi] + nx * sepEps;
         world.ballY[bi] = world.ballY[bi] + ny * sepEps;
 
-        const unbreakable =
-          (world.brickFlags[bIdx] & BrickFlags.UNBREAKABLE) !== 0;
-
-        if (unbreakable) {
-          if (world.brickDamagedThisStep[bIdx] === 0) {
-            world.brickDamagedThisStep[bIdx] = 1;
-            pushEvent(
-              world,
-              EventCode.BRICK_HIT,
-              world.brickHp[bIdx],
-              bIdx,
-              hx,
-              hy,
-            );
-          }
-        } else if (world.brickDamagedThisStep[bIdx] === 0) {
-          world.brickDamagedThisStep[bIdx] = 1;
-          const hpBefore = world.brickHp[bIdx];
-          let hp = hpBefore - 1;
-          if (hp < 0) hp = 0;
-          world.brickHp[bIdx] = hp;
-          if (hp <= 0) {
-            pushEvent(world, EventCode.BRICK_BREAK, hpBefore, bIdx, hx, hy);
-            const cells = world.cellToBrick;
-            for (let c = 0; c < cells.length; c++) {
-              if (cells[c] === bIdx) {
-                cells[c] = -1;
-              }
-            }
-          } else {
-            pushEvent(world, EventCode.BRICK_HIT, hpBefore, bIdx, hx, hy);
-          }
-        }
+        applyBrickHpDamage(world, bIdx, hx, hy, true);
 
         remaining = 0;
         break;

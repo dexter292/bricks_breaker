@@ -64,6 +64,9 @@ export const SEPARATION_EPS = 1e-4;
 /** Starting lives per run (D-17). */
 export const DEFAULT_LIVES = 3;
 
+/** Hard cap for extra-life pickup (N-PWR-01). */
+export const MAX_LIVES = 5;
+
 /** Serve launch speed (MAX_BALL_SPEED * 0.5). */
 export const SERVE_SPEED = 360;
 
@@ -78,8 +81,15 @@ export const SCORE_BREAK_BONUS = 50;
 /** Chance a broken brick drops a pickup (D-09). */
 export const DROP_CHANCE = 0.2;
 
-/** After drop chance, roll < this → multiball; else expand (A2). */
-export const DROP_TYPE_MULTIBALL_THRESHOLD = 0.5;
+/**
+ * Drop type table after DROP_CHANCE (N-PWR-04) — cumulative [0,1) via nextFloat:
+ *   [0, 0.36) multiball · [0.36, 0.72) expand · [0.72, 0.82) slow
+ *   · [0.82, 0.92) fireball · [0.92, 1) extra life
+ */
+export const DROP_CUM_MULTIBALL = 0.36;
+export const DROP_CUM_EXPAND = 0.72;
+export const DROP_CUM_SLOW = 0.82;
+export const DROP_CUM_FIREBALL = 0.92;
 
 /** Pickup SoA capacity. */
 export const MAX_PICKUPS = 16;
@@ -102,14 +112,44 @@ export const EXPAND_DURATION_SEC = 10;
 /** Expand effect duration in ticks (10 / FIXED_DT). */
 export const EXPAND_DURATION_TICKS = 1200;
 
+/** Slow-ball duration in seconds (N-PWR-02). */
+export const SLOW_DURATION_SEC = 8;
+
+/** Slow-ball duration in ticks (8 / FIXED_DT). */
+export const SLOW_DURATION_TICKS = 960;
+
+/** Live ball speed scale while SLOW effect active (stored vx/vy unchanged). */
+export const SLOW_SPEED_SCALE = 0.5;
+
+/** Fireball pierce duration in seconds (N-PWR-03). */
+export const FIREBALL_DURATION_SEC = 8;
+
+/** Fireball pierce duration in ticks (8 / FIXED_DT). */
+export const FIREBALL_DURATION_TICKS = 960;
+
 /** Effects SoA type code for expand paddle. */
 export const EFFECT_TYPE_EXPAND = 1;
+
+/** Effects SoA type code for slow ball (N-PWR-02). */
+export const EFFECT_TYPE_SLOW = 2;
+
+/** Effects SoA type code for fireball pierce (N-PWR-03). */
+export const EFFECT_TYPE_FIREBALL = 3;
 
 /** Pickup type code: multiball (D-06). */
 export const PICKUP_TYPE_MULTIBALL = 1;
 
 /** Pickup type code: expand (D-06). */
 export const PICKUP_TYPE_EXPAND = 2;
+
+/** Pickup type code: extra life (N-PWR-01). */
+export const PICKUP_TYPE_EXTRA_LIFE = 3;
+
+/** Pickup type code: slow ball (N-PWR-02). */
+export const PICKUP_TYPE_SLOW = 4;
+
+/** Pickup type code: fireball pierce (N-PWR-03). */
+export const PICKUP_TYPE_FIREBALL = 5;
 
 /** Multiball spawn angle A from vertical (degrees; D-14 / A3). */
 export const MULTIBALL_ANGLE_A_DEG = 18;

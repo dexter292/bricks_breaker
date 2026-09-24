@@ -144,9 +144,25 @@ export function validateLevel(raw: unknown): ValidateLevelResult {
         issues.push(issue(`brickTypes.${key}.unbreakable`, 'unbreakable must be a boolean'));
         continue;
       }
+      if (Object.hasOwn(def, 'explosive') && typeof def.explosive !== 'boolean') {
+        issues.push(issue(`brickTypes.${key}.explosive`, 'explosive must be a boolean'));
+        continue;
+      }
       const typed: BrickTypeDef = { hp: def.hp };
       if (Object.hasOwn(def, 'unbreakable')) {
         typed.unbreakable = def.unbreakable as boolean;
+      }
+      if (Object.hasOwn(def, 'explosive')) {
+        typed.explosive = def.explosive as boolean;
+      }
+      if (typed.unbreakable === true && typed.explosive === true) {
+        issues.push(
+          issue(
+            `brickTypes.${key}`,
+            'brick type cannot be both unbreakable and explosive',
+          ),
+        );
+        continue;
       }
       brickTypes[key] = typed;
     }

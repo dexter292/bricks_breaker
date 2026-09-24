@@ -3,7 +3,8 @@
  * Plain TypeScript types — no Zod.
  *
  * Char keys in `brickTypes` / `cells` are discretionary (documented defaults:
- * `"1" | "2" | "3" | "X"`). Empty cell is always `"."`.
+ * `"1" | "2" | "3" | "X" | "E"`). Empty cell is always `"."`.
+ * `E` = explosive (N-BRK-01); additive optional field — no schema bump.
  */
 
 export const SCHEMA_VERSION = 1 as const;
@@ -11,6 +12,8 @@ export const SCHEMA_VERSION = 1 as const;
 export type BrickTypeDef = {
   hp: number;
   unbreakable?: boolean;
+  /** On break: 1 HP to each 8-neighbor (not unbreakable). Mutually exclusive with unbreakable. */
+  explosive?: boolean;
 };
 
 export type LevelFileV1 = {

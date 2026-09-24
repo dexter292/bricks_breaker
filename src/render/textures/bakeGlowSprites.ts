@@ -9,6 +9,7 @@ import {
   BRICK_HP2,
   BRICK_HP3,
   BRICK_UNBREAKABLE,
+  BRICK_EXPLOSIVE,
 } from '../colors';
 
 /** Default reference brick cell (level-01); override via bakeGlowSprites(w,h) (F-14). */
@@ -102,5 +103,6 @@ export function bakeGlowSprites(
     [BRICK_HP2]: bakeVariant(BRICK_HP2, w, h),
     [BRICK_HP1]: bakeVariant(BRICK_HP1, w, h),
     [BRICK_UNBREAKABLE]: bakeVariant(BRICK_UNBREAKABLE, w, h),
+    [BRICK_EXPLOSIVE]: bakeVariant(BRICK_EXPLOSIVE, w, h),
   };
 }

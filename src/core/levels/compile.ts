@@ -29,7 +29,14 @@ export function compileLevel(level: LevelFileV1): CompiledLevel {
       ws.push(brickW);
       hs.push(brickH);
       hps.push(def.hp);
-      flagsArr.push(def.unbreakable ? BrickFlags.UNBREAKABLE : 0);
+      let flags = 0;
+      if (def.unbreakable) {
+        flags |= BrickFlags.UNBREAKABLE;
+      }
+      if (def.explosive) {
+        flags |= BrickFlags.EXPLOSIVE;
+      }
+      flagsArr.push(flags);
     }
   }
 

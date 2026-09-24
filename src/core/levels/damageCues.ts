@@ -33,6 +33,14 @@ export function planBrickDamageCues(args: {
     ];
   }
 
+  if ((flags & BrickFlags.EXPLOSIVE) !== 0) {
+    // X mark — distinct from steel hatch (2 strokes vs 3)
+    return [
+      { x0: x + w * 0.15, y0: y + h * 0.2, x1: x + w * 0.85, y1: y + h * 0.8 },
+      { x0: x + w * 0.85, y0: y + h * 0.2, x1: x + w * 0.15, y1: y + h * 0.8 },
+    ];
+  }
+
   if (hp <= 0 || hp >= 3) {
     return [];
   }

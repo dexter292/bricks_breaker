@@ -1,21 +1,32 @@
 /**
- * Pickup drop / fall / AABB catch (PWR-01 / PWR-03).
+ * Pickup drop / fall / AABB catch (PWR-01 / PWR-03 / N-PWR-01…04).
  *
  * Worklet close-over ban: inlined literals below MUST match constants.ts:
  *   DROP_CHANCE = 0.2
- *   DROP_TYPE_MULTIBALL_THRESHOLD = 0.5
+ *   DROP_CUM_MULTIBALL = 0.36
+ *   DROP_CUM_EXPAND = 0.72
+ *   DROP_CUM_SLOW = 0.82
+ *   DROP_CUM_FIREBALL = 0.92
  *   PICKUP_FALL_SPEED = 120
  *   PICKUP_WIDTH = 20
  *   PICKUP_HEIGHT = 12
  *   LOGICAL_HEIGHT = 640
  *   PICKUP_TYPE_MULTIBALL = 1
  *   PICKUP_TYPE_EXPAND = 2
+ *   PICKUP_TYPE_EXTRA_LIFE = 3
+ *   PICKUP_TYPE_SLOW = 4
+ *   PICKUP_TYPE_FIREBALL = 5
+ *   MAX_LIVES = 5
  */
 import type { World } from '../types';
 import { EventCode, SimPhase } from '../types';
 import { pushEvent } from '../events/ring';
 import { nextFloat } from '../rng/mulberry32';
-import { applyOrRefreshExpand } from './effects';
+import {
+  applyOrRefreshExpand,
+  applyOrRefreshSlow,
+  applyOrRefreshFireball,
+} from './effects';
 import { spawnMultiballFromPaddle } from './multiball';
 
 /** Find first inactive pickup slot, or -1 if full. */
@@ -27,6 +38,33 @@ function findFreePickupSlot(world: World): number {
     }
   }
   return -1;
+}
+
+/** Map [0,1) roll → pickup type via N-PWR-04 cumulative table. */
+function pickupTypeFromRoll(which: number): number {
+  'worklet';
+  const cumMultiball = 0.36;
+  const cumExpand = 0.72;
+  const cumSlow = 0.82;
+  const cumFireball = 0.92;
+  const typeMultiball = 1;
+  const typeExpand = 2;
+  const typeExtraLife = 3;
+  const typeSlow = 4;
+  const typeFireball = 5;
+  if (which < cumMultiball) {
+    return typeMultiball;
+  }
+  if (which < cumExpand) {
+    return typeExpand;
+  }
+  if (which < cumSlow) {
+    return typeSlow;
+  }
+  if (which < cumFireball) {
+    return typeFireball;
+  }
+  return typeExtraLife;
 }
 
 /**
@@ -44,9 +82,6 @@ export function applyDropsFromBreaks(world: World): void {
   }
 
   const dropChance = 0.2;
-  const multiballThreshold = 0.5;
-  const typeMultiball = 1;
-  const typeExpand = 2;
 
   const start = (world.evHead - n + world.evCap) % world.evCap;
   for (let i = 0; i < n; i++) {
@@ -68,8 +103,7 @@ export function applyDropsFromBreaks(world: World): void {
 
     world.pickupX[slot] = world.evX[idx];
     world.pickupY[slot] = world.evY[idx];
-    world.pickupType[slot] =
-      which < multiballThreshold ? typeMultiball : typeExpand;
+    world.pickupType[slot] = pickupTypeFromRoll(which);
     world.pickupActive[slot] = 1;
     world.pickupCount += 1;
   }
@@ -77,7 +111,7 @@ export function applyDropsFromBreaks(world: World): void {
 
 /**
  * Fall pickups, remove below field, AABB-catch on paddle (D-10/D-11).
- * Catch wires multiball spawn / expand refresh. No magnetic pull.
+ * Catch wires multiball / expand / extra life / slow / fireball. No magnetic pull.
  */
 export function stepPickups(world: World, dt: number): void {
   'worklet';
@@ -95,6 +129,10 @@ export function stepPickups(world: World, dt: number): void {
   const logicalHeight = 640;
   const typeMultiball = 1;
   const typeExpand = 2;
+  const typeExtraLife = 3;
+  const typeSlow = 4;
+  const typeFireball = 5;
+  const maxLives = 5;
 
   const paddleHalfW = world.paddleW * 0.5;
   const paddleMinX = world.paddleX - paddleHalfW;
@@ -138,6 +176,16 @@ export function stepPickups(world: World, dt: number): void {
         spawnMultiballFromPaddle(world);
       } else if (type === typeExpand) {
         applyOrRefreshExpand(world);
+      } else if (type === typeExtraLife) {
+        let lives = world.lives + 1;
+        if (lives > maxLives) {
+          lives = maxLives;
+        }
+        world.lives = lives;
+      } else if (type === typeSlow) {
+        applyOrRefreshSlow(world);
+      } else if (type === typeFireball) {
+        applyOrRefreshFireball(world);
       }
       continue;
     }
