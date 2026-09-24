@@ -8,8 +8,16 @@ export {
   defaultProgressBlob,
   type ProgressBlob,
   type ProgressStore,
+  type StarCount,
+  type LevelBest,
 } from './types';
 export { evaluatePersonalBest } from './compareBest';
+export {
+  computeStars,
+  mergeLevelBest,
+  selectRowState,
+  type SelectRowState,
+} from './stars';
 export {
   PLAYABLE_LEVEL_ORDER,
   nextLevelId,

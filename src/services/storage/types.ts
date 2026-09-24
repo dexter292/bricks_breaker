@@ -20,6 +20,18 @@ export interface PersonalBestStore {
 export const PROGRESS_VERSION = 2 as const;
 export const PROGRESS_KEY = '@nbb/progress/v2' as const;
 
+/** Lives-based star count after a win (N-PROG-03 / D-07). */
+export type StarCount = 1 | 2 | 3;
+
+/**
+ * Per-level best for v3 schema (additive types; ProgressBlob stays v2 until Plan 01).
+ * `stars` present only after ≥1 win (D-05 / D-23).
+ */
+export type LevelBest = {
+  score: number;
+  stars?: StarCount;
+};
+
 export type ProgressBlob = {
   v: 2;
   /** Always includes 'level-01'; catalog order; never level-02 */
