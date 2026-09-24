@@ -106,7 +106,7 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 | Pixel 6a | Mid | profiling | run1 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Was WAIVED no-device 2026-09-22; deferred — do not claim Complete |
 | Pixel 6a | Mid | profiling | run2 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Same |
 | iPhone 16 Pro (physical) | Mid (Cert WC force) | development / `__DEV__` + `PERF_OVERLAY` | Instruments Game Performance | n/a (Display) | n/a | n/a | **OBSERVATION (not ceiling PASS)** | 2026-09-22: A18 Pro; Display ~**8.33 ms** (120 Hz); **Hangs 0**. Single session, development build, no p50/p95 — **re-run required** for iOS ceiling row |
-| iPhone 16 Pro **ceiling** | Mid Cert WC | **profiling** | ≥2 × ≥30s | — | — | Hangs — | **NOT RUN** | Protocol: p50≤8.33 **and** p95≤11 **and** Hangs=0 — runbook [`docs/ops/CEILING-CERT.md`](ops/CEILING-CERT.md) |
+| iPhone 16 Pro **ceiling** | Mid Cert WC | **profiling** | ≥2 × ≥30s | — | — | Hangs — | **NOT RUN** | Protocol: p50≤8.33 **and** p95≤11 **and** Hangs=0 — runbook [`docs/ops/CEILING-CERT.md`](ops/CEILING-CERT.md). 2026-09-24 exploratory Game Performance on **Debug+Metro** (not profiling IPA): Hangs=0; vsync Δ not protocol-grade (p50≈16.7 ms) — **does not discharge G2.16** |
 | iOS **floor** mid-tier | Mid | profiling | — | — | — | — | **NOT RUN** | No A13–A15 device (R-10) |
 | _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | **OUT OF SCOPE (D2=B)** | |
 
@@ -167,8 +167,8 @@ DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loop
 |--------|-------|--------|------------|-----------|---------|-------------|-----------|---------|-------|
 | Pixel 6a | profiling / `__DEV__` soak | — | — | — | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Android deferred |
 | iPhone 17 Pro Simulator | development / `__DEV__` + `EXPO_PUBLIC_SOAK=1` | 100 | 15 min | n/a (iOS — adb meminfo N/A) | n/a | n/a (adb gfxinfo N/A) | n/a | **HARNESS-ONLY (sim; no mem/frame data)** | 2026-09-22: Metro logs `[soak] arming` → `cycles done (100)` → `complete`. Simulator never counts for gate (D-05). Physical iPhone soak still owed. |
-| iPhone 16 Pro (physical) | profiling / `__DEV__` soak | — | — | — | — | — | — | **NOT RUN** | Required for G2.3 |
+| iPhone 16 Pro (physical) | development / `__DEV__` + `EXPO_PUBLIC_SOAK=1` (dev-client + Metro) | 100 | 15 min | ~576 MiB footprint (Activity Monitor) | ~514–725 MiB footprint (end Title settle ~514; peak sample ~725) | n/a (iOS — no gfxinfo) | n/a | **PASS** | 2026-09-24: physical 16 Pro iOS 26.6.1; Metro `[soak] arming` → `cycles done (100)` → `complete`; **0** `disposed` / HostFunction errors after `useGameLoop` unmount `setActive(false)`. Debug+Metro mem is fat — not a release RSS claim. Traces: `/tmp/bricks-soak/start.trace`, `end.trace`. |
 
 ---
 
-_Status: iOS D-16 = **OBSERVATION** (not ceiling PASS). D2 iOS Release **PASS**. D4 **PASS (dev-build; profiling IPA debt)**. Soak = **HARNESS-ONLY (sim)**. iOS ceiling/floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**. PLT-03 **not Complete**._
+_Status: iOS D-16 = **OBSERVATION** (not ceiling PASS). D2 iOS Release **PASS**. D4 **PASS (dev-build; profiling IPA debt)**. Soak physical 16 Pro = **PASS** (dev-client). iOS ceiling under new protocol still **NOT RUN** (profiling IPA + p50/p95 protocol). Floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**._

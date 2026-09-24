@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
-import { SOAK_HARNESS } from '../../src/devflags';
+import { useKeepAwake } from 'expo-keep-awake';
+import { CERT_HARNESS, SOAK_HARNESS } from '../../src/devflags';
 import { createDefaultPersonalBestStore } from '../../src/services/storage';
 import { PlayingHost } from './PlayingHost';
 import { TitleScreen } from './TitleScreen';
@@ -12,6 +13,12 @@ type ShellPhase = 'title' | 'playing';
 const SOAK_CYCLE_DWELL_MS = 750;
 const SOAK_CYCLE_COUNT = 100;
 const SOAK_CONTINUOUS_MS = 15 * 60 * 1000;
+
+/** Keep screen on for the whole soak (Title phases would otherwise allow sleep). */
+function SoakKeepAwake() {
+  useKeepAwake('NeonBrickSoak');
+  return null;
+}
 
 /**
  * App shell: Title ↔ Playing (D-01, D-02, D-05).
@@ -24,7 +31,12 @@ export function GameHost() {
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });
-  const [shellPhase, setShellPhase] = useState<ShellPhase>('title');
+  // DEV Cert WC: skip Title so Instruments can attach to an active playfield immediately.
+  const [shellPhase, setShellPhase] = useState<ShellPhase>(() =>
+    typeof __DEV__ !== 'undefined' && __DEV__ && CERT_HARNESS && !SOAK_HARNESS
+      ? 'playing'
+      : 'title',
+  );
   const [best, setBest] = useState(0);
   // F-26: same singleton as PlayingHost — Title best matches Playing.
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
@@ -118,13 +130,26 @@ export function GameHost() {
     return <View style={styles.root} />;
   }
 
+  const soakAwake =
+    typeof __DEV__ !== 'undefined' && __DEV__ && SOAK_HARNESS ? (
+      <SoakKeepAwake />
+    ) : null;
+
   if (shellPhase === 'title') {
     return (
-      <TitleScreen best={best} onPlay={() => setShellPhase('playing')} />
+      <View style={styles.root}>
+        {soakAwake}
+        <TitleScreen best={best} onPlay={() => setShellPhase('playing')} />
+      </View>
     );
   }
 
-  return <PlayingHost onMenu={() => setShellPhase('title')} />;
+  return (
+    <View style={styles.root}>
+      {soakAwake}
+      <PlayingHost onMenu={() => setShellPhase('title')} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

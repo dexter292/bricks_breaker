@@ -1,6 +1,6 @@
 # Physical soak runbook (N-PLT-03 / A2)
 
-**Status:** Harness exists; **physical Results row NOT RUN**  
+**Status:** Harness exists; **physical Results PASS** 2026-09-24 (dev-client Debug + Metro)  
 **Device target:** iPhone 16 Pro (or named physical iPhone)  
 **Authority:** `docs/phase8-certification.md` Soak section · `RELEASE-GATES` G2.3
 
@@ -55,6 +55,6 @@ Fill `docs/phase8-certification.md` Soak Results row for **iPhone 16 Pro (physic
 
 ## 5. Acceptance for A2
 
-- [ ] Physical soak row filled (not Simulator)  
-- [ ] N-QA-01: `npm test` green on same HEAD  
-- [ ] N-QA-03: UI contract tests green (Title / GameScreen / GameHost)
+- [x] Physical soak row filled (not Simulator) — PASS 2026-09-24  
+- [x] N-QA-01: `npm test` green on same HEAD  
+- [x] N-QA-03: UI contract tests green (Title / GameScreen / GameHost)

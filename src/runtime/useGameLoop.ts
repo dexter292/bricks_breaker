@@ -515,6 +515,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     [frameCallback, accumResetRequest],
   );
 
+  // Menu / soak Title↔Playing remount: stop the UI frame before Skia atlases dispose.
+  // Without this, recordFrame can drawImageRect a freed glow soft → HostFunction disposed.
+  useEffect(() => {
+    return () => {
+      frameCallback.setActive(false);
+    };
+  }, [frameCallback]);
+
   const retry = useCallback(() => {
     // Discrete request only — UI frame applies applyRetryWorldReset on live World (F-01 / D-11).
     /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */

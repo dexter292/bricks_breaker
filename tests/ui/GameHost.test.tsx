@@ -25,6 +25,11 @@ vi.mock('expo-font', () => ({
 
 vi.mock('../../src/devflags', () => ({
   SOAK_HARNESS: false,
+  CERT_HARNESS: false,
+}));
+
+vi.mock('expo-keep-awake', () => ({
+  useKeepAwake: () => {},
 }));
 
 vi.mock('../../src/services/storage', () => ({

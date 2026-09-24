@@ -67,7 +67,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Scope** | N-PLT-03; N-QA-01; **N-QA-03** |
 | **Acceptance** | No crash; no sustained degradation; contract tests green |
 | **Parallel?** | Yes with A1/A3/A4/E1a |
-| **Progress** | **N-QA-03 Done** (Title/GameScreen/GameHost); N-QA-01 green (277). **N-PLT-03 physical soak NOT RUN** — see `docs/ops/SOAK-PHYSICAL.md` |
+| **Progress** | **N-QA-03 Done**; N-QA-01 green. **N-PLT-03 physical soak PASS** 2026-09-24 (dev-client; see phase8 Results) |
 
 ### Phase A3 — Playtest Cohort & Branding Gate
 | Field | Content |
