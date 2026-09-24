@@ -75,7 +75,7 @@
 | **N-LVL-03** | Solvability / reachability lint: every breakable brick reachable (not steel-enclosed on all approachable sides); warn if steel corridor narrower than `2 × (BALL_RADIUS + SEPARATION_EPS)`; CI runs on `assets/levels/*.json`; **`level-02` must fail (negative fixture)** | **Approved** | D6=A / R-14 — self-check must go red on level-02 |
 | **N-PROG-01** | Clear unlocks next; offline across kills | **Approved** | Storage v2 |
 | **N-PROG-02** | Per-level best score on Results | **Approved** | |
-| **N-PROG-03** | Stars 1–3 from documented criteria | **Approved** | |
+| **N-PROG-03** | Stars 1–3: **C2 = lives-based** (`clamp(livesRemaining,1,3)` on win; best-stars max). Score bands **not** in C2 — evaluated in **E2** (N-CNT-02) | **Approved** | Amended 2026-09-24 (C2 discuss): global score T2 unfair (~3× max-score spread across 5 levels); per-level thresholds = tuning without playtest |
 | **N-PROG-04** | Cleared levels replayable | **Approved** | |
 
 **Out of scope for C:** player-facing editor, cloud sync, daily challenge.
@@ -99,7 +99,7 @@
 | ID | Requirement | Status | Notes |
 |----|-------------|--------|-------|
 | **N-CNT-01** | Difficulty curve validated by playtest | **Approved** | |
-| **N-CNT-02** | Drop rates / star thresholds tuned | **Approved** | |
+| **N-CNT-02** | Drop rates / **star score-band thresholds** tuned from playtest | **Approved** | Owns score-band half of original N-PROG-03; C2 ships lives-only stars + v3 `{score,stars}` shape ready for richer formula |
 | **N-CNT-03** | Ball speed ramp (F-45) evaluate ship/reject | **Approved** | |
 
 ---

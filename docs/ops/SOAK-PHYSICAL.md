@@ -21,7 +21,8 @@ Simulator soak = **HARNESS-ONLY** — does not close this gate.
 ## 2. Run
 
 1. Leave the app **foregrounded** on the physical device.
-2. Do not manually thrash Menu/Play — harness drives Title↔Playing.
+2. Do not manually thrash Menu/Play — harness drives **Title↔Playing** only.
+   - **Intentional:** soak **skips Level Select** (`ShellPhase 'select'`). Select is React-only (no worklet/Skia atlas); Title↔Playing keeps comparable teardown leak signal vs 2026-09-24 Results. Do not “fix” soak to Title↔Select↔Playing without a new baseline.
 3. Watch logs for:
    - `[soak] arming`
    - cycle progress → `cycles done (100)`

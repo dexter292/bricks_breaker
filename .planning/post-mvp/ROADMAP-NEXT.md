@@ -150,8 +150,9 @@ Plans:
 | Field | Content |
 |-------|---------|
 | **Goal** | N-LVL-02, N-PROG-03, N-PROG-04 |
-| **Deps** | C1 |
+| **Deps** | C1 (**device UAT before v3 migration**) |
 | **Acceptance** | Unlock/replay/stars correct for 5 levels |
+| **Progress** | Context gathered 2026-09-24 — `post-mvp/phases/C2-level-select-stars-replay/` |
 
 ---
 
