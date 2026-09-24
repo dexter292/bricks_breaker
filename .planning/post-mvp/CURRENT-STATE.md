@@ -100,7 +100,7 @@
 | LVL-04 | level-03 shipped; duration band softened; cohort playtest light | Marketing confidence weak |
 | FX-02 | Budgets in code; Android frame-budget gate waived | Spectacle vs FPS unproven on mid Android |
 | WP-6 | Partial | Physical soak + Android still open |
-| F-43 | Partial | PlayingHost/GameScreen mount tests deferred |
+| F-43 | **Done (N-QA-03)** | TitleScreen / GameScreen / GameHost mount contracts (PlayingHost stubbed) |
 | D4 nuance | PASS on dev Instruments | Formal profiling IPA optional |
 
 ---
@@ -120,7 +120,7 @@ From `MVP-CLOSE-REPORT.md` §6 + `DEFERRED-ITEMS.md` — verified not closed by 
 | **LVL-04 cohort** | ≥5 first-time playtests | G2.11 | **OPEN** |
 | **Console ASC** | Forms entered | G2.4 | **PREPARED** |
 | **Rename** | Display name before listing | **G2 (D1=B)** | **MUST — string TBD** |
-| **F-43** | PlayingHost contract tests | Quality | **OPEN → N-QA-03** |
+| **F-43** | PlayingHost contract tests | Quality | **CLOSED via N-QA-03** (shell + GameScreen; PlayingHost stubbed) |
 | **R-12** | Tier resolver RAM-only | G2 marketing | **OPEN → N-TIER-01** |
 | **F-45** | Ball speed ramp | Post-MVP backlog | **DEFERRED** |
 

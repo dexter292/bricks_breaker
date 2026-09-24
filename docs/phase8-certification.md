@@ -128,6 +128,8 @@ These are PASS/FAIL gates (not p50/p95/jank). Fill on device; do not invent resu
 
 ## Soak test (D-19…D-23)
 
+**Physical iOS runbook:** [`docs/ops/SOAK-PHYSICAL.md`](ops/SOAK-PHYSICAL.md) (N-PLT-03 / A2).
+
 DEV-only Title↔Playing lifecycle soak. Proves mount/unmount does not leak loops/listeners/audio before the Plan 06 human gate.
 
 | Item | Value |

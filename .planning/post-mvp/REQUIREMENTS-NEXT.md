@@ -41,7 +41,7 @@
 | **N-PLT-03** | Physical iOS soak: 100 Title↔Playing + 15 min continuous; no crash; mem/frame notes recorded | **Approved** | |
 | **N-QA-01** | Automated gates remain green: `tsc`, lint, 267+ tests, worklet/skia/privacy asserts | **Approved** | |
 | **N-QA-02** | First-time player cohort ≥5 completes playtest form covering controls clarity, desire to replay, pain points, **and** serve-agency: *"Khi bóng gắn vào paddle đầu mỗi lượt, bạn có muốn điều khiển hướng phóng không? (có / không / không để ý)"* | **Approved** | D3=C — "không để ý" is decisive |
-| **N-QA-03** | Component-contract coverage for PlayingHost / GameScreen / Title mount paths (F-43) — not UI-thread/worklet proof | **Approved** | Phase A2 (R-03) |
+| **N-QA-03** | Component-contract coverage for PlayingHost / GameScreen / Title mount paths (F-43) — not UI-thread/worklet proof | **Done** (TitleScreen / GameScreen / GameHost+PlayingHost stub) | Phase A2 — code complete; physical soak still open |
 | **N-BRAND-01** | Display-name rename decision recorded; `app.config.js` `name` + Title/icon updated before ASC listing | **Approved** | D1=B; exact string TBD |
 | **N-OPS-01** | Crash reporting integrated; confirmed receipt of a real crash from a distributed build | **Approved** | **Must → G1** |
 | **N-OPS-02** | Post-ship update strategy written: OTA (`expo-updates` + `runtimeVersion`) **or** explicit resubmit-only | **Approved** | **Must → G2** (decision OK without integrating OTA) |
