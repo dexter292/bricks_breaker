@@ -590,7 +590,11 @@ export function PlayingHost({ onMenu }: Props) {
   const certArmedRef = useRef(false);
 
   const runCertWorstCase = useCallback(() => {
-    if (typeof __DEV__ === 'undefined' || !__DEV__) {
+    // Profiling IPA: CERT_HARNESS with __DEV__ false must still arm (A1).
+    if (
+      !CERT_HARNESS &&
+      (typeof __DEV__ === 'undefined' || !__DEV__)
+    ) {
       return;
     }
     let defer = false;
@@ -637,12 +641,9 @@ export function PlayingHost({ onMenu }: Props) {
     injectCertWorstCase,
   ]);
 
-  // Optional auto-arm: __DEV__ && CERT_HARNESS only (never production).
+  // Optional auto-arm: CERT_HARNESS (profiling or __DEV__). Never set on production EAS.
   // Defer via timeout so we do not setState synchronously inside the effect body.
   useEffect(() => {
-    if (typeof __DEV__ === 'undefined' || !__DEV__) {
-      return;
-    }
     if (!CERT_HARNESS || certArmedRef.current) {
       return;
     }

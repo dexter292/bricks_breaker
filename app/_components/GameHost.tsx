@@ -31,15 +31,14 @@ export function GameHost() {
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });
-  // DEV Cert WC: skip Title so Instruments can attach to an active playfield immediately.
+  // Cert WC: skip Title so Instruments can attach to an active playfield immediately.
+  // Allowed when EXPO_PUBLIC_CERT=1 even if __DEV__ is false (profiling IPA).
   const [shellPhase, setShellPhase] = useState<ShellPhase>(() =>
-    typeof __DEV__ !== 'undefined' && __DEV__ && CERT_HARNESS && !SOAK_HARNESS
-      ? 'playing'
-      : 'title',
+    CERT_HARNESS && !SOAK_HARNESS ? 'playing' : 'title',
   );
   useEffect(() => {
-    if (typeof __DEV__ === 'undefined' || !__DEV__ || !CERT_HARNESS) return;
-    console.log(`[cert] GameHost CERT=1 phase=playing (skip Title)`);
+    if (!CERT_HARNESS) return;
+    console.log('[cert] GameHost CERT=1 phase=playing (skip Title)');
   }, []);
   const [best, setBest] = useState(0);
   // F-26: same singleton as PlayingHost — Title best matches Playing.
@@ -135,9 +134,8 @@ export function GameHost() {
   }
 
   const harnessAwake =
-    typeof __DEV__ !== 'undefined' &&
-    __DEV__ &&
-    (SOAK_HARNESS || CERT_HARNESS) ? (
+    CERT_HARNESS ||
+    (typeof __DEV__ !== 'undefined' && __DEV__ && SOAK_HARNESS) ? (
       <HarnessKeepAwake />
     ) : null;
 

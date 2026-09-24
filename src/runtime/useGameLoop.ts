@@ -670,13 +670,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   }, [setActive, uiPhase, onOsPause, certMetricsLog]);
 
   /**
-   * DEV cert worst-case (D-14): bump request — UI frame injects on live World.
-   * No-ops outside __DEV__; adds zero per-frame work when unused.
+   * Cert worst-case (D-14): bump request — UI frame injects on live World.
+   * Host gates who calls this (CERT_HARNESS / __DEV__ Pressable). No-op cost when unused.
    */
   const injectCertWorstCase = useCallback(() => {
-    if (typeof __DEV__ === 'undefined' || !__DEV__) {
-      return;
-    }
     /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
     certRequest.value = certRequest.value + 1;
     /* eslint-enable react-hooks/immutability */
