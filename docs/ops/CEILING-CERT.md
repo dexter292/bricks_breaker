@@ -66,7 +66,7 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 | Official (worse) | |
 | Verdict | **NOT RUN** (official) |
 | Notes | date, Instruments template |
-| EAS profiling (queued 2026-09-24) | https://expo.dev/accounts/dexter292/projects/bricks-breaker/builds/95a80ef1-3de8-4507-bde9-9d632d2d8871 |
+| EAS profiling (queued 2026-09-24) | Retry after Sentry upload disable: https://expo.dev/accounts/dexter292/projects/bricks-breaker/builds/bc3ddcb3-197a-446a-829a-730755dd4f3c (prior `95a80ef1` failed: sentry-cli missing org) |
 
 ### 5b. Metro exploratory (2026-09-24)
 
