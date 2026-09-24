@@ -276,3 +276,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | **B2 Done** — N-PWR-01/02/04 extra life + slow + drop table/exclusion; fireball still B3 |
 | 2026-09-24 | **B3 Done** — N-PWR-03 fireball pierce; drop table 36/36/10/10/8; Milestone B gameplay pack complete (B0 still gated on A3) |
 | 2026-09-24 | **A3 SKIPPED** (owner) → **B0 Won’t-Do** tap-only; next **C1** GSD plan |
+| 2026-09-24 | **C1 Planned** — 3 plans (Wave 0 contracts → store/migrate → host wire) in `post-mvp/phases/C1-progress-storage/` |
