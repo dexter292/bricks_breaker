@@ -1,11 +1,11 @@
 ---
 phase: C1
 slug: progress-storage
-status: planned
+status: code-complete
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-09-24
-notes: Nyquist contract for N-PROG-01 / N-PROG-02; Wave 0 stubs land in C1-00
+notes: Nyquist contract for N-PROG-01 / N-PROG-02; awaiting human device UAT
 ---
 
 # Phase C1 — Validation Strategy
@@ -40,15 +40,15 @@ notes: Nyquist contract for N-PROG-01 / N-PROG-02; Wave 0 stubs land in C1-00
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|--------------|
-| N-PROG-01 | `level-01` clear unlocks `level-03` (not `level-02`) | unit | `npx vitest run tests/storage.progress-v2.test.ts` | ❌ → Wave 0 |
-| N-PROG-01 | Lose does **not** unlock | unit | same | ❌ → Wave 0 |
-| N-PROG-01 | Corrupt v2 → defaults; memory watermark not clobbered | unit | same | ❌ → Wave 0 |
-| N-PROG-01 | v1-only migrate seeds `bestScore`, unlocked=`['level-01']` | unit | same | ❌ → Wave 0 |
-| N-PROG-01 | Catalog order = `01→03→04→05→06`; next after `06` is null | unit | same | ❌ → Wave 0 |
-| N-PROG-02 | `recordLevelBest` strict `>`; rollup `bestScore` = max | unit | same + personal-best | ❌ → Wave 0 |
-| N-PROG-02 | Equal/lower score does not overwrite level best | unit | same | ❌ → Wave 0 |
-| — | Singleton ProgressStore identity (Title↔Playing) | unit | same | ❌ → Wave 0 |
-| N-PROG-02 | Results uses per-level previousBest (host wire) | rg + optional UI | Plan 02 verify | host review |
+| N-PROG-01 | `level-01` clear unlocks `level-03` (not `level-02`) | unit | `npx vitest run tests/storage.progress-v2.test.ts` | ✅ |
+| N-PROG-01 | Lose does **not** unlock | unit | same | ✅ |
+| N-PROG-01 | Corrupt v2 → defaults; memory watermark not clobbered | unit | same | ✅ |
+| N-PROG-01 | v1-only migrate seeds `bestScore`, unlocked=`['level-01']` | unit | same | ✅ |
+| N-PROG-01 | Catalog order = `01→03→04→05→06`; next after `06` is null | unit | same | ✅ |
+| N-PROG-02 | `recordLevelBest` strict `>`; rollup `bestScore` = max | unit | same + personal-best | ✅ |
+| N-PROG-02 | Equal/lower score does not overwrite level best | unit | same | ✅ |
+| — | Singleton ProgressStore identity (Title↔Playing) | unit | same | ✅ |
+| N-PROG-02 | Results uses per-level previousBest (host wire) | rg + UI | Plan 02 verify | ✅ host wired |
 
 ---
 
@@ -56,21 +56,21 @@ notes: Nyquist contract for N-PROG-01 / N-PROG-02; Wave 0 stubs land in C1-00
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| C1-W0-01 | 00 | 0 | N-PROG-01 | T-C1-01 | Catalog + unlockNext pure | unit stub→green | `npx vitest run tests/storage.progress-v2.test.ts` | ❌ | pending |
-| C1-W0-02 | 00 | 0 | N-PROG-01/02 | T-C1-01 | Parse/migrate stubs | unit stub | same | ❌ | pending |
-| C1-01-01 | 01 | 1 | N-PROG-01/02 | T-C1-01 | parseProgress + migrate v1→v2 | unit | same | pending | pending |
-| C1-01-02 | 01 | 1 | N-PROG-01/02 | T-C1-02/03 | ProgressStore memory + AsyncStorage + flush | unit | same | pending | pending |
-| C1-02-01 | 02 | 2 | N-PROG-01/02 | T-C1-03 | PlayingHost win→unlock; win\|lose→level best | rg + vitest | `npx vitest run tests/storage.progress-v2.test.ts tests/ui/GameHost.test.tsx` | pending | pending |
-| C1-02-02 | 02 | 2 | N-PROG-02 | T-C1-03 | Title rollup getBest; Results per-level Best | rg + vitest | same | pending | pending |
+| C1-W0-01 | 00 | 0 | N-PROG-01 | T-C1-01 | Catalog + unlockNext pure | unit stub→green | `npx vitest run tests/storage.progress-v2.test.ts` | ✅ | done |
+| C1-W0-02 | 00 | 0 | N-PROG-01/02 | T-C1-01 | Parse/migrate stubs | unit stub | same | ✅ | done |
+| C1-01-01 | 01 | 1 | N-PROG-01/02 | T-C1-01 | parseProgress + migrate v1→v2 | unit | same | ✅ | done |
+| C1-01-02 | 01 | 1 | N-PROG-01/02 | T-C1-02/03 | ProgressStore memory + AsyncStorage + flush | unit | same | ✅ | done |
+| C1-02-01 | 02 | 2 | N-PROG-01/02 | T-C1-03 | PlayingHost win→unlock; win\|lose→level best | rg + vitest | `npx vitest run tests/storage.progress-v2.test.ts tests/ui/GameHost.test.tsx` | ✅ | done |
+| C1-02-02 | 02 | 2 | N-PROG-02 | T-C1-03 | Title rollup getBest; Results per-level Best | rg + vitest | same | ✅ | done |
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `tests/storage.progress-v2.test.ts` — stubs/cases for unlock, migrate, parse fail-soft, rollup
-- [ ] `src/services/storage/types.ts` — `PROGRESS_KEY` / `ProgressBlob` / `ProgressStore` contracts
-- [ ] `src/services/storage/catalog.ts` — `PLAYABLE_LEVEL_ORDER` + `nextLevelId`
-- [ ] Existing `tests/storage.personal-best.test.ts` remains green (legacy v1 parse + `evaluatePersonalBest`)
+- [x] `tests/storage.progress-v2.test.ts` — stubs/cases for unlock, migrate, parse fail-soft, rollup
+- [x] `src/services/storage/types.ts` — `PROGRESS_KEY` / `ProgressBlob` / `ProgressStore` contracts
+- [x] `src/services/storage/catalog.ts` — `PLAYABLE_LEVEL_ORDER` + `nextLevelId`
+- [x] Existing `tests/storage.personal-best.test.ts` remains green (legacy v1 parse + `evaluatePersonalBest`)
 
 *Do not add jest-expo for storage. No AsyncStorage 3.x upgrade.*
 
@@ -99,12 +99,12 @@ notes: Nyquist contract for N-PROG-01 / N-PROG-02; Wave 0 stubs land in C1-00
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
 - [ ] `nyquist_compliant: true` set in frontmatter *(left for verify-work gate)*
-- [ ] `wave_0_complete: true` after Plan 00
+- [x] `wave_0_complete: true` after Plan 00
 
-**Approval:** pending execution
+**Approval:** pending human device UAT (type `approved`)

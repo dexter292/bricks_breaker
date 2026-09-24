@@ -42,7 +42,8 @@ import { defaultPlatformServices } from '../../src/services/platform';
 import { CERT_HARNESS, PERF_OVERLAY } from '../../src/devflags';
 import { triggerTestCrash } from '../../src/services/crashReporting';
 import {
-  createDefaultPersonalBestStore,
+  PLAYABLE_LEVEL_ORDER,
+  createDefaultProgressStore,
   evaluatePersonalBest,
 } from '../../src/services/storage';
 
@@ -138,8 +139,8 @@ export function PlayingHost({ onMenu }: Props) {
   const keepAwake =
     uiPhase === 'playing' && result == null ? <KeepAwakeOn /> : null;
 
-  const store = useMemo(() => createDefaultPersonalBestStore(), []);
-  // F-26: pending best write flushed on AppState background via onOsPause path.
+  const store = useMemo(() => createDefaultProgressStore(), []);
+  // F-26: pending progress write flushed on AppState background via onOsPause path.
   const platform = useMemo(() => defaultPlatformServices(), []);
   // Soft-fail: stale native binary without ExpoAudio must not crash play (D-24).
   // CERT: memory service only — expo-audio createAudioPlayer can block the JS
@@ -225,11 +226,11 @@ export function PlayingHost({ onMenu }: Props) {
 
   useEffect(() => () => clearCountdown(), [clearCountdown]);
 
-  // Preload previousBest for optimistic Results (D-10 / research lock).
+  // Preload per-level previousBest for Results (D-05 / D-10). Refresh on levelId change.
   useEffect(() => {
     let cancelled = false;
     void store
-      .getBest()
+      .getBestForLevel(levelId)
       .then((b) => {
         if (cancelled) return;
         previousBestRef.current = b;
@@ -243,7 +244,7 @@ export function PlayingHost({ onMenu }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [store]);
+  }, [store, levelId]);
 
   useEffect(() => {
     const mapped =
@@ -259,7 +260,7 @@ export function PlayingHost({ onMenu }: Props) {
     clearCountdown();
     setCountdownNumeral(null);
     setUiPhase('paused');
-    // F-26: re-attempt pending personal-best write on background/OS pause.
+    // F-26: re-attempt pending progress write on background/OS pause.
     void store.flush?.().catch(() => {});
   }, [clearCountdown, store]);
 
@@ -419,14 +420,17 @@ export function PlayingHost({ onMenu }: Props) {
       setIsNewRecord(record);
       if (record) {
         previousBestRef.current = best;
-        void store.setBest(best).catch(() => {});
+        void store.recordLevelBest(levelId, best).catch(() => {});
+      }
+      if (outcome === 'win') {
+        void store.unlockAfterClear(levelId).catch(() => {});
       }
       const payload = { score: runScore, outcome, isNewRecord: record };
       platform.ads.onRunEnded(payload);
       platform.purchases.onRunEnded(payload);
       platform.accounts.onRunEnded(payload);
     },
-    [platform, store],
+    [platform, store, levelId],
   );
 
   const applyChrome = useCallback(
@@ -561,13 +565,7 @@ export function PlayingHost({ onMenu }: Props) {
   }, [uiPhase, result, onMenu, onPause]);
 
   const toggleDevLevel = useCallback(() => {
-    const order: LevelId[] = [
-      'level-01',
-      'level-03',
-      'level-04',
-      'level-05',
-      'level-06',
-    ];
+    const order = PLAYABLE_LEVEL_ORDER;
     setLevelId((prev) => {
       const i = order.indexOf(prev);
       return order[i < 0 ? 0 : (i + 1) % order.length]!;

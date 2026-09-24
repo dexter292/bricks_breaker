@@ -33,7 +33,7 @@ vi.mock('expo-keep-awake', () => ({
 }));
 
 vi.mock('../../src/services/storage', () => ({
-  createDefaultPersonalBestStore: () => ({
+  createDefaultProgressStore: () => ({
     getBest: () => Promise.resolve(7),
   }),
 }));

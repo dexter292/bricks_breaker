@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import { CERT_HARNESS, SOAK_HARNESS } from '../../src/devflags';
-import { createDefaultPersonalBestStore } from '../../src/services/storage';
+import { createDefaultProgressStore } from '../../src/services/storage';
 import { PlayingHost } from './PlayingHost';
 import { TitleScreen } from './TitleScreen';
 
@@ -41,8 +41,8 @@ export function GameHost() {
     console.log('[cert] GameHost CERT=1 phase=playing (skip Title)');
   }, []);
   const [best, setBest] = useState(0);
-  // F-26: same singleton as PlayingHost — Title best matches Playing.
-  const store = useMemo(() => createDefaultPersonalBestStore(), []);
+  // F-26: same ProgressStore singleton as PlayingHost — Title rollup matches max.
+  const store = useMemo(() => createDefaultProgressStore(), []);
 
   useEffect(() => {
     if (shellPhase !== 'title') return;

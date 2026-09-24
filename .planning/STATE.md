@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: "A4 + E1a execution in progress — lint+levels done; Sentry wired pending DSN verify"
-last_updated: "2026-09-24T08:00:00.000Z"
+stopped_at: "C1 code complete — awaiting device UAT approved"
+last_updated: "2026-09-24T13:30:00.000Z"
 last_activity: 2026-09-24
 progress:
   total_phases: 8
@@ -16,6 +16,10 @@ progress:
   phase_8_plans: 6/7
   plt_03: deferred_ios_first_d2b
   post_mvp: full_lock_d1_through_d7
+  post_mvp_a3: skipped_owner
+  post_mvp_b0: wont_do_tap_only
+  post_mvp_b123: done
+  post_mvp_c1: code_complete_awaiting_uat
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
 ---
@@ -27,14 +31,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Temporary MVP closed + **post-MVP roadmap FULL LOCK** (D1…D7). See [`docs/audit/DECISIONS-FULL-LOCK-2026-09-24.md`](../docs/audit/DECISIONS-FULL-LOCK-2026-09-24.md) and [`.planning/post-mvp/ROADMAP-NEXT.md`](./post-mvp/ROADMAP-NEXT.md). Open ledger: display-name string, R-10 floor, R-12 tier, A3→D3 final.
+**Current focus:** Post-MVP — **C1 code complete** (ProgressStore + host wire); **awaiting device UAT**. Next after approve: **C2**. Open ledger: display-name string, R-10 floor, R-12 tier, N-OPS-01 DSN.
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Post-MVP roadmap:** ✅ **FULL LOCK** — do not auto-start phases until owner instructs.  
+**Next:** Device smoke for C1 — type `approved` or list issues (see C1-02 Task 3). Then **C2** level select.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
-HEAD baseline: `f445e0c`.
 
 ## Performance Metrics
 

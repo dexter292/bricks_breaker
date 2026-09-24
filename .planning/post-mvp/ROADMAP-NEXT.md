@@ -139,12 +139,12 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Scope** | N-PROG-01, N-PROG-02; storage v2 |
 | **Parallel?** | With E1a/E1b data |
 | **Plans** | 3 plans |
-| **Progress** | **Planned** 2026-09-24 — ready to execute |
+| **Progress** | **Done** 2026-09-24 — ProgressStore `@nbb/progress/v2`; unlock-on-win; per-level Results Best; Title rollup; `docs/ops/PROGRESS-STORAGE.md` |
 
 Plans:
-- [ ] `C1-00-PLAN.md` — Wave 0: ProgressBlob/ProgressStore contracts, catalog + unlock pure, Vitest stubs
-- [ ] `C1-01-PLAN.md` — Wave 1: parse/migrate + ProgressStore memory/AsyncStorage singleton
-- [ ] `C1-02-PLAN.md` — Wave 2: PlayingHost/GameHost wire + ops doc + device smoke
+- [x] `C1-00-PLAN.md` — Wave 0: ProgressBlob/ProgressStore contracts, catalog + unlock pure, Vitest stubs
+- [x] `C1-01-PLAN.md` — Wave 1: parse/migrate + ProgressStore memory/AsyncStorage singleton
+- [x] `C1-02-PLAN.md` — Wave 2: PlayingHost/GameHost wire + ops doc + device smoke
 
 ### Phase C2 — Level Select + Stars + Replay
 | Field | Content |
@@ -277,3 +277,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | **B3 Done** — N-PWR-03 fireball pierce; drop table 36/36/10/10/8; Milestone B gameplay pack complete (B0 still gated on A3) |
 | 2026-09-24 | **A3 SKIPPED** (owner) → **B0 Won’t-Do** tap-only; next **C1** GSD plan |
 | 2026-09-24 | **C1 Planned** — 3 plans (Wave 0 contracts → store/migrate → host wire) in `post-mvp/phases/C1-progress-storage/` |
+| 2026-09-24 | **C1 Done** — ProgressStore v2 + migrate; PlayingHost unlock-on-win + per-level Best; Title rollup; ops doc |
