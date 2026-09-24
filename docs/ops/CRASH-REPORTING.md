@@ -18,16 +18,20 @@ Runtime is **disabled** unless `EXPO_PUBLIC_SENTRY_DSN` is set. No events leave 
 
 ## Owner setup (required to close N-OPS-01)
 
-1. Create a Sentry project (React Native / Expo). Free tier is fine.
-2. Copy **Client Key (DSN)** → set as EAS secret / local env:
+1. Create a Sentry project (React Native / Expo). Free tier is fine — signup: https://sentry.io/signup/
+2. Copy **Client Key (DSN)** and run:
    ```bash
-   export EXPO_PUBLIC_SENTRY_DSN='https://…@o….ingest.sentry.io/…'
+   ./scripts/set-sentry-dsn.sh 'https://…@o….ingest.sentry.io/…'
    ```
+   That writes `.env.local` (gitignored) and attempts EAS `preview` + `production` env.
 3. (Optional, for source maps on EAS) Create org auth token → `SENTRY_AUTH_TOKEN` EAS secret; then configure plugin `organization` + `project` in `app.config.js`. Until then, EAS profiles set `SENTRY_DISABLE_AUTO_UPLOAD=true` so builds do not fail on missing Sentry org.
-4. Build a **distributed** binary (TestFlight / internal, not Metro-only).
-5. Open PlayingHost → tap **Crash** (dev) **or** force a release crash once.
-6. Confirm the event appears in the Sentry Issues dashboard.
-7. Record evidence below.
+4. **Verify (Debug):**  
+   ```bash
+   npx expo run:ios --device
+   ```  
+   Open PlayingHost → tap **Crash** → confirm Issue in Sentry dashboard.
+5. (Optional) Rebuild Release/TestFlight with DSN on EAS for store-posture binary.
+6. Record evidence below.
 
 ## Privacy & store forms
 

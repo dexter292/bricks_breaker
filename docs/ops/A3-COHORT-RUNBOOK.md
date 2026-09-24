@@ -1,11 +1,28 @@
 # A3 cohort runbook — playtest + D3 + rename pulse
 
-**Status:** Form ready; **cohort NOT RUN** (≥5 first-time players)  
+**Status:** Form ready; **cohort 0/5** — Release playtest build on 16 Pro (no CERT/SOAK)  
 **Authority:** N-QA-02 · D3=C · N-BRAND-01 · `docs/ops/PLAYTEST-FORM-A3.md`
 
-Recruitment has lead time — start now even if ceiling/Sentry still open.
+Recruitment has lead time — start **today**. A1 ceiling is PASS; do not wait on Sentry for cohort sessions.
 
-**Device note (2026-09-24):** Release sideload installed on Dexter’s iPhone 16 Pro (`Release-iphoneos`). Unlock phone → open **Neon Brick Breaker** (no Metro). Fill roster in `PLAYTEST-FORM-A3.md`.
+**Device note (2026-09-24):** Unlock Dexter’s iPhone 16 Pro → open **Neon Brick Breaker** → confirm **Title** (not auto Cert WC). No Metro required.
+
+---
+
+## 0. Day-of operator checklist (≤2 min)
+
+1. Phone unlocked, Do Not Disturb on, brightness mid.  
+2. App on **Title** — if playfield auto-starts, rebuild **without** `EXPO_PUBLIC_CERT`.  
+3. Clipboard: `PLAYTEST-FORM-A3.md` open on Mac for roster.  
+4. Script card (show/read) — **no aim hints**.  
+5. After each tester: fill roster row + tally **before** next person.
+
+### Recruit (same day / this week)
+
+| Source | Ask |
+|--------|-----|
+| Friends / coworkers who never played this build | “10 phút chơi game, hỏi 4 câu — không cần biết game.” |
+| Target | **≥5 first-time** players (not you / not prior soak operators) |
 
 ---
 

@@ -77,7 +77,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Deliverables** | Playtest notes; name in name-clearance; **D3 recommendation from cohort data** |
 | **Acceptance** | Cohort done; name written; **serve-agency answered by ≥5** |
 | **Parallel?** | Yes; unblocks D2 Brand early |
-| **Progress** | Form + runbook ready. Release sideload on 16 Pro available. **Cohort 0/5** — owner recruitment |
+| **Progress** | Form + runbook ready (day-of checklist). **Release playtest** on 16 Pro (no CERT). **Cohort 0/5** — owner recruits ≥5 first-timers; fill `PLAYTEST-FORM-A3.md` |
 
 ### Phase A4 — Operational Readiness
 | Field | Content |
@@ -86,7 +86,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Acceptance** | Real crash in dashboard; OTA-or-resubmit text signed; SDK cadence dated |
 | **Gates** | N-OPS-01 → G1; N-OPS-02 → G2 |
 | **Parallel?** | Yes with A1–A3/E1a |
-| **Progress** | N-OPS-02/03 **Done**. N-OPS-01 wired + EAS `SENTRY_DISABLE_AUTO_UPLOAD`; **dashboard verify pending** owner DSN |
+| **Progress** | N-OPS-02/03 **Done**. N-OPS-01 wired + `scripts/set-sentry-dsn.sh`; **dashboard verify pending** — paste DSN → script → Debug Crash chip |
 
 ---
 
