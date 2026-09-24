@@ -244,7 +244,9 @@ Nguồn copy byte-identical với repo (`diff -rq src tests` → 0 khác biệt)
 | 3 | Sửa 3 lỗi `tsc` trong `tests/ui/GameScreen.test.tsx` | **DONE** |
 | 4 | `assert-eas-profiles.mjs` (`R-21`) | **DONE** — `npm test` + CI |
 
-A1 official vẫn **NOT RUN** cho đến profiling/Instruments p50/p95 — nhưng đường đo đã sạch LC-07.
+A1 official vẫn **NOT RUN** cho đến profiling/Instruments p50/p95 — nhưng đường đo đã sạch LC-07 trong frame body.
+
+**Nuance (ghi `CEILING-CERT.md`):** ~1 Hz `runOnJS` vẫn chạy trên UI runtime từ reaction (giữa frame, không kéo dài frame đang đo). Nếu p95 sát ngưỡng, coi đây là residual đã biết.
 
 ---
 

@@ -42,7 +42,8 @@ Harness notes (2026-09-24):
 - `audio.preload` soft-timeouts inside `expoAudioService` + CERT uses memory AudioService (native `createAudioPlayer` can block JS after soft-failed preload).
 - CERT skips AppState auto-pause so deep-link relaunch does not freeze the loop.
 - `[cert-metrics]` samples **frame interval** (vsync Δ), not CPU work time.
-- **R-20:** Metro `[cert-metrics]` is published via SharedValue mirror + `useAnimatedReaction` (chrome pattern) — **not** `runOnJS` inside `onFrame`, so Instruments p95 is not confounded by the logger hop.
+- **R-20:** Metro `[cert-metrics]` is published via SharedValue mirror + `useAnimatedReaction` (chrome pattern) — **not** `runOnJS` inside `onFrame`, so the logger hop no longer lengthens the measured frame itself.
+- **Measurement nuance:** ~1 Hz `runOnJS` still runs on the **UI runtime** from the reaction (marshalling between frames, not inside the frame body). Cleaner than in-frame `runOnJS`, but **not zero**. If official p95 sits on the pass edge, treat this ~1 Hz UI task as a known residual source before blaming gameplay.
 
 ## 3. Pass criteria (ceiling)
 
