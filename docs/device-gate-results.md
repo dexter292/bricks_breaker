@@ -1,5 +1,19 @@
 # Device gate results (Phase 1 SC-1 / SC-2 / SC-3)
 
+> **⚠️ LỊCH SỬ — bằng chứng Phase 1 (2026-09-20…22). KHÔNG phải nguồn hiện tại.**
+>
+> File này đóng **canh bạc kiến trúc** của Phase 1: worklet chạy được trên thiết bị thật. Nó **không** phải bảng chứng nhận hiệu năng hiện hành.
+>
+> | Cần gì | Đọc ở đâu |
+> |---|---|
+> | Bằng chứng thiết bị hiện tại (Cert WC, D2/D4, soak) | [`phase8-certification.md`](./phase8-certification.md) |
+> | Ngưỡng đang áp dụng | [`measurement-methodology.md`](./measurement-methodology.md) |
+> | Cách chạy lại một phép đo | [`ops/README.md`](./ops/README.md) |
+>
+> Hai điểm trong file này nay đã sai: các hàng **Android** không còn là `WAIVED` mà là **`OUT OF SCOPE`** (owner **D2=B**, iOS-first, 2026-09-24); và ngưỡng Phase 1 lấy Pixel 6a làm hard FPS reference đã bị thay bằng cặp **iOS ceiling / floor**.
+>
+> Giữ lại vì 19 tài liệu còn trỏ tới và nó là bằng chứng cho quyết định kiến trúc gốc.
+
 Evidence for architectural bet close. Simulators / emulators / RN perf monitor alone do **not** count (D-05). Methodology: `docs/measurement-methodology.md`.
 
 **Human approval:** typed `approved` on 2026-09-20 after iPhone development harness showed `worklet tick PASS` (HUD via bundled SpaceMono).

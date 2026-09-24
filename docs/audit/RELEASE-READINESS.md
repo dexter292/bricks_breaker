@@ -1,5 +1,17 @@
 # RELEASE READINESS
 
+> **⚠️ ẢNH CHỤP LỊCH SỬ — 2026-09-21. KHÔNG dùng để lấy trạng thái hiện tại.**
+>
+> Tài liệu này viết trước toàn bộ chuỗi remediation và trước các quyết định owner. Ba điểm nay đã sai:
+>
+> 1. **Danh sách finding Critical** — đã đóng hết qua `RE-AUDIT-02`…`08`. Trạng thái hiện tại: [DEFERRED-ITEMS.md](./DEFERRED-ITEMS.md) và [FINDINGS-LEDGER.md](./FINDINGS-LEDGER.md).
+> 2. **Posture dual-store (iOS + Android)** — đã bị **D2 = B (iOS-first)** thay thế, 2026-09-24. Android là `OUT OF SCOPE`, không phải `WAIVED`.
+> 3. **Cổng phát hành** — đã được thay bằng thang `G0`…`G3` trong `.planning/post-mvp/RELEASE-GATES.md`.
+>
+> **Đọc thay thế:** [MVP-CLOSE-REPORT.md](./MVP-CLOSE-REPORT.md) · `.planning/post-mvp/RELEASE-GATES.md` · [README.md](./README.md)
+>
+> Giữ lại làm bằng chứng cho quá trình — xem [README.md](./README.md) nhóm D.
+
 **Ngày audit:** 2026-09-21
 **Câu hỏi:** còn thiếu gì trước khi (a) tiếp tục playtest nội bộ, (b) mở external testing, (c) phát hành công khai?
 

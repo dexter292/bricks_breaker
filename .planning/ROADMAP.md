@@ -1,5 +1,19 @@
 # Roadmap: Neon Brick Breaker
 
+> **📌 ĐÂY LÀ ROADMAP v1 — 8 phase, đã hoàn tất.** Giữ nguyên làm lịch sử.
+>
+> **Công việc phía trước nằm ở [`post-mvp/ROADMAP-NEXT.md`](./post-mvp/ROADMAP-NEXT.md)** (Milestone A…G, đã `FULL LOCK` D1…D7 ngày 2026-09-24).
+>
+> | Cần gì | Đọc ở đâu |
+> |---|---|
+> | Kế hoạch hiện tại | `post-mvp/ROADMAP-NEXT.md` |
+> | Cổng phát hành `G0`…`G3` | `post-mvp/RELEASE-GATES.md` |
+> | Requirement post-MVP `N-*` | `post-mvp/REQUIREMENTS-NEXT.md` |
+> | Tình trạng máy móc hiện tại | `post-mvp/CURRENT-STATE.md` |
+> | Được ship tới đâu | `../docs/audit/MVP-CLOSE-REPORT.md` |
+>
+> Lịch sử thực thi từng phase: [`phases/`](./phases/) — 8 thư mục `CONTEXT` / `RESEARCH` / `PLAN` / `SUMMARY` / `VERIFICATION`. Đó là sổ ghi của GSD, không phải tài liệu tra cứu hằng ngày.
+
 ## Overview
 
 The journey runs from an empty repo to a single, shippable, 60-FPS neon arcade level. It starts with a cheap empirical spike that proves (or kills) the project's central bet — a deterministic simulation running as UI-thread worklets under Skia immediate-mode rendering — because retrofitting that decision later is a rewrite. Physics is then built headless and proven by property tests before a renderer exists to confuse the picture. The render bridge, relative-drag input, and the first real game loop land as one strictly sequential integration that ends with something you can hold and feel. Only after the feel is honest do the independent workstreams fan out: data-driven levels, run rules and power-ups, the React UI shell, and neon feedback. The showpiece level is authored last, against locked feel constants, alongside real-device performance certification and the store-compliance baseline.

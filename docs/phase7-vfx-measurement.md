@@ -1,5 +1,16 @@
 # Phase 7 VFX frame-budget measurement
 
+> **⚠️ MỘT PHẦN ĐÃ LỖI THỜI — viết cho Phase 7 (v1), trước quyết định iOS-first.**
+>
+> | Phần | Còn dùng được? |
+> |---|---|
+> | **Định nghĩa cảnh Cert WC** (multi-ball + particle burst) | ✅ **Còn đúng** — vẫn là cảnh dùng cho A1 ceiling |
+> | Checklist thao tác VFX-on | ✅ Còn đúng |
+> | **Bảng "Verdict tools"** nêu `adb dumpsys gfxinfo` là **Android gate** | ❌ **Sai** — Android là `OUT OF SCOPE` (D2=B). Gate hiện tại là **iOS ceiling** đo bằng Instruments |
+> | Ngưỡng frame-budget | ❌ Đã bị [`measurement-methodology.md`](./measurement-methodology.md) thay |
+>
+> **Đọc kèm:** [`ops/CEILING-CERT.md`](./ops/CEILING-CERT.md) cho quy trình đo hiện hành.
+
 How to measure worst-case neon feedback (trails, glow, particles, shake) against the Phase 1 frame budget before Phase 7 verify-work.
 
 **Authoritative methodology:** follow [`docs/measurement-methodology.md`](./measurement-methodology.md) (D-08). This doc only adds the Phase 7 VFX-on scene definition and checklist — it does not replace the Phase 1 contract.

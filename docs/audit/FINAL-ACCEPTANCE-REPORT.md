@@ -22,6 +22,10 @@
 
 ## 1. Gate tự động — tôi tự chạy lại, 2026-09-22
 
+> **⚠️ Số test trong mục này là ảnh chụp 2026-09-22 và **đã cũ**.** Bảng dưới ghi `261 / 55 file` vì đó là phần `*.test.ts` **tôi tự chạy được** bằng runner thay thế; header `:7` ghi `267/267 (59 file)` là con số **dev chạy trên macOS**, gồm cả 4 file `*.test.tsx`. Hai con số không mâu thuẫn — chúng là hai phạm vi khác nhau, nhưng đặt cạnh nhau thì dễ đọc nhầm.
+>
+> **Số hiện tại:** xem [TEST-RUN-VERIFICATION-2026-09-24.md](./TEST-RUN-VERIFICATION-2026-09-24.md) (267/267 đã xác minh độc lập) và các bản verify sau đó — suite nay là **304 / 62 file**.
+
 | Gate | Kết quả | Ghi chú |
 |---|---|---|
 | `npx tsc --noEmit` | **0 lỗi** | |
@@ -83,6 +87,8 @@ Bảng Soak Results rỗng. Harness tồn tại (`app/_components/GameHost.tsx`,
 Không có dữ liệu playtest người thật ở bất kỳ đâu. `08-VERIFICATION.md:37` ghi LVL-04 "Human play ~2–3 min — Plan 06 UAT" — Plan 06 chưa chạy.
 
 **→ Giữ nguyên `PENDING_DEVICE`. Tôi không tạo bất kỳ số liệu nào.**
+
+> **Cập nhật 2026-09-24 — câu trên đúng tại 2026-09-22 và vẫn đúng về phía audit** (tôi không tự sinh số liệu thiết bị nào). Nhưng các hàng `PENDING_DEVICE` ở §2 phía trên **đã được owner điền bằng bằng chứng thật** sau đó: iOS D-16, D2/D4, soak vật lý. Trạng thái thiết bị hiện tại: `docs/phase8-certification.md` (nguồn) và [FINDINGS-LEDGER.md](./FINDINGS-LEDGER.md). Hàng floor mid-tier vẫn `NOT RUN` (`R-10`).
 
 ---
 
