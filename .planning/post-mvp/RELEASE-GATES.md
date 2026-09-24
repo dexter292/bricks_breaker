@@ -81,7 +81,7 @@
 | **G2.13** | **No FPS claims** in listing/marketing beyond devices actually measured. Ceiling-only evidence ⇒ **do not state FPS** in store copy | Listing review |
 | **G2.14** | **N-OPS-02** — OTA or explicit resubmit-only strategy written | Doc |
 | G2.15 | **Display name renamed** (D1=B) — no exact-title collision with Gosiha “Neon brick breaker” | `name-clearance.md` + `app.config.js` |
-| **G2.17** | **First submit binary has no ads/IAP/analytics SDK**; privacy manifest keeps `NSPrivacyCollectedDataTypes: []` (D5=A) | `app.config.js` + binary audit |
+| **G2.17** | **First submit binary has no ads/IAP/analytics SDK**; privacy manifest keeps `NSPrivacyCollectedDataTypes: []` unless crash reporting DSN is enabled for that build (N-OPS-01 Sentry is **ops**, not ads — disclose in privacy policy when DSN on) (D5=A) | `app.config.js` + binary audit |
 
 **Should**
 

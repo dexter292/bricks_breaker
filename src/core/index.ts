@@ -69,6 +69,13 @@ export type {
   ValidationIssue,
 } from './levels/schema';
 export { validateLevel } from './levels/validate';
+export {
+  checkSolvability,
+  MIN_BALL_CORRIDOR,
+  type SolvabilityResult,
+  type UnreachableBreakable,
+  type CorridorWarning,
+} from './levels/solvability';
 export { migrateLevel } from './levels/migrations';
 export { compileLevel } from './levels/compile';
 export { loadAndCompile } from './levels/load';

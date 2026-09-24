@@ -65,6 +65,9 @@ module.exports = ({ config }) => ({
   },
   plugins: [
     'expo-router',
+    // N-OPS-01 — source-map upload needs SENTRY_AUTH_TOKEN + org/project later;
+    // runtime DSN is EXPO_PUBLIC_SENTRY_DSN (optional until provisioned).
+    '@sentry/react-native',
     ...(includeDevClient ? ['expo-dev-client'] : []),
     [
       'expo-splash-screen',

@@ -40,6 +40,7 @@ import {
 import { createDefaultAudioService, createMemoryAudioService } from '../../src/services/audio';
 import { defaultPlatformServices } from '../../src/services/platform';
 import { CERT_HARNESS, PERF_OVERLAY } from '../../src/devflags';
+import { triggerTestCrash } from '../../src/services/crashReporting';
 import {
   createDefaultPersonalBestStore,
   evaluatePersonalBest,
@@ -514,7 +515,17 @@ export function PlayingHost({ onMenu }: Props) {
   }, [uiPhase, result, onMenu, onPause]);
 
   const toggleDevLevel = useCallback(() => {
-    setLevelId((prev) => (prev === 'level-01' ? 'level-03' : 'level-01'));
+    const order: LevelId[] = [
+      'level-01',
+      'level-03',
+      'level-04',
+      'level-05',
+      'level-06',
+    ];
+    setLevelId((prev) => {
+      const i = order.indexOf(prev);
+      return order[i < 0 ? 0 : (i + 1) % order.length]!;
+    });
   }, []);
 
   /** DEV force Low→Mid→High→auto; session remount via budget change + retry (Pitfall 5). */
@@ -658,7 +669,7 @@ export function PlayingHost({ onMenu }: Props) {
           style={styles.devSwitch}
         >
           <Text style={styles.devSwitchLabel}>
-            {levelId === 'level-01' ? 'Lv 01' : 'Lv 03'}
+            {`Lv ${levelId.slice(-2)}`}
           </Text>
         </Pressable>
         <Pressable
@@ -678,6 +689,21 @@ export function PlayingHost({ onMenu }: Props) {
           style={styles.devSwitch}
         >
           <Text style={styles.devSwitchLabel}>Cert WC</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Trigger test crash for Sentry N-OPS-01 verification"
+          onPress={() => {
+            try {
+              triggerTestCrash('N-OPS-01 DEV verification crash');
+            } catch {
+              // Expected throw — Sentry should have captured when DSN set.
+            }
+          }}
+          hitSlop={8}
+          style={styles.devSwitch}
+        >
+          <Text style={styles.devSwitchLabel}>Crash</Text>
         </Pressable>
       </View>
     ) : null;

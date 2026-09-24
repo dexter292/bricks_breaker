@@ -55,9 +55,10 @@
       <li><strong>Offline gameplay.</strong> Core play does not require a network connection. The App does not send gameplay state to our servers.</li>
       <li><strong>Local high score.</strong> A personal-best score may be stored on the device using AsyncStorage (on-device key/value storage). That value stays on the device unless the user clears app data or uninstalls the App. It is not uploaded by the MVP App.</li>
       <li><strong>No accounts.</strong> The App does not offer sign-in or user profiles.</li>
-      <li><strong>No ads or in-app purchases.</strong> The MVP App does not include advertising SDKs or IAP / store purchase SDKs.</li>
-      <li><strong>No analytics SDKs.</strong> The MVP App does not embed third-party analytics or tracking SDKs.</li>
-      <li><strong>No personally identifiable information</strong> is requested or collected by the MVP App for gameplay.</li>
+      <li><strong>No ads or in-app purchases.</strong> The App does not include advertising SDKs or IAP / store purchase SDKs.</li>
+      <li><strong>No analytics / tracking SDKs.</strong> The App does not embed third-party analytics or advertising attribution SDKs.</li>
+      <li><strong>Optional crash reporting.</strong> When enabled for a given build (Sentry via environment configuration), the App may send crash/error reports (stack traces, device model/OS, app version) to help fix defects. Crash reporting is <strong>off</strong> unless that build is configured with a reporting endpoint. Gameplay scores and paddle input are not uploaded for analytics.</li>
+      <li><strong>No personally identifiable information</strong> is requested for gameplay. Crash reports do not intentionally include your name or email.</li>
     </ul>
     <h2>Platform and store surfaces</h2>
     <p>

@@ -15,9 +15,10 @@ Neon Brick Breaker (“the App”) is an offline arcade game. This policy descri
 - **Offline gameplay.** Core play does not require a network connection. The App does not send gameplay state to our servers.
 - **Local high score.** A personal-best score may be stored on the device using AsyncStorage (on-device key/value storage). That value stays on the device unless the user clears app data or uninstalls the App. It is not uploaded by the MVP App.
 - **No accounts.** The App does not offer sign-in or user profiles.
-- **No ads or in-app purchases.** The MVP App does not include advertising SDKs or IAP / store purchase SDKs.
-- **No analytics SDKs.** The MVP App does not embed third-party analytics or tracking SDKs.
-- **No personally identifiable information** is requested or collected by the MVP App for gameplay.
+- **No ads or in-app purchases.** The App does not include advertising SDKs or IAP / store purchase SDKs.
+- **No analytics / tracking SDKs.** The App does not embed third-party analytics or advertising attribution SDKs.
+- **Optional crash reporting.** When enabled for a given build (Sentry via environment configuration), the App may send crash/error reports (stack traces, device model/OS, app version) to help fix defects. Crash reporting is **off** unless that build is configured with a reporting endpoint. Gameplay scores and paddle input are not uploaded for analytics.
+- **No personally identifiable information** is requested for gameplay. Crash reports do not intentionally include your name or email.
 
 ## Platform and store surfaces
 

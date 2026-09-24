@@ -20,6 +20,7 @@ jobs:
       - run: npm run lint -- --max-warnings 0
       - run: npm test
       - run: npm run assert:worklets
+      - run: npm run assert:solvability
       - run: npm run assert:skia
       - run: npm run assert:privacy-manifest
       - name: Coverage floor

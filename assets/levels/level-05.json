@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "level-05",
+  "name": "Cascade Lattice",
+  "grid": {
+    "cols": 9,
+    "rows": 10,
+    "originX": 8,
+    "originY": 48,
+    "brickW": 36,
+    "brickH": 15,
+    "gapX": 4,
+    "gapY": 3
+  },
+  "brickTypes": {
+    "1": { "hp": 1 },
+    "2": { "hp": 2 },
+    "3": { "hp": 3 },
+    "X": { "hp": 99, "unbreakable": true }
+  },
+  "cells": [
+    "3.3.3.3.3",
+    ".2222222.",
+    "2.2.X.2.2",
+    "223333322",
+    "22.....22",
+    "X.11111.X",
+    ".1.1.1.1.",
+    "111.X.111",
+    "1.......1",
+    ".1111111."
+  ]
+}

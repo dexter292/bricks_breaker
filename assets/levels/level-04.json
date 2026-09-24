@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "level-04",
+  "name": "Steel Ribs",
+  "grid": {
+    "cols": 9,
+    "rows": 8,
+    "originX": 8,
+    "originY": 52,
+    "brickW": 36,
+    "brickH": 16,
+    "gapX": 4,
+    "gapY": 3
+  },
+  "brickTypes": {
+    "1": { "hp": 1 },
+    "2": { "hp": 2 },
+    "3": { "hp": 3 },
+    "X": { "hp": 99, "unbreakable": true }
+  },
+  "cells": [
+    ".1111111.",
+    "1.22222.1",
+    "12.XXX.21",
+    "122.1.221",
+    "1.22222.1",
+    ".1111111.",
+    "X.1...1.X",
+    ".1.111.1."
+  ]
+}

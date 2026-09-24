@@ -3,6 +3,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
+import { initCrashReporting } from '../src/services/crashReporting';
+
+// N-OPS-01 — as early as practical; no-ops without EXPO_PUBLIC_SENTRY_DSN.
+initCrashReporting();
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may already be hidden in fast refresh / web.

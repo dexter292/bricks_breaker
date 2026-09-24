@@ -2,8 +2,9 @@
  * JS-thread level cold path (D-04, D-14): Metro-require JSON → loadAndCompile.
  * Never mutates World; never runs under a worklet.
  *
- * level-02.json remains on disk as a compile/regression fixture (F-02 / NH-2)
- * but is NOT a playable LevelId — its steel gate is unwinnable with the 8° floor.
+ * level-02.json remains on disk as a compile/regression + N-LVL-03 negative
+ * fixture (F-02 / NH-2) but is NOT a playable LevelId — its steel gate is
+ * unwinnable and must fail solvability lint.
  */
 
 import {
@@ -14,8 +15,13 @@ import {
 
 export type { CompiledLevel, ValidationIssue };
 
-/** Playable bundled levels only (NH-2). */
-export type LevelId = 'level-01' | 'level-03';
+/** Playable bundled levels only (NH-2 / N-LVL-01). */
+export type LevelId =
+  | 'level-01'
+  | 'level-03'
+  | 'level-04'
+  | 'level-05'
+  | 'level-06';
 
 export type LoadLevelResult =
   | { ok: true; compiled: CompiledLevel }
@@ -25,6 +31,9 @@ const LEVEL_MODULES: Record<LevelId, unknown> = {
   // Metro static requires — keep literal paths (D-06 default is level-03).
   'level-01': require('../../assets/levels/level-01.json'),
   'level-03': require('../../assets/levels/level-03.json'),
+  'level-04': require('../../assets/levels/level-04.json'),
+  'level-05': require('../../assets/levels/level-05.json'),
+  'level-06': require('../../assets/levels/level-06.json'),
 };
 
 /**
