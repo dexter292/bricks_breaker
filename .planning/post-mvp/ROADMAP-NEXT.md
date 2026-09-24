@@ -58,7 +58,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Out of scope** | Floor mid-tier (`NOT RUN` deliverable); Android; features |
 | **Acceptance** | p50≤8.33ms **and** p95≤11ms **and** Hangs=0 (forced Mid) |
 | **Parallel?** | With A2/A3/A4/**E1a** |
-| **Progress** | Runbook ready (`docs/ops/CEILING-CERT.md`). Official Cert WC **NOT RUN** (needs profiling IPA). 2026-09-24 Metro harness on 16 Pro Cert WC Mid: `[cert-metrics]` p50=p95=**8.33** ms, fps=120, ≥40 s — exploratory only. Audio preload hang fixed at source. **EAS profiling build queued:** https://expo.dev/accounts/dexter292/projects/bricks-breaker/builds/95a80ef1-3de8-4507-bde9-9d632d2d8871 |
+| **Progress** | LC-07-clean cert mirror (`33ad226`). 2026-09-24 local Release+CERT Instruments 2×35s: Hangs=0; `display-surface-swap` Δ p50≈8.9 / p95≈**16.1** → **NOT PASS** under export method (see `CEILING-CERT.md`). G2.16 still open. Metro harness earlier was exploratory only. EAS Cert IPA `29329ab6` FINISHED (pre–LC-07). Next: GUI frame-duration confirm or budget/jank chase |
 
 ### Phase A2 — Physical Soak & Automated Regression Floor
 | Field | Content |
@@ -67,7 +67,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Scope** | N-PLT-03; N-QA-01; **N-QA-03** |
 | **Acceptance** | No crash; no sustained degradation; contract tests green |
 | **Parallel?** | Yes with A1/A3/A4/E1a |
-| **Progress** | **N-QA-03 Done**; N-QA-01 green. **N-PLT-03 physical soak PASS** 2026-09-24 (dev-client; see phase8 Results) |
+| **Progress** | **Done** — N-QA-03; N-QA-01 green at `33ad226`; N-PLT-03 physical soak **PASS** 2026-09-24 (dev-client) |
 
 ### Phase A3 — Playtest Cohort & Branding Gate
 | Field | Content |
@@ -77,7 +77,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Deliverables** | Playtest notes; name in name-clearance; **D3 recommendation from cohort data** |
 | **Acceptance** | Cohort done; name written; **serve-agency answered by ≥5** |
 | **Parallel?** | Yes; unblocks D2 Brand early |
-| **Progress** | Form + runbook ready (`docs/ops/PLAYTEST-FORM-A3.md`, `A3-COHORT-RUNBOOK.md`). **Cohort 0/5**. Rename shortlist updated (Pulse Paddle / Grid Ricochet / Lumen Break) |
+| **Progress** | Form + runbook ready. Release sideload on 16 Pro available. **Cohort 0/5** — owner recruitment |
 
 ### Phase A4 — Operational Readiness
 | Field | Content |
@@ -86,6 +86,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Acceptance** | Real crash in dashboard; OTA-or-resubmit text signed; SDK cadence dated |
 | **Gates** | N-OPS-01 → G1; N-OPS-02 → G2 |
 | **Parallel?** | Yes with A1–A3/E1a |
+| **Progress** | N-OPS-02/03 **Done**. N-OPS-01 wired + EAS `SENTRY_DISABLE_AUTO_UPLOAD`; **dashboard verify pending** owner DSN |
 
 ---
 
@@ -174,6 +175,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Acceptance** | Lint tool self-checks red on `level-02`; 5 playable LevelIds; lint **green** on 5 ship levels |
 | **Parallel?** | **Yes — from Milestone A day 1** (A1/A2/A3/A4 + E1a) |
 | **Risk** | E1b may retouch layouts when new verbs land — accepted (JSON cheaper than G2.10 single-point risk) |
+| **Progress** | **Done** — N-LVL-03 lint + levels 01/03/04/05/06 ship; `level-02` negative fixture; R-16 parity closed |
 
 ### Phase E1b — Verb Enrichment
 | Field | Content |
@@ -222,9 +224,10 @@ Candidates: achievements; cosmetics; daily challenge; monetization **design then
 | ID | Status |
 |----|--------|
 | **R-10** | Floor mid-tier iOS NOT RUN — ceiling-only |
-| **R-12** | Tier resolver RAM-only — N-TIER-01 Proposed |
+| **R-12** | Tier resolver RAM-only — N-TIER-01 Documented; **owner pick pending** (`QUALITY-TIER.md` lean #3+#6) |
 | **Display name string** | TBD — A3 / G2.15 |
 | **D3 final** | Pending A3 cohort data |
+| **N-OPS-01** | Pending owner Sentry DSN + dashboard event |
 
 ---
 
@@ -256,3 +259,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | Initial PROPOSED from post-MVP research |
 | 2026-09-24 | Applied DECISIONS round 1: D1=B, D2=B, D4=5, R-02 A4, A1 ceiling, B0/B3 split |
 | 2026-09-24 | **FULL LOCK** round 2: D3=C, D5=A, D6=A+N-LVL-03, D7+E1a/E1b |
+| 2026-09-24 | Progress sync: A2/E1a Done; A4 ops partial; A1 LC-07-clean pending Instruments; A3 cohort 0/5 |

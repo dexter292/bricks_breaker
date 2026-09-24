@@ -113,8 +113,8 @@ From `MVP-CLOSE-REPORT.md` §6 + `DEFERRED-ITEMS.md` — verified not closed by 
 |----|------|--------|
 | **PLT-03** | Android mid-range gfxinfo | Future Android / dual-store FPS claim | **OUT OF SCOPE (D2=B)** |
 | **Android smoke** | Any physical Android install | Future Play | **OUT OF SCOPE (D2=B)** |
-| **Soak physical** | 100 cycle + 15 min on iPhone + mem/frame | G2.3 | **OPEN** |
-| **iOS ceiling** | Profiling Cert WC per new protocol | N-PLT-02 | **NOT RUN** |
+| **Soak physical** | 100 cycle + 15 min on iPhone + mem/frame | G2.3 | **PASS** (dev-client 2026-09-24) |
+| **iOS ceiling** | Profiling Cert WC per new protocol | N-PLT-02 | **NOT RUN** (LC-07-clean path ready) |
 | **iOS floor** | Named mid-tier 60 Hz | Floor claims | **NOT RUN (R-10)** |
 | **PHYS-05 aimed** | Drag-to-aim launch | Spec / D3 | **DEFERRED** |
 | **LVL-04 cohort** | ≥5 first-time playtests | G2.11 | **OPEN** |

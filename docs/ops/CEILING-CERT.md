@@ -64,14 +64,14 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 | Field | Value |
 |-------|--------|
 | Device | iPhone 16 Pro |
-| Build | profiling IPA id / commit |
+| Build | local `Release` + `EXPO_PUBLIC_CERT=1` @ `13018eb` (LC-07-clean); EAS `29329ab6` also FINISHED (pre-fix commit) |
 | iOS version | 26.6.1 |
-| Run 1 p50 / p95 / hangs | |
-| Run 2 p50 / p95 / hangs | |
-| Official (worse) | |
-| Verdict | **NOT RUN** (official) |
-| Notes | date, Instruments template |
-| EAS profiling | Rebuild w/ Cert WC arm: https://expo.dev/accounts/dexter292/projects/bricks-breaker/builds/29329ab6-adf0-4ef6-8321-4a2c5168f94e (`358f53f`). Prior `bc3ddcb3` finished but lacked CERT env / `__DEV__` inject |
+| Run 1 p50 / p95 / hangs | display-surface-swap Δ ≈ **8.89 / 16.10** ms; **Hangs 0** (empty `potential-hangs`) |
+| Run 2 p50 / p95 / hangs | display-surface-swap Δ ≈ **8.85 / 16.11** ms; **Hangs 0** |
+| Official (worse) | p95 ≈ **16.1** ms (worse run) |
+| Verdict | **NOT PASS** under export method — p50 slightly over 8.33; p95 over 11. Hangs OK. Do **not** tick G2.16. Traces: `/tmp/bricks-a1/a1-clean{1,2}.trace` |
+| Notes | 2026-09-24; Game Performance; ≥2×35s after ~2s warmup discard on Δ. Residual ~1 Hz cert reaction noted. Need GUI frame-duration confirmation or profiling IPA re-run before closing A1. |
+| EAS profiling | Cert-armed IPA FINISHED: https://expo.dev/accounts/dexter292/projects/bricks-breaker/builds/29329ab6-adf0-4ef6-8321-4a2c5168f94e |
 
 ### 5b. Metro exploratory (2026-09-24)
 

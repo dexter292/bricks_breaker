@@ -32,7 +32,7 @@
 | **Console entry ASC** | ASC forms submitted | G2.4 | **PREPARED only** |
 | **Console entry Play** | Play forms | Future Android | **PREPARED — deferred** |
 | **Display name rename** | New `name` in app.config + listing | **G2** | **MUST — rename before listing (D1=B)**; string TBD |
-| **iOS ceiling Cert** | Protocol PASS on 16 Pro profiling | G2 / N-PLT-02 | **NOT RUN** under new protocol (prior D-16 = observation only) |
+| **iOS ceiling Cert** | Protocol PASS on 16 Pro profiling | G2 / N-PLT-02 | **NOT PASS (export 2026-09-24)** — Hangs 0; swap Δ p95≈16 ms; G2.16 open |
 | **iOS floor Cert** | Named mid-tier 60 Hz | N-PLT-02 claim floor | **NOT RUN (R-10)** |
 | **R-12 tier resolver** | Fix or document | G2 marketing honesty | **OPEN** — see `docs/ops/QUALITY-TIER.md` |
 
