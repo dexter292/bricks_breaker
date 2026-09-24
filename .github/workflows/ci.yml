@@ -23,6 +23,7 @@ jobs:
       - run: npm run assert:solvability
       - run: npm run assert:skia
       - run: npm run assert:privacy-manifest
+      - run: npm run assert:eas-profiles
       - name: Coverage floor
         run: npx vitest run --coverage --coverage.thresholds.lines=40
       - name: Expo web export

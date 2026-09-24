@@ -269,7 +269,7 @@ export function PlayingHost({ onMenu }: Props) {
     camScale,
   });
 
-  const { picture, surfaceSize, setActive, retry, injectCertWorstCase } =
+  const { picture, surfaceSize, setActive, retry, injectCertWorstCase, certOut, certSeq } =
     useGameLoop({
       paddleTarget,
       launchFlag,
@@ -287,7 +287,9 @@ export function PlayingHost({ onMenu }: Props) {
       certMetricsLog: CERT_HARNESS,
     });
   const setActiveRef = useRef(setActive);
-  setActiveRef.current = setActive;
+  useEffect(() => {
+    setActiveRef.current = setActive;
+  }, [setActive]);
 
   // SFX preload + glow bake before play (FX-03 / D-05); soft-fail never blocks with Alert.
   // F-14: bake at active level brick size.
@@ -467,6 +469,33 @@ export function PlayingHost({ onMenu }: Props) {
           stallTier: c.stallTier,
         });
       }
+    },
+  );
+
+  // R-20 / LC-07: CERT metrics via mirror+seq (same pattern as chrome) — not runOnJS in onFrame.
+  const logCertMetricsLine = useCallback(
+    (
+      p50: number,
+      p95: number,
+      mean: number,
+      fps: number,
+      n: number,
+      over: number,
+    ) => {
+      console.log(
+        `[cert-metrics] p50=${p50.toFixed(2)} p95=${p95.toFixed(2)} mean=${mean.toFixed(2)} fps=${fps.toFixed(1)} n=${n} over16.7=${over}`,
+      );
+    },
+    [],
+  );
+  useAnimatedReaction(
+    () => certSeq.value,
+    (seq, prev) => {
+      if (prev === null || seq === prev) {
+        return;
+      }
+      const c = certOut.value;
+      runOnJS(logCertMetricsLine)(c.p50, c.p95, c.mean, c.fps, c.n, c.over);
     },
   );
 

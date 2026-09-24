@@ -5,7 +5,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import {
   GameScreen,
@@ -21,17 +21,29 @@ vi.mock('../../src/render/GameCanvas', () => ({
 }));
 
 vi.mock('react-native-gesture-handler', () => ({
-  GestureDetector: ({ children }) => children,
+  GestureDetector: ({ children }: { children?: ReactNode }) => children,
 }));
 
 afterEach(cleanup);
+
+/** Minimal SharedValue stub — GameScreen only reads `.value` on these props. */
+function stubSharedValue<T>(value: T): GameScreenProps['picture'] {
+  return {
+    value,
+    get: () => value,
+    set: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    modify: () => {},
+  } as unknown as GameScreenProps['picture'];
+}
 
 function baseProps(
   overrides: Partial<GameScreenProps> = {},
 ): GameScreenProps {
   return {
-    picture: { value: null } as GameScreenProps['picture'],
-    surfaceSize: { value: null } as GameScreenProps['surfaceSize'],
+    picture: stubSharedValue(null),
+    surfaceSize: stubSharedValue(null) as unknown as GameScreenProps['surfaceSize'],
     playfieldGesture: {} as GameScreenProps['playfieldGesture'],
     uiPhase: 'playing',
     result: null,

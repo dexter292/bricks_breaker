@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   useFrameCallback,
   useSharedValue,
-  runOnJS,
   type SharedValue,
 } from 'react-native-reanimated';
 import type { SkFont, SkPicture, SkSize } from '@shopify/react-native-skia';
@@ -49,6 +48,11 @@ import {
   publishChromeMirror,
   type ChromeMirror,
 } from './publishChromeMirror';
+import {
+  createCertMetricsMirror,
+  publishCertMetricsMirror,
+  type CertMetricsMirror,
+} from './publishCertMetricsMirror';
 import type { VfxBudget } from './resolveQualityTier';
 import { BUDGETS } from './resolveQualityTier';
 import {
@@ -149,6 +153,8 @@ export type PlayBatchFn = (
 
 /** Host-owned HUD mirror — one SharedValue write per frame (F-25 / LC-07). */
 export type { ChromeMirror } from './publishChromeMirror';
+/** CERT Metro metrics mirror — publish from UI thread; host reacts (R-20 / LC-07). */
+export type { CertMetricsMirror } from './publishCertMetricsMirror';
 
 export type GameLoopHandle = {
   world: SharedValue<World | null>;
@@ -157,10 +163,14 @@ export type GameLoopHandle = {
   setActive: (active: boolean) => void;
   retry: () => void;
   /**
-   * DEV-only one-shot worst-case inject (PLT-03 / D-14): ≥3 balls, particles
+   * One-shot worst-case inject (PLT-03 / D-14): ≥3 balls, particles
    * near Mid cap, shake punched. Discrete cold path — never per-frame.
+   * Host gates CERT_HARNESS / __DEV__ Pressable.
    */
   injectCertWorstCase: () => void;
+  /** CERT metrics mirror + seq — host useAnimatedReaction → console (R-20). */
+  certOut: SharedValue<CertMetricsMirror>;
+  certSeq: SharedValue<number>;
 };
 
 export type UseGameLoopOptions = {
@@ -241,36 +251,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   useEffect(() => {
     certLogSv.value = certMetricsLog ? 1 : 0;
   }, [certMetricsLog, certLogSv]);
-  const logCertMetricsLine = useCallback(
-    (
-      p50: number,
-      p95: number,
-      mean: number,
-      fps: number,
-      n: number,
-      over: number,
-    ) => {
-      console.log(
-        `[cert-metrics] p50=${p50.toFixed(2)} p95=${p95.toFixed(2)} mean=${mean.toFixed(2)} fps=${fps.toFixed(1)} n=${n} over16.7=${over}`,
-      );
-    },
-    [],
-  );
-  const logCertMetricsRef = useRef(logCertMetricsLine);
-  logCertMetricsRef.current = logCertMetricsLine;
-  const logCertMetricsStable = useCallback(
-    (
-      p50: number,
-      p95: number,
-      mean: number,
-      fps: number,
-      n: number,
-      over: number,
-    ) => {
-      logCertMetricsRef.current(p50, p95, mean, fps, n, over);
-    },
-    [],
-  );
+
+  /** R-20: UI→JS via mirror+seq (chrome pattern) — no runOnJS on frame path. */
+  const certOut = useSharedValue<CertMetricsMirror>(createCertMetricsMirror());
+  const certSeq = useSharedValue(0);
 
   const picture = useSharedValue<SkPicture>(makeEmptyPicture());
   const world = useSharedValue<World | null>(null);
@@ -455,32 +439,47 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         (overlayEnabled && hudFontSv.value != null) || certLogSv.value === 1,
       );
       // ~1Hz at 120Hz; also emit early at n=30 so operators see signal quickly.
+      // R-20: publish mirror only — JS logs via host useAnimatedReaction (not runOnJS here).
       if (
         certLogSv.value === 1 &&
         m.sampleCount > 0 &&
         (m.sampleCount === 30 || m.sampleCount % 120 === 0)
       ) {
-        runOnJS(logCertMetricsStable)(
-          percentileMsPublic(m, 50),
-          m.p95Ms,
-          meanInterval(m),
-          m.rollingFps,
-          m.sampleCount,
-          m.overBudget,
-        );
+        const cm = certOut.value;
+        if (
+          publishCertMetricsMirror(
+            cm,
+            percentileMsPublic(m, 50),
+            m.p95Ms,
+            meanInterval(m),
+            m.rollingFps,
+            m.sampleCount,
+            m.overBudget,
+          ) === 1
+        ) {
+          certOut.value = cm;
+          certSeq.value = certSeq.value + 1;
+        }
       }
     } else if (certLogSv.value === 1) {
       // Still heartbeat while frozen so operators see the loop is alive.
       let mFrozen = metrics.value;
       if (mFrozen && mFrozen.sampleCount > 0 && mFrozen.sampleCount % 120 === 0) {
-        runOnJS(logCertMetricsStable)(
-          percentileMsPublic(mFrozen, 50),
-          mFrozen.p95Ms,
-          meanInterval(mFrozen),
-          mFrozen.rollingFps,
-          mFrozen.sampleCount,
-          mFrozen.overBudget,
-        );
+        const cm = certOut.value;
+        if (
+          publishCertMetricsMirror(
+            cm,
+            percentileMsPublic(mFrozen, 50),
+            mFrozen.p95Ms,
+            meanInterval(mFrozen),
+            mFrozen.rollingFps,
+            mFrozen.sampleCount,
+            mFrozen.overBudget,
+          ) === 1
+        ) {
+          certOut.value = cm;
+          certSeq.value = certSeq.value + 1;
+        }
       }
     }
 
@@ -567,7 +566,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     picture,
     surfaceSize,
     certLogSv,
-    logCertMetricsStable,
+    certOut,
+    certSeq,
   ]);
 
   // autostart false: host gates setActive until JS-thread loadAndCompile succeeds (D-13, D-14)
@@ -611,8 +611,6 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       wantActiveRef.current = false;
     };
   }, []);
-
-  // A1 CERT: emit Metro metrics from the UI frame path only.
 
   const retry = useCallback(() => {
     // Discrete request only — UI frame applies applyRetryWorldReset on live World (F-01 / D-11).
@@ -686,6 +684,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     setActive,
     retry,
     injectCertWorstCase,
+    certOut,
+    certSeq,
     metrics,
     spriteTarget,
   };

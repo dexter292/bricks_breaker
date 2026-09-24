@@ -10,15 +10,18 @@ Simulator / Display-mode Instruments = **not** a ceiling PASS. Debug+Metro `[cer
 
 ## 1. Build
 
-1. Produce an EAS **`profiling`** IPA (or Xcode Profile configuration with `__DEV__` false for release-like frame path):
+1. Produce an EAS **`profiling`** IPA (or Xcode Profile / local `Release` with Cert env):
 
    ```bash
    eas build --platform ios --profile profiling
+   # or local:
+   EXPO_PUBLIC_CERT=1 EXPO_PUBLIC_PERF_OVERLAY=1 npx expo run:ios --device --configuration Release
    ```
 
-   Confirm `eas.json` `profiling.env` does **not** set `EXPO_PUBLIC_CERT` / `EXPO_PUBLIC_SOAK`.
+   `eas.json` **`profiling.env` sets `EXPO_PUBLIC_CERT=1`** so Cert WC arms with `__DEV__` false.
+   **`production.env` must never set** `EXPO_PUBLIC_CERT` / `SOAK` / `CLIFF_RAMP` / `PERF_OVERLAY` — enforced by `scripts/assert-eas-profiles.mjs` (R-21 / G2.5).
 2. Install on **iPhone 16 Pro** only for this row (not Simulator).
-3. Confirm quality tier forces **Mid** Cert WC (same fixture used for D-16 / measurement doc). Use `__DEV__` Cert WC Pressable on a development build, or ship a temporary profiling-only arm if `__DEV__` is false.
+3. Confirm quality tier forces **Mid** Cert WC (auto-arm when `EXPO_PUBLIC_CERT=1`).
 
 ## 2. Instruments session
 
@@ -39,6 +42,7 @@ Harness notes (2026-09-24):
 - `audio.preload` soft-timeouts inside `expoAudioService` + CERT uses memory AudioService (native `createAudioPlayer` can block JS after soft-failed preload).
 - CERT skips AppState auto-pause so deep-link relaunch does not freeze the loop.
 - `[cert-metrics]` samples **frame interval** (vsync Δ), not CPU work time.
+- **R-20:** Metro `[cert-metrics]` is published via SharedValue mirror + `useAnimatedReaction` (chrome pattern) — **not** `runOnJS` inside `onFrame`, so Instruments p95 is not confounded by the logger hop.
 
 ## 3. Pass criteria (ceiling)
 
