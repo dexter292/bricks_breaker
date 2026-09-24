@@ -69,6 +69,27 @@ type ServiceDeps = {
   sources?: Record<SfxId, unknown>;
 };
 
+/** Soft ceiling so a stuck native audio call cannot block gameplay cold path. */
+const PRELOAD_STEP_MS = 1500;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => {
+      reject(new Error(`${label} timeout after ${ms}ms`));
+    }, ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (err) => {
+        clearTimeout(t);
+        reject(err);
+      },
+    );
+  });
+}
+
 /**
  * Pooled AudioService over an injectable player factory (D-23 / T-07-13).
  * Fixed VOICE_LIMITS pools; seekTo(0)+play reuses oldest voice at limit.
@@ -88,7 +109,11 @@ export function createAudioServiceWithPlayers(
       const limit = VOICE_LIMITS[id];
       const voices: AudioPlayerLike[] = [];
       for (let i = 0; i < limit; i++) {
-        voices.push(createPlayer(sources[id], id));
+        try {
+          voices.push(createPlayer(sources[id], id));
+        } catch {
+          // Soft-fail one voice — keep building remaining pools.
+        }
       }
       pools.set(id, voices);
       cursors.set(id, 0);
@@ -121,25 +146,35 @@ export function createAudioServiceWithPlayers(
     async preload(): Promise<void> {
       // F-35: release() is reversible — clear latch so remount can rebuild pools.
       released = false;
-      // F-33: build pools even when mode/source preload rejects.
+      // F-33: build pools even when mode/source preload rejects / hangs (device CERT).
       try {
         if (deps.setAudioModeAsync) {
-          await deps.setAudioModeAsync({ playsInSilentMode: true });
+          await withTimeout(
+            Promise.resolve(
+              deps.setAudioModeAsync({ playsInSilentMode: true }),
+            ),
+            PRELOAD_STEP_MS,
+            'setAudioModeAsync',
+          );
         }
       } catch {
         // soft-fail mode
       }
       if (deps.preloadSource) {
         const jobs = ALL_SFX.map((id) =>
-          Promise.resolve(deps.preloadSource!(sources[id])).catch(() => undefined),
+          withTimeout(
+            Promise.resolve(deps.preloadSource!(sources[id])).then(
+              () => undefined,
+            ),
+            PRELOAD_STEP_MS,
+            `preloadSource:${id}`,
+          ).catch(() => undefined),
         );
         await Promise.allSettled(jobs);
       }
-      try {
-        ensurePools();
-      } catch {
-        // Soft-fail pool build
-      }
+      // Intentionally skip ensurePools here. On device, createAudioPlayer can
+      // block the JS thread after a timed-out native preload and freeze CERT
+      // cold path (fxReady never flips). Pools build lazily on first playBatch.
     },
 
     playBatch(codes: ArrayLike<number>, count: number): void {

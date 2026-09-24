@@ -142,7 +142,15 @@ export function PlayingHost({ onMenu }: Props) {
   // F-26: pending best write flushed on AppState background via onOsPause path.
   const platform = useMemo(() => defaultPlatformServices(), []);
   // Soft-fail: stale native binary without ExpoAudio must not crash play (D-24).
+  // CERT: memory service only — expo-audio createAudioPlayer can block the JS
+  // thread after a soft-failed native preload and starve runOnJS metrics logs.
   const audio = useMemo(() => {
+    if (CERT_HARNESS) {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.log('[cert] memory AudioService (native pool build skipped)');
+      }
+      return createMemoryAudioService();
+    }
     try {
       return createDefaultAudioService();
     } catch (err) {

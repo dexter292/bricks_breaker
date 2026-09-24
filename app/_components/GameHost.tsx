@@ -14,9 +14,9 @@ const SOAK_CYCLE_DWELL_MS = 750;
 const SOAK_CYCLE_COUNT = 100;
 const SOAK_CONTINUOUS_MS = 15 * 60 * 1000;
 
-/** Keep screen on for the whole soak (Title phases would otherwise allow sleep). */
-function SoakKeepAwake() {
-  useKeepAwake('NeonBrickSoak');
+/** Keep screen on for soak / CERT (Title would otherwise allow sleep). */
+function HarnessKeepAwake() {
+  useKeepAwake('NeonBrickHarness');
   return null;
 }
 
@@ -37,6 +37,10 @@ export function GameHost() {
       ? 'playing'
       : 'title',
   );
+  useEffect(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__ || !CERT_HARNESS) return;
+    console.log(`[cert] GameHost CERT=1 phase=playing (skip Title)`);
+  }, []);
   const [best, setBest] = useState(0);
   // F-26: same singleton as PlayingHost — Title best matches Playing.
   const store = useMemo(() => createDefaultPersonalBestStore(), []);
@@ -130,15 +134,17 @@ export function GameHost() {
     return <View style={styles.root} />;
   }
 
-  const soakAwake =
-    typeof __DEV__ !== 'undefined' && __DEV__ && SOAK_HARNESS ? (
-      <SoakKeepAwake />
+  const harnessAwake =
+    typeof __DEV__ !== 'undefined' &&
+    __DEV__ &&
+    (SOAK_HARNESS || CERT_HARNESS) ? (
+      <HarnessKeepAwake />
     ) : null;
 
   if (shellPhase === 'title') {
     return (
       <View style={styles.root}>
-        {soakAwake}
+        {harnessAwake}
         <TitleScreen best={best} onPlay={() => setShellPhase('playing')} />
       </View>
     );
@@ -146,7 +152,7 @@ export function GameHost() {
 
   return (
     <View style={styles.root}>
-      {soakAwake}
+      {harnessAwake}
       <PlayingHost onMenu={() => setShellPhase('title')} />
     </View>
   );

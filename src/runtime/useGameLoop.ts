@@ -454,7 +454,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         // NG-13: percentiles for overlay draw; CERT also needs them for Metro logs.
         (overlayEnabled && hudFontSv.value != null) || certLogSv.value === 1,
       );
-      if (certLogSv.value === 1 && m.sampleCount > 0 && m.sampleCount % 120 === 0) {
+      // ~1Hz at 120Hz; also emit early at n=30 so operators see signal quickly.
+      if (
+        certLogSv.value === 1 &&
+        m.sampleCount > 0 &&
+        (m.sampleCount === 30 || m.sampleCount % 120 === 0)
+      ) {
         runOnJS(logCertMetricsStable)(
           percentileMsPublic(m, 50),
           m.p95Ms,
@@ -645,8 +650,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
 
   // AppState auto-pause: freeze + resetAccumulator; never setActive(true) on foreground (D-15).
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).
+  // CERT harness skips OS pause — deep-link relaunch / screen glances must not kill the frame loop.
   const onOsPause = options.onOsPause;
   useEffect(() => {
+    if (certMetricsLog) {
+      return;
+    }
     const sub = subscribeAppStateAutoPause({
       onAutoPause: () => {
         // setActive(false) also requests accumulator reset via handle contract
@@ -658,7 +667,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     return () => {
       sub.remove();
     };
-  }, [setActive, uiPhase, onOsPause]);
+  }, [setActive, uiPhase, onOsPause, certMetricsLog]);
 
   /**
    * DEV cert worst-case (D-14): bump request — UI frame injects on live World.
