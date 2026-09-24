@@ -17,6 +17,7 @@ Orphan deferred items that need an explicit owner and Results surface before MVP
 | **WP-6** | Device certification rows | Phase 8 / post-MVP A1 | Hardware gate | **PARTIAL** | iOS D-16 = observation; ceiling/floor **NOT RUN**. Android **OUT OF SCOPE (D2=B)**. PLT-03 **not claimed** |
 | **Trademark** | Store name | store docs | Owner | **MUST rename before ASC (D1=B)** | String TBD in `name-clearance.md`; G2 blocker |
 | **R-12** | Quality tier RAM heuristic | DECISIONS-2026-09-24 | Post-MVP N-TIER-01 | **OPEN** | 4 GB iPhones get Mid budgets certified only on A18 Pro |
+| **R-15** | Store forms vs bundled Sentry | A4 / store docs | Owner + docs | **CLOSED 2026-09-24** | `CONSOLE-ENTRY.md` + `play-data-safety.md` now split DSN-off vs DSN-on; privacy policy already disclosed optional Sentry |
 | **F-40 SFX provenance** | Store originality | CODE-REVIEW | Owner | **CLOSED 2026-09-22** | `assets/sfx/README.md` — PCM format, ARR app-bundle license, no third-party pack |
 | **Console entry** | ASC / Play form submit | PLT-04 / D-26 | Operator | **PREPARED** | ASC in use for iOS-first; Play deferred (D2=B) |
 | **PHYS-05 aimed** | Aim drag-to-aim vs tap serve | FINAL / REQUIREMENTS | Owner | **DEFERRED 2026-09-24** | Temporary MVP accepts **tap-only**; D3 still open for post-MVP |

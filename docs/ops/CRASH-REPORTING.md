@@ -29,11 +29,20 @@ Runtime is **disabled** unless `EXPO_PUBLIC_SENTRY_DSN` is set. No events leave 
 6. Confirm the event appears in the Sentry Issues dashboard.
 7. Record evidence below.
 
-## Privacy
+## Privacy & store forms
 
-When DSN is set, crash reports may include stack traces, device model/OS, and app version — **not** gameplay scores or accounts. See updated `docs/store/privacy-policy.md`. Update ASC privacy nutrition when enabling DSN for a store build.
+When DSN is set, crash reports may include stack traces, device model/OS, and app version — **not** gameplay scores or accounts. See updated `docs/store/privacy-policy.md`.
 
-**Not** an ads/analytics SDK for G2.17 — crash reporting is N-OPS-01 operational tooling.
+**R-15:** Store console paste answers must match the build:
+
+| Doc | What to use |
+|-----|-------------|
+| `docs/store/CONSOLE-ENTRY.md` | ASC App Privacy + Play Data Safety rows for DSN-off vs DSN-on |
+| `docs/store/play-data-safety.md` | Full Play tables for both postures |
+
+Do not declare “Data Not Collected” / “no crash data” for a **DSN-on** binary. Default engineering builds stay DSN-off until verification log below is filled.
+
+**Not** an ads/analytics SDK for G2.17 — crash reporting is N-OPS-01 operational tooling (still declare when it transmits).
 
 ## Verification log
 
