@@ -84,11 +84,16 @@ Player-facing campaign progression chrome on top of C1 ProgressStore: **level se
 - **D-20:** Select **`getSnapshot()` on every mount** — no cached progress across visits.
 - **D-21:** Locked tap = **ignore** (no toast, no preview, no load).
 
+### Locked from research recommendations (not re-opened in discuss)
+- **D-22:** Menu / Pause → **Title** (not Select). Re-enter Select via Title Play.
+- **D-23:** Select shows **Best only when cleared** (stars present after ≥1 win). Lose may still write score in store (C1) but Select does not show Best until cleared — avoids “Best 0” and keeps three-state table simple.
+- **D-24:** Under CERT, DEV level chip may exist; cert force effect keeps `level-03`. Measurement sessions leave chip alone.
+
 ### Claude's Discretion
 - Exact Select/ResultOverlay styling within existing navy/flat chrome language
-- Whether `stars: 0` vs omitting key means “never cleared” (must match three-state table; prefer omit / no entry until first win)
+- Whether `stars` omit vs `0` for never-won (prefer **omit** until first win)
 - Exact TypeScript helpers (`computeStars`, `recordLevelBest` signature evolution)
-- Whether DEV level chip remains beside Select or stays on Playing only
+- Whether DEV level chip remains on Playing only
 
 </decisions>
 
