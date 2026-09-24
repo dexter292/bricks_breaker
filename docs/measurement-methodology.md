@@ -46,7 +46,7 @@ Do **not** gate the overlay on `__DEV__` — that hides metrics in profiling/rel
 
 **Legend:** WAIVED ≠ PASS ≠ OUT OF SCOPE ≠ NOT RUN.
 
-**Phase 1 historical note:** Android Pixel 6a was the hard FPS reference (D-01); iOS was install/feel only (D-02). Under D2=B the **shipping** quantitative gate is the **iOS ceiling** row; floor remains required before claiming mid-tier iOS performance.
+**Phase 1 historical note:** Android Pixel 6a was the hard FPS reference (D-01); iOS was install/feel only (D-02). Under D2=B the **shipping** quantitative gate is the **iOS ceiling** row; floor remains required before claiming mid-tier iOS performance. See also: `docs/ops/QUALITY-TIER.md` (RAM→Mid/Low heuristic; R-12).
 
 Simulators / emulators never count toward the gate (D-05).
 

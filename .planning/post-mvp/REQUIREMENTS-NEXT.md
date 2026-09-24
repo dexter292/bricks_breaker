@@ -46,7 +46,7 @@
 | **N-OPS-01** | Crash reporting integrated; confirmed receipt of a real crash from a distributed build | **Approved** | **Must → G1** |
 | **N-OPS-02** | Post-ship update strategy written: OTA (`expo-updates` + `runtimeVersion`) **or** explicit resubmit-only | **Approved** | **Must → G2** (decision OK without integrating OTA) |
 | **N-OPS-03** | SDK upgrade cadence with time trigger + owner (e.g. evaluate Expo 58 within 4 weeks of stable) | **Approved** | **Should** |
-| **N-TIER-01** | Quality-tier resolver risk (R-12): document or fix so 4 GB iPhones are not silently given Mid budgets only proven on A18 Pro | **Proposed** | Open ledger; before G2 marketing |
+| **N-TIER-01** | Quality-tier resolver risk (R-12): document or fix so 4 GB iPhones are not silently given Mid budgets only proven on A18 Pro | **Documented (owner pick pending)** | See `docs/ops/QUALITY-TIER.md`; R-12 open until mitigation chosen; before G2 marketing |
 
 ---
 
@@ -141,4 +141,4 @@
 | F Store | N-STORE-01…04 |
 | G Post | N-META-* |
 
-Gameplay/content scope for first public is **Approved** under D1…D7. Remaining Proposed: **N-TIER-01** only (R-12).
+Gameplay/content scope for first public is **Approved** under D1…D7. **N-TIER-01** is **Documented (owner pick pending)** — R-12 still open until mitigation chosen (`docs/ops/QUALITY-TIER.md`).

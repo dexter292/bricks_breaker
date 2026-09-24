@@ -58,6 +58,7 @@ A Hardening ──┬──► B Gameplay ──► C Progression ──► D Po
 | **Out of scope** | Floor mid-tier (`NOT RUN` deliverable); Android; features |
 | **Acceptance** | p50≤8.33ms **and** p95≤11ms **and** Hangs=0 (forced Mid) |
 | **Parallel?** | With A2/A3/A4/**E1a** |
+| **Progress** | Runbook ready (`docs/ops/CEILING-CERT.md`). Cert WC **NOT RUN** (owner + device) |
 
 ### Phase A2 — Physical Soak & Automated Regression Floor
 | Field | Content |

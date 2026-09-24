@@ -35,6 +35,7 @@ export function tierFromMemory(totalMemory: number | null): QualityTier | null {
     return null;
   }
   if (totalMemory < 4 * GB) return 'low';
+  // R-12 / N-TIER-01: Mid includes 4 GB phones; see docs/ops/QUALITY-TIER.md
   if (totalMemory < 8 * GB) return 'mid'; // includes ~6 GB Pixel 6a
   return 'high';
 }

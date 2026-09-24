@@ -106,7 +106,7 @@ adb shell dumpsys gfxinfo com.dexter292.bricksbreaker framestats
 | Pixel 6a | Mid | profiling | run1 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Was WAIVED no-device 2026-09-22; deferred — do not claim Complete |
 | Pixel 6a | Mid | profiling | run2 | — | — | — | **OUT OF SCOPE (iOS-first D2=B)** | Same |
 | iPhone 16 Pro (physical) | Mid (Cert WC force) | development / `__DEV__` + `PERF_OVERLAY` | Instruments Game Performance | n/a (Display) | n/a | n/a | **OBSERVATION (not ceiling PASS)** | 2026-09-22: A18 Pro; Display ~**8.33 ms** (120 Hz); **Hangs 0**. Single session, development build, no p50/p95 — **re-run required** for iOS ceiling row |
-| iPhone 16 Pro **ceiling** | Mid Cert WC | **profiling** | ≥2 × ≥30s | — | — | Hangs — | **NOT RUN** | Protocol: p50≤8.33 **and** p95≤11 **and** Hangs=0 |
+| iPhone 16 Pro **ceiling** | Mid Cert WC | **profiling** | ≥2 × ≥30s | — | — | Hangs — | **NOT RUN** | Protocol: p50≤8.33 **and** p95≤11 **and** Hangs=0 — runbook [`docs/ops/CEILING-CERT.md`](ops/CEILING-CERT.md) |
 | iOS **floor** mid-tier | Mid | profiling | — | — | — | — | **NOT RUN** | No A13–A15 device (R-10) |
 | _Substitute Android (optional)_ | Mid | profiling | prelim | — | — | — | **OUT OF SCOPE (D2=B)** | |
 
