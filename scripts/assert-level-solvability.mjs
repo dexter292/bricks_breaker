@@ -8,22 +8,17 @@
  *
  * Corridor warnings are printed but do not fail the gate.
  *
- * Algorithm mirrors src/core/levels/solvability.ts (keep in sync).
- * Structural checks mirror validateLevel essentials for authored assets.
+ * Algorithm lives in `./lib/levelSolvability.mjs` — must match
+ * `src/core/levels/solvability.ts` (R-16 parity test).
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkSolvability } from './lib/levelSolvability.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LEVELS_DIR = join(ROOT, 'assets/levels');
 const NEGATIVE_FIXTURE = 'level-02.json';
-
-/** Match src/core/constants.ts — do not import (extensionless TS under Node ESM). */
-const BALL_RADIUS = 6;
-const SEPARATION_EPS = 1e-4;
-const MIN_BALL_CORRIDOR = 2 * (BALL_RADIUS + SEPARATION_EPS);
-const EMPTY = '.';
 
 function listLevelFiles() {
   return readdirSync(LEVELS_DIR)
@@ -68,141 +63,6 @@ function structuralIssues(raw) {
     }
   }
   return issues;
-}
-
-function isSteel(level, ch) {
-  if (ch === EMPTY) return false;
-  const def = level.brickTypes[ch];
-  return def != null && def.unbreakable === true;
-}
-
-function isBreakable(level, ch) {
-  if (ch === EMPTY) return false;
-  const def = level.brickTypes[ch];
-  return def != null && def.unbreakable !== true;
-}
-
-function isPassable(level, ch) {
-  return ch === EMPTY || isBreakable(level, ch);
-}
-
-function horizontalOpenWidth(level, aCol, bCol) {
-  const d = bCol - aCol;
-  return (d - 1) * level.grid.brickW + d * level.grid.gapX;
-}
-
-function verticalOpenWidth(level, aRow, bRow) {
-  const d = bRow - aRow;
-  return (d - 1) * level.grid.brickH + d * level.grid.gapY;
-}
-
-function collectCorridorWarnings(level) {
-  const { cols, rows } = level.grid;
-  const warnings = [];
-  const minRequired = MIN_BALL_CORRIDOR;
-
-  for (let r = 0; r < rows; r++) {
-    const row = level.cells[r];
-    let prevSteel = -1;
-    for (let c = 0; c < cols; c++) {
-      if (!isSteel(level, row[c])) continue;
-      if (prevSteel >= 0) {
-        const openWidth = horizontalOpenWidth(level, prevSteel, c);
-        if (openWidth < minRequired) {
-          warnings.push({
-            kind: 'horizontal',
-            a: { row: r, col: prevSteel },
-            b: { row: r, col: c },
-            openWidth,
-            minRequired,
-          });
-        }
-      }
-      prevSteel = c;
-    }
-  }
-
-  for (let c = 0; c < cols; c++) {
-    let prevSteel = -1;
-    for (let r = 0; r < rows; r++) {
-      if (!isSteel(level, level.cells[r][c])) continue;
-      if (prevSteel >= 0) {
-        const openWidth = verticalOpenWidth(level, prevSteel, r);
-        if (openWidth < minRequired) {
-          warnings.push({
-            kind: 'vertical',
-            a: { row: prevSteel, col: c },
-            b: { row: r, col: c },
-            openWidth,
-            minRequired,
-          });
-        }
-      }
-      prevSteel = r;
-    }
-  }
-
-  return warnings;
-}
-
-function checkSolvability(level) {
-  const { cols, rows } = level.grid;
-  const reachable = new Uint8Array(cols * rows);
-  const queue = [];
-
-  const bottom = rows - 1;
-  if (bottom >= 0) {
-    const bottomRow = level.cells[bottom];
-    for (let c = 0; c < cols; c++) {
-      if (isPassable(level, bottomRow[c])) {
-        const i = bottom * cols + c;
-        reachable[i] = 1;
-        queue.push(i);
-      }
-    }
-  }
-
-  const neighbors = [
-    [-1, 0],
-    [1, 0],
-    [0, -1],
-    [0, 1],
-  ];
-
-  let head = 0;
-  while (head < queue.length) {
-    const i = queue[head++];
-    const r = (i / cols) | 0;
-    const c = i - r * cols;
-    for (const [dr, dc] of neighbors) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-      const ni = nr * cols + nc;
-      if (reachable[ni]) continue;
-      if (!isPassable(level, level.cells[nr][nc])) continue;
-      reachable[ni] = 1;
-      queue.push(ni);
-    }
-  }
-
-  const unreachableBreakables = [];
-  for (let r = 0; r < rows; r++) {
-    const row = level.cells[r];
-    for (let c = 0; c < cols; c++) {
-      const ch = row[c];
-      if (!isBreakable(level, ch)) continue;
-      if (!reachable[r * cols + c]) {
-        unreachableBreakables.push({ row: r, col: c, char: ch });
-      }
-    }
-  }
-
-  return {
-    ok: unreachableBreakables.length === 0,
-    unreachableBreakables,
-    corridorWarnings: collectCorridorWarnings(level),
-  };
 }
 
 function formatUnreachable(list) {

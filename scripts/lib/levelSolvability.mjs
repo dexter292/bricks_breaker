@@ -1,96 +1,56 @@
 /**
- * N-LVL-03 — static solvability / reachability lint (JS/Node only; not worklet-safe).
- * Flood-fill from open space below the grid through empty and breakable cells;
- * steel (unbreakable) blocks. Corridor squeeze is warn-only.
+ * N-LVL-03 solvability core for the CI gate (plain ESM, no TS imports).
+ * Must stay behavior-identical to `src/core/levels/solvability.ts` — guarded by
+ * `tests/levels.solvability-parity.test.ts` (R-16).
  *
- * CI twin: `scripts/lib/levelSolvability.mjs` — keep in sync (R-16 parity test).
+ * Constants mirrored from `src/core/constants.ts` (BALL_RADIUS, SEPARATION_EPS).
  */
 
-import { BALL_RADIUS, SEPARATION_EPS } from '../constants';
-import type { LevelFileV1 } from './schema';
-
-/** Minimum clear span for a ball to pass (diameter + separation). */
+export const BALL_RADIUS = 6;
+export const SEPARATION_EPS = 1e-4;
 export const MIN_BALL_CORRIDOR = 2 * (BALL_RADIUS + SEPARATION_EPS);
-
-export type UnreachableBreakable = {
-  row: number;
-  col: number;
-  char: string;
-};
-
-export type CorridorWarning = {
-  kind: 'horizontal' | 'vertical';
-  /** First steel cell (row, col). */
-  a: { row: number; col: number };
-  /** Second steel cell (row, col). */
-  b: { row: number; col: number };
-  openWidth: number;
-  minRequired: number;
-};
-
-export type SolvabilityResult = {
-  ok: boolean;
-  unreachableBreakables: UnreachableBreakable[];
-  corridorWarnings: CorridorWarning[];
-};
-
 const EMPTY = '.';
 
-function isSteel(level: LevelFileV1, ch: string): boolean {
+function isSteel(level, ch) {
   if (ch === EMPTY) return false;
   const def = level.brickTypes[ch];
   return def != null && def.unbreakable === true;
 }
 
-function isBreakable(level: LevelFileV1, ch: string): boolean {
+function isBreakable(level, ch) {
   if (ch === EMPTY) return false;
   const def = level.brickTypes[ch];
   return def != null && def.unbreakable !== true;
 }
 
-function isPassable(level: LevelFileV1, ch: string): boolean {
+function isPassable(level, ch) {
   return ch === EMPTY || isBreakable(level, ch);
 }
 
-/**
- * Open span between steel AABBs in the same row (cols aCol < bCol).
- * Equals (bCol - aCol - 1) * brickW + (bCol - aCol) * gapX.
- */
-function horizontalOpenWidth(
-  level: LevelFileV1,
-  aCol: number,
-  bCol: number,
-): number {
+function horizontalOpenWidth(level, aCol, bCol) {
   const d = bCol - aCol;
   return (d - 1) * level.grid.brickW + d * level.grid.gapX;
 }
 
-/**
- * Open span between steel AABBs in the same column (rows aRow < bRow).
- */
-function verticalOpenWidth(
-  level: LevelFileV1,
-  aRow: number,
-  bRow: number,
-): number {
+function verticalOpenWidth(level, aRow, bRow) {
   const d = bRow - aRow;
   return (d - 1) * level.grid.brickH + d * level.grid.gapY;
 }
 
-function collectCorridorWarnings(level: LevelFileV1): CorridorWarning[] {
+function collectCorridorWarnings(level) {
   const { cols, rows } = level.grid;
-  const warnings: CorridorWarning[] = [];
+  const warnings = [];
   const minRequired = MIN_BALL_CORRIDOR;
 
   for (let r = 0; r < rows; r++) {
-    const row = level.cells[r]!;
+    const row = level.cells[r];
     let prevSteel = -1;
     for (let c = 0; c < cols; c++) {
-      if (!isSteel(level, row[c]!)) continue;
+      if (!isSteel(level, row[c])) continue;
       if (prevSteel >= 0) {
         let clear = true;
         for (let k = prevSteel + 1; k < c; k++) {
-          if (isSteel(level, row[k]!)) {
+          if (isSteel(level, row[k])) {
             clear = false;
             break;
           }
@@ -115,11 +75,11 @@ function collectCorridorWarnings(level: LevelFileV1): CorridorWarning[] {
   for (let c = 0; c < cols; c++) {
     let prevSteel = -1;
     for (let r = 0; r < rows; r++) {
-      if (!isSteel(level, level.cells[r]![c]!)) continue;
+      if (!isSteel(level, level.cells[r][c])) continue;
       if (prevSteel >= 0) {
         let clear = true;
         for (let k = prevSteel + 1; k < r; k++) {
-          if (isSteel(level, level.cells[k]![c]!)) {
+          if (isSteel(level, level.cells[k][c])) {
             clear = false;
             break;
           }
@@ -148,17 +108,16 @@ function collectCorridorWarnings(level: LevelFileV1): CorridorWarning[] {
  * Reachability flood-fill + optional narrow-corridor warnings.
  * `ok` is false iff any breakable brick is unreachable from below the grid.
  */
-export function checkSolvability(level: LevelFileV1): SolvabilityResult {
+export function checkSolvability(level) {
   const { cols, rows } = level.grid;
   const reachable = new Uint8Array(cols * rows);
-  const queue: number[] = [];
+  const queue = [];
 
-  // Seed: open space below the grid enters any passable cell on the bottom row.
   const bottom = rows - 1;
   if (bottom >= 0) {
-    const bottomRow = level.cells[bottom]!;
+    const bottomRow = level.cells[bottom];
     for (let c = 0; c < cols; c++) {
-      if (isPassable(level, bottomRow[c]!)) {
+      if (isPassable(level, bottomRow[c])) {
         const i = bottom * cols + c;
         reachable[i] = 1;
         queue.push(i);
@@ -171,11 +130,11 @@ export function checkSolvability(level: LevelFileV1): SolvabilityResult {
     [1, 0],
     [0, -1],
     [0, 1],
-  ] as const;
+  ];
 
   let head = 0;
   while (head < queue.length) {
-    const i = queue[head++]!;
+    const i = queue[head++];
     const r = (i / cols) | 0;
     const c = i - r * cols;
     for (const [dr, dc] of neighbors) {
@@ -184,17 +143,17 @@ export function checkSolvability(level: LevelFileV1): SolvabilityResult {
       if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
       const ni = nr * cols + nc;
       if (reachable[ni]) continue;
-      if (!isPassable(level, level.cells[nr]![nc]!)) continue;
+      if (!isPassable(level, level.cells[nr][nc])) continue;
       reachable[ni] = 1;
       queue.push(ni);
     }
   }
 
-  const unreachableBreakables: UnreachableBreakable[] = [];
+  const unreachableBreakables = [];
   for (let r = 0; r < rows; r++) {
-    const row = level.cells[r]!;
+    const row = level.cells[r];
     for (let c = 0; c < cols; c++) {
-      const ch = row[c]!;
+      const ch = row[c];
       if (!isBreakable(level, ch)) continue;
       if (!reachable[r * cols + c]) {
         unreachableBreakables.push({ row: r, col: c, char: ch });
