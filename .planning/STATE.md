@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Ready for 08-06-PLAN.md (device gate)
-last_updated: "2026-09-21T14:50:00.000Z"
-last_activity: 2026-09-21
+status: temporary_mvp_closed
+stopped_at: Temporary MVP close 2026-09-24 — docs/audit/MVP-CLOSE-REPORT.md
+last_updated: "2026-09-24T02:56:00.000Z"
+last_activity: 2026-09-24
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 48
   completed_plans: 47
   percent: 98
-  phase_8_status: in_progress
+  phase_8_status: temporary_close
   phase_8_plans: 6/7
-  plt_03: pending_device
+  plt_03: waived_temporary_mvp
 ---
 
 # Project State
@@ -24,16 +24,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Phase 8 — Showpiece Level, Performance Certification & Launch Baseline
+**Current focus:** **Temporary MVP closed** (2026-09-24). See [`docs/audit/MVP-CLOSE-REPORT.md`](../docs/audit/MVP-CLOSE-REPORT.md). Public store submit + PLT-03 Android still open.
 
 ## Current Position
 
-Phase: 8 (Showpiece Level, Performance Certification & Launch Baseline) — EXECUTING
-Plan: 6 of 7 (08-06 device gate pending)
-Status: Blocked on hardware evidence for PLT-03
-Last activity: 2026-09-21
-
-Progress: [████████░░] 7/8 phases code-complete; Phase 8 **not verified** (Plan 06 open)
+**TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
+**Not** authorized for public App Store / Play submit until report §6 debts cleared.  
+HEAD baseline: `2aaa9cf`.
 
 ## Performance Metrics
 

@@ -1,6 +1,6 @@
 # Deferred Items — Audit Ledger
 
-**Last updated:** 2026-09-22 (soak harness PASS on sim; D2/D4 iOS closed; SFX/console/trademark docs)
+**Last updated:** 2026-09-24 (temporary MVP close — see `MVP-CLOSE-REPORT.md`)
 
 Orphan deferred items that need an explicit owner and Results surface before MVP close.
 
@@ -17,7 +17,8 @@ Orphan deferred items that need an explicit owner and Results surface before MVP
 | **WP-6** | Device certification rows (`PENDING_DEVICE`) | Phase 8 Plan 06 | Hardware gate | **PARTIAL** | iOS D-16/D2/D4 PASS; soak harness PASS on **Simulator** (physical re-run owed). Pixel/Android **WAIVED**. PLT-03 Android **not claimed** |
 | **Trademark** | Store name legal opinion | store docs | Legal / owner | **DEFERRED (soft-launch risk accepted)** | 2026-09-22: exact-title ASC collision documented in `name-clearance.md` (Gosiha “Neon brick breaker”). Formal counsel **not obtained**. Soft launch OK; paid UA / ™ claim blocked until opinion or rename |
 | **F-40 SFX provenance** | Store originality | CODE-REVIEW | Owner | **CLOSED 2026-09-22** | `assets/sfx/README.md` — PCM format, ARR app-bundle license, no third-party pack |
-| **Console entry** | ASC / Play form submit | PLT-04 / D-26 | Operator | **PREPARED** | Paste-ready checklist in `docs/store/CONSOLE-ENTRY.md`; console fields **not clicked** yet |
+| **Console entry** | ASC / Play form submit | PLT-04 / D-26 | Operator | **PREPARED** | `docs/store/CONSOLE-ENTRY.md`; console fields **not clicked** |
+| **PHYS-05 aimed** | Aim drag-to-aim vs tap serve | FINAL / REQUIREMENTS | Owner | **DEFERRED 2026-09-24** | Temporary MVP accepts **tap-only** launch; aimed post-MVP. Requirement text updated. |
 
 ## Gate references
 

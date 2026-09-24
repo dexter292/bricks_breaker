@@ -13,7 +13,7 @@ Requirements for the initial playable milestone. Each maps to roadmap phases.
 - [x] **PHYS-02**: Ball collides with paddle, walls, and bricks using swept, deterministic collision with no tunneling at designed max speed
 - [x] **PHYS-03**: Collision and simulation logic are unit-tested (including property tests for extreme speeds / dense grids)
 - [x] **PHYS-04**: Ball bounce angle is paddle-relative with clamps that avoid near-horizontal and near-vertical degenerate trajectories
-- [x] **PHYS-05**: On life start, ball is docked to the paddle and player launches with an aimed release/tap
+- [x] **PHYS-05**: On life start, ball is docked to the paddle and player launches with a **tap** (aimed drag-to-aim deferred — temporary MVP close 2026-09-24; see `docs/audit/MVP-CLOSE-REPORT.md`)
 - [x] **PHYS-06**: Game advances on a fixed-timestep loop; React state is not updated every physics frame
 - [x] **PHYS-07**: Anti-stall mitigation uses visible, deterministic escalation (no random bounce jitter)
 
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PHYS-02 | Phase 2 | Complete |
 | PHYS-03 | Phase 2 | Complete |
 | PHYS-04 | Phase 2 | Complete |
-| PHYS-05 | Phase 3 | Complete |
+| PHYS-05 | Phase 3 | Complete (tap-only; aimed deferred temp MVP 2026-09-24) |
 | PHYS-06 | Phase 2 | Complete |
 | PHYS-07 | Phase 5 | Complete |
 | LVL-01 | Phase 4 | Complete |
@@ -122,7 +122,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FX-03 | Phase 7 | Complete |
 | PLT-01 | Phase 3 | Complete |
 | PLT-02 | Phase 6 | Complete |
-| PLT-03 | Phase 8 | Pending |
+| PLT-03 | Phase 8 | **WAIVED (temporary MVP)** — no Pixel 6a; iOS D-16 companion only; do not claim Complete |
 | PLT-04 | Phase 8 | Complete |
 | ARCH-01 | Phase 1 | Complete (simulator waiver; hardware debt → MVP) |
 | ARCH-02 | Phase 6 | Complete |
