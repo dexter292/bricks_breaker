@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: "Completed D1-00-PLAN.md (Wave 0 contracts)"
-last_updated: "2026-09-25T02:48:19.000Z"
+stopped_at: "Completed D1-01-PLAN.md (ghost/squash consume/draw)"
+last_updated: "2026-09-25T02:51:52.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 8
@@ -21,7 +21,7 @@ progress:
   post_mvp_b123: done
   post_mvp_c1: uat_approved_2026_09_25
   post_mvp_c2: done_2026_09_25
-  post_mvp_d1: executing
+  post_mvp_d1: executing_wave2
   post_mvp_ceiling_rerun_bc2: pass_2026_09_25
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
@@ -34,12 +34,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **D1 executing** (Wave 0 done → Wave 1). Mid freeze + haptics + brick/paddle juice. Open ledger: display-name, R-10, R-12, N-OPS-01.
+**Current focus:** Post-MVP — **D1 executing** (Wave 1 done → Wave 2 haptics). Mid freeze + brick/paddle juice wired. Open ledger: display-name, R-10, R-12, N-OPS-01.
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** D1 Plan 01 (consume/draw wire); ceiling §5c already PASS.  
+**Next:** D1 Plan 02 (expo-haptics); ceiling §5c already PASS.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics
