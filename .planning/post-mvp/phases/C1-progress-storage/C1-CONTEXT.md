@@ -78,7 +78,7 @@ Offline campaign progress for the **5 playable LevelIds** (`level-01`, `03`–`0
 - `app/_components/PlayingHost.tsx` / Results overlay — end-of-run hooks
 
 ### Prior phase patterns
-- `.planning/phases/06-ui-shell-hud-persistence-platform-seams/06-CONTEXT.md` — offline PB, non-blocking writes
+- `.planning/milestones/v1.0-phases/06-ui-shell-hud-persistence-platform-seams/06-CONTEXT.md` — offline PB, non-blocking writes
 - `.planning/post-mvp/phases/E1a-baseline-authorship/SUMMARY.md` — five ship levels landed
 
 </canonical_refs>

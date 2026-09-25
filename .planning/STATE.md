@@ -1,17 +1,19 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: temporary_mvp_closed
-stopped_at: "E1b + E2 + D2 done — post-MVP code phases complete; owner/device gates deliberately skipped"
-last_updated: "2026-09-25T12:40:00.000Z"
+milestone: v1.2
+milestone_name: Retention & Replayability
+status: milestone_planned
+stopped_at: "v1.2 roadmap created (phases 9-14); nothing planned or executed yet"
+last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 48
-  completed_plans: 47
-  percent: 98
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+  v1_0: closed_2026_09_24
+  v1_1_post_mvp: code_complete_2026_09_25_store_track_open
   phase_8_status: temporary_close
   phase_8_plans: 6/7
   plt_03: deferred_ios_first_d2b
@@ -41,12 +43,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **all code phases done** (E1b, E2, D2). Remaining post-MVP work is owner/device/store only (F1, F2, §5d, Sentry DSN, cohort), which the owner chose to skip on 2026-09-25. Open ledger: R-10, R-12, N-OPS-01, **§5d (now requires a ramp build)**, ASC uniqueness for "Pulse Paddle".
+**Current focus:** **v1.2 — Retention & Replayability.** The game ends when the 5th level ends; v1.2 makes it outlast its authored content using shipped verbs and no backend. Phases 9–14: telemetry → seeded generator → endless → daily → achievements → meta shell. v1.1's owner/device debt (§5d on a ramp build, ASC uniqueness, Sentry DSN, cohort, R-10/R-12) is carried, not scoped.
 
 ## Current Position
 
-**TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** owner-gated only. §5d Instruments Cert **on a ramp build** (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, then F1 store package.  
+**v1.2 PLANNED** — roadmap written, nothing planned or executed yet.  
+**Next:** `/gsd-discuss-phase 9` (Run Telemetry & Storage v4) — no dependencies, and phases 13/14 both need its counters. Phase 10 (generator) can run in parallel.  
+**Owner-gated, carried from v1.1:** §5d Instruments on a ramp build (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, human playtest cohort.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics

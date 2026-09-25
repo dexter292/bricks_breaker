@@ -1,8 +1,12 @@
-# Neon Brick Breaker
+# Pulse Paddle
 
 ## What This Is
 
-A premium 2D brick-breaker mobile game for iOS and Android, inspired by classic Arkanoid gameplay (Brick Breaker Maker as feel reference) and modern neon arcade aesthetics (Shatter as visual reference). Players control a paddle, bounce a ball through destructible neon brick layouts, chase score and combos, and clear a full arcade challenge—starting with one polished, replayable level shipped as a production-quality offline MVP.
+A premium 2D brick-breaker mobile game for iOS (Android deferred), inspired by classic Arkanoid gameplay (Brick Breaker Maker as feel reference) and modern neon arcade aesthetics (Shatter as visual reference). Players control a paddle, bounce a ball through destructible neon brick layouts, chase score and combos, and clear an arcade campaign.
+
+**Display name:** **Pulse Paddle** (renamed 2026-09-25, D1=B — the working title collided exactly with an existing App Store product). Bundle id `com.dexter292.bricksbreaker`, slug `bricks-breaker` and scheme `bricksbreaker` are unchanged.
+
+**Where it stands:** v1.0 MVP closed, v1.1 post-MVP code complete (5 levels, progression, power-ups, juice, brand). Not submitted — the store track is owner-gated and open. v1.2 is in progress: retention and replayability, offline only.
 
 ## Core Value
 

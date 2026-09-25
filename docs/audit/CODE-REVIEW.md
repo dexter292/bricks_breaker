@@ -362,7 +362,7 @@ Không clear `glowAtlasSv`, không dispose image.
 ## F-19 — Phase 7 SC-5 (một tiêu chí **đo lường**) được đánh `VERIFIED` dựa trên tài liệu *hướng dẫn cách đo*
 
 **Severity:** High · **Confirmed defect** (quy trình)
-**File:** `.planning/phases/07-feedback-neon-vfx-audio/07-VERIFICATION.md:30`, `:32`, `:127`
+**File:** `.planning/milestones/v1.0-phases/07-feedback-neon-vfx-audio/07-VERIFICATION.md:30`, `:32`, `:127`
 
 SC-5 (`ROADMAP.md:151`): "Every effect added is **measured on the named Android reference device** and stays inside the Phase 1 frame budget". Grade: `✓ VERIFIED (procedure + debt)`, bằng chứng: "`docs/phase7-vfx-measurement.md` references methodology + gfxinfo … Results row still OPEN". Rồi `:32` cho điểm `5/5 must-haves verified`, và `:127` hạ debt xuống "**optional** MVP debt".
 
@@ -431,7 +431,7 @@ Production chỉ boot level-03 (`src/runtime/loadLevel.ts:30`) và switch là `_
 **Khắc phục:** nếu level-02 chỉ là fixture compile/regression → ghi rõ trong `name`/comment; nếu là level chơi được → mở hàng steel (khe ≥ 2·radius + margin) hoặc dịch cột steel khỏi tường.
 
 ## F-03 — Các gate quy trình đã bật trong config bị bỏ qua mà không có waiver
-**Severity:** Medium · **Confirmed defect** · `.planning/config.json:17,31,34` vs cây `.planning/phases/`
+**Severity:** Medium · **Confirmed defect** · `.planning/config.json:17,31,34` vs cây `.planning/milestones/v1.0-phases/`
 
 `plan_check: true` → PLAN-CHECK chỉ có ở **2/8** phase (02, 08). `code_review: true` → REVIEW chỉ có ở **2/8** (05, 07). `pattern_mapper: true` → thiếu `01-PATTERNS.md`. VERIFICATION thiếu ở Phase 8. `nyquist_compliant: false` ở `03-VALIDATION.md:5`, `04-VALIDATION.md:5`, `06-VALIDATION.md:5`, `08-VALIDATION.md:6`. `03-VALIDATION.md:82-90` và `04-VALIDATION.md:83-90`: **mọi checkbox sign-off trống**, "Approval: pending" — trong khi cả hai phase đều `Complete` ở `ROADMAP.md:195-196`.
 

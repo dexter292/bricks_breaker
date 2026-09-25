@@ -509,7 +509,7 @@ Step 2.6: Audited — primary external add is `expo-haptics`.
 - Code: `src/render/recordSprites.ts`, `src/vfx/*`, `src/core/hash.ts`, `src/services/audio/expoAudioService.ts`, `src/runtime/eventBridge.ts`, `src/runtime/useVfxIntensity.ts`, `app/_components/PlayingHost.tsx`
 - Expo SDK 57 Haptics: https://docs.expo.dev/versions/v57.0.0/sdk/haptics/
 - npm / bundled: `expo-haptics@57.0.3`, pin `~57.0.3`
-- `.planning/phases/07-feedback-neon-vfx-audio/07-CONTEXT.md` — ball readability, Mid, reduce-motion (visual)
+- `.planning/milestones/v1.0-phases/07-feedback-neon-vfx-audio/07-CONTEXT.md` — ball readability, Mid, reduce-motion (visual)
 - C2 research style: `.planning/post-mvp/phases/C2-level-select-stars-replay/C2-RESEARCH.md`
 
 ### Secondary (MEDIUM confidence)

@@ -100,7 +100,7 @@ Zero–/low–fill-rate presentation polish on top of Phase 7 VFX: **brick destr
 - `tests/physics.golden-replay.test.ts` — must stay green
 
 ### Prior phase
-- `.planning/phases/07-feedback-neon-vfx-audio/07-CONTEXT.md` — ball readability, Mid, reduce-motion
+- `.planning/milestones/v1.0-phases/07-feedback-neon-vfx-audio/07-CONTEXT.md` — ball readability, Mid, reduce-motion
 - `.planning/post-mvp/phases/C2-level-select-stars-replay/C2-CONTEXT.md` — Results stars; harness Select skip
 
 </canonical_refs>
