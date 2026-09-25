@@ -44,7 +44,7 @@ describe('PlayingHost endless host (source contract)', () => {
    */
   const endlessBranch = (() => {
     const m = applyChrome.match(
-      /if \(\s*modeRef\.current === 'endless'[\s\S]*?SIM\.WON\s*\)\s*\{([\s\S]*?)\n {6}return;/,
+      /if \(\s*modeRef\.current === 'endless'[\s\S]*?SIM\.WON\s*\)\s*\{([\s\S]*?)\n {8}return;/,
     );
     return m?.[1] ?? '';
   })();
@@ -161,7 +161,7 @@ describe('PlayingHost endless host (source contract)', () => {
 
   it('the compiled-push effect is a no-op during an endless run, gated by ref (SC-5)', () => {
     const m = code.match(
-      /useEffect\(\(\) => \{\n(?: {4}\/\*[\s\S]*?\*\/\n)?([\s\S]*?)\n {4}\}, \[loadResult, fxReady, compiledSv, setActive, retry\]\);/,
+      /useEffect\(\(\) => \{\n([\s\S]*?)\n {2}\}, \[loadResult, fxReady, compiledSv, setActive, retry\]\);/,
     );
     expect(m?.[1], 'the compiled-push effect must keep its dependency array').toBeTruthy();
     const body = m![1];

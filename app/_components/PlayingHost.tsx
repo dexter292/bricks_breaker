@@ -21,10 +21,17 @@ import {
   LOGICAL_W,
 } from '../../src/render/recordSprites';
 import {
+  compileGeneratedLevel,
   loadLevelById,
   type CompiledLevel,
   type LevelId,
+  type ValidationIssue,
 } from '../../src/runtime/loadLevel';
+import { generate } from '../../src/levelgen';
+import {
+  difficultyForWave,
+  seedForWave,
+} from '../../src/services/endless';
 import {
   UiPhaseNum,
   useGameLoop,
@@ -202,6 +209,33 @@ export function PlayingHost({
   /** DEV-only force; null = auto from device (D-11). */
   const [tierOverride, setTierOverride] = useState<QualityTier | null>(null);
 
+  /**
+   * Endless mode (N-END-01 / D-10) is HOST-LOCAL state: entered by the `__DEV__`
+   * entry on the dev row, never threaded down from `GameHost`. D-05 makes the
+   * entry temporary and Phase 14 replaces it with the real Title route, so the
+   * shell plumbing that a `mode` prop would build is plumbing Phase 14 would
+   * immediately have to unpick.
+   *
+   * Every callback-visible piece of this is mirrored into a `useRef`. That is not
+   * belt-and-braces: `applyChrome` is memoised and the chrome reaction holds the
+   * memoised identity, so a `useState` read inside it is the value from whenever
+   * the callback was last built — the exact staleness `runEndedRef` already exists
+   * to avoid (11-RESEARCH § Pitfall 5).
+   */
+  const [mode, setMode] = useState<'campaign' | 'endless'>('campaign');
+  const modeRef = useRef<'campaign' | 'endless'>('campaign');
+  const [wave, setWave] = useState(1);
+  const waveRef = useRef(1);
+  /** Minted per run in the APP tier — src/levelgen bans wall-clock reads (Pitfall 7). */
+  const runSeedRef = useRef(0);
+  /** Pitfall 5 idempotency guard: the WON mirror can arrive twice before the advance lands. */
+  const waveAdvanceInFlightRef = useRef(false);
+  /** Issues from a generated board that failed to compile — routed to the level-error UI. */
+  const [genIssues, setGenIssues] = useState<ValidationIssue[] | null>(null);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
   // Keep awake only while actively playing (NG-14 — useKeepAwake owns activate/deactivate).
   const keepAwake =
     uiPhase === 'playing' && result == null ? <KeepAwakeOn /> : null;
@@ -280,7 +314,13 @@ export function PlayingHost({
 
   // Sync validate+compile on JS when levelId changes (D-12, D-14) — derive UI from Result.
   const loadResult = useMemo(() => loadLevelById(levelId), [levelId]);
-  const levelError = loadResult.ok ? null : loadResult.issues;
+  /**
+   * Pitfall 6: a generated board that fails to compile mid-run must surface the
+   * SAME `LevelErrorOverlay` a bad catalog level does. Folding `genIssues` in here
+   * is what makes that one UI serve both sources — the alternative, a silent
+   * fall-through, ends a forty-minute run with no explanation.
+   */
+  const levelError = genIssues ?? (loadResult.ok ? null : loadResult.issues);
   const levelReady = loadResult.ok;
   /**
    * NH-5 / D-14: fx ready is derived — the bake key is the ATLAS identity, and the
@@ -402,6 +442,7 @@ export function PlayingHost({
     surfaceSize,
     setActive,
     retry,
+    advanceWave,
     injectCertWorstCase,
     certOut,
     certSeq,
@@ -509,6 +550,16 @@ export function PlayingHost({
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
   // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.
   useEffect(() => {
+    // SC-5 / N-END-01: during an endless run the level LOAD RESULT is not the source
+    // of the board — `advanceToWave` writes generated boards straight into
+    // `compiledSv`. Letting this effect run would overwrite the live generated board
+    // with the campaign level and call `retry()`, destroying the lives, score and
+    // combo the run carries. Read through the REF on purpose: adding `mode` to the
+    // dependency array would make the effect re-run on the mode flip, which is
+    // precisely the run being prevented.
+    if (modeRef.current === 'endless') {
+      return;
+    }
     if (!loadResult.ok) {
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
         console.error('[level]', loadResult.issues);
@@ -557,38 +608,60 @@ export function PlayingHost({
       );
       // Sync memory merge score/stars/unlock; void persist inside store (D-10).
       // `mode`/`stats` are required by the v4 store contract (Phase 9 Plan 02).
-      // Campaign is the only mode this phase writes (D-04). `stats` now carries the
-      // real per-run reducer output (N-STAT-01), snapshotted by the caller at the run
-      // boundary — win, lose and abandon all land on this single call site (C2).
-      const blob = store.recordRunEnd({
-        levelId,
-        mode: 'campaign',
-        score: runScore,
-        outcome,
-        livesRemaining,
-        stats,
-      });
+      // BOTH modes land here (N-END-02): `RecordRunEndArgs` is a discriminated union
+      // (D-11) whose endless arm has no `levelId`, so the campaign write is not merely
+      // skipped for an endless run — it is unreachable, and `tsc` is the gate that
+      // says so (SC-3). `stats` carries the real per-run reducer output (N-STAT-01),
+      // snapshotted by the caller at the run boundary — win, lose and abandon all land
+      // on this single call site (C2).
+      const blob = store.recordRunEnd(
+        modeRef.current === 'endless'
+          ? {
+              mode: 'endless',
+              wave: waveRef.current,
+              score: runScore,
+              outcome,
+              livesRemaining,
+              stats,
+            }
+          : {
+              levelId,
+              mode: 'campaign',
+              score: runScore,
+              outcome,
+              livesRemaining,
+              stats,
+            },
+      );
       setResultBest(best);
       setIsNewRecord(record);
       if (record) {
         previousBestRef.current = best;
       }
-      const entry = blob.bestByLevel[levelId];
-      const stars = entry?.stars;
-      if (outcome === 'win' && (stars === 1 || stars === 2 || stars === 3)) {
-        setResultStars(stars);
-      } else {
+      if (modeRef.current === 'endless') {
+        // SC-3: an endless run has no catalog level, so there is no `bestByLevel`
+        // entry to read stars from and no next level to unlock. Skipping the whole
+        // campaign follow-up is what keeps campaign state untouched by endless play.
         setResultStars(null);
-      }
-      const next = nextLevelId(levelId);
-      if (
-        outcome === 'win' &&
-        next != null &&
-        isUnlocked(blob.unlocked, next)
-      ) {
-        setNextGateId(next);
-      } else {
         setNextGateId(null);
+      } else {
+        const entry = blob.bestByLevel[levelId];
+        const stars = entry?.stars;
+        if (outcome === 'win' && (stars === 1 || stars === 2 || stars === 3)) {
+          setResultStars(stars);
+        } else {
+          setResultStars(null);
+        }
+        const next = nextLevelId(levelId);
+        if (
+          outcome === 'win' &&
+          next != null &&
+          isUnlocked(blob.unlocked, next)
+        ) {
+          setNextGateId(next);
+        } else {
+          setNextGateId(null);
+        }
       }
       // RunEndedPayload is deliberately a win/lose concept: abandoning to the Menu is
       // telemetry, not a monetization beat. Narrowing here keeps the existing platform
@@ -649,6 +722,49 @@ export function PlayingHost({
     return buildRunStatsInput(runStatsMirrorRef.current, readRunWallClockMs());
   }, [readRunWallClockMs]);
 
+  /**
+   * Generate, compile and swap in the board for `nextWave`. One helper for both the
+   * run start and the WON intercept, so "which board is wave N" has exactly one
+   * answer in this file.
+   *
+   * D-08 makes generation LAZY, at the transition: `generate` plus
+   * `compileGeneratedLevel` measured 0.0362 ms in Node, roughly 0.56 ms
+   * Hermes-scaled — about 3 % of a 60 Hz frame — and it runs here on the RN JS
+   * thread inside a `runOnJS`'d callback, where it cannot preempt the UI runtime's
+   * frame callback at all. Pre-generating during wave N would buy nothing
+   * measurable and would add a cache to invalidate.
+   *
+   * Returns whether the swap happened. The failure path is loud and terminal for
+   * this transition (Pitfall 6): it never returns into a run-end branch.
+   */
+  const advanceToWave = useCallback(
+    (nextWave: number): boolean => {
+      const raw = generate(
+        seedForWave(runSeedRef.current, nextWave),
+        difficultyForWave(nextWave),
+      );
+      const compiled = compileGeneratedLevel(raw);
+      if (!compiled.ok) {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.error('[endless] generated board failed to compile', compiled.issues);
+        }
+        setGenIssues(compiled.issues);
+        return false;
+      }
+      // 11-03's contract: the next compiled board must be in `compiled` BEFORE
+      // `advanceWave()` bumps the request — the frame callback applies whatever
+      // `compiledSv.value` holds when it notices the bump.
+      /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
+      compiledSv.value = compiled.compiled;
+      /* eslint-enable react-hooks/immutability */
+      waveRef.current = nextWave;
+      setWave(nextWave);
+      setGenIssues(null);
+      return true;
+    },
+    [compiledSv],
+  );
+
   const applyChrome = useCallback(
     (mirror: ChromeMirror) => {
       setSimPhaseNum(mirror.phase);
@@ -656,6 +772,24 @@ export function PlayingHost({
       setScore(mirror.score);
       setCombo(mirror.combo);
       setStallTier(mirror.stallTier);
+      // SC-1 — "the run ends only when lives reach zero". In endless there is no
+      // run-ending WON: a cleared board is a WAVE boundary, so this branch goes
+      // ahead of the campaign WON branch and returns in every path, which is what
+      // keeps `handleRunEnded` and `setActive(false)` below unreachable on a win.
+      if (modeRef.current === 'endless' && mirror.phase === SIM.WON) {
+        if (!waveAdvanceInFlightRef.current) {
+          waveAdvanceInFlightRef.current = true;
+          if (advanceToWave(waveRef.current + 1)) {
+            advanceWave();
+          }
+        }
+        return;
+      }
+      if (mirror.phase !== SIM.WON && mirror.phase !== SIM.LOST) {
+        // Pitfall 5: release the guard only once the mirror reports a phase that is
+        // neither — i.e. the advance has landed and the new board is in play.
+        waveAdvanceInFlightRef.current = false;
+      }
       if (mirror.phase === SIM.WON) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
@@ -672,7 +806,7 @@ export function PlayingHost({
         setActive(false);
       }
     },
-    [handleRunEnded, setActive, snapshotRunStats],
+    [advanceToWave, advanceWave, handleRunEnded, setActive, snapshotRunStats],
   );
 
   /**
@@ -903,6 +1037,60 @@ export function PlayingHost({
     setActive(true);
   }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
 
+  /**
+   * Start an endless run (N-END-01 / D-05 / D-10).
+   *
+   * `retry()` is correct HERE and only here: it resets lives, score and combo onto
+   * the already-pushed generated board, which is exactly what a new run is. Every
+   * SUBSEQUENT transition uses `advanceWave()` instead — calling `retry()` at a wave
+   * boundary would destroy the three fields SC-1 exists to carry.
+   */
+  const startEndlessRun = useCallback(() => {
+    if (!levelReady || levelError != null || !fxReady) {
+      return;
+    }
+    // Pitfall 7: minted in the APP tier. `src/levelgen/**` bans `Date.now()` by
+    // eslint rule — a board must depend on (seed, difficulty) alone — so the wall
+    // clock is read here and passed in. A fixed seed would make every endless run
+    // the identical board sequence.
+    runSeedRef.current = Date.now() >>> 0;
+    waveRef.current = 1;
+    if (!advanceToWave(1)) {
+      return;
+    }
+    modeRef.current = 'endless';
+    setMode('endless');
+    clearCountdown();
+    setCountdownNumeral(null);
+    setResult(null);
+    setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
+    setResultBest(previousBestRef.current);
+    runEndedRef.current = false;
+    waveAdvanceInFlightRef.current = false;
+    // D-01: every run start is a NEW run — counters and wall clock both start at zero.
+    runStartedAtRef.current = Date.now();
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
+    setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
+    setSimPhaseNum(SIM.DOCKED);
+    setUiPhase('playing');
+    retry();
+    setActive(true);
+  }, [
+    advanceToWave,
+    clearCountdown,
+    retry,
+    setActive,
+    levelReady,
+    levelError,
+    fxReady,
+  ]);
+
   // When DEV tier override changes, remount play session (pools reallocated via useGameLoop).
   const tierOverrideRef = useRef(tierOverride);
   useEffect(() => {
@@ -1038,6 +1226,23 @@ export function PlayingHost({
         >
           <Text style={styles.devSwitchLabel}>Cert WC</Text>
         </Pressable>
+        {/*
+          D-05: TEMPORARY. Endless has no production entry this phase — Phase 14
+          ships the real Title route and DELETES this Pressable and the wave
+          readout beside it. Nothing else should grow a dependency on them.
+        */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Start an endless run"
+          onPress={startEndlessRun}
+          hitSlop={8}
+          style={styles.devSwitch}
+        >
+          <Text style={styles.devSwitchLabel}>Endless</Text>
+        </Pressable>
+        {mode === 'endless' ? (
+          <Text style={styles.devSwitchLabel}>{`W${wave}`}</Text>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Trigger test crash for Sentry N-OPS-01 verification"
