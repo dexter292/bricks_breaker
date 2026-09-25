@@ -2,7 +2,7 @@
 
 **Status:** Wired through PlayingHost playBatch fan-out  
 **Date:** 2026-09-25  
-**Gate:** Device feel smoke (D1-03) — not a Cert Instruments gate  
+**Gate:** Device feel smoke (D1-03). Haptics alone do not change Cert; **ghost quads do** — post-D1 Instruments Cert WC is required (`CEILING-CERT.md` §5c).  
 **Authority:** D1-CONTEXT D-08…D-12 · `REQUIREMENTS-NEXT` N-FX-03
 
 ## What shipped

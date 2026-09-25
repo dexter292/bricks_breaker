@@ -10,6 +10,7 @@ import {
   allocateVfx,
   GHOST_CAP_DEFAULT,
   PARTICLE_POOL_DEFAULT,
+  IMPULSE_DESTROY,
 } from '../src/vfx/types';
 import {
   GHOST_CAP,
@@ -21,7 +22,6 @@ import {
 import { consumeEventsForVfx } from '../src/vfx/consumeEvents';
 import { stepVfx } from '../src/vfx/stepVfx';
 import { countActiveParticles } from '../src/vfx/particles';
-import { IMPULSE_DESTROY } from '../src/vfx/types';
 
 function countActiveGhosts(vfx: ReturnType<typeof allocateVfx>): number {
   let n = 0;
@@ -181,15 +181,16 @@ describe('vfx brick ghosts (N-FX-01 Wave 0)', () => {
   });
 
   it('ghostDrawFromLife: full life → scale 1 + alpha 1; half → shrink + fade', () => {
-    const full = ghostDrawFromLife(GHOST_LIFE_MAX, GHOST_LIFE_MAX);
-    expect(full.scale).toBeCloseTo(1, 5);
-    expect(full.alpha).toBeCloseTo(1, 5);
-    const half = ghostDrawFromLife(GHOST_LIFE_MAX * 0.5, GHOST_LIFE_MAX);
-    expect(half.scale).toBeCloseTo(0.85 + 0.15 * 0.5, 5);
-    expect(half.alpha).toBeCloseTo(0.5, 5);
-    const dead = ghostDrawFromLife(0, GHOST_LIFE_MAX);
-    expect(dead.scale).toBeCloseTo(0.85, 5);
-    expect(dead.alpha).toBe(0);
+    const out = new Float32Array(2);
+    ghostDrawFromLife(GHOST_LIFE_MAX, GHOST_LIFE_MAX, out);
+    expect(out[0]).toBeCloseTo(1, 5);
+    expect(out[1]).toBeCloseTo(1, 5);
+    ghostDrawFromLife(GHOST_LIFE_MAX * 0.5, GHOST_LIFE_MAX, out);
+    expect(out[0]).toBeCloseTo(0.85 + 0.15 * 0.5, 5);
+    expect(out[1]).toBeCloseTo(0.5, 5);
+    ghostDrawFromLife(0, GHOST_LIFE_MAX, out);
+    expect(out[0]).toBeCloseTo(0.85, 5);
+    expect(out[1]).toBe(0);
   });
 
   it('ghost draw prep does not mutate World brick/paddle SoA', () => {
@@ -215,10 +216,14 @@ describe('vfx brick ghosts (N-FX-01 Wave 0)', () => {
       b: 0,
     });
     const slot = vfx.ghostActive.findIndex((a) => a !== 0);
-    const { scale, alpha } = ghostDrawFromLife(
+    const out = new Float32Array(2);
+    ghostDrawFromLife(
       vfx.ghostLife[slot],
       vfx.ghostLifeMax[slot],
+      out,
     );
+    const scale = out[0];
+    const alpha = out[1];
     // Simulate recordSprites center-scale rect math (read-only)
     const gw = vfx.ghostW[slot];
     const gh = vfx.ghostH[slot];

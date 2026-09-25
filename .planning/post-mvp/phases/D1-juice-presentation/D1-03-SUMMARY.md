@@ -37,7 +37,7 @@ key-files:
 
 key-decisions:
   - "Fan-out on JS host playBatch; eventBridge remains sole scheduleOnRN call site"
-  - "§5c PASS retained — second Cert only if render load changes (ghosts+haptics skip)"
+  - "§5c PASS retained as pre-D1 baseline; post-D1 Cert WC **required** (ghost quads = render-load delta)"
   - "N-FX-02 harness locks docs-only — no timed shell/Results code in D1"
 
 patterns-established:
@@ -110,7 +110,7 @@ None blocking Tasks 1–2. Manual-Only VALIDATION rows remain ⏳ until Task 3 a
 
 ## Threat Flags
 
-None new — soft-fail (T-D1-12), no World writes (T-D1-13), HAPTICS.md forbids OS query (T-D1-14), Cert skip policy documented (T-D1-15).
+None new — soft-fail (T-D1-12), no World writes (T-D1-13), HAPTICS.md forbids OS query (T-D1-14), post-D1 Cert WC required for ghost draw load (T-D1-15 amended).
 
 ## Pending
 

@@ -85,7 +85,7 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 | iOS version | _(owner device)_ |
 | Run 1 / Run 2 / worse | _(owner Instruments session — numbers on device/traces)_ |
 | **Verdict (§5 bar)** | **PASS** — owner stamp 2026-09-25 |
-| Notes | Debt from B+C2 closed for D1 gate; Mid freeze still applies; second re-run only if D1 changes render load |
+| Notes | Debt from B+C2 closed for D1 gate; Mid freeze still applies; **post-D1 Cert WC required** (ghost quads = render-load delta) |
 
 - [x] Two ≥30s Cert WC Mid captures on 16 Pro (owner)  
 - [x] Worse run meets §5 (owner)  
@@ -94,9 +94,17 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 
 **Stamp:** `Human ceiling re-run: PASS 2026-09-25`
 
-### 5c note — D1 second Cert (D-05)
+### 5c note — D1 second Cert (D-05) — **REQUIRED**
 
-§5c PASS is retained. **Do not** re-run Instruments Cert WC for D1 unless **render load** changes: new particles, extra full-screen layers, or heavier glow. Ghost quads (flat fill) + expo-haptics (non-render) alone → **skip** second Cert. Mid freeze (`docs/ops/QUALITY-TIER.md`) is the process guard.
+§5c PASS (post B+C2) is retained as the pre-D1 baseline. **After D1 lands, run Instruments Cert WC again** — ghost quads are a real render-load delta even under Mid freeze:
+
+- Each `BRICK_BREAK` adds a flat ghost rect for ~150 ms after the live brick leaves `brickCount`
+- Cascade of 8 breaks → up to 8 extra quads for ~18 frames (cap 16, no glow)
+- Paddle squash changes draw size every frame while `paddleSquashT > 0`
+
+Haptics alone would not trigger a re-run (non-render). Ghosts + squash **do**. Do not treat Mid freeze as “skip Cert” — freeze caps particles/glow; it does not cancel §6 when draw load rises.
+
+**Stamp after D1 Cert:** append `Human ceiling re-run (post-D1): PASS|FAIL YYYY-MM-DD` under a new §5d when measured.
 
 ### 5b. App-loop health (2026-09-24)
 

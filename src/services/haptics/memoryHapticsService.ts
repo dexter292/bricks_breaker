@@ -5,7 +5,7 @@ import type { HapticStyle, MemoryHapticsService } from './types';
  * In-memory HapticsService for Vitest — records ≤1 fire per batch from coalesce.
  */
 export function createMemoryHapticsService(): MemoryHapticsService {
-  const fires: Array<{ style: HapticStyle }> = [];
+  const fires: { style: HapticStyle }[] = [];
   let released = false;
 
   return {

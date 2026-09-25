@@ -54,7 +54,7 @@ updated: 2026-09-25
 - [x] Haptics batch coalesce tests — memory + expo soft-fail (`tests/haptics.batch-coalesce.test.ts`)
 - [x] Paddle squash unit (`tests/vfx.paddle-squash.test.ts`)
 - [x] Assert `hashWorld` / golden-replay still green after Wave 1+
-- [x] Gate note: ceiling §5c already PASS; no second Cert unless render load changes
+- [x] Gate note: ceiling §5c PASS pre-D1; **post-D1 Cert WC required** (ghost quads = render-load delta) — see CEILING-CERT §5c note
 
 ---
 
@@ -76,7 +76,7 @@ Recorded 2026-09-25 (no timed shell / Results code in D1):
 | Ball readable during fade | N-FX-01 | Visual | Play level with breaks — ball never hidden | ⏳ pending device smoke |
 | Haptics feel + OS mute | N-FX-03 | Device | System Haptics off → no buzz; on → break/life only; cascade coalesced | ⏳ pending device smoke |
 | Paddle squash cosmetic | FC-F04 | Feel | Hit paddle — visual only; collision unchanged | ⏳ pending device smoke |
-| No second ceiling | D-05 | Process | Only if D1 violates Mid freeze / render load | ✅ process note in CEILING-CERT §5c |
+| Post-D1 ceiling | D-05 | Process | Instruments Cert WC **required** after D1 (ghosts + squash = draw load) | ⏳ pending owner measure → stamp §5d |
 
 ---
 

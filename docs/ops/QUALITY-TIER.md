@@ -40,6 +40,8 @@ Mid was the Pixel 6a / Cert WC baseline. High is capped below particle pool hard
 
 D1 juice **must not** raise Mid budgets: `particleCap` **128**, `glowScale` **1**, existing shake caps. No confetti / new particles, no extra full-screen Skia layers, no heavier glow. Brick **ghost** quads are draw-only flat fills — they are **not** counted against the particle budget (`ghost` pool ≠ `particleCap`). Paddle squash is draw-quad scale only. Haptics are non-render and do not change Mid budgets.
 
+**§6 / Cert:** Mid freeze does **not** mean “skip Cert.” Ghosts still add transient draw quads (cap 16, ~150 ms) after breaks — that **is** a render-load delta. Post-D1 Instruments Cert WC is **required** (`docs/ops/CEILING-CERT.md` §5c note).
+
 ## Which devices get Mid vs Low (as coded)
 
 **Low:** devices reporting strictly under 4 GB total RAM (rare on modern iPhones).

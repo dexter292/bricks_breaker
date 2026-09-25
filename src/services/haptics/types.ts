@@ -6,5 +6,5 @@ export interface HapticsService {
 }
 
 export type MemoryHapticsService = HapticsService & {
-  fires: Array<{ style: HapticStyle }>;
+  fires: { style: HapticStyle }[];
 };

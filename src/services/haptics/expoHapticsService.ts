@@ -9,22 +9,24 @@ import type { HapticsService } from './types';
 /**
  * String values matching expo-haptics ImpactFeedbackStyle.Light / .Medium.
  * Kept local so Vitest can inject spies without loading the native module entry.
+ * Const vs type names differ on purpose — same-name dual export trips no-redeclare.
  */
 export const ImpactFeedbackStyle = {
   Light: 'light',
   Medium: 'medium',
 } as const;
 
-export type ImpactFeedbackStyle =
+/** Local impact style id — not the expo-haptics enum (avoids value/type redeclare). */
+export type ImpactStyle =
   (typeof ImpactFeedbackStyle)[keyof typeof ImpactFeedbackStyle];
 
-export type ImpactFn = (style: ImpactFeedbackStyle) => Promise<void>;
+export type ImpactFn = (style: ImpactStyle) => Promise<void>;
 
 type ExpoHapticsModule = {
-  impactAsync: (style: ImpactFeedbackStyle) => Promise<void>;
+  impactAsync: (style: ImpactStyle) => Promise<void>;
   ImpactFeedbackStyle: {
-    Light: ImpactFeedbackStyle;
-    Medium: ImpactFeedbackStyle;
+    Light: ImpactStyle;
+    Medium: ImpactStyle;
   };
 };
 
@@ -59,7 +61,7 @@ function loadExpoHaptics(): ExpoHapticsModule | null {
   }
 }
 
-function defaultImpact(style: ImpactFeedbackStyle): Promise<void> {
+function defaultImpact(style: ImpactStyle): Promise<void> {
   const mod = loadExpoHaptics();
   if (!mod?.impactAsync) {
     return Promise.resolve();
@@ -85,7 +87,7 @@ export function createExpoHapticsService(impact?: ImpactFn): HapticsService {
       try {
         const rank = coalesceHapticRank(codes, count);
         if (rank === 0) return;
-        const style: ImpactFeedbackStyle =
+        const style: ImpactStyle =
           rank === 2 ? ImpactFeedbackStyle.Medium : ImpactFeedbackStyle.Light;
         void Promise.resolve(fire(style)).catch(() => {
           // Soft-fail impactAsync — never throw into gameplay (T-D1-08)

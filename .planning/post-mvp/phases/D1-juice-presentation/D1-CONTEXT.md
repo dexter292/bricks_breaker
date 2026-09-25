@@ -33,7 +33,7 @@ Zero–/low–fill-rate presentation polish on top of Phase 7 VFX: **brick destr
 
 1. **Ceiling Cert WC re-run AFTER C2, BEFORE D1 starts.** **DONE PASS 2026-09-25** — see `docs/ops/CEILING-CERT.md` §5c. Historical PASS @ `13018eb` was pre-B; re-run closed B+C2 debt.
 2. **If that re-run FAILs → do not start D1** until resolved. *(Gate cleared — PASS stamped.)*
-3. **§6 trigger for D1:** re-run again only if D1 changes **render load in any way** (not only when `particleCap` numeric changes). Under A1 freeze, a second D1 measurement should be unnecessary; do not pay for a “surely green” second run.
+3. **§6 trigger for D1:** Ghost quads + paddle squash **do** change render load (transient flat rects after break; draw-size change on paddle). Post-D1 Instruments Cert WC is **required** — not optional under A1 Mid freeze. Mid freeze still forbids raising `particleCap` / glow / full-screen layers; it does not waive §6 when draw load rises.
 4. Post-C2 re-run may be on a build **without** haptics; haptics do not affect render path / ceiling metrics.
 
 </preconditions>
@@ -46,7 +46,7 @@ Zero–/low–fill-rate presentation polish on top of Phase 7 VFX: **brick destr
 - **D-02:** N-FX-01 already requires Mid respect — freeze is compliance, not a cut.
 - **D-03:** Reject raising High-only juice (A3) while R-12 RAM heuristic is open — doubles cert surface; Mid devices include strong chips mis-bucketed.
 - **D-04:** Re-open budget increases only after R-10 floor device exists **and** R-12 mitigation chosen.
-- **D-05:** One ceiling re-run after C2 / before D1; conditional second run only if D1 violates render-load freeze.
+- **D-05:** One ceiling re-run after C2 / before D1 (§5c PASS); **mandatory** post-D1 Cert WC because ghosts/squash change draw load (not waived by Mid freeze).
 
 ### Harness / shell / Results (areas 2–3 skipped)
 - **D-06:** CERT (`GameHost` init) and SOAK (`setShellPhase` Title↔Playing) drive `shellPhase` directly. Any future transition animation **must no-op** when `CERT_HARNESS || SOAK_HARNESS` (instant swap). Soak must not gain fade delay (100-cycle baseline).

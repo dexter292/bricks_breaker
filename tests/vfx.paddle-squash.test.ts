@@ -72,15 +72,16 @@ describe('vfx paddle squash (FC-F04 Wave 0)', () => {
     const world = allocateWorld();
     const w0 = world.paddleW;
     const h0 = world.paddleH;
-    const idle = paddleSquashDrawSize(w0, h0, 0);
-    expect(idle.w).toBeCloseTo(w0, 5);
-    expect(idle.h).toBeCloseTo(h0, 5);
+    const out = new Float32Array(2);
+    paddleSquashDrawSize(w0, h0, 0, out);
+    expect(out[0]).toBeCloseTo(w0, 5);
+    expect(out[1]).toBeCloseTo(h0, 5);
 
-    const punched = paddleSquashDrawSize(w0, h0, PADDLE_SQUASH_T_MAX);
-    expect(punched.w).toBeCloseTo(w0 * 1.15, 5);
-    expect(punched.h).toBeCloseTo(h0 * 0.85, 5);
-    expect(punched.w).toBeGreaterThan(w0);
-    expect(punched.h).toBeLessThan(h0);
+    paddleSquashDrawSize(w0, h0, PADDLE_SQUASH_T_MAX, out);
+    expect(out[0]).toBeCloseTo(w0 * 1.15, 5);
+    expect(out[1]).toBeCloseTo(h0 * 0.85, 5);
+    expect(out[0]).toBeGreaterThan(w0);
+    expect(out[1]).toBeLessThan(h0);
 
     // Source World dims unchanged after draw-size compute
     expect(world.paddleW).toBe(w0);

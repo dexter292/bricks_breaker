@@ -6,4 +6,4 @@ export {
   createDefaultHapticsService,
   ImpactFeedbackStyle,
 } from './expoHapticsService';
-export type { ImpactFn } from './expoHapticsService';
+export type { ImpactFn, ImpactStyle } from './expoHapticsService';

@@ -754,7 +754,9 @@ export function PlayingHost({
       return;
     }
     injectCertWorstCase();
-  }, [levelId, tierOverride, injectCertWorstCase]);
+    // setLevelId / setTierOverride are stable useState setters — listed so R-24
+    // deps at this cert-arm site stay explicit (exhaustive-deps must not be ignored here).
+  }, [levelId, tierOverride, injectCertWorstCase, setLevelId, setTierOverride]);
 
   // After remount to level-03 + Mid, fire deferred cert inject once (not per-frame).
   useEffect(() => {

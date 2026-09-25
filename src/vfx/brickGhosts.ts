@@ -31,7 +31,7 @@ function findFreeOrEvictGhost(vfx: VfxState): number {
 
 /**
  * Snapshot brick geom/rgb into ghost SoA. Caller passes geom — never reads World.
- * FIFO-evicts oldest when pool is full (cascade-safe ≥16).
+ * Round-robin evict when full (ghostOldest advances only on full-pool spawn).
  */
 export function spawnBrickGhost(
   vfx: VfxState,
@@ -71,16 +71,19 @@ export function stepBrickGhosts(vfx: VfxState, dt: number): void {
 
 /**
  * Pure draw params from remaining life fraction (t=1→0).
+ * Writes into `out` — out[0]=scale, out[1]=alpha. No object alloc (SoA draw path).
  * scale: 0.85 + 0.15*t (short shrink); alpha: t (fade out).
  */
 export function ghostDrawFromLife(
   life: number,
   lifeMax: number,
-): { scale: number; alpha: number } {
+  out: Float32Array,
+): void {
   'worklet';
   const max = lifeMax > 0 ? lifeMax : GHOST_LIFE_MAX;
   let t = life / max;
   if (t < 0) t = 0;
   if (t > 1) t = 1;
-  return { scale: 0.85 + 0.15 * t, alpha: t };
+  out[0] = 0.85 + 0.15 * t;
+  out[1] = t;
 }

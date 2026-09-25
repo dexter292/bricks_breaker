@@ -45,6 +45,8 @@ type RecorderTools = {
   colorScratch: Float32Array;
   /** Cue strokes: [x0,y0,x1,y1] × up to 3 (F-17). */
   cueScratch: Float32Array;
+  /** Ghost/paddle draw pair — [scale,alpha] or [w,h]; no per-frame object alloc. */
+  pairScratch: Float32Array;
 };
 
 declare const global: typeof globalThis & {
@@ -70,6 +72,7 @@ function ensureRecorderTools(): RecorderTools {
     tools.entityRect == null ||
     tools.surfaceBounds == null ||
     tools.colorScratch == null ||
+    tools.pairScratch == null ||
     tools.srcRect == null ||
     tools.colExplosive == null ||
     tools.colPickupSlow == null ||
@@ -103,6 +106,7 @@ function ensureRecorderTools(): RecorderTools {
       colExplosive: makeColor4(0.976, 0.451, 0.086), // #F97316
       colorScratch: new Float32Array(4),
       cueScratch: new Float32Array(12),
+      pairScratch: new Float32Array(2),
     };
     global.__gameRecorderTools = tools;
   }
@@ -373,14 +377,18 @@ export function recordFrame(
   if (vfx != null && intensity > 0) {
     const gCap = vfx.ghostCap;
     const scratch = tools.colorScratch;
+    const pair = tools.pairScratch;
     for (let gi = 0; gi < gCap; gi++) {
       if (vfx.ghostActive[gi] === 0) {
         continue;
       }
-      const { scale, alpha } = ghostDrawFromLife(
+      ghostDrawFromLife(
         vfx.ghostLife[gi],
         vfx.ghostLifeMax[gi],
+        pair,
       );
+      const scale = pair[0];
+      const alpha = pair[1];
       const drawAlpha = alpha * intensity;
       if (drawAlpha <= 0.001) {
         continue;
@@ -474,13 +482,15 @@ export function recordFrame(
   let drawPW = world.paddleW;
   let drawPH = world.paddleH;
   if (vfx != null && vfx.paddleSquashT > 0) {
-    const sized = paddleSquashDrawSize(
+    const pair = tools.pairScratch;
+    paddleSquashDrawSize(
       world.paddleW,
       world.paddleH,
       vfx.paddleSquashT,
+      pair,
     );
-    drawPW = sized.w;
-    drawPH = sized.h;
+    drawPW = pair[0];
+    drawPH = pair[1];
   }
   const paddleHalfW = drawPW * 0.5;
   // Keep paddle top edge; squash height about vertical center of rect

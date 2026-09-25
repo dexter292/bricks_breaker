@@ -30,17 +30,20 @@ export function stepPaddleSquash(vfx: VfxState, dt: number): void {
 
 /**
  * Draw-only paddle size from source W/H + squash timer.
- * Widens + shortens around center; never writes World.
+ * Writes into `out` — out[0]=w, out[1]=h. No object alloc; never writes World.
+ * Widens + shortens around center.
  */
 export function paddleSquashDrawSize(
   w: number,
   h: number,
   squashT: number,
-): { w: number; h: number } {
+  out: Float32Array,
+): void {
   'worklet';
   let u = squashT / PADDLE_SQUASH_T_MAX;
   if (u < 0) u = 0;
   if (u > 1) u = 1;
   const k = u * PADDLE_SQUASH_K_MAX;
-  return { w: w * (1 + k), h: h * (1 - k) };
+  out[0] = w * (1 + k);
+  out[1] = h * (1 - k);
 }
