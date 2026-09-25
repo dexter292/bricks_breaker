@@ -38,6 +38,10 @@ import {
   type QualityTier,
 } from '../../src/runtime/resolveQualityTier';
 import { createDefaultAudioService, createMemoryAudioService } from '../../src/services/audio';
+import {
+  createDefaultHapticsService,
+  createMemoryHapticsService,
+} from '../../src/services/haptics';
 import { defaultPlatformServices } from '../../src/services/platform';
 import { CERT_HARNESS, PERF_OVERLAY } from '../../src/devflags';
 import { triggerTestCrash } from '../../src/services/crashReporting';
@@ -187,6 +191,18 @@ export function PlayingHost({
         console.warn('[audio] PlayingHost createDefaultAudioService soft-fail', err);
       }
       return createMemoryAudioService();
+    }
+  }, []);
+  // Soft-fail: stale binary without ExpoHaptics → memory (D-08 / T-D1-12).
+  // Never gated by useVfxIntensity / reduce-motion (D-10).
+  const haptics = useMemo(() => {
+    try {
+      return createDefaultHapticsService();
+    } catch (err) {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.warn('[haptics] PlayingHost createDefaultHapticsService soft-fail', err);
+      }
+      return createMemoryHapticsService();
     }
   }, []);
   const previousBestRef = useRef(0);
@@ -364,8 +380,10 @@ export function PlayingHost({
         return;
       }
       // Flip ready before audio so playfield can paint even if preload hangs.
+      // D-12: haptics piggyback on the same JS hop — keep sole LC-07 scheduleOnRN site in eventBridge.
       playBatchRef.current = (codes, count) => {
         audio.playBatch(codes, count);
+        haptics.playFromBatch(codes, count);
       };
       setBakedKey(bakeForKey);
 
@@ -392,8 +410,9 @@ export function PlayingHost({
       glowAtlasSv.value = null;
       scheduleDisposeGlowAtlas(atlas, glowAtlasSv);
       audio.release();
+      haptics.release();
     };
-  }, [audio, glowAtlasSv, loadResult, loadKey]);
+  }, [audio, haptics, glowAtlasSv, loadResult, loadKey]);
 
   // Push compiled into SharedValue + gate setActive (external systems — D-13, D-14).
   // Frame callback autostarts false; only setActive(true) after load ok AND fx cold path.

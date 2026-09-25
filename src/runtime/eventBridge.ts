@@ -1,11 +1,13 @@
 /**
- * LC-07 sole exception: ≤1 batched scheduleOnRN / frame for audio drain.
- * Host passes a JS-thread-bound playBatch — runtime must not import services/.
+ * LC-07 sole exception: ≤1 batched scheduleOnRN / frame for SFX/haptics drain.
+ * Host playBatch may fan-out to audio AND haptics on the JS thread (D-12).
+ * Runtime must not import services/ — host owns the fan-out.
  */
 import { scheduleOnRN } from 'react-native-worklets';
 
 /**
- * Hop a compact event-code batch to the JS AudioService once per frame.
+ * Hop a compact event-code batch to the JS host playBatch once per frame.
+ * Host may fan-out to AudioService + HapticsService (still ≤1 hop).
  * Copies codes so UI-thread reset/overwrite cannot race the async hop.
  */
 export function flushAudioBatchOnJS(

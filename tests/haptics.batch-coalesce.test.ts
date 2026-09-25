@@ -122,7 +122,9 @@ describe('haptics expo service (N-FX-03 Plan 02)', () => {
     expect(host).not.toMatch(
       /haptics[\s\S]{0,200}useVfxIntensity|playFromBatch[\s\S]{0,80}vfxIntensity/,
     );
-    expect(host).not.toMatch(/scheduleOnRN\s*\(/);
+    // Call-site check (comments may mention scheduleOnRN — strip first).
+    const hostCode = host.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(hostCode).not.toMatch(/scheduleOnRN\s*\(/);
 
     // LC-07: sole call site is eventBridge (comments / docs elsewhere OK).
     const roots = [
@@ -130,6 +132,8 @@ describe('haptics expo service (N-FX-03 Plan 02)', () => {
       join(__dirname, '../app'),
     ];
     const callSites: string[] = [];
+    const stripComments = (src: string) =>
+      src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     const walk = (dir: string) => {
       for (const name of readdirSync(dir, { withFileTypes: true })) {
         const p = join(dir, name.name);
@@ -139,7 +143,7 @@ describe('haptics expo service (N-FX-03 Plan 02)', () => {
           continue;
         }
         if (!name.name.endsWith('.ts') && !name.name.endsWith('.tsx')) continue;
-        const src = readFileSync(p, 'utf8');
+        const src = stripComments(readFileSync(p, 'utf8'));
         if (/\bscheduleOnRN\s*\(/.test(src)) {
           callSites.push(p.replace(join(__dirname, '..') + '/', ''));
         }
