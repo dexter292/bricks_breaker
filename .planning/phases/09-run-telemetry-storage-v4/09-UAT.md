@@ -1,6 +1,6 @@
 ---
 phase: 09-run-telemetry-storage-v4
-status: diagnosed
+status: partial
 tested_on: iPhone 17 simulator (iOS 26.5), Metro dev bundle
 tested: 2026-09-25
 ---
@@ -69,3 +69,66 @@ a synthetic world, never through the reset-request path a real pause takes.
 2. Add a regression test that drives a run through pause → menu via the reset-request path,
    not just the reducer in isolation.
 3. Re-run both checkpoints afterwards.
+
+
+---
+
+# Re-test after the mirror fix (2026-09-25, later)
+
+## Checkpoint 1 — abandoned-run flush: **PASS**
+
+Same scenario as the failing run: Level 01, launch, ~10s play, one brick visibly
+destroyed, one life lost, Pause → Menu.
+
+| Assertion | Before fix | After fix |
+|---|---|---|
+| Exactly one new `abandoned` entry | 1 ✅ | 1 ✅ |
+| `bricksBroken` | 0 ❌ | **1** ✅ |
+| `livesLost` | 0 ❌ | **1** ✅ |
+| `ticks` | 2 ❌ | **3174** ✅ |
+| `bestCombo` | 1 (initial) ❌ | **2** ✅ |
+
+`longestRally: 0` and `largestCascade: 0` are **correct**, not failures: the paddle was
+never moved, so the ball never returned to it (zero paddle hits), and `level-01` contains
+no explosive bricks.
+
+Root cause and fix: commit `59afd98` — `RunStats` is mutated in place on the UI runtime and
+Reanimated does not propagate in-place mutation to JS, so the JS-side `runStats.value` read
+returned crossing-time values. Counters now cross via a dirty-checked mirror + seq
+reaction, the same route chrome and CERT metrics use.
+
+## Checkpoint 2 — wall clock excludes pause: **FAIL**
+
+Controlled measurement: launch → **20 s play** → Pause → **22 s paused** → Menu.
+
+| Field | Value | Expected |
+|---|---|---|
+| `wallClockMs` for the run | **39 219 ms (39.2 s)** | ~20 000 ms |
+| `ticks` for the run | **4 704 → 39.2 s simulated** | ~2 400 (20 s) |
+
+The two agree exactly, which is the diagnosis: **the simulation kept stepping during the
+22 s pause**, so `uiPhaseSv` never reached `PAUSED`, so the wall-clock segment in the
+`uiPhase` effect (`PlayingHost.tsx:349-369`) was never closed. One cause, both symptoms —
+the segment logic itself reads correctly; it is simply never asked to close.
+
+This is **not** the D-09 accumulator being wrong. It is upstream of it.
+
+### Not fixed
+
+Left open deliberately rather than half-fixed at the end of a long session: the pause path
+freezing the loop is core run-loop behaviour, and changing it deserves its own focused
+change with its own device measurement — the same argument used for backing out the
+unattributed `brickDamage.ts` refactor earlier in this phase.
+
+## Verdict
+
+**Phase 9 remains NOT verified.** N-STAT-02 and the counter half of N-STAT-01 now hold on
+device. The D-09 wall-clock claim does not.
+
+## Gap to close
+
+1. Establish why the sim keeps stepping while `uiPhase === 'paused'`; confirm whether
+   `setActive(false)` / the freeze path runs on the Pause button at all.
+2. Re-run checkpoint 2 — 20 s play / 20 s pause must yield ≈20 s, and `ticks` ≈2 400.
+3. Add a test asserting `uiPhaseSv` reaches `PAUSED` on the Pause press, since no existing
+   test covers the freeze path.
