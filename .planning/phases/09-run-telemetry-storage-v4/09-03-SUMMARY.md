@@ -257,3 +257,9 @@ Phase-level: N-STAT-01 and N-STAT-02 are complete at the storage layer. The rema
 ---
 *Phase: 09-run-telemetry-storage-v4*
 *Completed: 2026-09-25*
+
+## Self-Check: PASSED
+
+- All claimed files exist on disk.
+- All five commits (`61069a7`, `3be2d7c`, `a864f5c`, `983e129`, `9643053`) present on `worktree-agent-ac3d36082e3e4a53c`.
+- Working tree clean; `commits: 4` measured via `git rev-list --count 3f20563..HEAD` before the SUMMARY commit.
