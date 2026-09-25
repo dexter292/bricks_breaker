@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_phase: '9'
+current_phase: '10'
 status: in_progress
-stopped_at: "Phase 9 VERIFIED on device (5/5 plans, 451 tests, both checkpoints pass). Next: Phase 10 seeded board generator"
+stopped_at: "Phase 10 PLANNED (6 plans, waves 0-4, tracer-first; plan-check passed after 2 warnings fixed). Next: execute-phase 10"
 last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
