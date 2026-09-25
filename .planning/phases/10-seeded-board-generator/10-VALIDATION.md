@@ -139,3 +139,25 @@ No framework install needed. This phase adds zero dependencies.
 
 **Approval:** map re-homed to the six PLAN.md files 2026-09-25; the 10-02-04 `.mjs` question is
 resolved above rather than deferred to the executor.
+
+
+---
+
+## Task-ID scheme (reconciled 2026-09-25, after Wave 0)
+
+The executor for 10-01 flagged that the plans and the map above disagree on a few task IDs
+(`10-02-03`/`10-02-04`, `10-03-03`/`10-03-04`). **The PLAN files are authoritative.** Where a
+row above cites an ID that no plan defines, read it as naming the *behaviour*, not the task —
+every behaviour listed is still covered, it is the numbering that drifted when 10-02-04's
+`.mjs` twin was resolved away into 10-03's in-process parity block.
+
+10-05-02's todo-coverage audit should enumerate task IDs from the plan files, not from this
+document.
+
+## Phase gate base (corrected 2026-09-25)
+
+Gate 1 in `10-05-PLAN.md` compares `src/core` against the **phase base
+`64a0b0ca9b7c8fff4c137fb6385e66870df4cf13`**, not `origin/main`. The branch carries one
+deliberate pre-phase core commit (`7539e61`, the Metro web/SSR TDZ fix), so an `origin/main`
+comparison fails a gate Phase 10 has not violated. Measured at the Wave 0 merge:
+`64a0b0c..HEAD -- src/core` is empty; `origin/main...HEAD -- src/core` reports one file.
