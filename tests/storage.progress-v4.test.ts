@@ -25,11 +25,15 @@ import {
   defaultRunStatsInput,
   defaultTelemetryBlob,
   mergeHighWatermark,
+  mergeEndlessRecord,
   mergeRunIntoTelemetry,
   mergeTelemetryBlobs,
   migrateOrDefault,
   parseProgressResult,
   defaultTelemetryAggregate,
+  defaultEndlessRecord,
+  ENDLESS_TELEMETRY_KEY,
+  cloneTelemetryBlob,
   v3ToV4,
   type ProgressBlob,
   type RunStatsInput,
@@ -605,6 +609,92 @@ describe('telemetry merge semantics (D-07/D-08/D-10, Plan 02 helpers)', () => {
     // recentRuns concatenated, sorted ascending by timestamp, bounded
     expect(merged.recentRuns.map((e) => e.timestamp)).toEqual([1, 2]);
     expect(merged.recentRuns.length).toBeLessThanOrEqual(RECENT_RUNS_BOUND);
+  });
+
+  /**
+   * N-END-02 — the endless personal record. It lives on `TelemetryBlob` (never on
+   * `ProgressBlob`), takes a running max per field, and is written by one dedicated
+   * merge so no campaign path can reach it. See `11-02-PLAN.md` § D-11 / D-12.
+   */
+  it('defaultTelemetryBlob seeds an all-zero endless record, and the byMode key is a constant not a LevelId (N-END-02 / D-12)', () => {
+    expect(defaultTelemetryBlob().endless).toEqual({ bestWave: 0, bestScore: 0 });
+    expect(defaultEndlessRecord()).toEqual({ bestWave: 0, bestScore: 0 });
+    // D-12: a plain string key, because a generated board has no LevelId.
+    expect(typeof ENDLESS_TELEMETRY_KEY).toBe('string');
+    expect(ENDLESS_TELEMETRY_KEY.length).toBeGreaterThan(0);
+    expect(PLAYABLE_LEVEL_ORDER as readonly string[]).not.toContain(ENDLESS_TELEMETRY_KEY);
+  });
+
+  it('cloneTelemetryBlob deep-copies the endless record so a mutation cannot leak across the memory/disk boundary', () => {
+    const source = defaultTelemetryBlob();
+    source.endless = { bestWave: 7, bestScore: 900 };
+
+    const clone = cloneTelemetryBlob(source);
+    expect(clone.endless).toEqual({ bestWave: 7, bestScore: 900 });
+    expect(clone.endless).not.toBe(source.endless);
+
+    clone.endless.bestWave = 99;
+    expect(source.endless.bestWave).toBe(7);
+  });
+
+  it('mergeEndlessRecord takes each field running max INDEPENDENTLY, so a short high-scoring run keeps the deeper wave', () => {
+    const t = defaultTelemetryBlob();
+    t.endless = { bestWave: 20, bestScore: 100 };
+
+    const next = mergeEndlessRecord(t, { wave: 12, score: 500 });
+    expect(next.endless).toEqual({ bestWave: 20, bestScore: 500 });
+    // Clone-then-mutate, exactly like mergeRunIntoTelemetry: the input is untouched.
+    expect(t.endless).toEqual({ bestWave: 20, bestScore: 100 });
+    expect(next).not.toBe(t);
+    // A run worse on both axes moves nothing.
+    expect(mergeEndlessRecord(next, { wave: 1, score: 1 }).endless).toEqual({
+      bestWave: 20,
+      bestScore: 500,
+    });
+  });
+
+  it('mergeEndlessRecord hardens garbage into non-negative integers', () => {
+    const t = defaultTelemetryBlob();
+    expect(mergeEndlessRecord(t, { wave: -5, score: -1 }).endless).toEqual({
+      bestWave: 0,
+      bestScore: 0,
+    });
+    expect(
+      mergeEndlessRecord(t, { wave: Number.NaN, score: Number.POSITIVE_INFINITY }).endless,
+    ).toEqual({ bestWave: 0, bestScore: 0 });
+    expect(mergeEndlessRecord(t, { wave: 1.7, score: 12.9 }).endless).toEqual({
+      bestWave: 1,
+      bestScore: 12,
+    });
+  });
+
+  it('mergeTelemetryBlobs takes the per-field max of the two endless records, in either argument order', () => {
+    const a = defaultTelemetryBlob();
+    a.endless = { bestWave: 31, bestScore: 40 };
+    const b = defaultTelemetryBlob();
+    b.endless = { bestWave: 4, bestScore: 5_000 };
+
+    expect(mergeTelemetryBlobs(a, b).endless).toEqual({ bestWave: 31, bestScore: 5_000 });
+    expect(mergeTelemetryBlobs(b, a).endless).toEqual({ bestWave: 31, bestScore: 5_000 });
+  });
+
+  it('mergeRunIntoTelemetry never writes the endless record — an endless run bumps byMode.endless aggregates only', () => {
+    const before = defaultTelemetryBlob();
+    before.endless = { bestWave: 3, bestScore: 77 };
+
+    const after = mergeRunIntoTelemetry(before, {
+      mode: 'endless',
+      levelId: ENDLESS_TELEMETRY_KEY,
+      outcome: 'lose',
+      score: 99_999,
+      stats: runStats({ bricksBroken: 40, ticksPlayed: 5_000 }),
+    });
+
+    // The record is a separate merge — a campaign run can never write it either.
+    expect(after.endless).toEqual({ bestWave: 3, bestScore: 77 });
+    // …but the mode-keyed aggregate DID land, so this is not a vacuous pass.
+    expect(after.byMode.endless[ENDLESS_TELEMETRY_KEY]?.runsPlayed).toBe(1);
+    expect(after.byMode.endless[ENDLESS_TELEMETRY_KEY]?.bricksBroken).toBe(40);
   });
 
   it('mergeHighWatermark (v4) never lowers progress watermarks and merges telemetry', () => {

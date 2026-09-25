@@ -114,6 +114,36 @@ export type RunStatsInput = {
   wallClockMs: number;
 };
 
+/**
+ * Endless-mode personal record (N-END-02 / Phase 11 D-12).
+ *
+ * Lives INSIDE `TelemetryBlob`, never on `ProgressBlob`: telemetry is the one
+ * sub-object whose parser is validated independently of its siblings
+ * (`parseBlob.ts` `sanitizeTelemetry`), so a corrupt endless record degrades
+ * itself alone and can never take campaign unlocks/bests with it (SC-3).
+ */
+export type EndlessRecord = {
+  /**
+   * Deepest wave index ever reached in an endless run (D-01/D-02 wave numbering,
+   * 1-based) — a depth record, deliberately NOT a count of waves played.
+   */
+  bestWave: number;
+  /**
+   * Highest score ever reached in an endless run, deliberately NOT
+   * `ProgressBlob.bestScore` — that is the rolled-up *campaign* Title PB (see
+   * `ProgressBlob` below), which an endless run must never raise (SC-3 / N-END-02).
+   */
+  bestScore: number;
+};
+
+/**
+ * The `byMode.endless` map key (Phase 11 D-12). A plain constant string rather
+ * than a `LevelId` because a generated board has no catalog id, and widening
+ * `LevelId` to admit one would open every campaign-progress code path — the
+ * `bestByLevel` and `unlocked` key type — to endless values.
+ */
+export const ENDLESS_TELEMETRY_KEY = 'endless' as const;
+
 export type TelemetryBlob = {
   lifetime: TelemetryAggregate;
   byMode: {
@@ -121,6 +151,8 @@ export type TelemetryBlob = {
     endless: Partial<Record<string, TelemetryAggregate>>;
     daily: Partial<Record<string, TelemetryAggregate>>;
   };
+  /** Endless running maxima (N-END-02) — written only by `mergeEndlessRecord`. */
+  endless: EndlessRecord;
   recentRuns: RunLogEntry[];
 };
 
@@ -145,10 +177,16 @@ export function defaultTelemetryAggregate(): TelemetryAggregate {
   };
 }
 
+/** All-zero endless record — no endless run has been recorded yet. */
+export function defaultEndlessRecord(): EndlessRecord {
+  return { bestWave: 0, bestScore: 0 };
+}
+
 export function defaultTelemetryBlob(): TelemetryBlob {
   return {
     lifetime: defaultTelemetryAggregate(),
     byMode: { campaign: {}, endless: {}, daily: {} },
+    endless: defaultEndlessRecord(),
     recentRuns: [],
   };
 }

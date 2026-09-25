@@ -23,6 +23,9 @@ export {
   type RunOutcome,
   type TelemetryBlob,
   type TelemetryAggregate,
+  type EndlessRecord,
+  defaultEndlessRecord,
+  ENDLESS_TELEMETRY_KEY,
   type RunLogEntry,
   type RunStatsInput,
 } from './types';
@@ -60,6 +63,7 @@ export { mergeHighWatermark, mergeHighWatermarkV3 } from './watermark';
 export {
   mergeRunIntoTelemetry,
   mergeTelemetryBlobs,
+  mergeEndlessRecord,
   cloneTelemetryBlob,
 } from './telemetry';
 export {

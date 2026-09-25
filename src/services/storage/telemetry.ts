@@ -53,8 +53,23 @@ export function cloneTelemetryBlob(t: TelemetryBlob): TelemetryBlob {
       endless: cloneAggregateMap(t.byMode.endless),
       daily: cloneAggregateMap(t.byMode.daily),
     },
+    // RED stub: aliased, not cloned — GREEN must make this a distinct object.
+    endless: t.endless,
     recentRuns: t.recentRuns.map((e) => ({ ...e })),
   };
+}
+
+/**
+ * RED stub for `mergeEndlessRecord` — returns the blob unchanged so the failing
+ * assertions in `tests/storage.progress-v4.test.ts` are about the running-max
+ * behaviour, not about a missing export. Replaced in GREEN.
+ */
+export function mergeEndlessRecord(
+  telemetry: TelemetryBlob,
+  run: { wave: number; score: number },
+): TelemetryBlob {
+  void run;
+  return cloneTelemetryBlob(telemetry);
 }
 
 /** Fold one finished run into an aggregate (cumulative sums, running maxes). */
@@ -190,6 +205,8 @@ export function mergeTelemetryBlobs(
       endless: mergeAggregateMaps(memory.byMode.endless, incoming.byMode.endless),
       daily: mergeAggregateMaps(memory.byMode.daily, incoming.byMode.daily),
     },
+    // RED stub: left side wins — GREEN must take the per-field max.
+    endless: memory.endless,
     recentRuns,
   };
 }
