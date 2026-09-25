@@ -105,12 +105,12 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 1/6 plans executed (waves 1-4)
+**Plans:** 2/6 plans executed (waves 1-4)
 
 Plans:
 
 - [x] 11-01-PLAN.md — Wave ramp, per-wave seed, the mode-agnostic board-swap seam, and an end-to-end tracer transition (wave 1)
-- [ ] 11-02-PLAN.md — Endless record inside the telemetry blob, and the campaign-write firewall in both stores (wave 1)
+- [x] 11-02-PLAN.md — Endless record inside the telemetry blob, and the campaign-write firewall in both stores (wave 1)
 - [ ] 11-03-PLAN.md — `useGameLoop` wave request/apply pair, `advanceWave`, and the cumulative tick bank (wave 2)
 - [ ] 11-04-PLAN.md — Multi-wave SC-1 integration and the SC-4 determinism suite (wave 2)
 - [ ] 11-05-PLAN.md — Bake-key re-key, `PlayingHost` endless wiring, and the temporary `__DEV__` entry (wave 3)

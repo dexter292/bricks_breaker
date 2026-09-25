@@ -3,14 +3,14 @@ gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
 status: in_progress
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-09-25T14:09:09.507Z"
-state_head: aebe79569d0f655043c3fc4a2cb1f81c57fb9a09
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-09-25T14:27:37.837Z"
+state_head: 476de0d8739276bd9c6b0a2080858073024a6b30
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 17
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -103,6 +103,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 11 P01 | 15min | 3 tasks | 8 files |
+| Phase 11 P02 | 12min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -173,6 +174,9 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [Phase 11]: seedForWave mixes the wave index, not the difficulty — difficulty saturates at D_MAX from wave 21, so mixing it would hand every post-clamp wave the same board
 - [Phase 11]: applyWaveAdvance takes only (World, CompiledLevel or null) — mode-agnostic so Phase 12 daily reuses it verbatim; endless policy stays in src/services/endless
 - [Phase 11]: D-07 implemented: lowestLiveBall exported from tests/helpers/balanceBot.ts instead of duplicating the scan
+- [Phase 11]: D-11 implemented: recordRunEnd takes the RecordRunEndArgs discriminated union (campaign | endless); the endless arm has no levelId, so TypeScript narrowing forces the runtime mode gate to exist and SC-3 becomes a property of the type rather than a caller convention — A convention-only gate is one careless edit away from returning; the union is pinned by a @ts-expect-error that fails tsc if it ever collapses back to a flat type
+- [Phase 11]: D-12 implemented: ENDLESS_TELEMETRY_KEY is a plain string constant for byMode.endless, and LevelId was NOT widened — LevelId is the key type for bestByLevel and unlocked; admitting an endless value there is the exact SC-3 failure
+- [Phase 11]: EndlessRecord lives inside TelemetryBlob, never on ProgressBlob, and no version bump or migration was needed (PROGRESS_VERSION stays 4, migrateProgress.ts has a zero-line diff) — sanitizeTelemetry already validates telemetry independently of its siblings; that independence IS the SC-3 firewall, and defaultTelemetryBlob() makes an old key-less v4 blob default cleanly
 
 ### Decisions (Post-MVP close)
 
@@ -206,6 +210,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-25T14:08:49.688Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-09-25T14:27:37.818Z
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None

@@ -23,7 +23,7 @@ affects: [11-03 useGameLoop wave plumbing, 11-05 PlayingHost endless host and it
 actuals:
   tokens: 9771
   tasks: 3
-  commits: 6
+  commits: 8
 plan_head_before: 9335d194a2d2543546a7dd608c2eb989822cb630
 
 # Tech tracking
@@ -287,8 +287,18 @@ None — no external service configuration and no packages installed. (RESEARCH'
 - **Phase 12 (daily)** adds a third arm to `RecordRunEndArgs`. Adding it will surface a compile error at both stores' `telemetryKey` ternary and the endless branch — which is the intended behaviour: the union forces daily to declare what it writes rather than inheriting campaign's writes silently.
 - **Phase 13 (achievements)** reads `byMode.endless[ENDLESS_TELEMETRY_KEY]`. Research assumption **A4** (that a single constant key is the right granularity) is still unmeasured; changing it later is an aggregate merge, not a migration.
 
+**Requirement N-END-02 is intentionally still open.** `requirements.ready-ids` blocks it because
+plans **11-05** and **11-06** also declare it and have no `*-SUMMARY.md` yet. (The dispatch note for
+this plan said N-END-02 was declared by 11-02 alone — `grep -l 'N-END-02' .planning/phases/11-endless-mode/*-PLAN.md`
+returns three plans, so that premise was wrong.) It flips to Complete when the last declaring plan finishes.
+The storage half of the requirement is fully delivered and proven here.
+
 No blockers.
 
 ---
 *Phase: 11-endless-mode*
 *Completed: 2026-09-25*
+
+## Self-Check: PASSED
+
+Both created artifacts exist on disk (`tests/storage.endless-firewall.test.ts`, `.planning/phases/11-endless-mode/11-02-SUMMARY.md`) and all seven commits (`e031670`, `6eb4dea`, `8a54022`, `ef3bbe9`, `8fb0749`, `57d4f6c`, `476de0d`) are present in `git log`.
