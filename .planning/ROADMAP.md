@@ -53,7 +53,7 @@ Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outsid
   5. `hashWorld` and core simulation are untouched — telemetry reads events, it does not participate in the sim
 **Plans:** 5 plans (waves 0-3)
 Plans:
-- [ ] 09-00-PLAN.md — Wave-0 it.todo test scaffolds for N-STAT-01/N-STAT-02 + v3 fixture builder
+- [x] 09-00-PLAN.md — Wave-0 it.todo test scaffolds for N-STAT-01/N-STAT-02 + v3 fixture builder
 - [ ] 09-01-PLAN.md — Runtime event-ring reducer (src/runtime/runStats.ts) wired into useGameLoop.ts
 - [ ] 09-02-PLAN.md — ProgressBlob v4 schema, fail-soft parse, extended migrate chain, telemetry merge helpers
 - [ ] 09-03-PLAN.md — memoryStore.ts / asyncStorageStore.ts extended to the v4 recordRunEnd contract

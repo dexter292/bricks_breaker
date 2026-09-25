@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Retention & Replayability
 current_phase: '9'
-status: milestone_planned
-stopped_at: "v1.2 roadmap created (phases 9-14); nothing planned or executed yet"
+status: in_progress
+stopped_at: "Phase 9 Wave 0 complete (09-00 scaffolds merged); Wave 1 (09-01 + 09-02) next"
 last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 5
+  completed_plans: 1
+  percent: 20
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
   phase_8_status: temporary_close
