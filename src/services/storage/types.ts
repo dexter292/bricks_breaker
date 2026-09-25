@@ -262,6 +262,45 @@ export function defaultProgressBlobV3(): ProgressBlobV3 {
   };
 }
 
+/**
+ * `recordRunEnd`'s argument (Phase 11 D-11 / SC-3 / N-END-02).
+ *
+ * A discriminated union on `mode`, not one flat object with an optional
+ * `levelId`, because the campaign fields must be unreachable from a non-campaign
+ * run AT COMPILE TIME. TypeScript's narrowing then *forces* the runtime
+ * `args.mode === 'campaign'` gate in both stores to exist, since `args.levelId`
+ * does not typecheck outside it — so SC-3 ("an endless run cannot alter campaign
+ * unlocks, bests or stars") is a property of the type, not of a caller
+ * convention that one careless edit can drop.
+ *
+ * Phase 12 adds the `daily` arm when daily runs exist. Until then `daily` is
+ * deliberately excluded rather than silently treated as campaign.
+ */
+export type RecordRunEndArgs =
+  | {
+      mode: 'campaign';
+      /** Catalog level played — the key for `bestByLevel` and the unlock ladder. */
+      levelId: LevelId;
+      score: number;
+      outcome: RunOutcome;
+      livesRemaining: number;
+      stats: RunStatsInput;
+    }
+  /**
+   * The endless arm carries `wave` and has NO `levelId` — a generated board has
+   * no catalog id (D-12), and that absence is what makes the campaign write
+   * unreachable. `wave` and `score` fold into `telemetry.endless` (N-END-02);
+   * nothing on this arm may reach `bestByLevel`, `unlocked` or `bestScore`.
+   */
+  | {
+      mode: 'endless';
+      wave: number;
+      score: number;
+      outcome: RunOutcome;
+      livesRemaining: number;
+      stats: RunStatsInput;
+    };
+
 export interface ProgressStore {
   getBest(): Promise<number>;
   /** Returns nested `.score` (missing → 0). */
@@ -273,14 +312,7 @@ export interface ProgressStore {
    * return clone before awaiting disk (D-10 / F-26).
    * Telemetry rides this call rather than a parallel one (C2 lock).
    */
-  recordRunEnd(args: {
-    levelId: LevelId;
-    mode: GameMode;
-    score: number;
-    outcome: RunOutcome;
-    livesRemaining: number;
-    stats: RunStatsInput;
-  }): ProgressBlob;
+  recordRunEnd(args: RecordRunEndArgs): ProgressBlob;
   unlockAfterClear(id: LevelId): Promise<void>;
   isUnlocked(id: LevelId): Promise<boolean>;
   getSnapshot(): Promise<ProgressBlob>;

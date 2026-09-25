@@ -11,7 +11,11 @@ import {
   parseProgressV3Result,
 } from './parseBlob';
 import { computeStars, mergeLevelBest } from './stars';
-import { cloneTelemetryBlob, mergeRunIntoTelemetry } from './telemetry';
+import {
+  cloneTelemetryBlob,
+  mergeEndlessRecord,
+  mergeRunIntoTelemetry,
+} from './telemetry';
 import { mergeHighWatermark } from './watermark';
 import {
   unlockAfterClear as unlockAfterClearPure,
@@ -23,15 +27,14 @@ import {
   PROGRESS_KEY,
   PROGRESS_KEY_V3,
   PROGRESS_KEY_V2,
+  ENDLESS_TELEMETRY_KEY,
   defaultProgressBlob,
-  type GameMode,
   type LevelBest,
   type PersonalBestBlob,
   type PersonalBestStore,
   type ProgressBlob,
   type ProgressStore,
-  type RunOutcome,
-  type RunStatsInput,
+  type RecordRunEndArgs,
 } from './types';
 import type { LevelId } from '../../core';
 
@@ -361,14 +364,7 @@ function createAsyncStorageProgressStoreFrom(
       applyLevelBest(id, mergeLevelBest(memory.bestByLevel[id], n, null));
       await persist(memory);
     },
-    recordRunEnd(args: {
-      levelId: LevelId;
-      mode: GameMode;
-      score: number;
-      outcome: RunOutcome;
-      livesRemaining: number;
-      stats: RunStatsInput;
-    }): ProgressBlob {
+    recordRunEnd(args: RecordRunEndArgs): ProgressBlob {
       // Sync memory update first so Results can use returned blob (D-10 / F-26).
       // Hydration is best-effort fire-and-forget if not yet done — callers that
       // need disk state should await getSnapshot/getBest first (hosts do).
@@ -377,29 +373,52 @@ function createAsyncStorageProgressStoreFrom(
         // Kick hydrate without blocking return; rare cold path before first read.
         void ensureHydrated();
       }
-      // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
-      const starsFromWin =
-        args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
-      const merged = mergeLevelBest(
-        memory.bestByLevel[args.levelId],
-        args.score,
-        starsFromWin,
-      );
-      applyLevelBest(args.levelId, merged);
+      // Campaign progress is mode-gated (SC-3 / N-END-02): an endless or daily
+      // run must never move bestByLevel, bestScore or the unlock ladder. The
+      // discriminated union makes args.levelId reachable ONLY inside this block,
+      // so the gate cannot be dropped without a compile error.
+      if (args.mode === 'campaign') {
+        // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
+        const starsFromWin =
+          args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
+        const merged = mergeLevelBest(
+          memory.bestByLevel[args.levelId],
+          args.score,
+          starsFromWin,
+        );
+        applyLevelBest(args.levelId, merged);
+        if (args.outcome === 'win') {
+          memory = {
+            ...memory,
+            unlocked: unlockAfterClearPure(memory.unlocked, args.levelId),
+            updatedAt: Date.now(),
+          };
+        }
+      }
+      // Telemetry is mode-keyed BY DESIGN and stays OUTSIDE the gate — every mode
+      // accumulates runs/bricks/ticks. A generated endless board has no catalog id,
+      // so it keys on the D-12 constant instead of a LevelId.
+      const telemetryKey =
+        args.mode === 'endless' ? ENDLESS_TELEMETRY_KEY : args.levelId;
       memory = {
         ...memory,
         telemetry: mergeRunIntoTelemetry(memory.telemetry, {
           mode: args.mode,
-          levelId: args.levelId,
+          levelId: telemetryKey,
           outcome: args.outcome,
           score: args.score,
           stats: args.stats,
         }),
       };
-      if (args.outcome === 'win') {
+      if (args.mode === 'endless') {
+        // The endless record is the ONLY personal best an endless run may raise.
+        // Nothing in here may reference bestByLevel, unlocked or bestScore.
         memory = {
           ...memory,
-          unlocked: unlockAfterClearPure(memory.unlocked, args.levelId),
+          telemetry: mergeEndlessRecord(memory.telemetry, {
+            wave: args.wave,
+            score: args.score,
+          }),
           updatedAt: Date.now(),
         };
       }

@@ -13,6 +13,7 @@ export {
   type ProgressBlobV3,
   type ProgressBlobV2,
   type ProgressStore,
+  type RecordRunEndArgs,
   type StarCount,
   type LevelBest,
   RECENT_RUNS_BOUND,

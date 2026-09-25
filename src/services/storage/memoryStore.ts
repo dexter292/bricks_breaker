@@ -1,15 +1,17 @@
 import type { LevelId } from '../../core';
 import type {
-  GameMode,
   LevelBest,
   PersonalBestStore,
   ProgressBlob,
   ProgressStore,
-  RunOutcome,
-  RunStatsInput,
+  RecordRunEndArgs,
 } from './types';
-import { defaultProgressBlob } from './types';
-import { cloneTelemetryBlob, mergeRunIntoTelemetry } from './telemetry';
+import { ENDLESS_TELEMETRY_KEY, defaultProgressBlob } from './types';
+import {
+  cloneTelemetryBlob,
+  mergeEndlessRecord,
+  mergeRunIntoTelemetry,
+} from './telemetry';
 import { computeStars, mergeLevelBest } from './stars';
 import {
   unlockAfterClear as unlockAfterClearPure,
@@ -90,32 +92,45 @@ export function createMemoryProgressStore(
       }
       applyLevelBest(id, mergeLevelBest(blob.bestByLevel[id], n, null));
     },
-    recordRunEnd(args: {
-      levelId: LevelId;
-      mode: GameMode;
-      score: number;
-      outcome: RunOutcome;
-      livesRemaining: number;
-      stats: RunStatsInput;
-    }): ProgressBlob {
-      // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
-      const starsFromWin =
-        args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
-      const merged = mergeLevelBest(
-        blob.bestByLevel[args.levelId],
-        args.score,
-        starsFromWin,
-      );
-      applyLevelBest(args.levelId, merged);
+    recordRunEnd(args: RecordRunEndArgs): ProgressBlob {
+      // Campaign progress is mode-gated (SC-3 / N-END-02): an endless or daily
+      // run must never move bestByLevel, bestScore or the unlock ladder. The
+      // discriminated union makes args.levelId reachable ONLY inside this block,
+      // so the gate cannot be dropped without a compile error.
+      if (args.mode === 'campaign') {
+        // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
+        const starsFromWin =
+          args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
+        const merged = mergeLevelBest(
+          blob.bestByLevel[args.levelId],
+          args.score,
+          starsFromWin,
+        );
+        applyLevelBest(args.levelId, merged);
+        if (args.outcome === 'win') {
+          blob.unlocked = unlockAfterClearPure(blob.unlocked, args.levelId);
+          blob.updatedAt = Date.now();
+        }
+      }
+      // Telemetry is mode-keyed BY DESIGN and stays OUTSIDE the gate — every mode
+      // accumulates runs/bricks/ticks. A generated endless board has no catalog id,
+      // so it keys on the D-12 constant instead of a LevelId.
+      const telemetryKey =
+        args.mode === 'endless' ? ENDLESS_TELEMETRY_KEY : args.levelId;
       blob.telemetry = mergeRunIntoTelemetry(blob.telemetry, {
         mode: args.mode,
-        levelId: args.levelId,
+        levelId: telemetryKey,
         outcome: args.outcome,
         score: args.score,
         stats: args.stats,
       });
-      if (args.outcome === 'win') {
-        blob.unlocked = unlockAfterClearPure(blob.unlocked, args.levelId);
+      if (args.mode === 'endless') {
+        // The endless record is the ONLY personal best an endless run may raise.
+        // Nothing in here may reference bestByLevel, unlocked or bestScore.
+        blob.telemetry = mergeEndlessRecord(blob.telemetry, {
+          wave: args.wave,
+          score: args.score,
+        });
         blob.updatedAt = Date.now();
       }
       return cloneBlob(blob);
