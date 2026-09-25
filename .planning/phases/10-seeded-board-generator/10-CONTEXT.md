@@ -63,6 +63,49 @@ Difficulty turns four dials at once:
   with the other two dials working against them. This is an explicit constraint on the
   parameter curves, and it must be asserted across the range, not spot-checked.
 
+### Post-research corrections (2026-09-25, after 10-RESEARCH.md)
+
+The decisions above stand. Two of the things I said *about* them were wrong, and the
+planner must work from the corrected version:
+
+- **D-08's premise is false.** I wrote that thinning explosive removes authored weight. It
+  does not, provided `E` is carved out of the hp1 budget: `E` is `{ hp: 1, explosive: true }`
+  and `1` is `{ hp: 1 }`, so demoting one to the other is weight-identical. Research
+  confirmed it empirically — 0 of 63 000 boards changed weight under demotion. So the
+  explosive dial is weight-**neutral**, not weight-negative, and monotonicity is easier than
+  D-08 claimed. The density and HP dials still own it; the steel part of D-08 is still right
+  (steel is unbreakable, so it contributes zero weight).
+
+- **D-03 is one constraint, not four.** `isPassable` returns true for empty *and* breakable
+  cells, so reachability depends on the **steel mask alone** — density, HP mix and explosive
+  are provably solvability-neutral. The invariant to maintain is content-free: *every
+  non-steel cell is 4-reachable from the bottom row*.
+
+- **Mirroring is the dangerous step, not the placement.** Research falsified two plausible
+  steel rules against the real lint, and showed a half-board with zero unreachables producing
+  **20 unreachable breakables once mirrored**. The invariant must be checked on the **full**
+  board after both cells of a mirrored pair are set — never on the half.
+
+### Discretion now exercised (was Claude's call in this document)
+
+- **Difficulty is an integer `0..20`.** Chosen so the dial schedule is a literal table and
+  monotonicity is an inspectable integer property; a normalised float scale would reintroduce
+  a `Math.floor` boundary sensitivity across engines. `D_MAX` is one constant if Phase 11
+  wants a longer ladder.
+- **`generate` accepts `number | string` for `seed`**, normalised internally, so Phase 12 can
+  pass a date string without a signature change.
+- **Boards are top-anchored** in the grid, matching every shipped level and keeping the lower
+  playfield clear.
+
+### Carried into the plan as a required task, not an assumption
+
+Research assumption **A1** — that Hermes produces byte-identical output to Node — is
+**unmeasured**. Byte-identity was verified across Node processes only. If it is false, Phase
+12's daily challenge would hand different boards to device and CI, which is the exact failure
+the daily mode cannot tolerate. The plan must include the cheap on-device falsification
+(hash a fixed corpus on device, compare against a pinned digest), not carry it as an
+assumption.
+
 ### Carried forward (already locked — do not re-litigate)
 - **E1b:** shipped verbs only — hp1/hp2/hp3, steel `X`, explosive `E`. No new brick type.
   `E` is `{ hp: 1, explosive: true }`; validate rejects `unbreakable + explosive`.

@@ -49,3 +49,6 @@ coverage/
 .claude/worktrees/
 # GSD run-scoped dispatch sentinel
 .gsd/
+
+# Research tooling cache
+.planning/research/.cache/
