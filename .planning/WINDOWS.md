@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 3
+open_count: 4
 waived_count: 0
 fixed_count: 0
-total_count: 3
-last_updated: 2026-09-25T14:27:15.115Z
+total_count: 4
+last_updated: 2026-09-25T14:40:25.863Z
 ---
 
 # Broken Windows Ledger
@@ -18,6 +18,7 @@ last_updated: 2026-09-25T14:27:15.115Z
 | 1 | 11 | deviation | tests/endless.wave-loop.test.ts |  | Rule 2: wave-2 board compiled via compileGeneratedLevel instead of loadAndCompile so the new export is not shipped unexercised (11-01) | open |  | 2026-09-25T14:10:00.820Z |  |
 | 2 | 11 | deviation | src/services/storage/memoryStore.ts |  | Plan 11-02 Task 3: plan action text and acceptance criterion contradicted (ternary discriminant); resolved with the equivalent 'endless' discriminant to keep one campaign gate per store | open |  | 2026-09-25T14:27:08.710Z |  |
 | 3 | 11 | deviation | src/services/storage/telemetry.ts |  | Plan 11-02 Task 1: acceptance criterion AC7 expected grep count 1 for 'endless' in mergeRunIntoTelemetry but the function indexes byMode[args.mode] dynamically; actual 0 satisfies the intent more strongly, no source change | open |  | 2026-09-25T14:27:15.115Z |  |
+| 4 | 11 | deviation | src/runtime/useGameLoop.ts |  | onFrame dependency array required waveRequest/waveApplied/ticksBanked (react-hooks/exhaustive-deps) — auto-fixed, Rule 3 | open |  | 2026-09-25T14:40:25.863Z |  |
 
 ````json
 [
@@ -57,6 +58,19 @@ last_updated: 2026-09-25T14:27:15.115Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-25T14:27:15.115Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 4,
+    "kind": "deviation",
+    "phase": "11",
+    "file": "src/runtime/useGameLoop.ts",
+    "line": null,
+    "description": "onFrame dependency array required waveRequest/waveApplied/ticksBanked (react-hooks/exhaustive-deps) — auto-fixed, Rule 3",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-25T14:40:25.863Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
