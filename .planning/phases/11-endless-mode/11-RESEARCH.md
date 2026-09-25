@@ -990,27 +990,60 @@ No new fixtures or shared conftest-equivalents are required: `tests/helpers/bala
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All four were settled during planning (2026-09-25). Two were settled **against** the
+recommendation below; both departures are stated as such rather than left for a reader to
+reconstruct from the plans.
 
 1. **Should the wave counter or the score be "the" record on the HUD?**
    - What we know: N-END-02 requires **both** be stored; CONTEXT explicitly defers the display choice to Phase 14.
    - What's unclear: nothing blocking — this phase stores both and shows the wave number somewhere (Claude's discretion per CONTEXT).
    - Recommendation: show `Wave N` in the HUD strip next to the existing lives/score/combo fields; store both records; make no display commitment.
+   - **RESOLVED — plan `11-05` (D-13), recommendation considered and DECLINED.** The wave
+     number renders in the `__DEV__` dev row beside the endless entry, not in the HUD strip.
+     Three reasons: the mode itself is `__DEV__`-only until Phase 14, so a production HUD slot
+     would be chrome for a screen no player can reach; production shell chrome is Phase 14's
+     scope by CONTEXT's own boundary; and the dev row keeps `src/runtime/GameScreen.tsx` — and
+     its render-layer path-contract tests — out of this phase's blast radius. The "store both,
+     commit to no display" half of the recommendation is followed exactly (plan `11-02`), and
+     `docs/ops/ENDLESS-MODE.md` § Limits records that the production placement is Phase 14's
+     decision.
 
 2. **Does `docs/ops/BOARD-GENERATOR.md` §Limits item 2 get amended by this phase?**
    - What we know: its claim ("boards at that tail are plausibly unfinishable by a real player") is the inference this research was sent to test, and the trajectory measurement materially qualifies it.
    - What's unclear: whether amending a closed phase's ops doc is in scope.
    - Recommendation: **amend it** — add a cross-reference to `docs/ops/ENDLESS-MODE.md` with the 18× trajectory spread. Leaving a superseded inference in an ops record is precisely what the `## Limits` convention exists to prevent, and a future phase would otherwise act on it.
+   - **RESOLVED — plan `11-06` Task 2, recommendation FOLLOWED.** Item 2's first paragraph and
+     its original superseded second paragraph are both preserved byte-for-byte, with a dated
+     supersession note appended beneath carrying the 500-seed d=20 scan, the 18× spread on
+     `s=33`, and the non-monotone per-difficulty maxima. Acceptance criteria grep for the
+     survival of both original paragraphs, so the amendment cannot become a deletion.
 
 3. **Is a human playtest of endless a gate for this phase or for Phase 14?**
    - What we know: no human has played a generated board (E2 cohort skipped, A3 skipped by owner). Assumption A5 rests on it.
    - What's unclear: owner appetite.
    - Recommendation: **Phase 14's gate, not this one.** D-05 keeps endless behind a `__DEV__` button, so nothing ships to a player this phase. Flag it in the summary's Next Phase Readiness rather than blocking here.
+   - **RESOLVED — plans `11-05` (D-05 entry) and `11-06` Task 3, recommendation FOLLOWED.** No
+     human playtest gates this phase. The one human-facing item that remains is the SC-5
+     *device frame-budget* reading, which is a performance measurement rather than a playtest;
+     it lands as a dated OPEN assumption in `docs/ops/ENDLESS-MODE.md` with its discharge
+     procedure, plus a `.planning/STATE.md` pending line, and is harvested at end-of-phase
+     through a `<human-check>`.
 
 4. **What run seed does the dev button use, and should it be overridable?**
    - What we know: `Date.now() >>> 0` in the app tier; `levelgen` cannot mint it.
    - What's unclear: whether a fixed-seed dev affordance is wanted for manual repro.
    - Recommendation: default to wall clock, accept an optional override prop so the headless SC-4 test and any manual repro can pin it. Zero cost.
+   - **RESOLVED — plan `11-05` Task 2, override half considered and DECLINED.** The wall-clock
+     default is implemented as recommended (`Date.now() >>> 0` minted in the app tier, because
+     `src/levelgen/**` bans wall-clock reads by eslint rule). The override prop is **not**
+     built: the headless SC-4 suite (`tests/endless.determinism.test.ts`, plan `11-04` Task 2)
+     drives the world and the ramp functions directly and pins its own run seed, so it needs
+     nothing from the host. An override prop would therefore be host API with zero consumers,
+     on a component whose endless entry Phase 14 replaces outright. "Zero cost" was not quite
+     right — the cost is a prop that has to be carried and then removed. If manual fixed-seed
+     repro is ever wanted on device, Phase 14's real entry is the place to add it.
 
 ---
 

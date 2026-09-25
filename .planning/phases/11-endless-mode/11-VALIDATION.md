@@ -50,6 +50,7 @@ deleted before the plan's verification block runs `git status --porcelain`.
 |---|---|---|---|---|
 | SC-1 / N-END-01 | Clearing a board advances to the next; lives, score, combo carry | integration | `npx vitest run tests/endless.wave-loop.test.ts` | ❌ W0 |
 | SC-1 | The run ends **only** at zero lives — a cleared board never ends an endless run | integration | same file | ❌ W0 |
+| SC-1 / D-04 | No wave boundary grants a life (load-bearing); `MAX_LIVES` holds in a run that actually gains one (exercised, not assumed) | integration | same file | ❌ W0 |
 | SC-1 / D-03 | `applyWaveAdvance` clears effects, pickups and extra balls; leaves `lives`/`score`/`combo`/`rngGameplay` untouched; `simPhase === DOCKED` | unit | `npx vitest run tests/runtime.wave-advance.test.ts` | ❌ W0 |
 | SC-2 / N-END-01 | `difficultyForWave` steps +1 per wave, clamps at `D_MAX`, never exceeds it out to wave 10 000 | unit | `npx vitest run tests/endless.ramp.test.ts` | ❌ W0 |
 | SC-2 | The ramp is **written down** — `docs/ops/ENDLESS-MODE.md` carries the wave→difficulty table | grep | `grep -c "wave" docs/ops/ENDLESS-MODE.md` | ❌ W0 |
@@ -121,6 +122,16 @@ than the one that creates them.
 | 1 — `recordRunEnd` writes campaign data for every mode | `11-02` Task 3 (discriminated union + `args.mode === 'campaign'` gate in `memoryStore.ts` and `asyncStorageStore.ts`) | `tests/storage.endless-firewall.test.ts`, one describe per store, plus a `@ts-expect-error` case that makes `npm run typecheck` the compile-time gate |
 | 2 — the glow-bake key changes every wave | `11-05` Task 1 (re-key `loadKey` on brick dimensions alone) | `tests/ui/PlayingHost.next-bake.test.ts` source contract + jsdom `setActiveCalls` regression, duplicated in `tests/ui/PlayingHost.endless.test.ts` so the contract survives either file being rewritten |
 
+### D-04 (no life mechanic) — which half of the guard is load-bearing
+
+D-04 decided to build nothing, which leaves no artifact to test. `11-04` Task 1 splits its
+guard in two and the plan says which is which, because the halves are not equal:
+
+| Case | Load-bearing? | Why |
+|---|---|---|
+| **6a** — lives immediately after each `applyWaveAdvance` equal lives immediately before it | **yes** | A later per-N-waves grant breaks this on the first boundary it fires. This is the regression guard. |
+| **6b** — lives never exceed `MAX_LIVES` | only if exercised | Under the clean driver the bot never misses, so lives can sit at 3 all run and the 8 % extra-life drop may never fire — the cap would then pass for reasons unrelated to D-04. 6b therefore asserts a life gain occurred **before** asserting the cap, and `11-04`'s SUMMARY records the wave at which it happened. |
+
 ### `world.tick` decision
 
 Decided in the plans, not deferred: **`world.tick` restarts each wave** (`11-01` objective,
@@ -138,6 +149,16 @@ measurement in `docs/ops/ENDLESS-MODE.md` (`11-06` Task 1).
   procedure, and queued for the end-of-phase UAT harvest through that task's `<human-check>`.
   `workflow.human_verify_mode` is unset in `.planning/config.json`, so the `end-of-phase`
   default applies and no mid-flight checkpoint task is emitted.
+
+### D-05 (`__DEV__` entry) — the gate that actually moves
+
+The dev row is a **single** `typeof __DEV__ !== 'undefined' && __DEV__` guard wrapping all its
+`Pressable`s (`app/_components/PlayingHost.tsx:994-1041`), and `11-05` Task 3 adds the endless
+entry *inside* it. A whole-file occurrence count therefore cannot detect the entry — it stays
+at 8 — so `11-05` Task 3's criterion is scoped to the extracted `devLevelSwitch` region and
+asserts the region holds exactly one guard **and** contains the entry's `accessibilityLabel`
+and the wave indicator. `tests/ui/PlayingHost.endless.test.ts` Tests 1-2 are what prove the
+guard idiom itself.
 
 ## Manual-Only Verifications
 
