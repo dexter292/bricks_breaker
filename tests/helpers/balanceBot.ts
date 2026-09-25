@@ -82,7 +82,7 @@ function applyRampProbe(
 }
 
 /** Index of the live ball closest to the bottom, or -1. */
-function lowestLiveBall(w: ReturnType<typeof allocateWorld>): number {
+export function lowestLiveBall(w: ReturnType<typeof allocateWorld>): number {
   let best = -1;
   let bestY = -Infinity;
   for (let i = 0; i < w.ballActive.length; i++) {

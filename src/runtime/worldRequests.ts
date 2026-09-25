@@ -41,6 +41,17 @@ export function applyRetryWorldReset(
   dockBall(world);
 }
 
+/**
+ * RED stub (11-01 Task 1) — the wave-advance carry/clear contract is not implemented yet.
+ * It currently only swaps the board, so every carry and clear assertion must fail.
+ */
+export function applyWaveAdvance(world: World, level: CompiledLevel | null): void {
+  'worklet';
+  if (level != null) {
+    applyCompiledLevel(world, level);
+  }
+}
+
 /** Clear cosmetic SoA so trails / sparks / shake do not leak across Retry. */
 export function clearCosmeticVfx(vfx: VfxState, world: World): void {
   'worklet';

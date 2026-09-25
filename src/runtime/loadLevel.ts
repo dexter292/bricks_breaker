@@ -10,11 +10,12 @@
 import {
   loadAndCompile,
   type CompiledLevel,
+  type LevelFileV1,
   type LevelId,
   type ValidationIssue,
 } from '../core';
 
-export type { CompiledLevel, LevelId, ValidationIssue };
+export type { CompiledLevel, LevelFileV1, LevelId, ValidationIssue };
 
 export type LoadLevelResult =
   | { ok: true; compiled: CompiledLevel }
@@ -34,5 +35,12 @@ const LEVEL_MODULES: Record<LevelId, unknown> = {
  */
 export function loadLevelById(id: LevelId): LoadLevelResult {
   const raw = LEVEL_MODULES[id];
+  return loadAndCompile(raw);
+}
+
+/**
+ * RED stub (11-01 Task 1) — generated-board compile wrapper, filled in at GREEN.
+ */
+export function compileGeneratedLevel(raw: LevelFileV1): LoadLevelResult {
   return loadAndCompile(raw);
 }
