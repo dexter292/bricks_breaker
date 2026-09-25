@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_phase: '11'
 status: in_progress
-stopped_at: "Phase 10 COMPLETE (6/6 plans, 87 files/486 tests, A1 discharged on device). Next: Phase 11 endless mode"
+stopped_at: "Phase 11 PLANNED (6 plans, waves 1-4; plan-check 0 blockers, warning + 2 evidence-quality info fixed). Next: execute-phase 11"
 last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
