@@ -76,7 +76,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED: draw helper failing tests** — `1056684` (test)
 4. **Task 2 GREEN: recordSprites ghosts + squash** — `e9810d0` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `acebe89` (docs: complete plan)
 
 ## Files Created/Modified
 
