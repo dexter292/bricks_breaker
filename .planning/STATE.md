@@ -4,15 +4,16 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_phase: '9'
 status: in_progress
-stopped_at: "Phase 9 Wave 2 complete (09-03 store round-trip + 2 data-loss fixes); Wave 3 (09-04) next — has a human checkpoint"
+stopped_at: "Phase 9 code complete (5/5 plans, 444 tests). BLOCKED on human device checkpoint: abandon-flush + wall-clock-excludes-pause"
 last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
+  phase_9_human_checkpoint: pending
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
   phase_8_status: temporary_close
