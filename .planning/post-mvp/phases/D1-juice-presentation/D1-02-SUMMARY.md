@@ -72,7 +72,7 @@ Each task was committed atomically (Task 2 TDD RED → GREEN):
 2. **Task 2 RED: failing expo soft-fail + coalesce tests** — `375df9d` (test)
 3. **Task 2 GREEN: expoHapticsService soft-fail + coalesce** — `70c2b2a` (feat)
 
-**Plan metadata:** _(docs commit after this SUMMARY)_
+**Plan metadata:** `5e07486` (docs: complete plan)
 
 ## Files Created/Modified
 
