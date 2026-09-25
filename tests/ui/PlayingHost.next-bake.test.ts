@@ -116,6 +116,11 @@ vi.mock('../../src/runtime/useGameLoop', () => ({
     injectCertWorstCase: () => {},
     certOut: { value: {} },
     certSeq: { value: 0 },
+    // Defensive: the scenarios here never fire WON/LOST/menu-exit, so these are
+    // not dereferenced today — kept in sync so a future case cannot hit
+    // "Cannot read properties of undefined" (Phase 9 N-STAT-01).
+    runStats: { value: null },
+    world: { value: null },
   }),
 }));
 

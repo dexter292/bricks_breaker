@@ -56,6 +56,12 @@ import {
 import type { VfxBudget } from './resolveQualityTier';
 import { BUDGETS } from './resolveQualityTier';
 import {
+  allocateRunStats,
+  reduceRunTelemetry,
+  resetRunStats,
+  type RunStats,
+} from './runStats';
+import {
   applyCertWorstCaseInject,
   applyRetryWorldReset,
   clearCosmeticVfx,
@@ -158,6 +164,11 @@ export type { CertMetricsMirror } from './publishCertMetricsMirror';
 
 export type GameLoopHandle = {
   world: SharedValue<World | null>;
+  /**
+   * N-STAT-01 per-run counters, accumulated on the UI thread and read
+   * synchronously at the run boundary — no extra UI→JS hop (LC-07).
+   */
+  runStats: SharedValue<RunStats | null>;
   picture: SharedValue<SkPicture>;
   surfaceSize: SharedValue<SkSize>;
   setActive: (active: boolean) => void;
@@ -260,6 +271,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const world = useSharedValue<World | null>(null);
   const vfxSv = useSharedValue<VfxState | null>(null);
   const audioBatchSv = useSharedValue<AudioBatchSoA | null>(null);
+  /** N-STAT-01 run counters — lazily allocated on the first frame (D-01). */
+  const runStatsSv = useSharedValue<RunStats | null>(null);
   const flashSv = useSharedValue<DestroyFlashState>({
     x: 0,
     y: 0,
@@ -312,6 +325,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     let m = metrics.value;
     let vfx = vfxSv.value;
     let batch = audioBatchSv.value;
+    let stats = runStatsSv.value;
     if (!w) {
       w = allocateWorld();
       applyRetryWorldReset(w, compiled.value);
@@ -342,6 +356,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       batch = createAudioBatch();
       audioBatchSv.value = batch;
     }
+    if (!stats) {
+      stats = allocateRunStats();
+      runStatsSv.value = stats;
+    }
     if (!m) {
       m = createMetrics();
       metrics.value = m;
@@ -358,6 +376,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       flash.life = 0;
       flash.lifeMax = 0.1;
       resetAudioBatch(batch);
+      // D-01: every retry is a new run — zero counters in place (the local `stats`
+      // already holds this reference, so never reassign runStatsSv.value here).
+      const s = runStatsSv.value;
+      if (s) {
+        resetRunStats(s);
+      }
       launchFlag.value = 0;
       paddleTarget.value = w.paddleX;
       w.accumulator = 0;
@@ -401,6 +425,8 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         consumeEventsForVfx(w, vfx, intensity);
         appendEventsForAudio(w, batch);
         updateFlashFromEvents(w, flash);
+        // N-STAT-01: read-only counter fold, same live-ring window as the drains above.
+        reduceRunTelemetry(w, stats);
         // F-16: ball death / compact remaps slots — wipe all rings so ghosts
         // cannot stick to a surviving ball that moved into a dead slot.
         const ballCount = w.activeBallCount;
@@ -538,6 +564,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     metrics,
     vfxSv,
     audioBatchSv,
+    runStatsSv,
     compiled,
     paddleTarget,
     launchFlag,
@@ -681,6 +708,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
 
   return {
     world,
+    runStats: runStatsSv,
     picture,
     surfaceSize,
     setActive,
