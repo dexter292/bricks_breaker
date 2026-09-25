@@ -283,11 +283,26 @@ export function PlayingHost({
   const levelError = loadResult.ok ? null : loadResult.issues;
   const levelReady = loadResult.ok;
   /**
-   * NH-5: fx ready is derived — bake key must match current loadResult identity.
-   * Changing level flips loadKey immediately so fxReady is false without setState-in-effect.
+   * NH-5 / D-14: fx ready is derived — the bake key is the ATLAS identity, and the
+   * atlas identity is the brick dimensions, nothing else. `bakeGlowSprites(brickW,
+   * brickH)` reads only those two numbers (src/render/textures/bakeGlowSprites.ts:95-108),
+   * so a key that also embedded the level id or `compiled.brickCount` claimed an
+   * identity the atlas does not have.
+   *
+   * That over-keying is the real SC-5 risk for endless (11-RESEARCH § Pitfall 2):
+   * `brickCount` moves every wave as difficulty ramps (32 bricks at d=0 to 128 at
+   * d=20), so every board swap would flip `fxReady` false and re-enter the cold path
+   * below — `setActive(false)` -> re-bake -> an awaited audio preload with a 2500 ms
+   * race. Keyed on dimensions, and with every generated board on the one fixed
+   * lattice (src/levelgen/grid.ts:32-41), the bake fires exactly once per endless run.
+   *
+   * Campaign behaviour is unchanged where it matters: the bake effect still depends on
+   * `loadResult`, so a level switch re-bakes; what stops is only a re-bake of an
+   * identical atlas. The error branch keeps the level id — an unloadable level still
+   * needs a key distinct from every other state.
    */
   const loadKey = loadResult.ok
-    ? `${levelId}:${loadResult.compiled.brickCount}:${loadResult.compiled.w[0]}x${loadResult.compiled.h[0]}`
+    ? `${loadResult.compiled.w[0]}x${loadResult.compiled.h[0]}`
     : `err:${levelId}`;
   const fxReady = loadResult.ok && bakedKey === loadKey;
 

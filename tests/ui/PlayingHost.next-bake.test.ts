@@ -92,7 +92,7 @@ vi.mock('../../src/services/crashReporting', () => ({
   triggerTestCrash: () => {},
 }));
 
-const bakeCalls: Array<[number, number]> = [];
+const bakeCalls: [number, number][] = [];
 vi.mock('../../src/render/textures/bakeGlowSprites', () => ({
   bakeGlowSprites: (w: number, h: number) => {
     bakeCalls.push([w, h]);
