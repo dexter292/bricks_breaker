@@ -99,6 +99,59 @@ are the guard on any dial change, not an obstacle to it.
 
 </constraints_from_measurement>
 
+<post_research_correction>
+## The open question is settled — and my framing of it was too strong
+
+`<constraints_from_measurement>` above asked the plan to either re-tune the dials or argue the
+wall is acceptable. Research settled it with a controlled experiment, and the answer is
+**neither, because the premise was wrong**.
+
+**Do not re-tune `SCHEDULE`.**
+
+- A 500-seed scan at difficulty 20 *specifically* found **0 non-wins** (p50 172.5 s, p95
+  446.2 s, worst 1495.3 s). There is no unclearable board.
+- **The tail is not a board property.** Replaying the 8 slowest d=20 boards across 7 paddle
+  offsets collapsed `s=33` from **1495.3 s to 83.0 s** — an 18× spread on the same lattice.
+  Changing only the gameplay RNG seed did the same. The tail is a *trajectory* property.
+- Per-difficulty maxima are **non-monotone** in `d`: d=17 peaks at **2735.3 s**, worse than
+  d=20. So "the top of the range is the hard part" is not true either.
+- A re-tune buys roughly 34 % off the median and **re-rolls the tail rather than removing it**,
+  at the cost of Phase 10's 21 000-board sweep, its monotonicity proof, and the freshly
+  discharged A1 device record.
+
+**No softlock exists.** 1 900 board plays with zero non-wins, plus the reachability Theorem,
+plus `applyLivesFromBallCount` untouched. A player who cannot clear wave 21 loses by missing,
+which is the intended ending condition.
+
+Phase 10's `BOARD-GENERATOR.md` § Limits item 2 states the "plausibly unfinishable" inference
+that this supersedes. The plan should amend it — a superseded inference sitting in an ops
+record is exactly what that section exists to prevent.
+
+## Two defects research found by reading, both verified by the orchestrator
+
+- **`recordRunEnd` writes campaign data for every mode.** It calls `applyLevelBest(...)`
+  unconditionally and `unlockAfterClearPure(...)` on any win, with no reference to `args.mode`
+  — verified in `src/services/storage/memoryStore.ts:105-120`. An endless win would therefore
+  write a campaign best and unlock a campaign level. That is a **direct SC-3 violation** and
+  needs a `mode === 'campaign'` gate in both stores.
+- **The glow-bake key changes every wave.** `loadKey` is
+  `` `${levelId}:${compiled.brickCount}:${w}x${h}` `` (`PlayingHost.tsx:289-290`), and
+  `brickCount` moves with difficulty across waves 1–20. A naive wave swap therefore flips
+  `fxReady` false and re-runs the bake + audio-preload cold path with `setActive(false)` at
+  each transition — a multi-hundred-millisecond stall, three orders of magnitude worse than
+  the 0.56 ms of generation. This is the real SC-5 risk; generation is not.
+
+## A decision the plan must make explicitly: `world.tick` across waves
+
+E2's speed ramp reaches `MAX_BALL_SPEED` at t = 100 s, which is **inside wave 1**. So:
+- **Carrying `tick`** pins every ball at max speed from roughly wave 3 onward, forever.
+- **Resetting `tick`** truncates `ticksPlayed` telemetry unless the app tier banks it per wave
+  — the `runWallClockMsRef` segment-accumulator pattern already in `PlayingHost` is the model.
+
+Neither is obviously right and the plan must choose and say why, not inherit one by accident.
+
+</post_research_correction>
+
 <canonical_refs>
 ## Canonical References
 
