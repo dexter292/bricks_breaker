@@ -64,15 +64,14 @@ vi.mock('../../app/_components/PlayingHost', async () => {
       levelId,
     }: {
       onMenu: () => void;
-      levelId?: string;
+      levelId: string;
+      onLevelIdChange?: (id: string) => void;
     }) =>
       React.createElement(
         View,
         null,
         React.createElement(Text, null, 'PlayingStub'),
-        levelId
-          ? React.createElement(Text, null, `levelId:${levelId}`)
-          : null,
+        React.createElement(Text, null, `levelId:${levelId}`),
         React.createElement(
           Pressable,
           {

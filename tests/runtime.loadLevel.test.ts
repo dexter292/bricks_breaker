@@ -21,17 +21,9 @@ describe('runtime.loadLevel', () => {
     expect(PLAYABLE).not.toContain('level-02' as LevelId);
   });
 
-  it('loadLevelById() default is level-03', () => {
-    const result = loadLevelById();
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    // Default arg must resolve the showpiece module (D-06).
-    const explicit = loadLevelById('level-03');
-    expect(explicit.ok).toBe(true);
-    if (!explicit.ok) return;
-    expect(result.compiled.brickCount).toBe(explicit.compiled.brickCount);
-    expect(result.compiled.gridCols).toBe(explicit.compiled.gridCols);
-    expect(result.compiled.gridRows).toBe(explicit.compiled.gridRows);
+  it('loadLevelById requires an explicit LevelId (no default param)', () => {
+    // Default params reduce Function.length; required id ⇒ length === 1 (D-15).
+    expect(loadLevelById.length).toBe(1);
   });
 
   it('loadLevelById("level-03") returns ok:true', () => {
