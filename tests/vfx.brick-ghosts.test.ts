@@ -16,6 +16,7 @@ import {
   GHOST_LIFE_MAX,
   spawnBrickGhost,
   stepBrickGhosts,
+  ghostDrawFromLife,
 } from '../src/vfx/brickGhosts';
 import { consumeEventsForVfx } from '../src/vfx/consumeEvents';
 import { stepVfx } from '../src/vfx/stepVfx';
@@ -179,5 +180,61 @@ describe('vfx brick ghosts (N-FX-01 Wave 0)', () => {
     expect(countActiveGhosts(vfx)).toBe(0);
   });
 
-  it.todo('recordSprites draws ghosts under ball; flat fill only');
+  it('ghostDrawFromLife: full life → scale 1 + alpha 1; half → shrink + fade', () => {
+    const full = ghostDrawFromLife(GHOST_LIFE_MAX, GHOST_LIFE_MAX);
+    expect(full.scale).toBeCloseTo(1, 5);
+    expect(full.alpha).toBeCloseTo(1, 5);
+    const half = ghostDrawFromLife(GHOST_LIFE_MAX * 0.5, GHOST_LIFE_MAX);
+    expect(half.scale).toBeCloseTo(0.85 + 0.15 * 0.5, 5);
+    expect(half.alpha).toBeCloseTo(0.5, 5);
+    const dead = ghostDrawFromLife(0, GHOST_LIFE_MAX);
+    expect(dead.scale).toBeCloseTo(0.85, 5);
+    expect(dead.alpha).toBe(0);
+  });
+
+  it('ghost draw prep does not mutate World brick/paddle SoA', () => {
+    const world = allocateWorld();
+    world.brickCount = 1;
+    world.brickHp[0] = 0;
+    world.brickX[0] = 40;
+    world.brickY[0] = 80;
+    world.brickW[0] = 32;
+    world.brickH[0] = 14;
+    const paddleW = world.paddleW;
+    const paddleH = world.paddleH;
+    const brickX = world.brickX[0];
+
+    const vfx = allocateVfx();
+    spawnBrickGhost(vfx, {
+      x: brickX,
+      y: 80,
+      w: 32,
+      h: 14,
+      r: 1,
+      g: 0,
+      b: 0,
+    });
+    const slot = vfx.ghostActive.findIndex((a) => a !== 0);
+    const { scale, alpha } = ghostDrawFromLife(
+      vfx.ghostLife[slot],
+      vfx.ghostLifeMax[slot],
+    );
+    // Simulate recordSprites center-scale rect math (read-only)
+    const gw = vfx.ghostW[slot];
+    const gh = vfx.ghostH[slot];
+    const cx = vfx.ghostX[slot] + gw * 0.5;
+    const cy = vfx.ghostY[slot] + gh * 0.5;
+    const dw = gw * scale;
+    const dh = gh * scale;
+    expect(dw).toBeGreaterThan(0);
+    expect(dh).toBeGreaterThan(0);
+    expect(alpha).toBeGreaterThan(0);
+    expect(cx).toBeCloseTo(brickX + 16, 5);
+    expect(cy).toBeCloseTo(87, 5);
+
+    expect(world.paddleW).toBe(paddleW);
+    expect(world.paddleH).toBe(paddleH);
+    expect(world.brickX[0]).toBe(brickX);
+    expect(world.brickHp[0]).toBe(0);
+  });
 });

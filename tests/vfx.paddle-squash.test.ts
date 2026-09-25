@@ -11,6 +11,7 @@ import {
   PADDLE_SQUASH_T_MAX,
   punchPaddleSquash,
   stepPaddleSquash,
+  paddleSquashDrawSize,
 } from '../src/vfx/paddleSquash';
 import { consumeEventsForVfx } from '../src/vfx/consumeEvents';
 import { stepVfx } from '../src/vfx/stepVfx';
@@ -67,5 +68,22 @@ describe('vfx paddle squash (FC-F04 Wave 0)', () => {
     expect(vfx.paddleSquashT).toBeCloseTo(PADDLE_SQUASH_T_MAX - 0.04, 5);
   });
 
-  it.todo('recordSprites scales draw only');
+  it('paddleSquashDrawSize widens + shortens; never needs World writes', () => {
+    const world = allocateWorld();
+    const w0 = world.paddleW;
+    const h0 = world.paddleH;
+    const idle = paddleSquashDrawSize(w0, h0, 0);
+    expect(idle.w).toBeCloseTo(w0, 5);
+    expect(idle.h).toBeCloseTo(h0, 5);
+
+    const punched = paddleSquashDrawSize(w0, h0, PADDLE_SQUASH_T_MAX);
+    expect(punched.w).toBeCloseTo(w0 * 1.15, 5);
+    expect(punched.h).toBeCloseTo(h0 * 0.85, 5);
+    expect(punched.w).toBeGreaterThan(w0);
+    expect(punched.h).toBeLessThan(h0);
+
+    // Source World dims unchanged after draw-size compute
+    expect(world.paddleW).toBe(w0);
+    expect(world.paddleH).toBe(h0);
+  });
 });
