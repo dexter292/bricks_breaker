@@ -52,7 +52,12 @@ when the input space is already a finite, enumerable `(seed, difficulty)` grid.
 - `npm test` runs `vitest run` first, so the gate remains in the full-suite chain either way.
 
 The parity assertion therefore lives in `tests/levelgen.sweep.test.ts` as a dedicated R-16
-`describe` block over a 100-seed x 21-difficulty subsample, and `package.json` is unchanged.
+`describe` block over the **same `SWEEP_SEEDS` x 21 corpus the main sweep uses** — 1 000 x 21 =
+**21 000 boards**, not a subsample. RESEARCH Open Question 3 resolves to "run the same N in
+both: the parity value comes from *both* implementations seeing the same corpus", and the
+`.mjs` path measures 0.033 ms per board, so the whole corpus costs under a second. This figure
+is authoritative and matches `10-03-PLAN.md` task 1's behavior block, must_haves and success
+criteria. `package.json` is unchanged.
 
 ---
 
