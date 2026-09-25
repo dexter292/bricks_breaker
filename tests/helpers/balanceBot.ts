@@ -104,14 +104,25 @@ function bricksRemaining(w: ReturnType<typeof allocateWorld>): number {
   return n;
 }
 
-/** Play one level to WON / LOST / TIMEOUT and report the run. */
-export function runBot(levelId: string, opts: BotOptions = {}): BotResult {
+/**
+ * Play a level *object* to WON / LOST / TIMEOUT and report the run.
+ *
+ * This is the measurement core: it never touches the filesystem, so a generated board
+ * that has no file under `assets/levels/` can be played through the real `stepRun`
+ * pipeline (N-GEN-02). `label` only names the artefact in the compile-failure message —
+ * a sweep of thousands of boards must be able to say *which* one failed.
+ */
+export function runBotOnLevel(
+  raw: LevelFileV1,
+  opts: BotOptions = {},
+  label = 'level',
+): BotResult {
   const { paddleOffset = 0, seedA = 0xace, seedB = 0xbeef, rampPerSecond = 0 } = opts;
   const maxTicks = opts.maxTicks ?? TICKS_PER_SECOND * 360;
 
-  const compiled = loadAndCompile(readLevelFile(levelId));
+  const compiled = loadAndCompile(raw);
   if (!compiled.ok) {
-    throw new Error(`${levelId} failed to compile: ${JSON.stringify(compiled.issues)}`);
+    throw new Error(`${label} failed to compile: ${JSON.stringify(compiled.issues)}`);
   }
 
   const w = allocateWorld();
@@ -157,6 +168,11 @@ export function runBot(levelId: string, opts: BotOptions = {}): BotResult {
   };
 }
 
+/** Play one *shipped* level by id. Thin wrapper over `runBotOnLevel`. */
+export function runBot(levelId: string, opts: BotOptions = {}): BotResult {
+  return runBotOnLevel(readLevelFile(levelId), opts, levelId);
+}
+
 /** Static authored-difficulty facts, independent of any bot run. */
 export type LevelStatics = {
   bricks: number;
@@ -169,8 +185,14 @@ export type LevelStatics = {
   baseScore: number;
 };
 
-export function levelStatics(id: string, scoreHit: number): LevelStatics {
-  const raw = readLevelFile(id);
+/**
+ * THE authored-weight definition (E2-locked). Do not restate it anywhere else: a second
+ * copy would let a generated board be monotone under one definition and not the other.
+ *
+ * Takes a plain object so a generated board — which has no file — can be weighed by the
+ * same definition the campaign curve is measured with (N-GEN-03).
+ */
+export function levelStaticsOf(raw: LevelFileV1, scoreHit: number): LevelStatics {
   let bricks = 0;
   let totalHp = 0;
   let steel = 0;
@@ -202,21 +224,7 @@ export function levelStatics(id: string, scoreHit: number): LevelStatics {
   };
 }
 
-// --- RED stubs (10-01 task 1). Replaced by the extracted bodies in GREEN. ---
-
-export function levelStaticsOf(raw: LevelFileV1, scoreHit: number): LevelStatics {
-  void raw;
-  void scoreHit;
-  return { bricks: 0, totalHp: 0, steel: 0, explosive: 0, rows: 0, cols: 0, baseScore: 0 };
-}
-
-export function runBotOnLevel(
-  raw: LevelFileV1,
-  opts: BotOptions = {},
-  label = 'level',
-): BotResult {
-  void raw;
-  void opts;
-  void label;
-  return { outcome: 'TIMEOUT', ticks: 0, seconds: 0, score: 0, lives: 0, bricksRemaining: -1 };
+/** Authored-difficulty facts for one *shipped* level by id. Thin wrapper over `levelStaticsOf`. */
+export function levelStatics(id: string, scoreHit: number): LevelStatics {
+  return levelStaticsOf(readLevelFile(id), scoreHit);
 }
