@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_phase: '9'
 status: in_progress
-stopped_at: "Phase 9 code complete (5/5 plans, 444 tests). BLOCKED on human device checkpoint: abandon-flush + wall-clock-excludes-pause"
+stopped_at: "Phase 9 VERIFIED on device (5/5 plans, 451 tests, both checkpoints pass). Next: Phase 10 seeded board generator"
 last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
@@ -13,7 +13,7 @@ progress:
   total_plans: 5
   completed_plans: 5
   percent: 100
-  phase_9_human_checkpoint: pending
+  phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
   phase_8_status: temporary_close

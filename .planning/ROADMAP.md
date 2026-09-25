@@ -32,7 +32,7 @@ phase, before anything depends on it.
 
 Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outside the registry.
 
-- [ ] **Phase 9: Run Telemetry & Storage v4** - Every run records what happened, persisted through a lossless v3→v4 migration
+- [x] **Phase 9: Run Telemetry & Storage v4** - Every run records what happened, persisted through a lossless v3→v4 migration
 - [ ] **Phase 10: Seeded Board Generator** - Deterministic (seed, difficulty) → playable board that passes the solvability lint
 - [ ] **Phase 11: Endless Mode** - A run that never runs out of board, escalating until the player misses
 - [ ] **Phase 12: Daily Challenge** - One shared board per local date, with a streak worth keeping
