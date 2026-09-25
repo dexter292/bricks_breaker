@@ -202,7 +202,7 @@ CERT / SOAK → Title ↔ Playing only (bypass Select; not a harness UI screen)
 | Unlocked, never cleared | Level label + **☆☆☆** | Hidden (never Best · 0) | Tap → play |
 | Cleared | Level label + ★/☆ (earned) + **Best · {n}** | Shown | Tap → replay |
 
-**Cleared definition for UI:** `best?.stars` is `1 | 2 | 3`. Prefer omit `stars` until first win (never treat `0` as cleared).
+**Cleared definition for UI (D-25 / R-30):** `isLevelCleared` — next catalog id unlocked **or** `best.stars ∈ {1,2,3}`. Prefer omit `stars` until first C2 win. Legacy v2 clears (next unlocked, stars omitted) render as **cleared** with **☆☆☆** + Best if score present — not as uncleared.
 
 ### Star glyphs (Select + win Results)
 

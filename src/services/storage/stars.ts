@@ -1,14 +1,16 @@
 /**
- * Pure star / select-row helpers — no I/O, no React (N-PROG-03 / D-07 / D-18 / D-23).
+ * Pure star / select-row helpers — no I/O, no React (N-PROG-03 / D-07 / D-18 / D-23 / R-30).
  */
 import type { LevelId } from '../../core';
 import type { LevelBest, StarCount } from './types';
+import { nextLevelId } from './catalog';
 import { isUnlocked } from './unlock';
 
 export type SelectRowState = 'locked' | 'uncleared' | 'cleared';
 
 /**
  * On win: stars = clamp(floor(livesRemaining), 1, 3). Non-finite → 1.
+ * Note: lives===0 at WON is unreachable (applyWinCheck before applyLives); clamp(0)→1 is defensive only.
  */
 export function computeStars(livesRemaining: number): StarCount {
   if (!Number.isFinite(livesRemaining)) {
@@ -49,9 +51,31 @@ export function mergeLevelBest(
   return { score: nextScore, stars: nextStars };
 }
 
+function hasRecordedStars(best: LevelBest | undefined): boolean {
+  const s = best?.stars;
+  return s === 1 || s === 2 || s === 3;
+}
+
 /**
- * Select list row state from unlock + best (D-18 / D-23).
- * Cleared iff best.stars ∈ {1,2,3}; unlocked without stars → uncleared.
+ * Cleared when unlock chain proves a prior clear, or stars were recorded (R-30 / D-25).
+ * - Intermediate: `nextLevelId(id)` unlocked ⇒ this id was cleared (unlockAfterClear only adds next on win).
+ * - Final (`level-06`): no next — cleared only via `best.stars` (v2→v3 omit-stars leaves final uncleared until first C2 win).
+ */
+export function isLevelCleared(
+  id: LevelId,
+  unlocked: readonly LevelId[],
+  best: LevelBest | undefined,
+): boolean {
+  if (hasRecordedStars(best)) {
+    return true;
+  }
+  const next = nextLevelId(id);
+  return next != null && isUnlocked(unlocked, next);
+}
+
+/**
+ * Select list row state (D-18 / D-23 / D-25 / R-30).
+ * Display: cleared-without-stars (legacy v2 migrate) → ☆☆☆ + Best if score present.
  */
 export function selectRowState(
   id: LevelId,
@@ -61,8 +85,7 @@ export function selectRowState(
   if (!isUnlocked(unlocked, id)) {
     return 'locked';
   }
-  const s = best?.stars;
-  if (s === 1 || s === 2 || s === 3) {
+  if (isLevelCleared(id, unlocked, best)) {
     return 'cleared';
   }
   return 'uncleared';

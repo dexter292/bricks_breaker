@@ -16,6 +16,7 @@ export {
   computeStars,
   mergeLevelBest,
   selectRowState,
+  isLevelCleared,
   type SelectRowState,
 } from './stars';
 export {

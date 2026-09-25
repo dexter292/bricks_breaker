@@ -74,26 +74,30 @@ Player-facing campaign progression chrome on top of C1 ProgressStore: **level se
 
 ### Level select UI (N-LVL-02)
 - **D-17:** `ShellPhase = 'title' | 'select' | 'playing'`. Select is its own React screen; **Playing unmounts** when leaving play (Menu/Back path tears down worklets/atlas).
-- **D-18:** Vertical **list of 5** rows (catalog order). Unlocked cleared row: label + ★★★ + best. Three states:
+- **D-18:** Vertical **list of 5** rows (catalog order). Three states:
   | State | Display |
   |-------|---------|
   | Locked | lock affordance; no best/stars |
   | Unlocked, never cleared | label + ☆☆☆; **no** “Best 0” |
-  | Cleared | label + earned stars + best score |
+  | Cleared | label + stars glyphs + Best if score present |
 - **D-19:** Select has **Back → Title**. Tap unlocked row → `playing` + that `levelId`.
 - **D-20:** Select **`getSnapshot()` on every mount** — no cached progress across visits.
 - **D-21:** Locked tap = **ignore** (no toast, no preview, no load).
 
 ### Locked from research recommendations (not re-opened in discuss)
 - **D-22:** Menu / Pause → **Title** (not Select). Re-enter Select via Title Play.
-- **D-23:** Select shows **Best only when cleared** (stars present after ≥1 win). Lose may still write score in store (C1) but Select does not show Best until cleared — avoids “Best 0” and keeps three-state table simple.
+- **D-23:** Select shows **Best only when row is cleared** and `score` is present (never **Best · 0** for never-played). Lose may write score without clearing.
 - **D-24:** Under CERT, DEV level chip may exist; cert force effect keeps `level-03`. Measurement sessions leave chip alone.
+- **D-25 (R-30):** Cleared is **not** stars-only.  
+  `cleared ⟺ isUnlocked(unlocked, nextLevelId(id)) || best?.stars ∈ {1,2,3}`.  
+  Unlock chain is the durable clear history (N-PROG-01); stars are the mastery overlay. After v2→v3 (omit stars), intermediate clears still show **cleared** (☆☆☆ until first C2 win). Final `level-06` has no next — cleared only via recorded stars until first C2 win. Invariant: if N+1 is unlocked, N must be cleared.
 
 ### Claude's Discretion
 - Exact Select/ResultOverlay styling within existing navy/flat chrome language
 - Whether `stars` omit vs `0` for never-won (prefer **omit** until first win)
 - Exact TypeScript helpers (`computeStars`, `recordLevelBest` signature evolution)
 - Whether DEV level chip remains on Playing only
+- Cleared-without-stars glyph line: **☆☆☆** (legacy clear; not “uncleared”)
 
 </decisions>
 

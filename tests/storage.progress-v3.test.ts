@@ -16,7 +16,8 @@ describe('computeStars (C2 Wave 0)', () => {
     expect(computeStars(3)).toBe(3);
   });
 
-  it('clamps 0 → 1 and 5 → 3', () => {
+  it('clamps 0 → 1 (defensive; unreachable at WON) and 5 → 3', () => {
+    // applyWinCheck runs before applyLives — lives===0 at WON should not occur
     expect(computeStars(0)).toBe(1);
     expect(computeStars(5)).toBe(3);
   });
@@ -63,12 +64,12 @@ describe('mergeLevelBest (C2 Wave 0)', () => {
   });
 });
 
-describe('selectRowState (C2 Wave 0)', () => {
+describe('selectRowState (C2 Wave 0 / R-30)', () => {
   it('locked when not unlocked', () => {
     expect(selectRowState('level-03', ['level-01'], undefined)).toBe('locked');
   });
 
-  it('uncleared when unlocked without stars', () => {
+  it('uncleared when unlocked, no next unlocked, no stars', () => {
     expect(
       selectRowState('level-01', ['level-01'], undefined),
     ).toBe('uncleared');
@@ -87,6 +88,36 @@ describe('selectRowState (C2 Wave 0)', () => {
         stars: 3,
       }),
     ).toBe('cleared');
+  });
+
+  it('R-30: cleared when next is unlocked even if stars omitted (v2→v3)', () => {
+    const unlocked = ['level-01', 'level-03', 'level-04'] as const;
+    expect(
+      selectRowState('level-01', unlocked, { score: 2150 }),
+    ).toBe('cleared');
+    expect(
+      selectRowState('level-03', unlocked, { score: 900 }),
+    ).toBe('cleared');
+    // next after 03 is 04 (unlocked) ⇒ 03 cleared; 04 has no next unlocked ⇒ uncleared
+    expect(selectRowState('level-04', unlocked, undefined)).toBe('uncleared');
+  });
+
+  it('final level-06: cleared only via stars (no next in catalog)', () => {
+    const unlocked = [
+      'level-01',
+      'level-03',
+      'level-04',
+      'level-05',
+      'level-06',
+    ] as const;
+    expect(
+      selectRowState('level-06', unlocked, { score: 100 }),
+    ).toBe('uncleared');
+    expect(
+      selectRowState('level-06', unlocked, { score: 100, stars: 2 }),
+    ).toBe('cleared');
+    // 05 is cleared because 06 is unlocked
+    expect(selectRowState('level-05', unlocked, { score: 50 })).toBe('cleared');
   });
 });
 
