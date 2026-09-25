@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: "D1 Done — Human UAT approved; post-D1 Cert WC (§5d) still open"
-last_updated: "2026-09-25T03:50:00.000Z"
+stopped_at: "E1b + E2 + D2 done — post-MVP code phases complete; owner/device gates deliberately skipped"
+last_updated: "2026-09-25T12:40:00.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 8
@@ -26,6 +26,12 @@ progress:
   post_mvp_ceiling_rerun_bc2: pass_2026_09_25
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
+  post_mvp_e1b: done_2026_09_25
+  post_mvp_e2: done_with_debt_2026_09_25
+  post_mvp_d2: done_with_debt_2026_09_25
+  post_mvp_display_name: pulse_paddle
+  post_mvp_f45_speed_ramp: shipped_0_01_per_sec
+  post_mvp_owner_gates: skipped_by_owner_2026_09_25
 ---
 
 # Project State
@@ -35,12 +41,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **D1 done** (UAT approved). Next: D2 brand (needs A3 name) or open ledger. **Post-D1 Cert WC (§5d) still required.** Open ledger: display-name, R-10, R-12, N-OPS-01, §5d.
+**Current focus:** Post-MVP — **all code phases done** (E1b, E2, D2). Remaining post-MVP work is owner/device/store only (F1, F2, §5d, Sentry DSN, cohort), which the owner chose to skip on 2026-09-25. Open ledger: R-10, R-12, N-OPS-01, **§5d (now requires a ramp build)**, ASC uniqueness for "Pulse Paddle".
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** Instruments Cert WC post-D1 → stamp CEILING-CERT §5d; then `/gsd-discuss-phase D2` when display name ready, or continue open ledger.  
+**Next:** owner-gated only. §5d Instruments Cert **on a ramp build** (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, then F1 store package.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics
@@ -152,9 +158,21 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [D1-02]: Local ImpactFeedbackStyle string consts for Vitest spies; no top-level native import
 - [D1-02]: PlayingHost fan-out deferred to Plan 03; owner rebuild required for device Taptic
 
+### Decisions (Post-MVP close)
+
+- [E1b]: B1 explosive shipped but was placed in zero levels — `E` now on a teaching curve across 03–06; `level-01` left byte-identical as the fundamentals/UAT baseline
+- [E2]: Campaign order is the difficulty curve, not file order — `01→04→05→06→03`, monotone in bricks and HP, pinned by test
+- [E2]: F-45 ramp shipped at 0.01/s as a speed **floor** before `stepAntiStall`, so tier-2 ×1.08 survives; SLOW unaffected (scales at integration)
+- [E2]: Score-band stars rejected — 3.3× score spread at identical bot skill means bands would measure ricochet luck
+- [D2]: Display name `Pulse Paddle`; display-only rename, bundle/slug/scheme unchanged; drift guarded by `assert-brand-name`
+- [D2]: Brand icons generated procedurally (Node `zlib` + hand-rolled PNG encoder) — no image dependency added
+
 ### Pending Todos
 
 - **Phase 8 Plan 06:** Pixel 6a gfxinfo + iPhone Instruments + device soak Results (PLT-03)
+- **§5d ceiling cert must now run on a ramp build** — E2 changed sustained ball speed; §5/§5b/§5c predate it. Set `SPEED_RAMP_PER_SECOND = 0` to reproduce the old baseline
+- **ASC console uniqueness for "Pulse Paddle"** — never run; old name's failure was an exact-title collision
+- **Owner sign-off on the E2 curve + ramp feel** — E2's stated acceptance, not obtained
 - Before MVP: discharge D2 (SC-2 release worklet mutation), D4 (iOS profiling re-run), D13 (`tsc --noEmit` gate)
 
 ### Blockers/Concerns
