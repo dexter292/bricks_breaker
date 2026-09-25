@@ -29,9 +29,12 @@ import {
   mergeTelemetryBlobs,
   migrateOrDefault,
   parseProgressResult,
+  defaultTelemetryAggregate,
   v3ToV4,
+  type ProgressBlob,
   type RunStatsInput,
 } from '../src/services/storage';
+import { __createAsyncStorageProgressStoreForTests } from '../src/services/storage/asyncStorageStore';
 
 /**
  * A realistic "existing player" v3 blob, shaped exactly like today's persisted
@@ -699,5 +702,199 @@ describe('lifetime + per-level aggregates survive an app kill (SC-2)', () => {
     expect(next.telemetry.lifetime.runsPlayed).toBe(3);
     expect(next.telemetry.lifetime.bricksBroken).toBe(80);
     expect(next.telemetry.byMode.campaign[first]?.bricksBroken).toBe(62);
+  });
+});
+
+/**
+ * An in-memory AsyncStorage double. `getItem`/`setItem` are genuinely async, so
+ * overlapping calls interleave exactly as they do on a device — which is what
+ * makes the single-flight hydration case below reproducible.
+ */
+function fakeAsyncStorage(seed: Record<string, string> = {}) {
+  const map = new Map<string, string>(Object.entries(seed));
+  const reads: string[] = [];
+  return {
+    map,
+    reads,
+    getItem: async (key: string): Promise<string | null> => {
+      reads.push(key);
+      return map.get(key) ?? null;
+    },
+    setItem: async (key: string, value: string): Promise<void> => {
+      map.set(key, value);
+    },
+  };
+}
+
+/** A persisted v4 blob with non-zero telemetry — the thing a re-merge would double. */
+function diskBlobWithTelemetry(): ProgressBlob {
+  const first = PLAYABLE_LEVEL_ORDER[0];
+  const blob = defaultProgressBlob();
+  blob.unlocked = [...PLAYABLE_LEVEL_ORDER.slice(0, 2)];
+  blob.bestByLevel = { [first]: { score: 900, stars: 3 } };
+  blob.bestScore = 900;
+  blob.updatedAt = 1_700_000_000_000;
+  blob.telemetry.lifetime = {
+    ...defaultTelemetryAggregate(),
+    runsPlayed: 5,
+    runsWon: 3,
+    runsLost: 2,
+    bricksBroken: 250,
+    bestComboEver: 14,
+    longestRallyEver: 31,
+    ticksPlayed: 4_000,
+    wallClockMsTotal: 90_000,
+  };
+  blob.telemetry.byMode.campaign[first] = {
+    ...defaultTelemetryAggregate(),
+    runsPlayed: 5,
+    bricksBroken: 250,
+  };
+  blob.telemetry.recentRuns = [
+    {
+      mode: 'campaign',
+      levelId: first,
+      outcome: 'win',
+      score: 900,
+      ticks: 800,
+      timestamp: 1_699_000_000_000,
+    },
+  ];
+  return blob;
+}
+
+describe('AsyncStorage-backed store: v4 hydrate chain (N-STAT-02)', () => {
+  it('reads the v4 key first and never consults the legacy keys when it parses', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const storage = fakeAsyncStorage({
+      [PROGRESS_KEY]: JSON.stringify(diskBlobWithTelemetry()),
+      [PROGRESS_KEY_V3]: JSON.stringify(buildV3Fixture()),
+    });
+    const store = __createAsyncStorageProgressStoreForTests(storage);
+
+    const snap = await store.getSnapshot();
+    expect(snap.v).toBe(4);
+    expect(snap.bestScore).toBe(900);
+    expect(snap.telemetry.lifetime.bricksBroken).toBe(250);
+    expect(snap.telemetry.byMode.campaign[first]?.runsPlayed).toBe(5);
+    expect(storage.reads).toEqual([PROGRESS_KEY]);
+  });
+
+  it('absent v4 migrates through v3 and writes the healed blob to the v4 key, leaving every legacy key on disk', async () => {
+    const fixture = buildV3Fixture();
+    const storage = fakeAsyncStorage({
+      [PROGRESS_KEY_V3]: JSON.stringify(fixture),
+    });
+    const store = __createAsyncStorageProgressStoreForTests(storage);
+
+    const snap = await store.getSnapshot();
+    expect(snap.v).toBe(4);
+    expect(snap.bestScore).toBe(fixture.bestScore);
+    expect(snap.bestByLevel).toEqual(fixture.bestByLevel);
+    expect(snap.telemetry).toEqual(defaultTelemetryBlob());
+
+    // v4 → v3 → v2 → v1 read order, and the healed blob writes through once.
+    expect(storage.reads).toEqual([
+      PROGRESS_KEY,
+      PROGRESS_KEY_V3,
+      '@nbb/progress/v2',
+      '@nbb/personal-best/v1',
+    ]);
+    expect(parseProgressResult(storage.map.get(PROGRESS_KEY) ?? null).status).toBe('ok');
+    // Legacy sources are migrate-on-read only — never deleted (rollback safety).
+    expect(storage.map.get(PROGRESS_KEY_V3)).toBe(JSON.stringify(fixture));
+  });
+
+  it('corrupt v4 still falls through to the v2 then v1 links', async () => {
+    const fromV2 = fakeAsyncStorage({
+      [PROGRESS_KEY]: '{broken',
+      '@nbb/progress/v2': JSON.stringify({
+        v: 2,
+        unlocked: ['level-01', 'level-04'],
+        bestByLevel: { 'level-01': 77 },
+        bestScore: 77,
+        updatedAt: 2,
+      }),
+    });
+    const v2Snap = await __createAsyncStorageProgressStoreForTests(fromV2).getSnapshot();
+    expect(v2Snap.v).toBe(4);
+    expect(v2Snap.bestScore).toBe(77);
+    expect(v2Snap.telemetry).toEqual(defaultTelemetryBlob());
+
+    const fromV1 = fakeAsyncStorage({
+      [PROGRESS_KEY]: '{broken',
+      '@nbb/personal-best/v1': JSON.stringify({ v: 1, bestScore: 42, updatedAt: 1 }),
+    });
+    expect(await __createAsyncStorageProgressStoreForTests(fromV1).getBest()).toBe(42);
+  });
+
+  it('recordRunEnd returns the merged blob synchronously and persists it to the v4 key', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const storage = fakeAsyncStorage({
+      [PROGRESS_KEY]: JSON.stringify(diskBlobWithTelemetry()),
+    });
+    const store = __createAsyncStorageProgressStoreForTests(storage);
+    await store.getSnapshot(); // hydrate first, as the hosts do
+
+    const returned = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 1_500,
+      outcome: 'win',
+      livesRemaining: 3,
+      stats: runStats({ bricksBroken: 40, bestCombo: 20, ticksPlayed: 500 }),
+    });
+
+    // Synchronous return, merged on top of the hydrated disk counters (D-10 / F-26).
+    expect(returned.bestScore).toBe(1_500);
+    expect(returned.telemetry.lifetime.runsPlayed).toBe(6);
+    expect(returned.telemetry.lifetime.bricksBroken).toBe(290);
+    expect(returned.telemetry.lifetime.bestComboEver).toBe(20);
+
+    await store.flush?.();
+    const persisted = parseProgressResult(storage.map.get(PROGRESS_KEY) ?? null);
+    expect(persisted.status).toBe('ok');
+    expect(persisted.progress.telemetry.lifetime.runsPlayed).toBe(6);
+    expect(persisted.progress.telemetry.lifetime.bricksBroken).toBe(290);
+  });
+
+  it('overlapping first reads hydrate once — mergeTelemetryBlobs never double-counts the persisted blob', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const storage = fakeAsyncStorage({
+      [PROGRESS_KEY]: JSON.stringify(diskBlobWithTelemetry()),
+    });
+    const store = __createAsyncStorageProgressStoreForTests(storage);
+
+    // Title's getBest() and Select's getSnapshot() share one singleton (F-26),
+    // so tapping Play before the first AsyncStorage read resolves puts two
+    // hydrations in flight at once. mergeHighWatermark SUMS telemetry, so a
+    // second merge of the same disk blob would permanently inflate lifetime
+    // counters — and the next persist would write the inflated values back.
+    const [best, snap] = await Promise.all([store.getBest(), store.getSnapshot()]);
+
+    expect(best).toBe(900);
+    expect(snap.telemetry.lifetime.runsPlayed).toBe(5);
+    expect(snap.telemetry.lifetime.bricksBroken).toBe(250);
+    expect(snap.telemetry.lifetime.ticksPlayed).toBe(4_000);
+    expect(snap.telemetry.lifetime.wallClockMsTotal).toBe(90_000);
+    expect(snap.telemetry.byMode.campaign[first]?.bricksBroken).toBe(250);
+    expect(snap.telemetry.recentRuns).toHaveLength(1);
+    // The disk read happens once, not once per caller.
+    expect(storage.reads.filter((k) => k === PROGRESS_KEY)).toHaveLength(1);
+  });
+
+  it('re-reading an already-hydrated store is idempotent — repeated reads never grow the counters', async () => {
+    const storage = fakeAsyncStorage({
+      [PROGRESS_KEY]: JSON.stringify(diskBlobWithTelemetry()),
+    });
+    const store = __createAsyncStorageProgressStoreForTests(storage);
+
+    const once = await store.getSnapshot();
+    await store.getBest();
+    await store.isUnlocked(PLAYABLE_LEVEL_ORDER[1]);
+    const again = await store.getSnapshot();
+
+    expect(again.telemetry).toEqual(once.telemetry);
+    expect(again.telemetry.lifetime.runsPlayed).toBe(5);
   });
 });

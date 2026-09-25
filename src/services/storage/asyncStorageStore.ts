@@ -37,7 +37,7 @@ import type { LevelId } from '../../core';
 
 export { mergeHighWatermark } from './watermark';
 
-type AsyncStorageLike = {
+export type AsyncStorageLike = {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
 };
@@ -156,6 +156,18 @@ export function createAsyncStorageProgressStore(): ProgressStore {
 /** Test-only: drop the progress singleton between cases. */
 export function __resetSharedProgressStoreForTests(): void {
   sharedProgressStore = null;
+}
+
+/**
+ * Test-only: build a progress store over an injected storage double.
+ * `createDefaultProgressStore` probes the native bridge and falls back to the
+ * memory store under Vitest, so the AsyncStorage hydrate/migrate/persist chain
+ * is otherwise unreachable from a test.
+ */
+export function __createAsyncStorageProgressStoreForTests(
+  storage: AsyncStorageLike,
+): ProgressStore {
+  return createAsyncStorageProgressStoreFrom(storage);
 }
 
 function cloneLevelBest(b: LevelBest): LevelBest {
