@@ -129,6 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ARCH-02 | Phase 6 | Complete |
 
 **Coverage:**
+
 - v1 requirements: 27 total
 - Mapped to phases: 27 ✓
 - Unmapped: 0
@@ -173,9 +174,10 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 
 ### Endless Mode
 
-- [ ] **N-END-01** (FC-R04): Clearing a board advances to the next generated one in the same run; lives, score and combo carry over; the run ends only at zero lives
-- [ ] **N-END-02**: Endless records (best wave, best score) are stored separately — endless play cannot alter campaign unlocks, bests or stars
-- [ ] **N-END-03**: A seeded endless run is reproducible end to end; wave transitions cause no frame spike outside the Mid budget
+- [x] **N-END-01** (FC-R04): Clearing a board advances to the next generated one in the same run; lives, score and combo carry over; the run ends only at zero lives
+- [x] **N-END-02**: Endless records (best wave, best score) are stored separately — endless play cannot alter campaign unlocks, bests or stars
+- [x] **N-END-03**: A seeded endless run is reproducible end to end; wave transitions cause no frame spike outside the Mid budget
+  - **Caveat (Phase 11, 2026-09-25):** the reproducibility half is proven headlessly (and is scoped — a *device* run is not replayable, no per-tick intent recorder exists). The **frame-budget half is device-gated and still UNMEASURED** — recorded as a dated OPEN assumption in `docs/ops/ENDLESS-MODE.md` § Limits and tracked in `.planning/STATE.md` § Pending Todos.
 
 ### Daily Challenge
 

@@ -2,15 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
+current_plan: 6
 status: in_progress
-stopped_at: Completed 11-05-PLAN.md
-last_updated: "2026-09-25T15:15:09.577Z"
-state_head: 8c2bf5a0ff7d5d87f542d1f91718874b25044869
+stopped_at: Completed 11-06-PLAN.md
+last_updated: "2026-09-25T15:25:47.026Z"
+state_head: 70a86da43e01a9149905b20fd38f79a47d7bbf46
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -51,8 +52,12 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-**v1.2 PLANNED** — roadmap written, nothing planned or executed yet.  
-**Next:** `/gsd-discuss-phase 9` (Run Telemetry & Storage v4) — no dependencies, and phases 13/14 both need its counters. Phase 10 (generator) can run in parallel.  
+Current Plan: 6
+Total Plans in Phase: 6
+
+**Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
+**Next:** `/gsd-verify-work 11` (harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
+**Open from Phase 11:** the SC-5 device half — see Pending Todos.  
 **Owner-gated, carried from v1.1:** §5d Instruments on a ramp build (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, human playtest cohort.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
@@ -107,6 +112,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Phase 11 P03 | 12min | 2 tasks | 2 files |
 | Phase 11 P04 | 12min | 2 tasks | 2 files |
 | Phase 11 P05 | 20 min | 3 tasks | 5 files |
+| Phase 11 P06 | 8min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -184,6 +190,9 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [Phase 11]: D-04's guard is two tests and only 6a is load-bearing: lives immediately after each applyWaveAdvance must equal lives immediately before it. 6b (the MAX_LIVES cap) asserts a real life gain FIRST — in the 12-wave reference run lives first exceed 3 at wave 8 and reach exactly MAX_LIVES = 5 at wave 10 — because an un-exercised cap assertion is green regardless of whether anyone thought about D-04
 - [Phase 11]: SC-4 is scoped in the file that claims it: a DEVICE endless run is not replayable, because intent is read per substep from paddleTarget.value and substep count depends on wall-clock frame timing — nothing records the per-tick intent sequence. No literal hash or digest is pinned anywhere; every case is A-equals-B self-consistency or A-differs-from-B divergence, because an endless sequence is not a frozen corpus
 - [Phase 11]: The seed-divergence case asserts the divergence is a genuine HASH difference inside the shared boundary range, not merely a different run length — the plan's literal wording (differs at at least one boundary) would have been satisfied by the weaker claim
+- [Phase 11]: The device half of SC-5 is recorded as a dated OPEN assumption in docs/ops/ENDLESS-MODE.md rather than assumed to pass — no automated step in this repo can measure a frame on hardware, and the block names 'no device available' as a valid outcome that keeps it OPEN
+- [Phase 11]: BOARD-GENERATOR.md § Limits item 2's 'plausibly unfinishable' inference is marked superseded in place (20 insertions, 0 deletions) with a dated note cross-linked to ENDLESS-MODE.md — the original belief stays visible next to its correction, which is what that section exists for
+- [Phase 11]: SCHEDULE was deliberately NOT re-tuned — the clear-time tail is a trajectory property (18x spread on one lattice across paddle offsets) and per-difficulty maxima are non-monotone (d=17 at 2735.3 s beats d=20), so a re-tune buys ~34% off the median while re-rolling the tail and invalidating Phase 10's digests, sweep, proof and the A1 device record
 
 ### Decisions (Post-MVP close)
 
@@ -218,6 +227,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-25T15:15:09.558Z
-Stopped at: Completed 11-05-PLAN.md
+Last session: 2026-09-25T15:25:14.266Z
+Stopped at: Completed 11-06-PLAN.md
 Resume file: None
