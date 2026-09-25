@@ -233,8 +233,9 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
     expect(r.progress.bestByLevel[first as never]).toEqual({ score: 640, stars: 2 });
     expect(r.progress.bestScore).toBe(640);
     expect(r.progress.updatedAt).toBe(42);
-    // Only telemetry degrades.
+    // Only telemetry degrades — including the endless record inside it (N-END-02).
     expect(r.progress.telemetry).toEqual(defaultTelemetryBlob());
+    expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
   });
 
   it('partial telemetry keeps the fields it does have and defaults only the missing/invalid ones', () => {
@@ -249,6 +250,8 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
         telemetry: {
           lifetime: { runsPlayed: 3, bricksBroken: 'nope', bestComboEver: 7 },
           byMode: { campaign: { [first]: { runsPlayed: 3 } } },
+          // Structurally broken endless record — must degrade ITSELF and nothing else.
+          endless: 'not-an-object',
           recentRuns: [
             { mode: 'campaign', levelId: first, outcome: 'win', score: 5, ticks: 9, timestamp: 1 },
             { mode: 'bogus-mode', levelId: first, outcome: 'win', score: 5, ticks: 9, timestamp: 2 },
@@ -267,6 +270,108 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
     // Unknown mode entries are dropped, valid ones kept.
     expect(r.progress.telemetry.recentRuns).toHaveLength(1);
     expect(r.progress.telemetry.recentRuns[0]?.timestamp).toBe(1);
+    // The broken endless record degrades alone — its sibling telemetry fields above
+    // all survived, which is the SC-3 independence argument one level down.
+    expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
+  });
+
+  it('a partial endless record keeps the fields it does have and coerces the invalid ones to non-negative integers (N-END-02)', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 500, stars: 1 } },
+        bestScore: 500,
+        updatedAt: 7,
+        // A negative wave next to a perfectly good score: the bad field degrades
+        // alone. (`NaN`/`Infinity` cannot survive JSON — `JSON.stringify` emits
+        // `null` for both, and the `null` form is covered below.)
+        telemetry: { ...telemetry, endless: { bestWave: -5, bestScore: 4200 } },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 0, bestScore: 4200 });
+    // Sibling telemetry survives…
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(6);
+    // …and so does every campaign field (SC-3).
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+    expect(r.progress.bestScore).toBe(500);
+  });
+
+  it('every non-numeric endless field shape degrades to 0 without touching its sibling field or the enclosing blob', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const parseWith = (endless: unknown) =>
+      parseProgressResult(
+        JSON.stringify({
+          v: 4,
+          unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+          bestByLevel: { [first]: { score: 500, stars: 1 } },
+          bestScore: 500,
+          updatedAt: 7,
+          telemetry: { ...defaultTelemetryBlob(), endless },
+        }),
+      );
+
+    // A string counter, a fractional counter and a JSON `null` (the wire form of
+    // NaN/Infinity) each degrade that field ALONE.
+    expect(parseWith({ bestWave: '12', bestScore: 30 }).progress.telemetry.endless).toEqual({
+      bestWave: 0,
+      bestScore: 30,
+    });
+    expect(parseWith({ bestWave: 1.7, bestScore: 12.9 }).progress.telemetry.endless).toEqual({
+      bestWave: 1,
+      bestScore: 12,
+    });
+    expect(parseWith({ bestWave: Number.NaN, bestScore: 8 }).progress.telemetry.endless).toEqual({
+      bestWave: 0,
+      bestScore: 8,
+    });
+
+    // Whole-record shapes that are not objects fall back to the default record…
+    for (const broken of ['nope', [], null, 42, undefined]) {
+      const r = parseWith(broken);
+      // …without ever making the enclosing blob read as corrupt (SC-3).
+      expect(r.status).toBe('ok');
+      expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
+      expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+      expect(r.progress.bestScore).toBe(500);
+    }
+  });
+
+  it('an existing v4 blob written before the endless record existed parses with the field defaulted and every campaign field intact — no version bump, no migration', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    // The exact old shape: a v4 telemetry object with no `endless` key at all.
+    const oldTelemetry = {
+      lifetime: { ...defaultTelemetryAggregate(), runsPlayed: 4, bricksBroken: 120 },
+      byMode: { campaign: { [first]: { ...defaultTelemetryAggregate(), runsPlayed: 4 } }, endless: {}, daily: {} },
+      recentRuns: [],
+    };
+    expect(Object.keys(oldTelemetry)).not.toContain('endless');
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1200, stars: 3 } },
+        bestScore: 1200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: oldTelemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.v).toBe(PROGRESS_VERSION);
+    expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(120);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1200);
   });
 
   it('structurally corrupt top-level JSON degrades the whole blob to defaults and never throws', () => {
