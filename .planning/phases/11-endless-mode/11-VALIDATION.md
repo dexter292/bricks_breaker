@@ -1,10 +1,11 @@
 ---
 phase: 11
 slug: endless-mode
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: planned
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-09-25
+plans_mapped: 2026-09-25
 ---
 
 # Phase 11 — Validation Strategy
@@ -77,17 +78,66 @@ deleted before the plan's verification block runs `git status --porcelain`.
 
 ## Wave 0 Requirements
 
-- [ ] `tests/endless.ramp.test.ts` — SC-2, SC-4 seed uniqueness
-- [ ] `tests/runtime.wave-advance.test.ts` — SC-1 field-by-field carry/clear contract
-- [ ] `tests/endless.wave-loop.test.ts` — SC-1 / N-END-01 multi-wave integration through real `stepRun`
-- [ ] `tests/endless.determinism.test.ts` — SC-4 / N-END-03
-- [ ] `tests/storage.endless-firewall.test.ts` — SC-3 / N-END-02
-- [ ] `docs/ops/ENDLESS-MODE.md` — SC-2's "written down" clause, plus the landing site for the device SC-5 reading
+- [x] `tests/endless.ramp.test.ts` — SC-2, SC-4 seed uniqueness → **plan `11-01` Task 2**
+- [x] `tests/runtime.wave-advance.test.ts` — SC-1 field-by-field carry/clear contract → **plan `11-01` Task 3**, extended by **`11-03` Task 2**
+- [x] `tests/endless.wave-loop.test.ts` — SC-1 / N-END-01 multi-wave integration through real `stepRun` → **plan `11-01` Task 1** (tracer), expanded by **`11-04` Task 1**
+- [x] `tests/endless.determinism.test.ts` — SC-4 / N-END-03 → **plan `11-04` Task 2**
+- [x] `tests/storage.endless-firewall.test.ts` — SC-3 / N-END-02 → **plan `11-02` Task 3**
+- [x] `docs/ops/ENDLESS-MODE.md` — SC-2's "written down" clause, plus the landing site for the device SC-5 reading → **plan `11-06` Tasks 1 and 3**
+- [x] `tests/ui/PlayingHost.endless.test.ts` — D-05 / SC-1 / SC-5 source contracts → **plan `11-05` Task 3** (not in the original list; added because D-05 and the SC-5 source contract needed a home)
 
 No framework install needed. `tests/helpers/balanceBot.ts` already supplies `runBotOnLevel`
 for object-form levels, which is the one helper the integration tests need.
 
 ---
+
+---
+
+## Plan & Wave Map (added at planning, 2026-09-25)
+
+Every row in the Per-Task Verification Map above is owned by exactly one plan task. There is
+no separate "Wave 0" plan: every test file is created by the same `tdd="true"` task that
+creates the code it guards, which is the repo's established shape and keeps a test and its
+subject in one reviewable commit.
+
+| Plan | Wave | Depends on | Owns | Requirements |
+|---|---|---|---|---|
+| `11-01` | 1 | — | `src/services/endless/` (ramp + barrel), `applyWaveAdvance`, `compileGeneratedLevel`, `lowestLiveBall` export; creates `tests/endless.ramp.test.ts`, `tests/runtime.wave-advance.test.ts`, `tests/endless.wave-loop.test.ts` | N-END-01, N-END-03 |
+| `11-02` | 1 | — | `EndlessRecord` + sanitizer + running-max merge, the `recordRunEnd` union and the mode gate in **both** stores (**defect 1**); creates `tests/storage.endless-firewall.test.ts`, extends `tests/storage.progress-v4.test.ts` | N-END-02 |
+| `11-03` | 2 | `11-01` | `useGameLoop` wave request/apply pair, `advanceWave` on the handle, the cumulative tick bank (D-06); extends `tests/runtime.wave-advance.test.ts` | N-END-01, N-END-03 |
+| `11-04` | 2 | `11-01` | Multi-wave SC-1 integration and the SC-4 determinism suite; extends `tests/endless.wave-loop.test.ts`, creates `tests/endless.determinism.test.ts` | N-END-01, N-END-03 |
+| `11-05` | 3 | `11-01`, `11-02`, `11-03` | Bake-key re-key (**defect 2**), `PlayingHost` endless state + WON intercept + record write, the `__DEV__` entry and wave indicator; extends `tests/ui/PlayingHost.next-bake.test.ts`, creates `tests/ui/PlayingHost.endless.test.ts` | N-END-01, N-END-02, N-END-03 |
+| `11-06` | 4 | `11-04`, `11-05` | `docs/ops/ENDLESS-MODE.md`, the `BOARD-GENERATOR.md` §Limits amendment, the dated OPEN device-SC-5 block | N-END-01, N-END-02, N-END-03 |
+
+**Same-wave file disjointness:** wave 1's two plans and wave 2's two plans share no
+`files_modified` entry. `tests/runtime.wave-advance.test.ts` (11-01 → 11-03) and
+`tests/endless.wave-loop.test.ts` (11-01 → 11-04) are each extended in a strictly later wave
+than the one that creates them.
+
+### Known-defect coverage
+
+| Defect | Fixed by | Proven by |
+|---|---|---|
+| 1 — `recordRunEnd` writes campaign data for every mode | `11-02` Task 3 (discriminated union + `args.mode === 'campaign'` gate in `memoryStore.ts` and `asyncStorageStore.ts`) | `tests/storage.endless-firewall.test.ts`, one describe per store, plus a `@ts-expect-error` case that makes `npm run typecheck` the compile-time gate |
+| 2 — the glow-bake key changes every wave | `11-05` Task 1 (re-key `loadKey` on brick dimensions alone) | `tests/ui/PlayingHost.next-bake.test.ts` source contract + jsdom `setActiveCalls` regression, duplicated in `tests/ui/PlayingHost.endless.test.ts` so the contract survives either file being rewritten |
+
+### `world.tick` decision
+
+Decided in the plans, not deferred: **`world.tick` restarts each wave** (`11-01` objective,
+D-06), with cumulative simulated time banked on the **UI runtime** inside the wave-advance
+request block (`11-03` objective) rather than in an app-tier ref — the app-tier bank would
+depend on delivery ordering between two independent `useAnimatedReaction`s. Recorded with its
+measurement in `docs/ops/ENDLESS-MODE.md` (`11-06` Task 1).
+
+### SC-5 split, as planned
+
+- Headless half — the bake key no longer moves across a wave, and the wave apply block sits
+  above the `simFrozen` computation so no `setActive` call is involved: `11-03` Task 1
+  (line-order gate) and `11-05` Tasks 1 and 3 (source contracts).
+- Device half — recorded by `11-06` Task 3 as a **dated OPEN assumption** with its discharge
+  procedure, and queued for the end-of-phase UAT harvest through that task's `<human-check>`.
+  `workflow.human_verify_mode` is unset in `.planning/config.json`, so the `end-of-phase`
+  default applies and no mid-flight checkpoint task is emitted.
 
 ## Manual-Only Verifications
 
@@ -111,10 +161,10 @@ for object-form levels, which is the one helper the integration tests need.
 
 ## Validation Sign-Off
 
-- [ ] All tasks have an `<automated>` verify or a Wave 0 dependency
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have an `<automated>` verify — every task in all six plans carries one
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify (every task has one)
+- [x] Wave 0 covers all MISSING references — each MISSING test file is created by the `tdd="true"` task that needs it, in the same commit
+- [x] No watch-mode flags — every command is `npx vitest run` or `npm test`
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** plan-mapped 2026-09-25 — all six sign-off boxes satisfied by the six plans above.
