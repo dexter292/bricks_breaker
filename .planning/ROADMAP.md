@@ -71,7 +71,14 @@ Plans:
   4. Difficulty is a single monotone input: higher values produce boards with non-decreasing authored weight (brick count and total HP), verified across the range
   5. Generation uses only shipped verbs (multi-HP, steel, explosive) and respects the Mid-tier particle budget — no new brick type is introduced here
   6. Generating a board allocates nothing on the render or simulation hot path; it runs once per board, off the worklet
-**Plans:** TBD
+**Plans:** 6 plans in 5 waves
+Plans:
+- [ ] 10-00-PLAN.md — Register `src/levelgen` in the eslint layer matrix + LC-15/16/17; integer PRNG and the one fixed lattice (wave 0)
+- [ ] 10-01-PLAN.md — Object-taking `levelStaticsOf` / `runBotOnLevel`; sweep, schedule and winnability scaffolds (wave 0)
+- [ ] 10-02-PLAN.md — TRACER: `generate(seed, difficulty)` end-to-end through validate/compile/solvability, plus the explosive cluster cap (wave 1)
+- [ ] 10-03-PLAN.md — 21 000-board contract sweep with R-16 twin parity; engine-portable corpus fingerprint and both pinned digests (wave 2)
+- [ ] 10-04-PLAN.md — Bot winnability backstop and `docs/ops/BOARD-GENERATOR.md` (wave 3)
+- [ ] 10-05-PLAN.md — Hermes A1 device probe and the phase gate (`src/core` untouched, full suite green) (wave 4)
 **UI hint**: no
 
 ### Phase 11: Endless Mode
