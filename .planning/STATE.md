@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: "Completed D1-01-PLAN.md (ghost/squash consume/draw)"
-last_updated: "2026-09-25T02:51:52.000Z"
+stopped_at: "Completed D1-02-PLAN.md (expo-haptics soft-fail service)"
+last_updated: "2026-09-25T02:54:51.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 8
@@ -21,7 +21,7 @@ progress:
   post_mvp_b123: done
   post_mvp_c1: uat_approved_2026_09_25
   post_mvp_c2: done_2026_09_25
-  post_mvp_d1: executing_wave2
+  post_mvp_d1: executing_wave3
   post_mvp_ceiling_rerun_bc2: pass_2026_09_25
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
@@ -34,12 +34,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **D1 executing** (Wave 1 done → Wave 2 haptics). Mid freeze + brick/paddle juice wired. Open ledger: display-name, R-10, R-12, N-OPS-01.
+**Current focus:** Post-MVP — **D1 executing** (Wave 2 done → Wave 3 PlayingHost wire). Mid freeze + juice + expo-haptics service. Open ledger: display-name, R-10, R-12, N-OPS-01.
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** D1 Plan 02 (expo-haptics); ceiling §5c already PASS.  
+**Next:** D1 Plan 03 (PlayingHost haptics fan-out + ops docs); rebuild native before device UAT.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics
@@ -83,6 +83,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Phase 08 P02 | 3min | 2 tasks | 9 files |
 | Phase 08 P03 | 3min | 2 tasks | 5 files |
 | Phase 08 P04 | 2min | 2 tasks | 4 files |
+| Phase D1-juice-presentation P02 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,9 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [Phase 08]: A1 lock: p50≤16.7ms; p95≤20ms OR ≤5% jank; RN Perf Monitor invalid
 - [Phase 08]: Soak dwell 750ms; continuous 15min; gated by __DEV__ && SOAK_HARNESS
 - [Phase 08]: Memory AudioService clears plays/cursors on release for soak lifecycle asserts
+- [D1-02]: expo-haptics ~57.0.3 via npx expo install; soft-fail mirrors ExpoAudio probe
+- [D1-02]: Local ImpactFeedbackStyle string consts for Vitest spies; no top-level native import
+- [D1-02]: PlayingHost fan-out deferred to Plan 03; owner rebuild required for device Taptic
 
 ### Pending Todos
 
@@ -167,6 +171,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-21T12:33:15.574Z
-Stopped at: Ready for 08-06-PLAN.md (device gate)
+Last session: 2026-09-25T02:54:51.000Z
+Stopped at: Completed D1-02-PLAN.md (expo-haptics soft-fail service)
 Resume file: None
