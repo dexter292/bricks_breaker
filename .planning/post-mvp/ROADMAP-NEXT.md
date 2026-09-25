@@ -158,7 +158,7 @@ Plans:
 Plans:
 - [x] `C2-00-PLAN.md` — Wave 0: stars helpers + LevelBest types + Vitest stubs (progress-v3 / Select / Next-bake / Results)
 - [x] `C2-01-PLAN.md` — Wave 1: C1 UAT gate + ProgressBlob v3 parse/migrate/store + recordRunEnd
-- [ ] `C2-02-PLAN.md` — Wave 2: SelectScreen + ShellPhase select + ResultOverlay stars/Next chrome
+- [x] `C2-02-PLAN.md` — Wave 2: SelectScreen + ShellPhase select + ResultOverlay stars/Next chrome
 - [ ] `C2-03-PLAN.md` — Wave 3: required levelId + Next bake checklist + docs + device UAT / cert-arm smoke
 
 ---
