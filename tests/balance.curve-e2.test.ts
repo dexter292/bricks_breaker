@@ -20,7 +20,12 @@ import {
 } from '../src/core';
 import { applySpeedRamp } from '../src/core/rules/speedRamp';
 import { PLAYABLE_LEVEL_ORDER } from '../src/services/storage/catalog';
-import { runBot, levelStatics, TICKS_PER_SECOND } from './helpers/balanceBot';
+import {
+  runBot,
+  levelStatics,
+  readLevelFile,
+  TICKS_PER_SECOND,
+} from './helpers/balanceBot';
 
 describe('E2 difficulty curve (N-CNT-01)', () => {
   it('authored weight is monotone non-decreasing along the campaign order', () => {
@@ -44,6 +49,22 @@ describe('E2 difficulty curve (N-CNT-01)', () => {
 
     // The showpiece is the finale, not slot 2.
     expect(PLAYABLE_LEVEL_ORDER[PLAYABLE_LEVEL_ORDER.length - 1]).toBe('level-03');
+  });
+
+  it('every campaign level fits inside the 360x640 playfield', () => {
+    // level-04 and level-05 shipped 4 units wide: the right brick column was clipped
+    // off-screen and no test covered it, because bounds were only asserted for level-03.
+    const LOGICAL_W = 360;
+    const LOGICAL_H = 640;
+    for (const id of PLAYABLE_LEVEL_ORDER) {
+      const { grid } = readLevelFile(id);
+      const right = grid.originX + (grid.cols - 1) * (grid.brickW + grid.gapX) + grid.brickW;
+      const bottom = grid.originY + (grid.rows - 1) * (grid.brickH + grid.gapY) + grid.brickH;
+      expect(grid.originX, `${id} left edge`).toBeGreaterThanOrEqual(0);
+      expect(grid.originY, `${id} top edge`).toBeGreaterThanOrEqual(0);
+      expect(right, `${id} right edge`).toBeLessThanOrEqual(LOGICAL_W);
+      expect(bottom, `${id} bottom edge`).toBeLessThanOrEqual(LOGICAL_H);
+    }
   });
 
   it('every campaign level is still winnable by a perfect bot', () => {

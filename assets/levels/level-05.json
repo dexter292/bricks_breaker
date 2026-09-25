@@ -5,7 +5,7 @@
   "grid": {
     "cols": 9,
     "rows": 10,
-    "originX": 8,
+    "originX": 2,
     "originY": 48,
     "brickW": 36,
     "brickH": 15,
