@@ -33,7 +33,7 @@ phase, before anything depends on it.
 Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outside the registry.
 
 - [x] **Phase 9: Run Telemetry & Storage v4** - Every run records what happened, persisted through a lossless v3→v4 migration
-- [ ] **Phase 10: Seeded Board Generator** - Deterministic (seed, difficulty) → playable board that passes the solvability lint
+- [x] **Phase 10: Seeded Board Generator** - Deterministic (seed, difficulty) → playable board that passes the solvability lint
 - [ ] **Phase 11: Endless Mode** - A run that never runs out of board, escalating until the player misses
 - [ ] **Phase 12: Daily Challenge** - One shared board per local date, with a streak worth keeping
 - [ ] **Phase 13: Achievements** - Local, deterministic unlocks earned from telemetry
@@ -73,12 +73,12 @@ Plans:
   6. Generating a board allocates nothing on the render or simulation hot path; it runs once per board, off the worklet
 **Plans:** 6 plans in 5 waves
 Plans:
-- [ ] 10-00-PLAN.md — Register `src/levelgen` in the eslint layer matrix + LC-15/16/17; integer PRNG and the one fixed lattice (wave 0)
-- [ ] 10-01-PLAN.md — Object-taking `levelStaticsOf` / `runBotOnLevel`; sweep, schedule and winnability scaffolds (wave 0)
-- [ ] 10-02-PLAN.md — TRACER: `generate(seed, difficulty)` end-to-end through validate/compile/solvability, plus the explosive cluster cap (wave 1)
-- [ ] 10-03-PLAN.md — 21 000-board contract sweep with R-16 twin parity; engine-portable corpus fingerprint and both pinned digests (wave 2)
-- [ ] 10-04-PLAN.md — Bot winnability backstop and `docs/ops/BOARD-GENERATOR.md` (wave 3)
-- [ ] 10-05-PLAN.md — Hermes A1 device probe and the phase gate (`src/core` untouched, full suite green) (wave 4)
+- [x] 10-00-PLAN.md — Register `src/levelgen` in the eslint layer matrix + LC-15/16/17; integer PRNG and the one fixed lattice (wave 0)
+- [x] 10-01-PLAN.md — Object-taking `levelStaticsOf` / `runBotOnLevel`; sweep, schedule and winnability scaffolds (wave 0)
+- [x] 10-02-PLAN.md — TRACER: `generate(seed, difficulty)` end-to-end through validate/compile/solvability, plus the explosive cluster cap (wave 1)
+- [x] 10-03-PLAN.md — 21 000-board contract sweep with R-16 twin parity; engine-portable corpus fingerprint and both pinned digests (wave 2)
+- [x] 10-04-PLAN.md — Bot winnability backstop and `docs/ops/BOARD-GENERATOR.md` (wave 3)
+- [x] 10-05-PLAN.md — Hermes A1 device probe and the phase gate (`src/core` untouched, full suite green) (wave 4)
 **UI hint**: no
 
 ### Phase 11: Endless Mode
