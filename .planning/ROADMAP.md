@@ -56,7 +56,7 @@ Plans:
 - [x] 09-00-PLAN.md — Wave-0 it.todo test scaffolds for N-STAT-01/N-STAT-02 + v3 fixture builder
 - [x] 09-01-PLAN.md — Runtime event-ring reducer (src/runtime/runStats.ts) wired into useGameLoop.ts
 - [x] 09-02-PLAN.md — ProgressBlob v4 schema, fail-soft parse, extended migrate chain, telemetry merge helpers
-- [ ] 09-03-PLAN.md — memoryStore.ts / asyncStorageStore.ts extended to the v4 recordRunEnd contract
+- [x] 09-03-PLAN.md — memoryStore.ts / asyncStorageStore.ts extended to the v4 recordRunEnd contract
 - [ ] 09-04-PLAN.md — PlayingHost.tsx wiring (win/lose/abandon) + SC-5 verification + manual QA checkpoint
 **UI hint**: no
 

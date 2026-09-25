@@ -4,15 +4,15 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_phase: '9'
 status: in_progress
-stopped_at: "Phase 9 Wave 1 complete (09-01 reducer + 09-02 storage v4 merged); Wave 2 (09-03) next"
+stopped_at: "Phase 9 Wave 2 complete (09-03 store round-trip + 2 data-loss fixes); Wave 3 (09-04) next — has a human checkpoint"
 last_updated: "2026-09-25T13:40:00.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
   phase_8_status: temporary_close
