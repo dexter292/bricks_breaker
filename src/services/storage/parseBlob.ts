@@ -9,8 +9,10 @@ import {
   RECENT_RUNS_BOUND,
   defaultProgressBlob,
   defaultProgressBlobV3,
+  defaultEndlessRecord,
   defaultTelemetryAggregate,
   defaultTelemetryBlob,
+  type EndlessRecord,
   type GameMode,
   type LevelBest,
   type ProgressBlob,
@@ -332,6 +334,18 @@ function sanitizeAggregate(raw: unknown): TelemetryAggregate {
   return out;
 }
 
+function sanitizeEndlessRecord(raw: unknown): EndlessRecord {
+  const out = defaultEndlessRecord();
+  if (raw == null || typeof raw !== 'object') {
+    return out;
+  }
+  const map = raw as Record<string, unknown>;
+  for (const key of Object.keys(out) as (keyof EndlessRecord)[]) {
+    out[key] = safeCounter(map[key]);
+  }
+  return out;
+}
+
 function sanitizeRunLogEntry(raw: unknown): RunLogEntry | null {
   if (raw == null || typeof raw !== 'object') {
     return null;
@@ -389,6 +403,14 @@ function sanitizeAggregateMap(
  * roadmap SC-4): any structural failure here degrades telemetry alone to defaults
  * and must never make the enclosing blob read as `corrupt`. Partial telemetry keeps
  * every field it does have.
+ *
+ * That independence is also the whole reason the endless record (`endless`,
+ * N-END-02) lives in here rather than on `ProgressBlob`: a corrupt or hand-edited
+ * endless best degrades to `defaultEndlessRecord()` and cannot take `unlocked`,
+ * `bestByLevel` or `bestScore` down with it (roadmap SC-3). Each of its fields
+ * degrades on its own too — a broken `bestWave` does not discard a good
+ * `bestScore`. Because `out` starts from `defaultTelemetryBlob()`, a v4 blob
+ * written before the record existed defaults cleanly: no `v` bump, no migration.
  */
 function sanitizeTelemetry(raw: unknown): TelemetryBlob {
   const out = defaultTelemetryBlob();
@@ -398,9 +420,11 @@ function sanitizeTelemetry(raw: unknown): TelemetryBlob {
   const telemetry = raw as {
     lifetime?: unknown;
     byMode?: unknown;
+    endless?: unknown;
     recentRuns?: unknown;
   };
   out.lifetime = sanitizeAggregate(telemetry.lifetime);
+  out.endless = sanitizeEndlessRecord(telemetry.endless);
   if (telemetry.byMode != null && typeof telemetry.byMode === 'object') {
     const byMode = telemetry.byMode as Record<string, unknown>;
     out.byMode.campaign = sanitizeAggregateMap(byMode.campaign);
