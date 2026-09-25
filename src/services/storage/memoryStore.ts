@@ -1,6 +1,15 @@
 import type { LevelId } from '../../core';
-import type { LevelBest, PersonalBestStore, ProgressBlob, ProgressStore } from './types';
+import type {
+  GameMode,
+  LevelBest,
+  PersonalBestStore,
+  ProgressBlob,
+  ProgressStore,
+  RunOutcome,
+  RunStatsInput,
+} from './types';
 import { defaultProgressBlob } from './types';
+import { cloneTelemetryBlob, mergeRunIntoTelemetry } from './telemetry';
 import { computeStars, mergeLevelBest } from './stars';
 import {
   unlockAfterClear as unlockAfterClearPure,
@@ -41,11 +50,12 @@ function cloneBlob(b: ProgressBlob): ProgressBlob {
     }
   }
   return {
-    v: 3,
+    v: 4,
     unlocked: [...b.unlocked],
     bestByLevel,
     bestScore: b.bestScore,
     updatedAt: b.updatedAt,
+    telemetry: cloneTelemetryBlob(b.telemetry),
   };
 }
 
@@ -82,10 +92,13 @@ export function createMemoryProgressStore(
     },
     recordRunEnd(args: {
       levelId: LevelId;
+      mode: GameMode;
       score: number;
-      outcome: 'win' | 'lose';
+      outcome: RunOutcome;
       livesRemaining: number;
+      stats: RunStatsInput;
     }): ProgressBlob {
+      // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
       const starsFromWin =
         args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
       const merged = mergeLevelBest(
@@ -94,6 +107,13 @@ export function createMemoryProgressStore(
         starsFromWin,
       );
       applyLevelBest(args.levelId, merged);
+      blob.telemetry = mergeRunIntoTelemetry(blob.telemetry, {
+        mode: args.mode,
+        levelId: args.levelId,
+        outcome: args.outcome,
+        score: args.score,
+        stats: args.stats,
+      });
       if (args.outcome === 'win') {
         blob.unlocked = unlockAfterClearPure(blob.unlocked, args.levelId);
         blob.updatedAt = Date.now();

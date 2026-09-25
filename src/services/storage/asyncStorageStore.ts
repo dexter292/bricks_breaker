@@ -8,8 +8,10 @@ import {
   parsePersonalBestResult,
   parseProgressResult,
   parseProgressV2Result,
+  parseProgressV3Result,
 } from './parseBlob';
 import { computeStars, mergeLevelBest } from './stars';
+import { cloneTelemetryBlob, mergeRunIntoTelemetry } from './telemetry';
 import { mergeHighWatermark } from './watermark';
 import {
   unlockAfterClear as unlockAfterClearPure,
@@ -19,13 +21,17 @@ import {
   PERSONAL_BEST_KEY,
   PERSONAL_BEST_VERSION,
   PROGRESS_KEY,
+  PROGRESS_KEY_V3,
   PROGRESS_KEY_V2,
   defaultProgressBlob,
+  type GameMode,
   type LevelBest,
   type PersonalBestBlob,
   type PersonalBestStore,
   type ProgressBlob,
   type ProgressStore,
+  type RunOutcome,
+  type RunStatsInput,
 } from './types';
 import type { LevelId } from '../../core';
 
@@ -168,11 +174,12 @@ function cloneBlob(b: ProgressBlob): ProgressBlob {
     }
   }
   return {
-    v: 3,
+    v: 4,
     unlocked: [...b.unlocked],
     bestByLevel,
     bestScore: b.bestScore,
     updatedAt: b.updatedAt,
+    telemetry: cloneTelemetryBlob(b.telemetry),
   };
 }
 
@@ -273,8 +280,8 @@ function createAsyncStorageProgressStoreFrom(
       return;
     }
     try {
-      const v3Raw = await AsyncStorage.getItem(PROGRESS_KEY);
-      const parsed = parseProgressResult(v3Raw);
+      const v4Raw = await AsyncStorage.getItem(PROGRESS_KEY);
+      const parsed = parseProgressResult(v4Raw);
 
       if (parsed.status === 'ok') {
         memory = mergeHighWatermark(memory, parsed.progress);
@@ -282,16 +289,18 @@ function createAsyncStorageProgressStoreFrom(
         return;
       }
 
-      // Absent or corrupt v3 → migrate from v2 + v1 (D-05); never clobber watermarks.
-      // Leave v1/v2 keys on disk (rollback safety).
+      // Absent or corrupt v4 → migrate from v3 + v2 + v1 (D-05 / N-STAT-02);
+      // never clobber watermarks. Leave v1/v2/v3 keys on disk (rollback safety).
+      const v3Raw = await AsyncStorage.getItem(PROGRESS_KEY_V3);
       const v2Raw = await AsyncStorage.getItem(PROGRESS_KEY_V2);
       const v1Raw = await AsyncStorage.getItem(PERSONAL_BEST_KEY);
-      const migrated = migrateOrDefault(v3Raw, v2Raw, v1Raw);
+      const migrated = migrateOrDefault(v4Raw, v3Raw, v2Raw, v1Raw);
       memory = mergeHighWatermark(memory, migrated);
 
+      const fromV3 = parseProgressV3Result(v3Raw).status === 'ok';
       const fromV2 = parseProgressV2Result(v2Raw).status === 'ok';
       const fromV1 = parsePersonalBestResult(v1Raw).status === 'ok';
-      if (!wroteMigrateThrough && (fromV2 || fromV1)) {
+      if (!wroteMigrateThrough && (fromV3 || fromV2 || fromV1)) {
         wroteMigrateThrough = true;
         await persist(memory);
       }
@@ -325,9 +334,11 @@ function createAsyncStorageProgressStoreFrom(
     },
     recordRunEnd(args: {
       levelId: LevelId;
+      mode: GameMode;
       score: number;
-      outcome: 'win' | 'lose';
+      outcome: RunOutcome;
       livesRemaining: number;
+      stats: RunStatsInput;
     }): ProgressBlob {
       // Sync memory update first so Results can use returned blob (D-10 / F-26).
       // Hydration is best-effort fire-and-forget if not yet done — callers that
@@ -336,6 +347,7 @@ function createAsyncStorageProgressStoreFrom(
         // Kick hydrate without blocking return; rare cold path before first read.
         void ensureHydrated();
       }
+      // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
       const starsFromWin =
         args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
       const merged = mergeLevelBest(
@@ -344,6 +356,16 @@ function createAsyncStorageProgressStoreFrom(
         starsFromWin,
       );
       applyLevelBest(args.levelId, merged);
+      memory = {
+        ...memory,
+        telemetry: mergeRunIntoTelemetry(memory.telemetry, {
+          mode: args.mode,
+          levelId: args.levelId,
+          outcome: args.outcome,
+          score: args.score,
+          stats: args.stats,
+        }),
+      };
       if (args.outcome === 'win') {
         memory = {
           ...memory,

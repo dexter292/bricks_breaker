@@ -6,11 +6,21 @@
 import type { LevelId } from '../../core';
 import { PLAYABLE_LEVEL_ORDER } from './catalog';
 import {
+  RECENT_RUNS_BOUND,
   defaultProgressBlob,
+  defaultProgressBlobV3,
+  defaultTelemetryAggregate,
+  defaultTelemetryBlob,
+  type GameMode,
   type LevelBest,
   type ProgressBlob,
   type ProgressBlobV2,
+  type ProgressBlobV3,
+  type RunLogEntry,
+  type RunOutcome,
   type StarCount,
+  type TelemetryAggregate,
+  type TelemetryBlob,
 } from './types';
 
 export type ParseBestResult =
@@ -54,6 +64,12 @@ export type ParseProgressResult =
   | { status: 'ok'; progress: ProgressBlob }
   | { status: 'absent'; progress: ProgressBlob }
   | { status: 'corrupt'; progress: ProgressBlob };
+
+/** Legacy v3 parse result — migrate-on-read input only. */
+export type ParseProgressV3Result =
+  | { status: 'ok'; progress: ProgressBlobV3 }
+  | { status: 'absent'; progress: ProgressBlobV3 }
+  | { status: 'corrupt'; progress: ProgressBlobV3 };
 
 export type ParseProgressResultV2 =
   | { status: 'ok'; progress: ProgressBlobV2 }
@@ -122,7 +138,7 @@ function sanitizeProgressV3(raw: {
   bestByLevel: unknown;
   bestScore: unknown;
   updatedAt: unknown;
-}): ProgressBlob {
+}): ProgressBlobV3 {
   const unlocked = sanitizeUnlocked(raw.unlocked);
 
   const bestByLevel: Partial<Record<LevelId, LevelBest>> = {};
@@ -205,15 +221,17 @@ function sanitizeProgressV2(raw: {
   };
 }
 
-/** Parse current ProgressBlob (v===3 only). */
-export function parseProgressResult(raw: string | null): ParseProgressResult {
+/** Parse legacy ProgressBlob v3 (v===3 only) for migrate-on-read input. */
+export function parseProgressV3Result(
+  raw: string | null,
+): ParseProgressV3Result {
   if (raw == null) {
-    return { status: 'absent', progress: defaultProgressBlob() };
+    return { status: 'absent', progress: defaultProgressBlobV3() };
   }
   try {
     const parsed: unknown = JSON.parse(raw);
     if (parsed == null || typeof parsed !== 'object') {
-      return { status: 'corrupt', progress: defaultProgressBlob() };
+      return { status: 'corrupt', progress: defaultProgressBlobV3() };
     }
     const blob = parsed as {
       v?: unknown;
@@ -223,16 +241,16 @@ export function parseProgressResult(raw: string | null): ParseProgressResult {
       updatedAt?: unknown;
     };
     if (blob.v !== 3) {
-      return { status: 'corrupt', progress: defaultProgressBlob() };
+      return { status: 'corrupt', progress: defaultProgressBlobV3() };
     }
     if (!Array.isArray(blob.unlocked)) {
-      return { status: 'corrupt', progress: defaultProgressBlob() };
+      return { status: 'corrupt', progress: defaultProgressBlobV3() };
     }
     if (blob.bestByLevel == null || typeof blob.bestByLevel !== 'object') {
-      return { status: 'corrupt', progress: defaultProgressBlob() };
+      return { status: 'corrupt', progress: defaultProgressBlobV3() };
     }
     if (typeof blob.bestScore !== 'number' || !Number.isFinite(blob.bestScore)) {
-      return { status: 'corrupt', progress: defaultProgressBlob() };
+      return { status: 'corrupt', progress: defaultProgressBlobV3() };
     }
     return {
       status: 'ok',
@@ -244,7 +262,7 @@ export function parseProgressResult(raw: string | null): ParseProgressResult {
       }),
     };
   } catch {
-    return { status: 'corrupt', progress: defaultProgressBlob() };
+    return { status: 'corrupt', progress: defaultProgressBlobV3() };
   }
 }
 
@@ -288,5 +306,175 @@ export function parseProgressV2Result(raw: string | null): ParseProgressResultV2
     };
   } catch {
     return { status: 'corrupt', progress: defaultProgressBlobV2() };
+  }
+}
+
+const GAME_MODE_SET = new Set<string>(['campaign', 'endless', 'daily']);
+const RUN_OUTCOME_SET = new Set<string>(['win', 'lose', 'abandoned']);
+
+/** Counters are non-negative integers; anything else degrades to 0. */
+function safeCounter(raw: unknown): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0) {
+    return 0;
+  }
+  return Math.floor(raw);
+}
+
+function sanitizeAggregate(raw: unknown): TelemetryAggregate {
+  const out = defaultTelemetryAggregate();
+  if (raw == null || typeof raw !== 'object') {
+    return out;
+  }
+  const map = raw as Record<string, unknown>;
+  for (const key of Object.keys(out) as (keyof TelemetryAggregate)[]) {
+    out[key] = safeCounter(map[key]);
+  }
+  return out;
+}
+
+function sanitizeRunLogEntry(raw: unknown): RunLogEntry | null {
+  if (raw == null || typeof raw !== 'object') {
+    return null;
+  }
+  const entry = raw as {
+    mode?: unknown;
+    levelId?: unknown;
+    outcome?: unknown;
+    score?: unknown;
+    ticks?: unknown;
+    timestamp?: unknown;
+  };
+  if (typeof entry.mode !== 'string' || !GAME_MODE_SET.has(entry.mode)) {
+    return null;
+  }
+  if (typeof entry.levelId !== 'string' || entry.levelId.length === 0) {
+    return null;
+  }
+  if (typeof entry.outcome !== 'string' || !RUN_OUTCOME_SET.has(entry.outcome)) {
+    return null;
+  }
+  if (typeof entry.timestamp !== 'number' || !Number.isFinite(entry.timestamp)) {
+    return null;
+  }
+  return {
+    mode: entry.mode as GameMode,
+    levelId: entry.levelId,
+    outcome: entry.outcome as RunOutcome,
+    score: safeCounter(entry.score),
+    ticks: safeCounter(entry.ticks),
+    timestamp: Math.floor(entry.timestamp),
+  };
+}
+
+function sanitizeAggregateMap(
+  raw: unknown,
+): Partial<Record<string, TelemetryAggregate>> {
+  const out: Partial<Record<string, TelemetryAggregate>> = {};
+  if (raw == null || typeof raw !== 'object') {
+    return out;
+  }
+  const map = raw as Record<string, unknown>;
+  for (const key of Object.keys(map)) {
+    const entry = map[key];
+    if (entry == null || typeof entry !== 'object') {
+      continue;
+    }
+    out[key] = sanitizeAggregate(entry);
+  }
+  return out;
+}
+
+/**
+ * Validate `telemetry` INDEPENDENTLY of its sibling progress fields (Pitfall 4 /
+ * roadmap SC-4): any structural failure here degrades telemetry alone to defaults
+ * and must never make the enclosing blob read as `corrupt`. Partial telemetry keeps
+ * every field it does have.
+ */
+function sanitizeTelemetry(raw: unknown): TelemetryBlob {
+  const out = defaultTelemetryBlob();
+  if (raw == null || typeof raw !== 'object') {
+    return out;
+  }
+  const telemetry = raw as {
+    lifetime?: unknown;
+    byMode?: unknown;
+    recentRuns?: unknown;
+  };
+  out.lifetime = sanitizeAggregate(telemetry.lifetime);
+  if (telemetry.byMode != null && typeof telemetry.byMode === 'object') {
+    const byMode = telemetry.byMode as Record<string, unknown>;
+    out.byMode.campaign = sanitizeAggregateMap(byMode.campaign);
+    out.byMode.endless = sanitizeAggregateMap(byMode.endless);
+    out.byMode.daily = sanitizeAggregateMap(byMode.daily);
+  }
+  if (Array.isArray(telemetry.recentRuns)) {
+    const entries: RunLogEntry[] = [];
+    for (const item of telemetry.recentRuns) {
+      const entry = sanitizeRunLogEntry(item);
+      if (entry != null) {
+        entries.push(entry);
+      }
+    }
+    // Bound on read as well as on write — a tampered blob cannot grow the ring.
+    out.recentRuns = entries.slice(-RECENT_RUNS_BOUND);
+  }
+  return out;
+}
+
+/**
+ * Parse current ProgressBlob (v===4 only) — fail-soft (C1 D-09).
+ * Top-level gating mirrors the v3 parser field-for-field; `telemetry` is validated
+ * separately so its corruption can never discard unlocked/bestByLevel/bestScore.
+ */
+export function parseProgressResult(raw: string | null): ParseProgressResult {
+  if (raw == null) {
+    return { status: 'absent', progress: defaultProgressBlob() };
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed == null || typeof parsed !== 'object') {
+      return { status: 'corrupt', progress: defaultProgressBlob() };
+    }
+    const blob = parsed as {
+      v?: unknown;
+      unlocked?: unknown;
+      bestByLevel?: unknown;
+      bestScore?: unknown;
+      updatedAt?: unknown;
+      telemetry?: unknown;
+    };
+    if (blob.v !== 4) {
+      return { status: 'corrupt', progress: defaultProgressBlob() };
+    }
+    if (!Array.isArray(blob.unlocked)) {
+      return { status: 'corrupt', progress: defaultProgressBlob() };
+    }
+    if (blob.bestByLevel == null || typeof blob.bestByLevel !== 'object') {
+      return { status: 'corrupt', progress: defaultProgressBlob() };
+    }
+    if (typeof blob.bestScore !== 'number' || !Number.isFinite(blob.bestScore)) {
+      return { status: 'corrupt', progress: defaultProgressBlob() };
+    }
+    // Shared fields reuse the same private sanitizer the v3 parser uses (identical
+    // semantics incl. the E2 ladder heal); only the version tag differs.
+    const shared = sanitizeProgressV3({
+      unlocked: blob.unlocked,
+      bestByLevel: blob.bestByLevel,
+      bestScore: blob.bestScore,
+      updatedAt: blob.updatedAt,
+    });
+    return {
+      status: 'ok',
+      progress: {
+        v: 4,
+        unlocked: shared.unlocked,
+        bestByLevel: shared.bestByLevel,
+        bestScore: shared.bestScore,
+        updatedAt: shared.updatedAt,
+        telemetry: sanitizeTelemetry(blob.telemetry),
+      },
+    };
+  } catch {
+    return { status: 'corrupt', progress: defaultProgressBlob() };
   }
 }
