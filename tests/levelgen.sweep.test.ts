@@ -28,10 +28,22 @@
  * TypeScript and a second ESM `generate` would be a third algorithm needing a third parity
  * test. `npm test` runs `vitest run` first, so the gate stays in the full-suite chain.
  *
- * Nothing here may import `generate`, `SCHEDULE` or `D_MAX` yet — they land in plan 10-02,
- * and an unresolved import fails the whole file rather than skipping a todo.
+ * **Corpus width (plan 10-02 vs 10-03).** The live cases below run over `TRACER_SEEDS`
+ * (25 seeds x 21 difficulties = 525 boards) — the tracer's end-to-end proof, cheap enough
+ * to keep the watch loop usable. Plan 10-03 widens them to `SWEEP_SEEDS` and adds the floor
+ * assertion against it; the assertions themselves do not change, only `corpus(n)`'s
+ * argument.
  */
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import {
+  SCORE_HIT,
+  checkSolvability,
+  loadAndCompile,
+  validateLevel,
+  type LevelFileV1,
+} from '../src/core';
+import { D_MAX, GRID, SCHEDULE, generate } from '../src/levelgen';
+import { levelStaticsOf } from './helpers/balanceBot';
 
 /**
  * Boards per difficulty in the contract sweep. 1 000 x 21 difficulties = 21 000 boards.
@@ -45,34 +57,98 @@ import { describe, it } from 'vitest';
  */
 export const SWEEP_SEEDS = 1000;
 
+/** Seeds in the plan-10-02 tracer corpus. 25 x 21 = 525 boards. */
+export const TRACER_SEEDS = 25;
+
+type Board = { readonly s: number; readonly d: number; readonly level: LevelFileV1 };
+
+let memo: readonly Board[] | null = null;
+
+/**
+ * Built lazily inside each `it`, never at module scope: a throw at module scope fails the
+ * whole *file* and discovers zero tests, which is indistinguishable from a suite that was
+ * never written (#3770 INVALID_RED). Built once and shared across cases so the 525-board
+ * generation cost is paid a single time.
+ */
+function corpus(): readonly Board[] {
+  if (memo !== null) return memo;
+  const boards: Board[] = [];
+  for (let s = 0; s < TRACER_SEEDS; s++) {
+    for (let d = 0; d <= D_MAX; d++) {
+      boards.push({ s, d, level: generate(s, d) });
+    }
+  }
+  memo = boards;
+  return boards;
+}
+
 describe('generated board contract sweep (N-GEN-02 / N-GEN-03)', () => {
-  it.todo(
-    'every board in the sweep passes validateLevel and loadAndCompile (10-02-01 / 10-02-02)',
-  );
+  it('generates the full tracer corpus of TRACER_SEEDS x (D_MAX + 1) boards', () => {
+    expect(corpus()).toHaveLength(TRACER_SEEDS * (D_MAX + 1));
+    expect(corpus().length).toBeGreaterThanOrEqual(525);
+  });
 
-  it.todo(
-    'checkSolvability reports zero unreachable breakables over the sweep (10-02-01)',
-  );
+  it('every board in the sweep passes validateLevel and loadAndCompile (10-02-01 / 10-02-02)', () => {
+    for (const { s, d, level } of corpus()) {
+      const v = validateLevel(level);
+      expect(v.ok, `s=${s} d=${d}: ${v.ok ? '' : JSON.stringify(v.issues)}`).toBe(true);
+      expect(loadAndCompile(level).ok, `s=${s} d=${d}`).toBe(true);
+    }
+  });
 
-  it.todo(
-    'every board fits inside the 360x640 playfield (10-02-03)',
-  );
+  it('checkSolvability reports zero unreachable breakables over the sweep (10-02-01)', () => {
+    for (const { s, d, level } of corpus()) {
+      const result = checkSolvability(level);
+      expect(result.unreachableBreakables, `s=${s} d=${d}`).toEqual([]);
+      expect(result.ok, `s=${s} d=${d}`).toBe(true);
+    }
+  });
 
-  it.todo(
-    'each board is left-right mirror symmetric (D-01)',
-  );
+  it.todo('every board fits inside the 360x640 playfield (10-02-03)');
 
-  it.todo(
-    'authored weight equals the schedule exactly for every (seed, difficulty) (10-03-02)',
-  );
+  it('each board is left-right mirror symmetric (D-01)', () => {
+    for (const { s, d, level } of corpus()) {
+      expect(level.cells, `s=${s} d=${d}`).toHaveLength(GRID.rows);
+      for (let r = 0; r < level.cells.length; r++) {
+        const row = level.cells[r]!;
+        expect(row.length, `s=${s} d=${d} r=${r}`).toBe(GRID.cols);
+        expect(row.split('').reverse().join(''), `s=${s} d=${d} r=${r}`).toBe(row);
+      }
+    }
+  });
 
-  it.todo(
-    'cell charset and brickTypes deep-equal the declared alphabet on every board (10-03-03)',
-  );
+  it('authored weight equals the schedule exactly for every (seed, difficulty) (10-03-02)', () => {
+    for (const { s, d, level } of corpus()) {
+      const stats = levelStaticsOf(level, SCORE_HIT);
+      const entry = SCHEDULE[d]!;
+      expect(stats.bricks, `s=${s} d=${d}`).toBe(entry.bricks);
+      expect(stats.totalHp, `s=${s} d=${d}`).toBe(entry.totalHp);
+    }
+  });
 
-  it.todo(
-    'no 8-connected explosive cluster exceeds the cap (10-03-04)',
-  );
+  it.todo('cell charset and brickTypes deep-equal the declared alphabet on every board (10-03-03)');
+
+  it.todo('no 8-connected explosive cluster exceeds the cap (10-03-04)');
+});
+
+describe('tracer determinism and input hardening (T-10-09 / T-10-11)', () => {
+  it('returns JSON-identical output for repeated calls and never aliases its own output', () => {
+    const a = generate(7, 3);
+    const b = generate(7, 3);
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+
+    // T-10-11: a caller mutating the returned grid/brickTypes must not reach board N+1.
+    a.grid.cols = 999;
+    a.brickTypes['1'] = { hp: 42 };
+    const c = generate(7, 3);
+    expect(JSON.stringify(c)).toBe(JSON.stringify(b));
+    expect(b.grid.cols).toBe(GRID.cols);
+  });
+
+  it('clamps difficulty to [0, D_MAX] rather than trusting the caller (T-10-09)', () => {
+    expect(JSON.stringify(generate(1, -5))).toBe(JSON.stringify(generate(1, 0)));
+    expect(JSON.stringify(generate(1, 999))).toBe(JSON.stringify(generate(1, D_MAX)));
+  });
 });
 
 describe('solvability parity over the generated corpus (R-16, resolves 10-02-04)', () => {

@@ -4,4 +4,6 @@ export { makeRng, below, shuffleInPlace, hashSeed, mixSeed } from './rng';
 
 export { GRID, BRICK_TYPES } from './grid';
 
-// Plan 10-02 adds `generate`, `SCHEDULE` and `D_MAX` here.
+export { D_MAX, SCHEDULE, envelope, type ScheduleEntry } from './schedule';
+
+export { generate } from './generate';
