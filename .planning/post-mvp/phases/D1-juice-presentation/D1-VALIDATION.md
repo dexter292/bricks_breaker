@@ -1,7 +1,7 @@
 ---
 phase: D1
 slug: juice-presentation
-status: code_complete_pending_device_uat
+status: human_uat_approved
 nyquist_compliant: true
 wave_0_complete: true
 created: 2026-09-25
@@ -73,9 +73,9 @@ Recorded 2026-09-25 (no timed shell / Results code in D1):
 
 | Behavior | Requirement | Why Manual | Test Instructions | Status |
 |----------|-------------|------------|-------------------|--------|
-| Ball readable during fade | N-FX-01 | Visual | Play level with breaks — ball never hidden | ⏳ pending device smoke |
-| Haptics feel + OS mute | N-FX-03 | Device | System Haptics off → no buzz; on → break/life only; cascade coalesced | ⏳ pending device smoke |
-| Paddle squash cosmetic | FC-F04 | Feel | Hit paddle — visual only; collision unchanged | ⏳ pending device smoke |
+| Ball readable during fade | N-FX-01 | Visual | Play level with breaks — ball never hidden | ✅ 2026-09-25 |
+| Haptics feel + OS mute | N-FX-03 | Device | System Haptics off → no buzz; on → break/life only; cascade coalesced | ✅ 2026-09-25 |
+| Paddle squash cosmetic | FC-F04 | Feel | Hit paddle — visual only; collision unchanged | ✅ 2026-09-25 |
 | Post-D1 ceiling | D-05 | Process | Instruments Cert WC **required** after D1 (ghosts + squash = draw load) | ⏳ pending owner measure → stamp §5d |
 
 ---
@@ -86,4 +86,4 @@ Recorded 2026-09-25 (no timed shell / Results code in D1):
 - [x] All tasks have automated verify or Wave 0 deps
 - [x] `nyquist_compliant: true` after Plan 03 code/docs (PlayingHost + expo + consume/draw)
 
-**Approval:** automated Nyquist closed 2026-09-25 — **Human UAT pending** (device feel smoke; not Cert WC)
+**Approval:** Human UAT: approved 2026-09-25 (owner — ball-readable juice + haptics feel; post-D1 Cert WC still open for §5d)

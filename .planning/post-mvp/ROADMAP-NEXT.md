@@ -172,13 +172,13 @@ Plans:
 | **Deps** | Prefer after B; **ceiling Cert WC re-run after C2 BEFORE D1** (B3) — **§5c PASS 2026-09-25**; freeze Mid |
 | **Acceptance** | Ball readable; no regression vs A1; `hashWorld` unchanged; golden-replay green |
 | **Plans** | 4 plans |
-| **Progress** | Wave 3 code+docs done 2026-09-25 — PlayingHost fan-out + HAPTICS.md + Mid freeze / §5c note; **device smoke pending** (human-verify) |
+| **Progress** | **Done** 2026-09-25 — juice + haptics UAT approved; **post-D1 Cert WC still required** (§5d) |
 
 Plans:
 - [x] `D1-00-PLAN.md` — Wave 0: ghost/squash SoA + memory haptics coalesce + Nyquist stubs
 - [x] `D1-01-PLAN.md` — Wave 1: brick ghosts + paddle squash consume/step/draw (N-FX-01)
 - [x] `D1-02-PLAN.md` — Wave 2: expo-haptics ~57.0.3 + expo service soft-fail (N-FX-03)
-- [ ] `D1-03-PLAN.md` — Wave 3: PlayingHost wire + ops docs + N-FX-02 harness locks — **code/docs done; human device smoke pending**
+- [x] `D1-03-PLAN.md` — Wave 3: PlayingHost wire + ops docs + N-FX-02 harness locks + Human UAT approved 2026-09-25
 
 ### Phase D2 — Brand Surfaces
 | Field | Content |
@@ -298,3 +298,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-25 | **D1 Context** — Mid freeze; cert after C2 before D1; haptics+batch; brick/paddle juice VFX-only; parallax deferred |
 | 2026-09-25 | **Ceiling re-run PASS** post B+C2 (owner) — D1 B3 gate cleared |
 | 2026-09-25 | **D1-03 code/docs** — PlayingHost haptics fan-out; `docs/ops/HAPTICS.md`; Mid freeze + §5c second-Cert note; N-FX-02 harness locks; Nyquist true — device smoke pending |
+| 2026-09-25 | **D1 Done** — Human UAT approved (juice + haptics feel); zero-alloc draw scratch + lint fix; **post-D1 Cert WC still required** (§5d) |
