@@ -60,6 +60,13 @@ export const SWEEP_SEEDS = 1000;
 /** Seeds in the plan-10-02 tracer corpus. 25 x 21 = 525 boards. */
 export const TRACER_SEEDS = 25;
 
+/**
+ * Maximum 8-connected explosive cluster the generator may emit (SC-5). Asserted here
+ * independently of the generator's own labelling; the arithmetic is in the test that uses
+ * it and in `src/levelgen/generate.ts`'s stage 3.
+ */
+const EXPLOSIVE_CLUSTER_CAP = 4;
+
 type Board = { readonly s: number; readonly d: number; readonly level: LevelFileV1 };
 
 let memo: readonly Board[] | null = null;
@@ -80,6 +87,49 @@ function corpus(): readonly Board[] {
   }
   memo = boards;
   return boards;
+}
+
+/**
+ * Largest 8-connected cluster of `ch` on the board.
+ *
+ * Deliberately an independent implementation of the labelling `generate` does internally
+ * (that one is not exported). A test that reused the generator's own labelling would prove
+ * only that the generator agrees with itself — the point of this helper is that two
+ * separately written labellings agree on the same boards.
+ */
+function maxCluster(level: LevelFileV1, ch: string): number {
+  const { cols, rows } = level.grid;
+  const seen = new Uint8Array(rows * cols);
+  let best = 0;
+  for (let r0 = 0; r0 < rows; r0++) {
+    for (let c0 = 0; c0 < cols; c0++) {
+      const i0 = r0 * cols + c0;
+      if (seen[i0] === 1 || level.cells[r0]![c0] !== ch) continue;
+      const stack = [i0];
+      seen[i0] = 1;
+      let size = 0;
+      while (stack.length > 0) {
+        const i = stack.pop()!;
+        size++;
+        const r = (i / cols) | 0;
+        const c = i - r * cols;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr;
+            const nc = c + dc;
+            if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+            const ni = nr * cols + nc;
+            if (seen[ni] === 1 || level.cells[nr]![nc] !== ch) continue;
+            seen[ni] = 1;
+            stack.push(ni);
+          }
+        }
+      }
+      if (size > best) best = size;
+    }
+  }
+  return best;
 }
 
 describe('generated board contract sweep (N-GEN-02 / N-GEN-03)', () => {
@@ -128,7 +178,17 @@ describe('generated board contract sweep (N-GEN-02 / N-GEN-03)', () => {
 
   it.todo('cell charset and brickTypes deep-equal the declared alphabet on every board (10-03-03)');
 
-  it.todo('no 8-connected explosive cluster exceeds the cap (10-03-04)');
+  it('no 8-connected explosive cluster exceeds the cap (10-03-04)', () => {
+    // SC-5: an explosive destroy emits round(DESTROY_SPARKS_AT_1 * 1.25) = 15 sparks, so a
+    // chain of 4 emits 60, plus 12 for the triggering ball break is 72 against the Mid tier
+    // particleCap of 128 — with room left for chip sparks on surviving neighbours. A chain
+    // of 8 would emit 132 and blow the cap. 4 is also the campaign's own ceiling
+    // (level-05's V-fuse). The unconstrained generator produced clusters of 6, so this is a
+    // real constraint, not a formality.
+    for (const { s, d, level } of corpus()) {
+      expect(maxCluster(level, 'E'), `s=${s} d=${d}`).toBeLessThanOrEqual(EXPLOSIVE_CLUSTER_CAP);
+    }
+  });
 });
 
 describe('tracer determinism and input hardening (T-10-09 / T-10-11)', () => {
