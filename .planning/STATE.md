@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: "Ceiling Cert WC re-run PENDING post B+C2 — blocks D1"
-last_updated: "2026-09-25T02:25:00.000Z"
+stopped_at: "Ceiling re-run PASS post B+C2 — D1 unblocked; next plan-phase D1"
+last_updated: "2026-09-25T02:30:00.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 8
@@ -21,7 +21,8 @@ progress:
   post_mvp_b123: done
   post_mvp_c1: uat_approved_2026_09_25
   post_mvp_c2: done_2026_09_25
-  post_mvp_d1: context_ready_awaiting_ceiling_then_plan
+  post_mvp_d1: context_ready_ceiling_pass
+  post_mvp_ceiling_rerun_bc2: pass_2026_09_25
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
 ---
@@ -33,12 +34,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **D1 CONTEXT ready**. **Gate:** ceiling Cert WC re-run (post-C2 / B debt) **before** D1 execute. Then `/gsd-plan-phase D1`. Open ledger: display-name, R-10, R-12, N-OPS-01.
+**Current focus:** Post-MVP — **ceiling re-run PASS** (B+C2). **D1** unblocked — `/gsd-plan-phase D1`. Open ledger: display-name, R-10, R-12, N-OPS-01.
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** (1) Ceiling Cert WC re-run on current C2 build (2) `/gsd-plan-phase D1` (or discuss already done — plan next).  
+**Next:** `/gsd-plan-phase D1` (CONTEXT ready; Mid freeze; execute only after plan).  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics
