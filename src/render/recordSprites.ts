@@ -3,6 +3,8 @@ import type { World } from '../core';
 import type { VfxState } from '../vfx';
 import { TRAIL_MAX } from '../vfx/types';
 import { trailLength } from '../vfx/intensity';
+import { ghostDrawFromLife } from '../vfx/brickGhosts';
+import { paddleSquashDrawSize } from '../vfx/paddleSquash';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
 import type { GlowAtlas } from './textures/bakeGlowSprites';
@@ -366,6 +368,41 @@ export function recordFrame(
   tools.paint.setStyle(0); // restore Fill
   tools.paint.setAlphaf(1);
 
+  // --- Brick destroy ghosts (flat fill only; under particles / paddle / ball) ---
+  // D-13 / Mid freeze: NO glow atlas blit on ghosts.
+  if (vfx != null && intensity > 0) {
+    const gCap = vfx.ghostCap;
+    const scratch = tools.colorScratch;
+    for (let gi = 0; gi < gCap; gi++) {
+      if (vfx.ghostActive[gi] === 0) {
+        continue;
+      }
+      const { scale, alpha } = ghostDrawFromLife(
+        vfx.ghostLife[gi],
+        vfx.ghostLifeMax[gi],
+      );
+      const drawAlpha = alpha * intensity;
+      if (drawAlpha <= 0.001) {
+        continue;
+      }
+      const gw = vfx.ghostW[gi];
+      const gh = vfx.ghostH[gi];
+      const cx = vfx.ghostX[gi] + gw * 0.5;
+      const cy = vfx.ghostY[gi] + gh * 0.5;
+      const dw = gw * scale;
+      const dh = gh * scale;
+      scratch[0] = vfx.ghostR[gi];
+      scratch[1] = vfx.ghostG[gi];
+      scratch[2] = vfx.ghostB[gi];
+      scratch[3] = 1;
+      tools.paint.setColor(scratch);
+      tools.paint.setAlphaf(drawAlpha);
+      tools.entityRect.setXYWH(cx - dw * 0.5, cy - dh * 0.5, dw, dh);
+      canvas.drawRect(tools.entityRect, tools.paint);
+    }
+    tools.paint.setAlphaf(1);
+  }
+
   // --- Particles + destroy flash (under pickups / paddle / ball) ---
   if (vfx != null) {
     const cap = vfx.particleCap;
@@ -431,14 +468,29 @@ export function recordFrame(
     canvas.drawRect(tools.entityRect, tools.paint);
   }
 
-  // Paddle — X center-based, Y top of AABB
+  // Paddle — X center-based, Y top of AABB; cosmetic squash (FC-F04) never writes paddleW/H
   tools.paint.setColor(tools.colWhite);
-  const paddleHalfW = world.paddleW * 0.5;
+  tools.paint.setAlphaf(1);
+  let drawPW = world.paddleW;
+  let drawPH = world.paddleH;
+  if (vfx != null && vfx.paddleSquashT > 0) {
+    const sized = paddleSquashDrawSize(
+      world.paddleW,
+      world.paddleH,
+      vfx.paddleSquashT,
+    );
+    drawPW = sized.w;
+    drawPH = sized.h;
+  }
+  const paddleHalfW = drawPW * 0.5;
+  // Keep paddle top edge; squash height about vertical center of rect
+  const paddleTop =
+    world.paddleY + (world.paddleH - drawPH) * 0.5;
   tools.entityRect.setXYWH(
     world.paddleX - paddleHalfW,
-    world.paddleY,
-    world.paddleW,
-    world.paddleH,
+    paddleTop,
+    drawPW,
+    drawPH,
   );
   canvas.drawRect(tools.entityRect, tools.paint);
 

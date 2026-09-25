@@ -68,3 +68,19 @@ export function stepBrickGhosts(vfx: VfxState, dt: number): void {
     }
   }
 }
+
+/**
+ * Pure draw params from remaining life fraction (t=1→0).
+ * scale: 0.85 + 0.15*t (short shrink); alpha: t (fade out).
+ */
+export function ghostDrawFromLife(
+  life: number,
+  lifeMax: number,
+): { scale: number; alpha: number } {
+  'worklet';
+  const max = lifeMax > 0 ? lifeMax : GHOST_LIFE_MAX;
+  let t = life / max;
+  if (t < 0) t = 0;
+  if (t > 1) t = 1;
+  return { scale: 0.85 + 0.15 * t, alpha: t };
+}

@@ -40,13 +40,16 @@ export {
   GHOST_LIFE_MAX,
   spawnBrickGhost,
   stepBrickGhosts,
+  ghostDrawFromLife,
   type BrickGhostGeom,
 } from './brickGhosts';
 
 export {
   PADDLE_SQUASH_T_MAX,
+  PADDLE_SQUASH_K_MAX,
   punchPaddleSquash,
   stepPaddleSquash,
+  paddleSquashDrawSize,
 } from './paddleSquash';
 
 export { stepVfx } from './stepVfx';
