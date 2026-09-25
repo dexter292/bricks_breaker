@@ -72,21 +72,34 @@ function defaultProgressBlobV2(): ProgressBlobV2 {
   };
 }
 
+/**
+ * Normalise the unlocked list to a **prefix of the catalog order**, preserving how many
+ * levels the player had opened rather than which ids.
+ *
+ * Unlocking is a chain, so a valid save is always a prefix — but E2 reordered the campaign
+ * (`PLAYABLE_LEVEL_ORDER`), and `unlocked` stores ids, not slots. A pre-E2 save could hold
+ * `[01, 03, 04, 06]`, which under the new order leaves `level-05` locked while `level-06`
+ * and `level-03` sit unlocked behind it — a hole in the ladder the player cannot close.
+ *
+ * Healing by **count** (4 unlocked ⇒ the first 4 of the new order) keeps the player's
+ * progress distance and closes the hole. Healing by *identity* would be wrong: `level-03`
+ * used to be slot 2 and is now the finale, so it would hand out the whole campaign to
+ * anyone who had merely cleared the first level.
+ *
+ * Per-level bests and stars are untouched — only access changes.
+ */
 function sanitizeUnlocked(raw: unknown): LevelId[] {
-  const unlocked: LevelId[] = [];
   const seen = new Set<LevelId>();
   if (Array.isArray(raw)) {
     for (const id of raw) {
-      if (typeof id === 'string' && PLAYABLE_SET.has(id) && !seen.has(id as LevelId)) {
+      if (typeof id === 'string' && PLAYABLE_SET.has(id)) {
         seen.add(id as LevelId);
-        unlocked.push(id as LevelId);
       }
     }
   }
-  if (!seen.has('level-01')) {
-    unlocked.unshift('level-01');
-  }
-  return unlocked;
+  seen.add('level-01');
+  const count = Math.min(seen.size, PLAYABLE_LEVEL_ORDER.length);
+  return PLAYABLE_LEVEL_ORDER.slice(0, count);
 }
 
 function sanitizeLevelBest(raw: unknown): LevelBest | null {

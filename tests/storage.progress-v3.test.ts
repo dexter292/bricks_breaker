@@ -100,6 +100,27 @@ describe('selectRowState (C2 Wave 0 / R-30)', () => {
     ).toBe('cleared');
   });
 
+  it('E2 reorder: a pre-E2 save cannot leave a hole in the ladder', () => {
+    // Observed on device after the E2 reorder: level-05 showed Locked while level-06 and
+    // level-03 sat unlocked behind it, because the old chain unlocked ids in a different
+    // order. Healing keeps the player's distance (4 unlocked) and closes the gap.
+    const preE2 = JSON.stringify({
+      v: 3,
+      unlocked: ['level-01', 'level-03', 'level-04', 'level-06'],
+      bestByLevel: { 'level-03': { score: 900, stars: 2 } },
+      bestScore: 900,
+      updatedAt: 7,
+    });
+    const m = migrateOrDefault(preE2, null, null);
+
+    expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 4));
+    // No gap: every unlocked level is contiguous from the start of the campaign.
+    m.unlocked.forEach((id, i) => expect(id).toBe(PLAYABLE_LEVEL_ORDER[i]));
+    // Progress distance preserved, and bests/stars are untouched by the heal.
+    expect(m.unlocked).toHaveLength(4);
+    expect(m.bestByLevel['level-03']).toEqual({ score: 900, stars: 2 });
+  });
+
   it('R-30: cleared when next is unlocked even if stars omitted (v2→v3)', () => {
     // Derived from the catalog so the E2 curve order is the single source of truth.
     const [first, second, third] = PLAYABLE_LEVEL_ORDER;
@@ -147,7 +168,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
     expect(m.bestByLevel).toEqual({});
   });
 
-  it('v2→v3 preserves unlocked + maps number→{score} omit stars', () => {
+  it('v2→v3 heals unlocked to a same-length catalog prefix; number→{score} omit stars', () => {
     const v2 = JSON.stringify({
       v: 2,
       unlocked: ['level-01', 'level-03'],
@@ -157,7 +178,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
     });
     const m = migrateOrDefault(null, v2, null);
     expect(m.v).toBe(3);
-    expect(m.unlocked).toEqual(['level-01', 'level-03']);
+    expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(m.bestByLevel['level-01']).toEqual({ score: 100 });
     expect(m.bestByLevel['level-03']).toEqual({ score: 50 });
     expect(m.bestByLevel['level-01']).not.toHaveProperty('stars');
@@ -183,7 +204,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
     const v1 = JSON.stringify({ v: 1, bestScore: 50_000, updatedAt: 1 });
     const m = migrateOrDefault(v3, v2, v1);
     expect(m.bestScore).toBe(5);
-    expect(m.unlocked).toContain('level-03');
+    expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(m.bestByLevel['level-01']).toEqual({ score: 5, stars: 2 });
   });
 
@@ -198,7 +219,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
     const m = migrateOrDefault('{broken', v2, null);
     expect(m.v).toBe(3);
     expect(m.bestScore).toBe(77);
-    expect(m.unlocked).toContain('level-03');
+    expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(m.bestByLevel['level-01']).toEqual({ score: 77 });
   });
 });
@@ -259,7 +280,7 @@ describe('parseProgressResult v3 (C2 Plan 01)', () => {
       }),
     );
     expect(r.status).toBe('ok');
-    expect(r.progress.unlocked).toEqual(['level-01', 'level-03']);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(r.progress.bestByLevel['level-03']).toEqual({
       score: 10,
       stars: 2,

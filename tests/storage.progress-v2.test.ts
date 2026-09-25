@@ -126,7 +126,7 @@ describe('parseProgressV2Result (migrate input)', () => {
     ).toBe('corrupt');
   });
 
-  it('ok blob floors scores, drops unknown ids, ensures level-01', () => {
+  it('ok blob floors scores, drops unknown ids, heals unlocked to a catalog prefix', () => {
     const r = parseProgressV2Result(
       JSON.stringify({
         v: 2,
@@ -141,7 +141,9 @@ describe('parseProgressV2Result (migrate input)', () => {
       }),
     );
     expect(r.status).toBe('ok');
-    expect(r.progress.unlocked).toEqual(['level-01', 'level-03']);
+    // 2 valid ids in, so 2 unlocked out — but normalised to the catalog prefix, not to
+    // the ids on disk (E2 reordered the campaign; see sanitizeUnlocked).
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(r.progress.bestByLevel).toEqual({ 'level-03': 10 });
     expect(r.progress.bestScore).toBe(10);
     expect(r.progress.updatedAt).toBe(100);
@@ -189,7 +191,7 @@ describe('migrateOrDefault (v1/v2→v3)', () => {
     const m = migrateOrDefault(null, v2, v1);
     expect(m.v).toBe(3);
     expect(m.bestScore).toBe(5);
-    expect(m.unlocked).toContain('level-03');
+    expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(m.bestByLevel['level-01']).toEqual({ score: 5 });
   });
 
