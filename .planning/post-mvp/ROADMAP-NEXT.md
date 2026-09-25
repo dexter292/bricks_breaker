@@ -175,7 +175,7 @@ Plans:
 | **Progress** | Planned 2026-09-25 — `post-mvp/phases/D1-juice-presentation/` |
 
 Plans:
-- [ ] `D1-00-PLAN.md` — Wave 0: ghost/squash SoA + memory haptics coalesce + Nyquist stubs
+- [x] `D1-00-PLAN.md` — Wave 0: ghost/squash SoA + memory haptics coalesce + Nyquist stubs
 - [ ] `D1-01-PLAN.md` — Wave 1: brick ghosts + paddle squash consume/step/draw (N-FX-01)
 - [ ] `D1-02-PLAN.md` — Wave 2: expo-haptics ~57.0.3 + expo service soft-fail (N-FX-03)
 - [ ] `D1-03-PLAN.md` — Wave 3: PlayingHost wire + ops docs + N-FX-02 harness locks + golden assert
