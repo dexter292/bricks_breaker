@@ -1,6 +1,6 @@
 # iOS ceiling certification runbook (N-PLT-02 / A1)
 
-**Status:** **PASS** under owner-locked §5 bar (2026-09-24) — product **60 FPS** gate on `display-surface-swap` Δ  
+**Status:** **PASS** (2026-09-24 @ `13018eb`) · **Re-run PENDING** post B+C2 (see §5c) — blocks D1 execute until stamped  
 **Device:** iPhone 16 Pro (physical)  
 **Authority:** `docs/measurement-methodology.md` · `RELEASE-GATES` G2.16 · `docs/audit/A1-CEILING-ANALYSIS.md` (R-22 / R-23)  
 **Owner lock:** bar §5 (60 FPS + jank OR) — not the prior 120 Hz `p50≤8.33 / p95≤11` lock
@@ -73,6 +73,29 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 | Official (worse) | p95 ≈ **16.11** ms |
 | **Verdict (§5 bar)** | **PASS** — p50≤16.7 ✓; p95≤20 ✓; Hangs 0 ✓. Traces `/tmp/bricks-a1/a1-clean{1,2}.trace`. Distribution bimodal 50/50 @ ~8.3/~16.7 (see A1-CEILING-ANALYSIS §3.3) |
 | Notes | Owner locked §5 2026-09-24. Prior 120 Hz bar retired for G2.16. |
+
+### 5c. Re-run PENDING — post Milestone B + C2 (D1 precondition B3)
+
+> **Why:** §5 PASS above is build `13018eb` (pre–Milestone B). B (explosive/power-ups/fireball) + C2 (Select/progress chrome) changed `src/render/` / `src/core/` / shell. `RELEASE-GATES` §6 + D1-CONTEXT **B3** require a new ceiling row **before D1 execute**. Haptics not required on this build.
+
+| Field | Value |
+|-------|--------|
+| Device | iPhone 16 Pro (physical) |
+| Build | _(fill)_ `profiling` IPA **or** local `Release` + `EXPO_PUBLIC_CERT=1` @ git **`72f479e`** (or newer C2 tip — record exact SHA) |
+| iOS version | _(fill)_ |
+| Run 1 p50 / p95 / hangs | _(fill)_ `display-surface-swap` Δ |
+| Run 2 p50 / p95 / hangs | _(fill)_ |
+| Official (worse) | _(fill)_ |
+| **Verdict (§5 bar)** | **PENDING** — need p50≤16.7 **and** (p95≤20 **or** jank≤5%) **and** Hangs=0 |
+| Trace paths | _(fill)_ |
+| Notes | Debt from B+C2; FAIL → block D1 until fixed |
+
+- [ ] Two ≥30s Cert WC Mid captures on 16 Pro  
+- [ ] Worse run recorded  
+- [ ] Floor still NOT RUN  
+- [ ] Owner / agent stamps PASS or FAIL below after numbers land  
+
+**Stamp when done:** append `Human ceiling re-run: PASS|FAIL YYYY-MM-DD` and fill the table.
 
 ### 5b. App-loop health (2026-09-24)
 
