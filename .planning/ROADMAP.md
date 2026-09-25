@@ -51,7 +51,13 @@ Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outsid
   3. `ProgressBlob` v3 migrates to v4 without losing a single existing best score, star, or unlocked level; a v3 fixture round-trips through migration in a test
   4. Corrupt or partial v4 data degrades to defaults rather than throwing, matching the existing parse contract
   5. `hashWorld` and core simulation are untouched — telemetry reads events, it does not participate in the sim
-**Plans:** TBD
+**Plans:** 5 plans (waves 0-3)
+Plans:
+- [ ] 09-00-PLAN.md — Wave-0 it.todo test scaffolds for N-STAT-01/N-STAT-02 + v3 fixture builder
+- [ ] 09-01-PLAN.md — Runtime event-ring reducer (src/runtime/runStats.ts) wired into useGameLoop.ts
+- [ ] 09-02-PLAN.md — ProgressBlob v4 schema, fail-soft parse, extended migrate chain, telemetry merge helpers
+- [ ] 09-03-PLAN.md — memoryStore.ts / asyncStorageStore.ts extended to the v4 recordRunEnd contract
+- [ ] 09-04-PLAN.md — PlayingHost.tsx wiring (win/lose/abandon) + SC-5 verification + manual QA checkpoint
 **UI hint**: no
 
 ### Phase 10: Seeded Board Generator
