@@ -11,10 +11,24 @@ reaches the device after a prebuild + rebuild. Editing `ios/` by hand is not dur
 ```bash
 npx expo prebuild -p ios
 cd ios && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install && cd ..
-npx expo run:ios --device "<simulator UDID>"
+SENTRY_DISABLE_AUTO_UPLOAD=true npx expo run:ios --device "<simulator UDID>"
 ```
 
-`xcrun simctl list devices booted` gives the UDID.
+`xcrun simctl list devices booted` gives the UDID. Both env vars are required — see below.
+
+## The Sentry trap
+
+**`expo run:ios` fails with `error: An organization ID or slug is required (provide with
+--org)` unless `SENTRY_DISABLE_AUTO_UPLOAD=true` is set.** xcodebuild exits 65 and reports
+"3 error(s)"; the real cause is the *Upload Debug Symbols to Sentry* build phase.
+
+N-OPS-01 wired `@sentry/react-native` but the owner deferred provisioning the Sentry
+project, so there is no org/project for the CLI to upload to
+(see [`CRASH-REPORTING.md`](./CRASH-REPORTING.md)).
+
+All three **EAS** profiles already set this var in `eas.json` — the gap is only the local
+`expo run:ios` path, which does not read `eas.json`. Once an org is provisioned and the
+plugin gets `organization` + `project`, the var stops being necessary.
 
 ## The locale trap
 

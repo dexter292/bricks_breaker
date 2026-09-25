@@ -186,7 +186,7 @@ Plans:
 | **Goal** | N-BRAND-02 under renamed display name |
 | **Deps** | A3 name string |
 | **Parallel?** | Yes early after A3 |
-| **Progress** | **Done** 2026-09-25 — display name **Pulse Paddle** (owner pick, no cohort pulse); `app/_brand.ts` single source + `assert-brand-name` gate; template Expo icon replaced by generated brand set. **ASC uniqueness for the new string NOT run** |
+| **Progress** | **Done** 2026-09-25 — display name **Pulse Paddle** (owner pick, no cohort pulse); `app/_brand.ts` single source + `assert-brand-name` gate; template Expo icon replaced by generated brand set; **verified on device** after native prebuild+rebuild. **ASC uniqueness for the new string NOT run** |
 
 ---
 

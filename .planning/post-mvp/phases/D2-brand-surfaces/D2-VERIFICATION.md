@@ -14,8 +14,9 @@ open_process:
 **Goal:** N-BRAND-02 — icon, splash and Title match the renamed display name; N-BRAND-01
 string recorded and applied.
 
-**Verdict:** `passed_with_debt`. The rename is applied and guarded; store-console
-uniqueness for the new string has **not** been run (owner/console work, skipped).
+**Verdict:** `passed_with_debt`. The rename is applied, guarded, and **verified on device**
+after a native prebuild + rebuild; store-console uniqueness for the new string has **not**
+been run (owner/console work, skipped).
 
 ## What changed
 
@@ -40,6 +41,7 @@ are deliberately unchanged — display-name-only rename, as the clearance doc re
 | Drift is caught, not hoped against | `assert-brand-name` **proven to fail** on an injected mismatch | ✅ |
 | Collided old name gone from shipped surfaces | assert scans config + brand module | ✅ |
 | Icon is brand art, not template art | regenerated set, game palette | ✅ |
+| Rename + icon reach the **device**, not just JS | native rebuild; home screen shows `Pulse Paddle` + new icon | ✅ |
 | Icon legible at favicon size | 48×48 render checked | ✅ |
 | No new dependency for image work | Node `zlib` + hand-rolled PNG encoder | ✅ |
 | Suite green | 79 files / 401 tests; typecheck + lint clean | ✅ |
@@ -55,3 +57,7 @@ are deliberately unchanged — display-name-only rename, as the clearance doc re
    Q5 pulse it was written for. The pick rests on collision-avoidance alone.
 3. Formal trademark opinion still not obtained (pre-existing).
 4. The generated icon has had **no human design review**.
+5. `@sentry/react-native` **breaks local `expo run:ios`** until `SENTRY_DISABLE_AUTO_UPLOAD=true`
+   is set — the upload phase has no org/project because N-OPS-01 is owner-deferred. All three
+   EAS profiles already set it; only the local path was uncovered. Documented in
+   `docs/ops/LOCAL-IOS-BUILD.md`.
