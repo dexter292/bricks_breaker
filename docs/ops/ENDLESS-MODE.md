@@ -267,12 +267,34 @@ jsdom that the bake/preload cold path is not *entered* at a wave transition. Wha
 step in this repo can produce is a frame on hardware. The open assumption block below records
 it, and the discharge procedure with it.
 
-> **Device digest: PLACEHOLDER — to be filled by plan 11-06 Task 3.**
-> This block is formatted like the discharged-assumption block at
-> `docs/ops/BOARD-GENERATOR.md` § Limits item 1, and Task 3 of this plan replaces it with a
-> dated OPEN assumption carrying the unmeasured property, the discharge procedure and the
-> failure signatures. If you are reading this line in a committed document, the block was
-> never filled — treat SC-5's device half as unmeasured and unrecorded.
+> **Device digest: OPEN — recorded 2026-09-25. SC-5's device half is UNMEASURED.**
+> **What is unmeasured:** that an endless **wave transition** produces **no frame spike outside
+> the Mid budget** on real hardware. The Mid cert budget is p50 ≤ 16.7 ms and p95 ≤ 20 ms per
+> frame. Everything measured so far proves only that the glow-bake / audio-preload cold path is
+> not *entered* at a transition — a source-level argument (plan 11-05's D-14 re-key of `loadKey`
+> onto brick dimensions alone) plus a jsdom observation. **Nothing here measures a frame on a
+> phone.** The ≈ 0.56 ms generate+compile figure remains a Node microbenchmark scaled by the
+> 15.5× Hermes ratio, and that ratio itself came from an iOS **simulator** run, not a device.
+> **Discharge procedure:** launch a dev build; arm the perf overlay; press the `Endless` button
+> in the `__DEV__` dev row on the playing HUD (alongside Lv / tier / Cert WC / Crash); play
+> **waves 1 through 5**; watch each transition specifically — the moment the last brick of a
+> board breaks and the next board appears.
+> **Failure signatures — what the reader is looking for:**
+> (a) a **visible black playfield** at a transition;
+> (b) an **audio hiccup** at a transition;
+> (c) an **`[audio] preload soft-fail`** line in the log mid-run;
+> (d) a **frame-time spike outside the Mid budget** at a transition (p50 above 16.7 ms, or p95
+> above 20 ms).
+> Any one of those means the bake or preload cold path is still re-firing per wave and plan
+> 11-05's re-key did not hold in practice. That is a **gap-closure signal — a code fix, not a
+> documentation edit.**
+> **To discharge:** replace this block with a dated `Device digest: MEASURED <date> — SC-5
+> DISCHARGED` block carrying the raw reading (device and OS, wave range played, whether any
+> stall was observed at a transition, and the perf-overlay frame times across a transition),
+> exactly as assumption **A1** was discharged in `docs/ops/BOARD-GENERATOR.md` § Limits item 1.
+> **"No device available" is a valid outcome:** this block stays OPEN and the tracking line
+> stays. Do **not** write a passing reading that was not taken.
+> Tracked in `.planning/STATE.md` § Pending Todos.
 
 **3. No human play calibrated anything in this document.** Not the ramp, not the tick decision,
 not the durations. The E2 human playtest cohort (A3) was skipped by the owner, so there is no

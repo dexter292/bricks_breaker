@@ -197,6 +197,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ### Pending Todos
 
 - **Phase 8 Plan 06:** Pixel 6a gfxinfo + iPhone Instruments + device soak Results (PLT-03)
+- **Phase 11 SC-5 device reading (OPEN, 2026-09-25):** no frame spike outside the Mid budget across an endless wave transition — device half unmeasured. Dev build + perf overlay + `__DEV__` `Endless` entry, waves 1-5, watch each transition. Open-assumption block and discharge procedure live in `docs/ops/ENDLESS-MODE.md` § Limits item 2
 - **§5d ceiling cert must now run on a ramp build** — E2 changed sustained ball speed; §5/§5b/§5c predate it. Set `SPEED_RAMP_PER_SECOND = 0` to reproduce the old baseline
 - **ASC console uniqueness for "Pulse Paddle"** — never run; old name's failure was an exact-title collision
 - **Owner sign-off on the E2 curve + ramp feel** — E2's stated acceptance, not obtained
