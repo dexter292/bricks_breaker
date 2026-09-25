@@ -265,6 +265,7 @@ function createAsyncStorageProgressStoreFrom(
 ): ProgressStore {
   let memory = defaultProgressBlob();
   let hydrated = false;
+  let hydrating: Promise<void> | null = null;
   let pendingWrite: ProgressBlob | null = null;
   let wroteMigrateThrough = false;
 
@@ -287,10 +288,8 @@ function createAsyncStorageProgressStoreFrom(
     };
   }
 
-  async function ensureHydrated(): Promise<void> {
-    if (hydrated) {
-      return;
-    }
+  /** Never throws and always leaves `hydrated` true — see ensureHydrated. */
+  async function hydrateOnce(): Promise<void> {
     try {
       const v4Raw = await AsyncStorage.getItem(PROGRESS_KEY);
       const parsed = parseProgressResult(v4Raw);
@@ -320,6 +319,24 @@ function createAsyncStorageProgressStoreFrom(
       // Soft-fail — keep memory defaults / prior watermarks.
     }
     hydrated = true;
+  }
+
+  /**
+   * Single-flight. `hydrateOnce` folds the disk blob into memory with
+   * `mergeHighWatermark`, whose telemetry half SUMS lifetime counters — so
+   * running it twice against the same disk blob would double every counter and
+   * the next `persist` would write the inflated values back permanently.
+   * `hydrated` only flips after the first `await`, so overlapping callers must
+   * share one promise rather than each re-entering the body. Overlap is
+   * ordinary: Title's `getBest()` and Select's `getSnapshot()` hit the same
+   * singleton (F-26) when Play is tapped before the first read resolves.
+   */
+  function ensureHydrated(): Promise<void> {
+    if (hydrated) {
+      return Promise.resolve();
+    }
+    hydrating ??= hydrateOnce();
+    return hydrating;
   }
 
   return {
