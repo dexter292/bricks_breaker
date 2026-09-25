@@ -175,3 +175,21 @@ Record what actually happens during a run, and persist it through a lossless
   human cohort. D-07 only makes the data exist.
 
 </deferred>
+
+<notes_for_later_phases>
+## Notes for later phases
+
+- **largestCascade / largestCascadeEver attribution (added during plan revision, 2026-09-25):**
+  The planner evaluated two cascade-attribution algorithms (see RESEARCH.md Pitfall 1) and
+  chose **grid-adjacency grouping** (RESEARCH.md's recommended option) as the primary
+  algorithm, not the cheaper substep-level heuristic — because D-08's `largestCascade` feeds
+  a **Phase 13 achievement trigger**, and for a trigger, overcounting (firing an unearned
+  unlock) is the harmful direction, not undercounting. Grid-adjacency is exact for every real
+  playable level (all of them use the lattice broadphase). A narrow fallback exists only for
+  a hypothetical non-lattice ("dense/legacy fixture") board, which is not a shape any shipped
+  campaign/generated level takes — that fallback path can only *undercount* (each break in a
+  non-lattice context is treated as its own singleton group), never overcount. **Phase 13 does
+  not need to tolerate an overcount bias in `largestCascadeEver`** — the schema field
+  (`src/services/storage/types.ts`) carries a short comment recording this for whoever designs
+  the achievement thresholds, but no bias-tolerance is required.
+</notes_for_later_phases>

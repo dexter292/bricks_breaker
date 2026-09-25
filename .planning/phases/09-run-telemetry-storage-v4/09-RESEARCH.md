@@ -534,9 +534,13 @@ in this codebase is being replaced, only extended.
 
 **If this table is empty:** N/A — see rows above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the `telemetry` sub-object live nested under `progress.telemetry`, or should
+1. **RESOLVED (09-02-PLAN.md, Task 1):** nested `byMode` was chosen, per the
+   recommendation below — implemented as `byMode: { campaign: Partial<Record<string,
+   TelemetryAggregate>>; endless: ...; daily: ... }` in `src/services/storage/types.ts`.
+
+   **Should the `telemetry` sub-object live nested under `progress.telemetry`, or should
    `mode`/`levelId` be a flat template-literal composite key (`` `${mode}:${levelId}` ``)
    instead of `byMode.campaign[levelId]`?**
    - What we know: CONTEXT locks the `(mode, levelId)` key shape and that only `campaign`
@@ -549,7 +553,11 @@ in this codebase is being replaced, only extended.
      string later without a schema change) — flagged as Claude's discretion per CONTEXT, not
      re-litigating a locked decision.
 
-2. **Does an abandoned run recorded while `DOCKED` (zero ticks) pollute `runsAbandoned`
+2. **RESOLVED (09-04-PLAN.md, Task 1):** option A2 was chosen — abandoned runs are
+   recorded unconditionally, including zero-tick DOCKED exits; no `ticks === 0` filter was
+   added at write time, matching the recommendation below exactly.
+
+   **Does an abandoned run recorded while `DOCKED` (zero ticks) pollute `runsAbandoned`
    lifetime counts in a way that skews future achievement/statistics design (Phase 13/14)?**
    - What we know: D-02's rationale is specifically about *mid-run* exits losing visible
      progress; it does not explicitly address the zero-tick case.

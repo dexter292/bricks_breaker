@@ -12,7 +12,9 @@ updated: 2026-09-25
 
 > Per-phase validation contract for feedback sampling during execution.
 > Source: `09-RESEARCH.md` § Validation Architecture; task/wave numbering finalized during
-> planning to match the 5 plans actually produced (00–04). See `09-01-PLAN.md` through
+> planning to match the 5 plans actually produced (00–04), then revised again after plan-check
+> found (a) a wider rename blast radius than research/pattern-mapping had listed and (b) a
+> correctness problem in the original cascade-attribution algorithm. See `09-01-PLAN.md` through
 > `09-04-PLAN.md` for the full per-task `<action>`/`<verify>`/`<acceptance_criteria>` detail —
 > this file tracks sampling cadence and status, not implementation detail.
 
@@ -45,18 +47,29 @@ assertions use the same harness shape.
 
 ---
 
-## Plan / Wave Structure (finalized)
+## Plan / Wave Structure (finalized after plan-check revision)
 
 | Plan | Wave | Depends On | Files | Requirement(s) |
 |------|------|------------|-------|----------------|
 | 09-00 | 0 | — | `tests/telemetry.reduce-run-events.test.ts`, `tests/storage.progress-v4.test.ts` | N-STAT-01, N-STAT-02 |
 | 09-01 | 1 | 09-00 | `src/runtime/runStats.ts` (new), `src/runtime/useGameLoop.ts`, telemetry test file | N-STAT-01 |
-| 09-02 | 1 | 09-00 | `src/services/storage/{types,parseBlob,migrateProgress,watermark,telemetry(new),index}.ts`, `tests/storage.progress-v3.test.ts` | N-STAT-01, N-STAT-02 |
+| 09-02 | 1 | 09-00 | `src/services/storage/{types,parseBlob,migrateProgress,watermark,telemetry(new),index}.ts`, `tests/storage.progress-v3.test.ts`, `tests/storage.progress-v2.test.ts`, `tests/ui/SelectScreen.test.tsx`, `tests/ui/GameHost.test.tsx` | N-STAT-01, N-STAT-02 |
 | 09-03 | 2 | 09-02 | `src/services/storage/{memoryStore,asyncStorageStore}.ts`, storage-v4 test file | N-STAT-01, N-STAT-02 |
 | 09-04 | 3 | 09-01, 09-03 | `app/_components/PlayingHost.tsx` | N-STAT-01, N-STAT-02 |
 
 09-01 and 09-02 run in the same wave (both depend only on 09-00, zero file overlap — runtime vs.
 services — so they execute in parallel).
+
+**Changed by plan-check revision (2026-09-25):**
+- 09-01 Task 1: `largestCascade` now uses grid-adjacency grouping (exact, read via
+  `world.brickX`/`brickY` + lattice origin/pitch) instead of a substep-co-occurrence heuristic —
+  the heuristic overcounted, which is unacceptable for a Phase 13 achievement trigger (D-08).
+- 09-02 grew from 2 tasks to 3, and from 6 files to 10, after a whole-repo grep (not just the
+  files research/pattern-mapping had listed) found `tests/storage.progress-v2.test.ts`,
+  `tests/ui/SelectScreen.test.tsx`, and `tests/ui/GameHost.test.tsx` all reference identifiers
+  this phase renames or reshapes. The task split now separates schema+parse (Task 1) from
+  migrate+watermark+telemetry (Task 2) from barrel+consumer-syncs (Task 3), instead of one task
+  touching all six original files plus the newly-found four.
 
 ---
 
@@ -64,13 +77,14 @@ services — so they execute in parallel).
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 09-00-01 | 00 | 0 | N-STAT-01 | — | it.todo scaffold names every N-STAT-01 counter, incl. the chosen cascade heuristic | unit (stub) | `npx vitest run tests/telemetry.reduce-run-events.test.ts` | ❌ W0 creates it | ⬜ pending |
+| 09-00-01 | 00 | 0 | N-STAT-01 | — | it.todo scaffold names every N-STAT-01 counter, incl. the cascade grouping algorithm | unit (stub) | `npx vitest run tests/telemetry.reduce-run-events.test.ts` | ❌ W0 creates it | ⬜ pending |
 | 09-00-02 | 00 | 0 | N-STAT-02 | — | it.todo scaffold + buildV3Fixture() for the round-trip test | unit (stub) | `npx vitest run tests/storage.progress-v4.test.ts` | ❌ W0 creates it | ⬜ pending |
-| 09-01-01 | 01 | 1 | N-STAT-01 | T-09-01 | reduceRunTelemetry is read-only (no world.* write), bestCombo read from world.combo, cascade heuristic locked | unit | `npx vitest run tests/telemetry.reduce-run-events.test.ts -t "ring-walk basics\|per-pickup-type\|lives lost\|explosive cascade\|zero core mutation"` | ❌ W1 creates it | ⬜ pending |
-| 09-01-02 | 01 | 1 | N-STAT-01 | T-09-02 | runStatsSv lazily allocated, drained once per substep, reset on retry, zero new scheduleOnRN hops | unit + typecheck | `npx vitest run tests/telemetry.reduce-run-events.test.ts -t "headless integration smoke"; npm run typecheck` | ❌ W1 creates it | ⬜ pending |
-| 09-01-03 | 01 | 1 | N-STAT-01 | — | All telemetry counter behaviors asserted and green | unit | `npx vitest run tests/telemetry.reduce-run-events.test.ts` | ❌ W1 creates it | ⬜ pending |
-| 09-02-01 | 02 | 1 | N-STAT-01, N-STAT-02 | T-09-04 | v4 schema + renamed v3-legacy types/consts/defaults; recordRunEnd contract extended | static (typecheck) | `npm run typecheck` | ❌ W1 creates it | ⬜ pending |
-| 09-02-02 | 02 | 1 | N-STAT-02 | T-09-04, T-09-05, T-09-06 | parse/migrate/watermark renamed-and-extended; telemetry-only corruption never wipes progress; recentRuns bounded on write | unit | `npx vitest run tests/storage.progress-v3.test.ts` | ✅ exists (renamed in place) | ⬜ pending |
+| 09-01-01 | 01 | 1 | N-STAT-01 | T-09-01, T-09-12 | reduceRunTelemetry is read-only (no world.* write), bestCombo read from world.combo, largestCascade uses exact grid-adjacency grouping (not substep co-occurrence) | unit | `npx vitest run tests/telemetry.reduce-run-events.test.ts -t "ring-walk basics\|per-pickup-type\|lives lost\|grid-adjacency cascade\|zero core mutation"` | ❌ W1 creates it | ⬜ pending |
+| 09-01-02 | 01 | 1 | N-STAT-01 | T-09-02 | runStatsSv lazily allocated, drained once per substep, reset on retry, zero new scheduleOnRN hops, defensive useGameLoop-mock sync in PlayingHost.next-bake.test.ts | unit + typecheck | `npx vitest run tests/telemetry.reduce-run-events.test.ts -t "headless integration smoke"; npx vitest run tests/ui/PlayingHost.next-bake.test.ts tests/ui/PlayingHost.bake-gate.test.ts; npm run typecheck` | ❌ W1 creates it | ⬜ pending |
+| 09-01-03 | 01 | 1 | N-STAT-01 | — | All telemetry counter behaviors asserted and green, including the grid-adjacency non-merge regression case | unit | `npx vitest run tests/telemetry.reduce-run-events.test.ts` | ❌ W1 creates it | ⬜ pending |
+| 09-02-01 | 02 | 1 | N-STAT-01, N-STAT-02 | T-09-04 | v4 schema (incl. largestCascadeEver schema comment) + renamed v3-legacy types/consts/defaults; recordRunEnd contract extended; parseProgressResult (v4) validates telemetry independently | unit (partial) | `npx vitest run tests/storage.progress-v3.test.ts tests/storage.progress-v2.test.ts` | ❌ W1 creates it | ⬜ pending |
+| 09-02-02 | 02 | 1 | N-STAT-02 | T-09-05, T-09-06 | migrate chain extends v3→v4 without touching v2/v1 links; watermark merge covers telemetry; ring buffer bound enforced on write | static (lint) | `npx eslint src/services/storage/migrateProgress.ts src/services/storage/watermark.ts src/services/storage/telemetry.ts` | ❌ W1 creates it | ⬜ pending |
+| 09-02-03 | 02 | 1 | N-STAT-01, N-STAT-02 | T-09-13 | Barrel exports every new/renamed identifier; ALL FOUR affected consumer test files (not just the 2 originally listed) typecheck and pass; whole-project typecheck green for the first time this phase | unit + typecheck/lint | `npm run typecheck; npm run lint; npx vitest run tests/storage.progress-v3.test.ts tests/storage.progress-v2.test.ts tests/ui/SelectScreen.test.tsx tests/ui/GameHost.test.tsx` | ✅ 2 exist, renamed in place / 2 newly discovered by whole-repo grep | ⬜ pending |
 | 09-03-01 | 03 | 2 | N-STAT-01, N-STAT-02 | T-09-08 | Both stores persist v4 recordRunEnd; hydrate chain reads v4→v3→v2→v1 | static (typecheck/lint) | `npm run typecheck; npm run lint` | ✅ existing files extended | ⬜ pending |
 | 09-03-02 | 03 | 2 | N-STAT-02 (SC-2/SC-3/SC-4) | — | v3→v4 lossless round-trip; corrupt/partial fail-soft; lifetime/per-level aggregates survive re-instantiation; ring buffer bound enforced | unit | `npx vitest run tests/storage.progress-v4.test.ts` | ❌ Plan 00 creates it | ⬜ pending |
 | 09-04-01 | 04 | 3 | N-STAT-01, N-STAT-02 | T-09-10 | PlayingHost wires recordRunEnd (win/lose/abandon) through the single extended call site + single onMenu funnel | unit + typecheck/lint | `npm run typecheck && npm run lint && npx vitest run tests/telemetry.reduce-run-events.test.ts tests/storage.progress-v4.test.ts` | ✅ existing file extended | ⬜ pending |
@@ -83,7 +97,7 @@ services — so they execute in parallel).
 
 ## Wave 0 Requirements
 
-- [ ] `tests/telemetry.reduce-run-events.test.ts` — stubs for N-STAT-01 (all counters, incl. the chosen cascade-attribution algorithm) — created by Plan 00 Task 1
+- [ ] `tests/telemetry.reduce-run-events.test.ts` — stubs for N-STAT-01 (all counters, incl. the grid-adjacency cascade grouping algorithm) — created by Plan 00 Task 1
 - [ ] `tests/storage.progress-v4.test.ts` — stubs for N-STAT-02 (migration losslessness, partial-corruption fail-soft, aggregation, ring-buffer bound) + `buildV3Fixture()` — created by Plan 00 Task 2
 - [ ] No framework install needed — Vitest is already configured
 
@@ -113,5 +127,7 @@ Both exist; no discovery task is needed (verified again as part of Plan 04 Task 
 - [x] No watch-mode flags
 - [x] Feedback latency < 25s
 - [x] `nyquist_compliant: true` set in frontmatter
+- [x] Rename blast radius re-verified by whole-repo grep during plan-check revision (Plan 02,
+      Task 3, T-09-13) — not just the files research/pattern-mapping originally listed
 
 **Approval:** plans created — pending execution (`/gsd:execute-phase 09-run-telemetry-storage-v4`)
