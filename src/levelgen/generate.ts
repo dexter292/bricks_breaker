@@ -97,6 +97,103 @@ function wouldTouchSteel(
 }
 
 /**
+ * Maximum 8-connected explosive cluster a generated board may carry (SC-5).
+ *
+ * The arithmetic that fixes the number: an explosive destroy emits
+ * `round(DESTROY_SPARKS_AT_1 * 1.25) = round(12 * 1.25) = 15` sparks, so a chain of 4 emits
+ * 60, plus 12 for the triggering ball break is **72** against the Mid tier `particleCap` of
+ * **128** — leaving 56, i.e. room for 14 chip sparks on surviving damaged neighbours. A
+ * chain of 8 would emit 132 and blow the cap outright. 4 is also the campaign's own
+ * ceiling: `level-05`'s V-fuse is a 4-member 8-connected cluster, so the generator stays
+ * inside what E1b already shipped and teaches. RESEARCH measured clusters of **6** on the
+ * unconstrained generator, so this is a real constraint, not a formality.
+ */
+const EXPLOSIVE_CLUSTER_CAP = 4;
+
+/** Row-major 8-neighbour offsets. Explosive cascade is 8-connected (N-BRK-01). */
+const DIAGONALS = [
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+  [0, -1],
+  [0, 1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+] as const;
+
+/**
+ * Stage 3 — demote explosives until no 8-connected cluster exceeds `EXPLOSIVE_CLUSTER_CAP`.
+ *
+ * Weight-free: the explosive type and the hp1 type are **both `hp: 1`**, so a demotion moves
+ * the explosive count and nothing else. `levelStatics` counts an `E` as one brick with one
+ * HP identically to a `1` (RESEARCH: 0 of 63 000 boards changed `bricks` or `totalHp` under
+ * a full demotion pass), so the exact-weight equality against `SCHEDULE[d]` survives.
+ *
+ * Reachability also survives untouched: by Lemma 1 the flood depends on the steel mask
+ * alone, and `E` and `1` are both breakable, hence both passable.
+ *
+ * Symmetry survives because each demotion demotes the cell **and its mirror** (D-01).
+ *
+ * Determinism and termination: clusters are labelled in a fixed row-major scan order and
+ * the victim is the cluster's last member in that order, so no random draw enters; and each
+ * pass strictly reduces the number of explosive cells, which is finite and non-negative.
+ */
+function capExplosiveClusters(cells: string[][], cols: number, rows: number): void {
+  for (;;) {
+    const oversized = findOversizedExplosiveCluster(cells, cols, rows);
+    if (oversized === null) break;
+    // Demote the last member in scan order, plus its mirror. `cols` is even (D-01), so no
+    // cell is its own mirror and the pair is always two distinct cells.
+    const i = oversized;
+    const r = (i / cols) | 0;
+    const c = i - r * cols;
+    cells[r]![c] = HP1;
+    cells[r]![cols - 1 - c] = HP1;
+  }
+}
+
+/**
+ * Index of the last-in-scan-order member of the first 8-connected explosive cluster that
+ * exceeds the cap, or `null` if every cluster fits.
+ */
+function findOversizedExplosiveCluster(
+  cells: string[][],
+  cols: number,
+  rows: number,
+): number | null {
+  const seen = new Uint8Array(rows * cols);
+  for (let r0 = 0; r0 < rows; r0++) {
+    for (let c0 = 0; c0 < cols; c0++) {
+      const i0 = r0 * cols + c0;
+      if (seen[i0] === 1 || cells[r0]![c0] !== EXPLOSIVE) continue;
+      const members: number[] = [i0];
+      seen[i0] = 1;
+      for (let head = 0; head < members.length; head++) {
+        const i = members[head]!;
+        const r = (i / cols) | 0;
+        const c = i - r * cols;
+        for (const [dr, dc] of DIAGONALS) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+          const ni = nr * cols + nc;
+          if (seen[ni] === 1 || cells[nr]![nc] !== EXPLOSIVE) continue;
+          seen[ni] = 1;
+          members.push(ni);
+        }
+      }
+      if (members.length > EXPLOSIVE_CLUSTER_CAP) {
+        let last = members[0]!;
+        for (const m of members) if (m > last) last = m;
+        return last;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Produce the board for `(seed, difficulty)`. Pure: the same arguments always produce a
  * JSON-identical `LevelFileV1`, in this process and any other.
  */
@@ -183,6 +280,9 @@ export function generate(seed: number | string, difficulty: number): LevelFileV1
     cells[r]![c] = ch;
     cells[r]![cols - 1 - c] = ch;
   }
+
+  // ---- Stage 3: explosive cluster cap (SC-5) ------------------------------------------
+  capExplosiveClusters(cells, cols, rows);
 
   // ---- Emit (fresh objects every call — RESEARCH Pitfall 3) ---------------------------
   const brickTypes: Record<string, BrickTypeDef> = {
