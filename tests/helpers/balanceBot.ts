@@ -201,3 +201,22 @@ export function levelStatics(id: string, scoreHit: number): LevelStatics {
     baseScore: totalHp * scoreHit,
   };
 }
+
+// --- RED stubs (10-01 task 1). Replaced by the extracted bodies in GREEN. ---
+
+export function levelStaticsOf(raw: LevelFileV1, scoreHit: number): LevelStatics {
+  void raw;
+  void scoreHit;
+  return { bricks: 0, totalHp: 0, steel: 0, explosive: 0, rows: 0, cols: 0, baseScore: 0 };
+}
+
+export function runBotOnLevel(
+  raw: LevelFileV1,
+  opts: BotOptions = {},
+  label = 'level',
+): BotResult {
+  void raw;
+  void opts;
+  void label;
+  return { outcome: 'TIMEOUT', ticks: 0, seconds: 0, score: 0, lives: 0, bricksRemaining: -1 };
+}
