@@ -20,6 +20,7 @@ import {
   PROGRESS_KEY_V3,
   PROGRESS_VERSION,
   RECENT_RUNS_BOUND,
+  createMemoryProgressStore,
   defaultProgressBlob,
   defaultRunStatsInput,
   defaultTelemetryBlob,
@@ -29,6 +30,7 @@ import {
   migrateOrDefault,
   parseProgressResult,
   v3ToV4,
+  type RunStatsInput,
 } from '../src/services/storage';
 
 /**
@@ -55,6 +57,11 @@ export function buildV3Fixture() {
     bestScore: 1200,
     updatedAt: 1700000000000,
   };
+}
+
+/** All-zero per-run counters with only the fields a case cares about set. */
+function runStats(over: Partial<RunStatsInput> = {}): RunStatsInput {
+  return { ...defaultRunStatsInput(), ...over };
 }
 
 describe('PROGRESS_KEY / VERSION (v4)', () => {
@@ -273,13 +280,181 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
 });
 
 describe('recordRunEnd (v4, mode-aware, D-03/D-04)', () => {
-  it.todo(
-    'win/lose behave exactly as v3 (stars/unlock win-gated); abandoned outcome merges score/stats but never touches stars/unlock',
-  );
-  it.todo('stats aggregate into both telemetry.lifetime and telemetry.byMode.campaign[levelId]');
-  it.todo(
-    'per-pickup-type and cascade/rally fields aggregate with the correct sum-vs-max semantics (D-07/D-08/D-10)',
-  );
+  it('win/lose behave exactly as v3 (stars/unlock win-gated); abandoned outcome merges score/stats but never touches stars/unlock', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const second = PLAYABLE_LEVEL_ORDER[1];
+    const third = PLAYABLE_LEVEL_ORDER[2];
+    const store = createMemoryProgressStore();
+
+    // WIN — stars from lives, and the next catalog level unlocks (v3 behaviour).
+    const afterWin = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 100,
+      outcome: 'win',
+      livesRemaining: 2,
+      stats: runStats({ bricksBroken: 10 }),
+    });
+    expect(afterWin.bestByLevel[first]).toEqual({ score: 100, stars: 2 });
+    expect(afterWin.unlocked).toEqual([first, second]);
+    expect(afterWin.bestScore).toBe(100);
+    expect(afterWin.telemetry.lifetime.runsWon).toBe(1);
+
+    // LOSE — score still merges, stars are NOT recomputed from livesRemaining,
+    // and nothing new unlocks.
+    const afterLose = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 250,
+      outcome: 'lose',
+      livesRemaining: 3,
+      stats: runStats({ bricksBroken: 5 }),
+    });
+    expect(afterLose.bestByLevel[first]).toEqual({ score: 250, stars: 2 });
+    expect(afterLose.unlocked).toEqual([first, second]);
+    expect(afterLose.bestScore).toBe(250);
+    expect(afterLose.telemetry.lifetime.runsLost).toBe(1);
+
+    // ABANDONED — falls into the same non-win branch as lose: score merges, no
+    // stars are awarded, and the unlock ladder does not advance (D-03).
+    const afterAbandon = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: second,
+      score: 40,
+      outcome: 'abandoned',
+      livesRemaining: 3,
+      stats: runStats({ bricksBroken: 3 }),
+    });
+    expect(afterAbandon.bestByLevel[second]).toEqual({ score: 40 });
+    expect(afterAbandon.bestByLevel[second]?.stars).toBeUndefined();
+    expect(afterAbandon.unlocked).toEqual([first, second]);
+    expect(await store.isUnlocked(third)).toBe(false);
+
+    // …but telemetry still counts it (research Assumption A1).
+    expect(afterAbandon.telemetry.lifetime.runsAbandoned).toBe(1);
+    expect(afterAbandon.telemetry.lifetime.runsPlayed).toBe(3);
+    expect(afterAbandon.telemetry.lifetime.bricksBroken).toBe(18);
+  });
+
+  it('stats aggregate into both telemetry.lifetime and telemetry.byMode.campaign[levelId]', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const second = PLAYABLE_LEVEL_ORDER[1];
+    const store = createMemoryProgressStore();
+
+    store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 100,
+      outcome: 'win',
+      livesRemaining: 3,
+      stats: runStats({ bricksBroken: 30, ticksPlayed: 600, wallClockMs: 10_000 }),
+    });
+    const blob = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: second,
+      score: 60,
+      outcome: 'lose',
+      livesRemaining: 0,
+      stats: runStats({ bricksBroken: 12, ticksPlayed: 300, wallClockMs: 5_000 }),
+    });
+
+    // Lifetime rolls both runs up…
+    expect(blob.telemetry.lifetime.runsPlayed).toBe(2);
+    expect(blob.telemetry.lifetime.bricksBroken).toBe(42);
+    expect(blob.telemetry.lifetime.ticksPlayed).toBe(900);
+    expect(blob.telemetry.lifetime.wallClockMsTotal).toBe(15_000);
+
+    // …while each (mode, levelId) bucket keeps only its own.
+    expect(blob.telemetry.byMode.campaign[first]?.runsPlayed).toBe(1);
+    expect(blob.telemetry.byMode.campaign[first]?.bricksBroken).toBe(30);
+    expect(blob.telemetry.byMode.campaign[second]?.runsPlayed).toBe(1);
+    expect(blob.telemetry.byMode.campaign[second]?.bricksBroken).toBe(12);
+    // Only campaign is written this phase (D-04).
+    expect(blob.telemetry.byMode.endless).toEqual({});
+    expect(blob.telemetry.byMode.daily).toEqual({});
+
+    // The returned blob is a deep clone — mutating it cannot reach into the store.
+    blob.telemetry.lifetime.bricksBroken = 9_999;
+    blob.telemetry.recentRuns.length = 0;
+    const snap = await store.getSnapshot();
+    expect(snap.telemetry.lifetime.bricksBroken).toBe(42);
+    expect(snap.telemetry.recentRuns).toHaveLength(2);
+  });
+
+  it('per-pickup-type and cascade/rally fields aggregate with the correct sum-vs-max semantics (D-07/D-08/D-10)', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const store = createMemoryProgressStore();
+
+    store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 100,
+      outcome: 'win',
+      livesRemaining: 3,
+      stats: runStats({
+        bricksBroken: 30,
+        bestCombo: 11,
+        longestRally: 9,
+        largestCascade: 6,
+        pickupMultiball: 2,
+        pickupExpand: 1,
+        pickupExtraLife: 1,
+        pickupSlow: 3,
+        pickupFireball: 1,
+        livesLost: 1,
+        ticksPlayed: 600,
+        wallClockMs: 10_000,
+      }),
+    });
+
+    // Second run deliberately has a LOWER bestCombo/largestCascade and a HIGHER
+    // longestRally, so a regression in the max logic cannot hide.
+    const blob = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 20,
+      outcome: 'abandoned',
+      livesRemaining: 3,
+      stats: runStats({
+        bricksBroken: 12,
+        bestCombo: 4,
+        longestRally: 20,
+        largestCascade: 2,
+        pickupMultiball: 1,
+        pickupSlow: 1,
+        livesLost: 2,
+        ticksPlayed: 300,
+        wallClockMs: 5_000,
+      }),
+    });
+
+    const life = blob.telemetry.lifetime;
+    // *Ever fields take a running max and never regress…
+    expect(life.bestComboEver).toBe(11);
+    expect(life.longestRallyEver).toBe(20);
+    expect(life.largestCascadeEver).toBe(6);
+    // …and combo (brick hits without paddle contact) stays a DIFFERENT metric
+    // from rally (paddle hits without losing a life) — D-10 keeps them distinct.
+    expect(life.bestComboEver).not.toBe(life.longestRallyEver);
+
+    // Every cumulative counter sums, per pickup type.
+    expect(life.bricksBroken).toBe(42);
+    expect(life.pickupMultiball).toBe(3);
+    expect(life.pickupExpand).toBe(1);
+    expect(life.pickupExtraLife).toBe(1);
+    expect(life.pickupSlow).toBe(4);
+    expect(life.pickupFireball).toBe(1);
+    expect(life.livesLost).toBe(3);
+    expect(life.ticksPlayed).toBe(900);
+    expect(life.wallClockMsTotal).toBe(15_000);
+
+    // One level played ⇒ its bucket mirrors lifetime exactly.
+    expect(blob.telemetry.byMode.campaign[first]).toEqual(life);
+
+    // The abandoned second run left the win's stars and unlock ladder alone.
+    expect(blob.bestByLevel[first]).toEqual({ score: 100, stars: 3 });
+    expect(blob.unlocked).toEqual([first, PLAYABLE_LEVEL_ORDER[1]]);
+  });
 });
 
 describe('recentRuns ring buffer (D-05)', () => {
@@ -458,7 +633,71 @@ describe('telemetry merge semantics (D-07/D-08/D-10, Plan 02 helpers)', () => {
 });
 
 describe('lifetime + per-level aggregates survive an app kill (SC-2)', () => {
-  it.todo(
-    're-instantiating an AsyncStorage-backed store from a previously persisted v4 JSON string reproduces identical lifetime + byMode aggregates',
-  );
+  it('re-instantiating a store from a previously persisted v4 JSON string reproduces identical lifetime + byMode aggregates', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const second = PLAYABLE_LEVEL_ORDER[1];
+
+    const live = createMemoryProgressStore();
+    live.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 900,
+      outcome: 'win',
+      livesRemaining: 2,
+      stats: runStats({
+        bricksBroken: 55,
+        bestCombo: 13,
+        longestRally: 21,
+        largestCascade: 4,
+        pickupMultiball: 2,
+        livesLost: 1,
+        ticksPlayed: 1_200,
+        wallClockMs: 20_000,
+      }),
+    });
+    live.recordRunEnd({
+      mode: 'campaign',
+      levelId: second,
+      score: 310,
+      outcome: 'abandoned',
+      livesRemaining: 3,
+      stats: runStats({ bricksBroken: 18, bestCombo: 5, ticksPlayed: 400, wallClockMs: 7_000 }),
+    });
+    const before = await live.getSnapshot();
+
+    // App kill: the only thing that survives is the JSON string on disk, so the
+    // round-trip must go through the real persist/parse path — not a live object.
+    const persisted = JSON.stringify(before);
+    const reread = parseProgressResult(persisted);
+    expect(reread.status).toBe('ok');
+
+    const relaunched = createMemoryProgressStore(reread.progress);
+    const after = await relaunched.getSnapshot();
+
+    expect(after.telemetry).toEqual(before.telemetry);
+    expect(after.telemetry.lifetime.runsPlayed).toBe(2);
+    expect(after.telemetry.lifetime.bricksBroken).toBe(73);
+    expect(after.telemetry.lifetime.bestComboEver).toBe(13);
+    expect(after.telemetry.byMode.campaign[first]?.bricksBroken).toBe(55);
+    expect(after.telemetry.byMode.campaign[second]?.bricksBroken).toBe(18);
+    expect(after.telemetry.recentRuns).toHaveLength(2);
+    // Progress fields survive the same trip.
+    expect(after.unlocked).toEqual(before.unlocked);
+    expect(after.bestByLevel).toEqual(before.bestByLevel);
+    expect(after.bestScore).toBe(before.bestScore);
+
+    // The relaunched store accumulates ON TOP of the restored counters rather
+    // than starting a fresh tally.
+    const next = relaunched.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 10,
+      outcome: 'lose',
+      livesRemaining: 0,
+      stats: runStats({ bricksBroken: 7 }),
+    });
+    expect(next.telemetry.lifetime.runsPlayed).toBe(3);
+    expect(next.telemetry.lifetime.bricksBroken).toBe(80);
+    expect(next.telemetry.byMode.campaign[first]?.bricksBroken).toBe(62);
+  });
 });
