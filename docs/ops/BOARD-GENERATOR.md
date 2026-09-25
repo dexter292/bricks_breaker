@@ -301,13 +301,22 @@ and CI**, which is precisely the failure daily mode cannot tolerate: the leaderb
 compare scores on boards that were never the same board. Plan 10-05's `__DEV__` on-device
 probe is what discharges this, by computing the u32 fingerprint on device and comparing.
 
-> **Device digest:** PENDING — no Hermes observation has been recorded yet.
-> **On-device u32 fingerprint:** `________________` *(probe shipped by plan 10-05; awaiting one device run)*
+> **Device digest: MEASURED 2026-09-25 — A1 DISCHARGED.**
+> **On-device u32 fingerprint:** `0x2e8f6c23` = `781151267` — **matches the Node pin exactly.**
 > Expected: `0x2e8f6c23` = `781151267`
+> Observed on: iPhone 17 simulator, iOS 26.5, Hermes via Expo SDK 57 dev client,
+> `EXPO_PUBLIC_LEVELGEN_PROBE=1`. 4 200 boards in 1 331 ms.
+> Raw line: `[levelgen] corpus fingerprint u32=0x2e8f6c23 seeds=200 boards=4200 ms=1331`
 
-Until that blank is filled with a matching value, treat every determinism claim in this
-document as scoped to V8. The probe exists as of plan 10-05; what is still missing is the
-single observation only a device can supply.
+Determinism is therefore no longer scoped to V8: the same corpus hashes identically under
+Hermes and under four V8 processes across two module pipelines. Phase 12's daily challenge
+can rely on device and CI producing the same board for the same date.
+
+One honest limit on that claim: this was the iOS **simulator**, which runs the same Hermes
+build as a device but on x86/arm host hardware. The arithmetic is integer-only by design and
+the ECMAScript-specified `+ - * /` are exact, so a physical-device difference would be
+surprising — but it has not been observed either way, and a physical run is close to free
+whenever one is next in front of someone.
 
 ### Device probe procedure
 

@@ -1,9 +1,9 @@
 ---
 phase: 10
 slug: seeded-board-generator
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: passed
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-09-25
 ---
 
@@ -161,3 +161,25 @@ Gate 1 in `10-05-PLAN.md` compares `src/core` against the **phase base
 deliberate pre-phase core commit (`7539e61`, the Metro web/SSR TDZ fix), so an `origin/main`
 comparison fails a gate Phase 10 has not violated. Measured at the Wave 0 merge:
 `64a0b0c..HEAD -- src/core` is empty; `origin/main...HEAD -- src/core` reports one file.
+
+
+---
+
+## A1 discharged (2026-09-25)
+
+The one manual verification this phase carried is **closed, and it passed**.
+
+`EXPO_PUBLIC_LEVELGEN_PROBE=1` + Expo dev client on the iPhone 17 simulator produced:
+
+```
+[levelgen] corpus fingerprint u32=0x2e8f6c23 seeds=200 boards=4200 ms=1331
+```
+
+`0x2e8f6c23` is exactly the value pinned from Node by plan 10-03, so Hermes and V8 agree on
+the generator's output byte for byte. That was the assumption which, if false, would have
+blocked Phase 12's daily challenge — device and CI would have handed players different
+boards for the same date.
+
+Residual: measured on the simulator, not a physical device. Same Hermes build, different host
+hardware; the arithmetic is integer-only and the spec-exact operators make a difference
+unlikely, but it is unobserved.
