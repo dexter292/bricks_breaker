@@ -2,6 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Retention & Replayability
+current_phase: '9'
 status: milestone_planned
 stopped_at: "v1.2 roadmap created (phases 9-14); nothing planned or executed yet"
 last_updated: "2026-09-25T13:40:00.000Z"
