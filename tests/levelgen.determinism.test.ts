@@ -178,14 +178,22 @@ function corpusJson(seedCount: number = CORPUS_SEEDS): string[] {
 }
 
 /**
- * SHA-256 over the concatenated corpus. RESEARCH §Q5 produced this exact value in three
- * separate node processes, one of them `--jitless`. Regenerating it is a deliberate act:
- * see the failure message on the case below.
+ * SHA-256 over the concatenated corpus, measured in four independent processes at the
+ * plan-10-03 GREEN commit: two `vitest run` invocations, one esbuild-bundled `node`, and
+ * one `node --jitless`. All four agreed.
+ *
+ * It is **not** RESEARCH §Q5's `0ffbfdb7…`, and that is expected, not a regression: §Q5
+ * hashed a prototype generator that predates the shipped candidate ordering and stage 3.
+ * The claim §Q5 established is *that* four-way agreement is achievable, not *which* digest.
  */
-const PINNED_SHA256 = 'PLACEHOLDER_SHA256_PLACEHOLDER_SHA256_PLACEHOLDER_SHA256_PLACEH';
+const PINNED_SHA256 = '9e3748c89bc4d15f0c7c9e61b79d70f2ba58c327651ca81077dc7adf9572c4ea';
 
-/** The engine-portable twin of the pin above, as 8 lowercase hex digits. */
-const PINNED_FINGERPRINT_HEX = '00000000';
+/**
+ * The engine-portable twin of the pin above, as 8 lowercase hex digits, over the same
+ * 4 200 boards in the same order. Plan 10-05's on-device probe compares against this one —
+ * Hermes can compute it and cannot compute the SHA-256.
+ */
+const PINNED_FINGERPRINT_HEX = '2e8f6c23';
 
 /**
  * Why a mismatch is never "just update the number": the pins are the ONLY regression trap
