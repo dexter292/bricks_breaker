@@ -1,10 +1,11 @@
 ---
 phase: D1
 slug: juice-presentation
-status: draft
-nyquist_compliant: false
+status: code_complete_pending_device_uat
+nyquist_compliant: true
 wave_0_complete: true
 created: 2026-09-25
+updated: 2026-09-25
 ---
 
 # Phase D1 — Validation Strategy
@@ -38,40 +39,51 @@ created: 2026-09-25
 
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|--------------|
-| N-FX-01 | Ghost brick fade on BRICK_BREAK; cascade all members | unit | `npx vitest run tests/vfx.brick-ghosts.test.ts` | ✅ Wave 0 |
-| N-FX-01 | No World write; hashWorld stable | unit | `npx vitest run tests/physics.golden-replay.test.ts` + hash snap | ✅ golden |
-| N-FX-03 | Batch coalesce: ≤1 haptic/drain; life > break | unit | `npx vitest run tests/haptics.batch-coalesce.test.ts` | ✅ Wave 0 |
-| N-FX-03 | Not gated by reduce-motion intensity | unit | same + source contract todo | ✅ Wave 0 (todo Plan 03) |
-| — | Paddle squash draw-only; paddleW unchanged | unit | `npx vitest run tests/vfx.paddle-squash.test.ts` | ✅ Wave 0 |
-| — | Mid particleCap still 128 | unit/rg | quality tier / types | ✅ |
+| N-FX-01 | Ghost brick fade on BRICK_BREAK; cascade all members | unit | `npx vitest run tests/vfx.brick-ghosts.test.ts` | ✅ |
+| N-FX-01 | No World write; hashWorld stable | unit | `npx vitest run tests/physics.golden-replay.test.ts` + hash snap | ✅ |
+| N-FX-03 | Batch coalesce: ≤1 haptic/drain; life > break | unit | `npx vitest run tests/haptics.batch-coalesce.test.ts` | ✅ |
+| N-FX-03 | Not gated by reduce-motion intensity; PlayingHost fan-out; ≤1 scheduleOnRN | unit | same + source contracts | ✅ Plan 03 |
+| — | Paddle squash draw-only; paddleW unchanged | unit | `npx vitest run tests/vfx.paddle-squash.test.ts` | ✅ |
+| — | Mid particleCap still 128 | unit/rg | `npx vitest run tests/runtime.quality-tiers.test.ts` | ✅ |
 
 ---
 
 ## Wave 0 Requirements
 
 - [x] Brick fade / ghost SoA stubs + GREEN path tests (`tests/vfx.brick-ghosts.test.ts`)
-- [x] Haptics batch coalesce tests — memory service strongest-wins (`tests/haptics.batch-coalesce.test.ts`; expo mock lands Plan 02)
+- [x] Haptics batch coalesce tests — memory + expo soft-fail (`tests/haptics.batch-coalesce.test.ts`)
 - [x] Paddle squash unit (`tests/vfx.paddle-squash.test.ts`)
-- [ ] Assert `hashWorld` / golden-replay still green after Wave 1+
+- [x] Assert `hashWorld` / golden-replay still green after Wave 1+
 - [x] Gate note: ceiling §5c already PASS; no second Cert unless render load changes
+
+---
+
+## N-FX-02 harness locks (docs-only — D-06 / D-07)
+
+Recorded 2026-09-25 (no timed shell / Results code in D1):
+
+- CERT (`GameHost` init) and SOAK (`setShellPhase` Title↔Playing) drive `shellPhase` **instantly**.
+- Any future transition animation **must no-op** when `CERT_HARNESS || SOAK_HARNESS` (instant swap). Soak must not gain fade delay.
+- No delayed Results overlay (Retry instant locked). No confetti. No star reveal animation on Results in D1.
+- See `docs/ops/HAPTICS.md` for N-FX-03; Mid freeze in `docs/ops/QUALITY-TIER.md`; Cert second-run policy in `docs/ops/CEILING-CERT.md` §5c note.
 
 ---
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| Ball readable during fade | N-FX-01 | Visual | Play Cert WC / level with breaks — ball never hidden |
-| Haptics feel + OS mute | N-FX-03 | Device | System Haptics off → no buzz; on → break/life only |
-| Paddle squash cosmetic | FC-F04 | Feel | Hit paddle — visual only; collision unchanged |
-| No second ceiling | D-05 | Process | Only if D1 violates Mid freeze |
+| Behavior | Requirement | Why Manual | Test Instructions | Status |
+|----------|-------------|------------|-------------------|--------|
+| Ball readable during fade | N-FX-01 | Visual | Play level with breaks — ball never hidden | ⏳ pending device smoke |
+| Haptics feel + OS mute | N-FX-03 | Device | System Haptics off → no buzz; on → break/life only; cascade coalesced | ⏳ pending device smoke |
+| Paddle squash cosmetic | FC-F04 | Feel | Hit paddle — visual only; collision unchanged | ⏳ pending device smoke |
+| No second ceiling | D-05 | Process | Only if D1 violates Mid freeze / render load | ✅ process note in CEILING-CERT §5c |
 
 ---
 
 ## Validation Sign-Off
 
 - [x] Wave 0 automated verify targets exist (ghost / squash / haptics coalesce)
-- [ ] All tasks have automated verify or Wave 0 deps
-- [ ] `nyquist_compliant: true` after Plan 03 lands (leave false until consume/draw/expo/PlayingHost wired)
+- [x] All tasks have automated verify or Wave 0 deps
+- [x] `nyquist_compliant: true` after Plan 03 code/docs (PlayingHost + expo + consume/draw)
 
-**Approval:** pending — Wave 0 complete 2026-09-25; §5c Cert already PASS (no second Cert unless render-load delta)
+**Approval:** automated Nyquist closed 2026-09-25 — **Human UAT pending** (device feel smoke; not Cert WC)

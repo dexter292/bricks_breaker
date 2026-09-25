@@ -94,6 +94,10 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 
 **Stamp:** `Human ceiling re-run: PASS 2026-09-25`
 
+### 5c note — D1 second Cert (D-05)
+
+§5c PASS is retained. **Do not** re-run Instruments Cert WC for D1 unless **render load** changes: new particles, extra full-screen layers, or heavier glow. Ghost quads (flat fill) + expo-haptics (non-render) alone → **skip** second Cert. Mid freeze (`docs/ops/QUALITY-TIER.md`) is the process guard.
+
 ### 5b. App-loop health (2026-09-24)
 
 | Field | Value |

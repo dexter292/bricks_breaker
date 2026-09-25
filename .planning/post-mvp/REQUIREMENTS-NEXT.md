@@ -87,8 +87,8 @@
 | ID | Requirement | Status | Notes |
 |----|-------------|--------|-------|
 | **N-FX-01** | Break presentation upgrade; Mid budgets; ball readable | **Approved** | D1: scale/fade on brick quads only; Mid freeze (no particle/fill bumps) |
-| **N-FX-02** | Transitions + win/lose commercial baseline; Retry instant | **Approved** | D1 discuss: no delayed overlay/confetti; harness transitions no-op if added later |
-| **N-FX-03** | Haptics; **OS-level suppression relied upon** (no public iOS System Haptics read); app must **not** query OS setting; **do not** AND with reduce-motion; batch coalesce like SFX | **Approved** | Amended 2026-09-25 (D1 discuss) |
+| **N-FX-02** | Transitions + win/lose commercial baseline; Retry instant | **Approved** | D1 docs-only: CERT/SOAK drive `shellPhase` instantly; no delayed Results/confetti/star reveal — see ROADMAP D1 / D1-CONTEXT D-06/D-07 |
+| **N-FX-03** | Haptics; **OS-level suppression relied upon** (no public iOS System Haptics read); app must **not** query OS setting; **do not** AND with reduce-motion; batch coalesce like SFX | **Approved** | Amended 2026-09-25; ops: `docs/ops/HAPTICS.md` |
 | **N-AUD-01** | Ambient loop + mute | **Deferred** | |
 | **N-BRAND-02** | Icon, splash, Title match renamed display name | **Approved** | Dep: N-BRAND-01 string chosen |
 
