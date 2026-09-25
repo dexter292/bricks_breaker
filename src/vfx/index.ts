@@ -4,6 +4,7 @@ export {
   TRAIL_MAX,
   PARTICLE_POOL_DEFAULT,
   PARTICLE_POOL_HARD_MAX,
+  GHOST_CAP_DEFAULT,
   CHIP_SPARKS_AT_1,
   DESTROY_SPARKS_AT_1,
   SHAKE_CAP,
@@ -33,6 +34,20 @@ export {
 } from './particles';
 
 export { punchShake, stepShake, shakeOffset } from './shake';
+
+export {
+  GHOST_CAP,
+  GHOST_LIFE_MAX,
+  spawnBrickGhost,
+  stepBrickGhosts,
+  type BrickGhostGeom,
+} from './brickGhosts';
+
+export {
+  PADDLE_SQUASH_T_MAX,
+  punchPaddleSquash,
+  stepPaddleSquash,
+} from './paddleSquash';
 
 export { stepVfx } from './stepVfx';
 
