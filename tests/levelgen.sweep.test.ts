@@ -13,7 +13,11 @@
  * 21 000-board corpus is affordable inside `npm test`.
  *
  * Deliberately NOT covered here:
- *   - rng / seed-normalisation / grid bounds — `tests/levelgen.determinism.test.ts`
+ *   - rng / seed-normalisation / grid bounds, repeat-call identity, the Pitfall 3
+ *     aliasing detector, difficulty clamping and the two corpus digests —
+ *     `tests/levelgen.determinism.test.ts`. Plan 10-02 parked the T-10-09 / T-10-11 cases
+ *     here only because that file was owned by a later plan; 10-03 moved them home, with
+ *     the NaN and string-seed cases they were missing.
  *   - whether a board is actually *winnable* — `tests/levelgen.winnability.test.ts`
  *     (lint-clean is necessary, not sufficient)
  *   - schedule monotonicity in isolation — `tests/levelgen.schedule.test.ts`
@@ -315,26 +319,6 @@ describe('generated board contract sweep (N-GEN-02 / N-GEN-03)', () => {
     },
     SWEEP_TIMEOUT_MS,
   );
-});
-
-describe('tracer determinism and input hardening (T-10-09 / T-10-11)', () => {
-  it('returns JSON-identical output for repeated calls and never aliases its own output', () => {
-    const a = generate(7, 3);
-    const b = generate(7, 3);
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-
-    // T-10-11: a caller mutating the returned grid/brickTypes must not reach board N+1.
-    a.grid.cols = 999;
-    a.brickTypes['1'] = { hp: 42 };
-    const c = generate(7, 3);
-    expect(JSON.stringify(c)).toBe(JSON.stringify(b));
-    expect(b.grid.cols).toBe(GRID.cols);
-  });
-
-  it('clamps difficulty to [0, D_MAX] rather than trusting the caller (T-10-09)', () => {
-    expect(JSON.stringify(generate(1, -5))).toBe(JSON.stringify(generate(1, 0)));
-    expect(JSON.stringify(generate(1, 999))).toBe(JSON.stringify(generate(1, D_MAX)));
-  });
 });
 
 /**
