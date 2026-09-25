@@ -39,6 +39,10 @@ export type GameScreenProps = {
   onResume: () => void;
   onRetry: () => void;
   onMenu: () => void;
+  /** Win stars from blob after handleRunEnded (optional until PlayingHost wires C2-03). */
+  stars?: 1 | 2 | 3 | null;
+  /** Next CTA — omit control when null/undefined (D-11). */
+  onNext?: (() => void) | null;
   /** Optional docked serve hint (UI-SPEC). */
   showServeHint?: boolean;
   /** Validation failure — blocks pause/result chrome (D-13). */
@@ -69,6 +73,8 @@ export function GameScreen({
   onResume,
   onRetry,
   onMenu,
+  stars = null,
+  onNext = null,
   showServeHint = false,
   levelError = null,
   devLevelSwitch = null,
@@ -162,8 +168,10 @@ export function GameScreen({
             score={score}
             best={best}
             isNewRecord={isNewRecord}
+            stars={stars}
             onRetry={onRetry}
             onMenu={onMenu}
+            onNext={onNext}
           />
         ) : null}
 

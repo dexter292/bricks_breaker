@@ -5,11 +5,35 @@ export {
   type PersonalBestStore,
   PROGRESS_VERSION,
   PROGRESS_KEY,
+  PROGRESS_KEY_V3,
+  PROGRESS_KEY_V2,
   defaultProgressBlob,
+  defaultProgressBlobV3,
   type ProgressBlob,
+  type ProgressBlobV3,
+  type ProgressBlobV2,
   type ProgressStore,
+  type StarCount,
+  type LevelBest,
+  RECENT_RUNS_BOUND,
+  defaultTelemetryBlob,
+  defaultTelemetryAggregate,
+  defaultRunStatsInput,
+  type GameMode,
+  type RunOutcome,
+  type TelemetryBlob,
+  type TelemetryAggregate,
+  type RunLogEntry,
+  type RunStatsInput,
 } from './types';
 export { evaluatePersonalBest } from './compareBest';
+export {
+  computeStars,
+  mergeLevelBest,
+  selectRowState,
+  isLevelCleared,
+  type SelectRowState,
+} from './stars';
 export {
   PLAYABLE_LEVEL_ORDER,
   nextLevelId,
@@ -20,10 +44,24 @@ export {
   parsePersonalBestBlob,
   parsePersonalBestResult,
   parseProgressResult,
+  parseProgressV3Result,
+  parseProgressV2Result,
   type ParseBestResult,
   type ParseProgressResult,
+  type ParseProgressV3Result,
+  type ParseProgressResultV2,
 } from './parseBlob';
-export { migrateOrDefault } from './migrateProgress';
+export {
+  migrateOrDefault,
+  migrateOrDefaultV3,
+  v3ToV4,
+} from './migrateProgress';
+export { mergeHighWatermark, mergeHighWatermarkV3 } from './watermark';
+export {
+  mergeRunIntoTelemetry,
+  mergeTelemetryBlobs,
+  cloneTelemetryBlob,
+} from './telemetry';
 export {
   createMemoryPersonalBestStore,
   createMemoryProgressStore,

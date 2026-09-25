@@ -149,3 +149,58 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 *Requirements defined: 2026-09-19*
 *Last updated: 2026-09-21 — T8.1 ledger sync (Phase 3 verified; PLT-03 reverted pending device evidence)*
+
+---
+
+## v1.2 Requirements — Retention & Replayability
+
+**Defined:** 2026-09-25 · Roadmap: [`ROADMAP.md`](./ROADMAP.md) · Candidates: `post-mvp/FEATURE-CANDIDATES.md`
+
+Scope rule for this milestone: **offline only, shipped verbs only, no backend, no new brick
+type, no monetization SDK.** Anything needing a server, an account, or a store gate is out.
+
+### Telemetry & Statistics
+
+- [ ] **N-STAT-01** (FC-R07): A run records deterministic counters — bricks broken, best combo, power-ups caught, lives lost, ticks played, outcome — derived from the existing event ring, aggregated lifetime and per level id
+- [ ] **N-STAT-02**: `ProgressBlob` v3 → v4 migration is lossless for every existing best score, star and unlocked level; corrupt v4 degrades to defaults instead of throwing
+- [ ] **N-STAT-03** (FC-R07): A statistics screen renders lifetime and per-level telemetry without recomputing on every frame
+
+### Board Generation
+
+- [ ] **N-GEN-01**: `generate(seed, difficulty)` is pure and returns a `LevelFileV1`; identical arguments produce byte-identical output across processes
+- [ ] **N-GEN-02**: Every generated board passes `checkSolvability` with zero unreachable breakables and fits the 360×640 playfield, asserted over a seed/difficulty sweep
+- [ ] **N-GEN-03**: `difficulty` is monotone — higher values yield non-decreasing authored weight (brick count and total HP); generation uses only shipped verbs and respects the Mid particle budget
+
+### Endless Mode
+
+- [ ] **N-END-01** (FC-R04): Clearing a board advances to the next generated one in the same run; lives, score and combo carry over; the run ends only at zero lives
+- [ ] **N-END-02**: Endless records (best wave, best score) are stored separately — endless play cannot alter campaign unlocks, bests or stars
+- [ ] **N-END-03**: A seeded endless run is reproducible end to end; wave transitions cause no frame spike outside the Mid budget
+
+### Daily Challenge
+
+- [ ] **N-DAILY-01** (FC-R03): The board derives from the local calendar date alone — same date, same board, no network
+- [ ] **N-DAILY-02**: The day's result is recorded once per date and shown on re-open rather than regenerated; a streak is computed from stored dates, not an incrementable counter
+- [ ] **N-DAILY-03**: Behaviour on device-clock changes is an explicit written policy; daily results never touch campaign or endless records
+
+### Achievements
+
+- [ ] **N-ACH-01** (FC-R01): Achievements are declared as data — id, description, pure predicate over a telemetry snapshot — so adding one needs no game-code edit
+- [ ] **N-ACH-02**: Evaluation is deterministic and idempotent; unlocks persist across app kills under the storage migration contract
+- [ ] **N-ACH-03**: An unlock is surfaced without interrupting a live rally; the catalog covers all three modes, not just score thresholds
+
+### Meta Shell
+
+- [ ] **N-UI-01**: Title offers campaign, endless and daily as distinct entries; the daily entry shows whether today has been played
+- [ ] **N-UI-02**: New screens respect the shell contract — safe-area insets, dark palette, no ads/shop/login chrome, `PlayingHost` unmounts when not playing, and navigation never leaves a run mounted in the background
+
+### Explicitly out of scope for v1.2
+
+| Candidate | Why not now |
+|-----------|-------------|
+| FC-R06 platform leaderboards | Needs Game Center / Play Games — not offline |
+| FC-R02 unlockable cosmetics | Wants an art pipeline this milestone does not fund |
+| FC-B03 moving bricks · FC-B06 boss · FC-P08 laser | Physics hot path; ceiling cert is already stale (§5d) |
+| FC-L09 level editor | XL, and authoring pain is not yet proven |
+| FC-M01…M05 monetization | D5=A — no SDK before first ASC approval |
+| Chapters / worlds (FC-L05) | Premature below ~8 levels |

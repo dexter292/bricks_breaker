@@ -79,6 +79,8 @@ npm run typecheck           # tsc --noEmit
 npm run lint                # eslint
 ```
 
+Build iOS local (prebuild → pods → run) và bẫy locale của CocoaPods: [`docs/ops/LOCAL-IOS-BUILD.md`](docs/ops/LOCAL-IOS-BUILD.md).
+
 Build thiết bị: `eas.json` có ba profile — `development` (dev-client), `profiling` (đo Instruments, arm CERT), `production`.
 **Không bao giờ** đặt `EXPO_PUBLIC_CERT` / `EXPO_PUBLIC_SOAK` lên profile `production` — `scripts/assert-eas-profiles.mjs` canh việc này.
 

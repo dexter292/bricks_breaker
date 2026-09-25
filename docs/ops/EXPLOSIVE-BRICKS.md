@@ -26,6 +26,12 @@ Events stay `BRICK_HIT` / `BRICK_BREAK` — scoring, drops, audio, VFX consumers
 
 Cascade clears can enqueue many `BRICK_BREAK` bursts in one step. Pool uses **FIFO eviction** when over cap (`src/vfx/particles.ts`) — Mid remains the marketing/Cert baseline; do not raise `particleCap` for chains.
 
+## Where it ships
+
+Placed across `level-03`…`level-06` on a teaching curve — see
+[`LEVEL-VERBS-E1b.md`](./LEVEL-VERBS-E1b.md). `level-01` stays explosive-free by design.
+
 ## Tests
 
 `tests/physics.explosive.test.ts` — single blast + chain + steel immunity + hash stability.
+`tests/levels.verb-curve-e1b.test.ts` — the same rules asserted on the shipped level assets.

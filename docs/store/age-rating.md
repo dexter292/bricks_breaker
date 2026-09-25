@@ -1,4 +1,4 @@
-# Age Rating — Neon Brick Breaker
+# Age Rating — Pulse Paddle
 
 ## Target rating
 
@@ -10,7 +10,7 @@
 
 ## Content rationale
 
-Neon Brick Breaker is a classic paddle-and-ball arcade game:
+Pulse Paddle is a classic paddle-and-ball arcade game:
 
 - **No realistic or cartoon violence** against people or animals — bricks are abstract neon blocks
 - **No blood, gore, or weapons** themed as real-world violence

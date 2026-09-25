@@ -8,7 +8,9 @@ const includeDevClient =
 
 module.exports = ({ config }) => ({
   ...config,
-  name: 'Neon Brick Breaker',
+  // Display name only (N-BRAND-01 / D1=B). Bundle id, package, slug and scheme are
+  // deliberately unchanged — see docs/store/name-clearance.md.
+  name: 'Pulse Paddle',
   slug: 'bricks-breaker',
   version: '1.0.0',
   orientation: 'portrait',

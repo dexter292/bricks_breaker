@@ -4,7 +4,15 @@ import {
   createMemoryProgressStore,
 } from './memoryStore';
 import { migrateOrDefault } from './migrateProgress';
-import { parsePersonalBestResult, parseProgressResult } from './parseBlob';
+import {
+  parsePersonalBestResult,
+  parseProgressResult,
+  parseProgressV2Result,
+  parseProgressV3Result,
+} from './parseBlob';
+import { computeStars, mergeLevelBest } from './stars';
+import { cloneTelemetryBlob, mergeRunIntoTelemetry } from './telemetry';
+import { mergeHighWatermark } from './watermark';
 import {
   unlockAfterClear as unlockAfterClearPure,
   isUnlocked as isUnlockedPure,
@@ -13,15 +21,23 @@ import {
   PERSONAL_BEST_KEY,
   PERSONAL_BEST_VERSION,
   PROGRESS_KEY,
+  PROGRESS_KEY_V3,
+  PROGRESS_KEY_V2,
   defaultProgressBlob,
+  type GameMode,
+  type LevelBest,
   type PersonalBestBlob,
   type PersonalBestStore,
   type ProgressBlob,
   type ProgressStore,
+  type RunOutcome,
+  type RunStatsInput,
 } from './types';
 import type { LevelId } from '../../core';
 
-type AsyncStorageLike = {
+export { mergeHighWatermark } from './watermark';
+
+export type AsyncStorageLike = {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
 };
@@ -142,49 +158,40 @@ export function __resetSharedProgressStoreForTests(): void {
   sharedProgressStore = null;
 }
 
-function cloneBlob(b: ProgressBlob): ProgressBlob {
-  return {
-    v: 2,
-    unlocked: [...b.unlocked],
-    bestByLevel: { ...b.bestByLevel },
-    bestScore: b.bestScore,
-    updatedAt: b.updatedAt,
-  };
+/**
+ * Test-only: build a progress store over an injected storage double.
+ * `createDefaultProgressStore` probes the native bridge and falls back to the
+ * memory store under Vitest, so the AsyncStorage hydrate/migrate/persist chain
+ * is otherwise unreachable from a test.
+ */
+export function __createAsyncStorageProgressStoreForTests(
+  storage: AsyncStorageLike,
+): ProgressStore {
+  return createAsyncStorageProgressStoreFrom(storage);
 }
 
-/** Never lower known watermarks when merging disk into memory (F-26). */
-function mergeHighWatermark(
-  memory: ProgressBlob,
-  incoming: ProgressBlob,
-): ProgressBlob {
-  const bestByLevel: Partial<Record<LevelId, number>> = {
-    ...memory.bestByLevel,
-  };
-  for (const [key, val] of Object.entries(incoming.bestByLevel)) {
-    if (typeof val !== 'number') continue;
-    const id = key as LevelId;
-    const prev = bestByLevel[id] ?? 0;
-    if (val > prev) {
-      bestByLevel[id] = val;
-    }
+function cloneLevelBest(b: LevelBest): LevelBest {
+  const out: LevelBest = { score: b.score };
+  if (b.stars === 1 || b.stars === 2 || b.stars === 3) {
+    out.stars = b.stars;
   }
-  const unlocked: LevelId[] = [];
-  const seen = new Set<LevelId>();
-  for (const id of [...memory.unlocked, ...incoming.unlocked]) {
-    if (!seen.has(id)) {
-      seen.add(id);
-      unlocked.push(id);
+  return out;
+}
+
+function cloneBlob(b: ProgressBlob): ProgressBlob {
+  const bestByLevel: Partial<Record<LevelId, LevelBest>> = {};
+  for (const [key, val] of Object.entries(b.bestByLevel)) {
+    if (val != null) {
+      bestByLevel[key as LevelId] = cloneLevelBest(val);
     }
-  }
-  if (!seen.has('level-01')) {
-    unlocked.unshift('level-01');
   }
   return {
-    v: 2,
-    unlocked,
+    v: 4,
+    unlocked: [...b.unlocked],
     bestByLevel,
-    bestScore: Math.max(memory.bestScore, incoming.bestScore),
-    updatedAt: Math.max(memory.updatedAt, incoming.updatedAt),
+    bestScore: b.bestScore,
+    updatedAt: b.updatedAt,
+    telemetry: cloneTelemetryBlob(b.telemetry),
   };
 }
 
@@ -258,6 +265,7 @@ function createAsyncStorageProgressStoreFrom(
 ): ProgressStore {
   let memory = defaultProgressBlob();
   let hydrated = false;
+  let hydrating: Promise<void> | null = null;
   let pendingWrite: ProgressBlob | null = null;
   let wroteMigrateThrough = false;
 
@@ -271,13 +279,20 @@ function createAsyncStorageProgressStoreFrom(
     }
   }
 
-  async function ensureHydrated(): Promise<void> {
-    if (hydrated) {
-      return;
-    }
+  function applyLevelBest(id: LevelId, next: LevelBest): void {
+    memory = {
+      ...memory,
+      bestByLevel: { ...memory.bestByLevel, [id]: next },
+      bestScore: Math.max(memory.bestScore, next.score),
+      updatedAt: Date.now(),
+    };
+  }
+
+  /** Never throws and always leaves `hydrated` true — see ensureHydrated. */
+  async function hydrateOnce(): Promise<void> {
     try {
-      const v2Raw = await AsyncStorage.getItem(PROGRESS_KEY);
-      const parsed = parseProgressResult(v2Raw);
+      const v4Raw = await AsyncStorage.getItem(PROGRESS_KEY);
+      const parsed = parseProgressResult(v4Raw);
 
       if (parsed.status === 'ok') {
         memory = mergeHighWatermark(memory, parsed.progress);
@@ -285,16 +300,18 @@ function createAsyncStorageProgressStoreFrom(
         return;
       }
 
-      // Absent or corrupt v2 → try v1 migrate (D-08); never clobber watermarks.
+      // Absent or corrupt v4 → migrate from v3 + v2 + v1 (D-05 / N-STAT-02);
+      // never clobber watermarks. Leave v1/v2/v3 keys on disk (rollback safety).
+      const v3Raw = await AsyncStorage.getItem(PROGRESS_KEY_V3);
+      const v2Raw = await AsyncStorage.getItem(PROGRESS_KEY_V2);
       const v1Raw = await AsyncStorage.getItem(PERSONAL_BEST_KEY);
-      const migrated = migrateOrDefault(v2Raw, v1Raw);
+      const migrated = migrateOrDefault(v4Raw, v3Raw, v2Raw, v1Raw);
       memory = mergeHighWatermark(memory, migrated);
 
-      // Write-through once when we seeded from v1 (v2 was absent/corrupt — already branched).
-      if (
-        !wroteMigrateThrough &&
-        parsePersonalBestResult(v1Raw).status === 'ok'
-      ) {
+      const fromV3 = parseProgressV3Result(v3Raw).status === 'ok';
+      const fromV2 = parseProgressV2Result(v2Raw).status === 'ok';
+      const fromV1 = parsePersonalBestResult(v1Raw).status === 'ok';
+      if (!wroteMigrateThrough && (fromV3 || fromV2 || fromV1)) {
         wroteMigrateThrough = true;
         await persist(memory);
       }
@@ -304,6 +321,24 @@ function createAsyncStorageProgressStoreFrom(
     hydrated = true;
   }
 
+  /**
+   * Single-flight. `hydrateOnce` folds the disk blob into memory with
+   * `mergeHighWatermark`, whose telemetry half SUMS lifetime counters — so
+   * running it twice against the same disk blob would double every counter and
+   * the next `persist` would write the inflated values back permanently.
+   * `hydrated` only flips after the first `await`, so overlapping callers must
+   * share one promise rather than each re-entering the body. Overlap is
+   * ordinary: Title's `getBest()` and Select's `getSnapshot()` hit the same
+   * singleton (F-26) when Play is tapped before the first read resolves.
+   */
+  function ensureHydrated(): Promise<void> {
+    if (hydrated) {
+      return Promise.resolve();
+    }
+    hydrating ??= hydrateOnce();
+    return hydrating;
+  }
+
   return {
     async getBest(): Promise<number> {
       await ensureHydrated();
@@ -311,7 +346,7 @@ function createAsyncStorageProgressStoreFrom(
     },
     async getBestForLevel(id: LevelId): Promise<number> {
       await ensureHydrated();
-      return memory.bestByLevel[id] ?? 0;
+      return memory.bestByLevel[id]?.score ?? 0;
     },
     async recordLevelBest(id: LevelId, score: number): Promise<void> {
       await ensureHydrated();
@@ -319,17 +354,69 @@ function createAsyncStorageProgressStoreFrom(
       if (!(n >= 0) || !Number.isFinite(n)) {
         return;
       }
-      const prev = memory.bestByLevel[id] ?? 0;
-      if (!(n > prev)) {
+      const prevScore = memory.bestByLevel[id]?.score ?? 0;
+      if (!(n > prevScore)) {
         return;
       }
+      applyLevelBest(id, mergeLevelBest(memory.bestByLevel[id], n, null));
+      await persist(memory);
+    },
+    recordRunEnd(args: {
+      levelId: LevelId;
+      mode: GameMode;
+      score: number;
+      outcome: RunOutcome;
+      livesRemaining: number;
+      stats: RunStatsInput;
+    }): ProgressBlob {
+      // Sync memory update first so Results can use returned blob (D-10 / F-26).
+      // Hydration is best-effort fire-and-forget if not yet done — callers that
+      // need disk state should await getSnapshot/getBest first (hosts do).
+      const wasHydrated = hydrated;
+      if (!wasHydrated) {
+        // Kick hydrate without blocking return; rare cold path before first read.
+        void ensureHydrated();
+      }
+      // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
+      const starsFromWin =
+        args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
+      const merged = mergeLevelBest(
+        memory.bestByLevel[args.levelId],
+        args.score,
+        starsFromWin,
+      );
+      applyLevelBest(args.levelId, merged);
       memory = {
         ...memory,
-        bestByLevel: { ...memory.bestByLevel, [id]: n },
-        bestScore: Math.max(memory.bestScore, n),
-        updatedAt: Date.now(),
+        telemetry: mergeRunIntoTelemetry(memory.telemetry, {
+          mode: args.mode,
+          levelId: args.levelId,
+          outcome: args.outcome,
+          score: args.score,
+          stats: args.stats,
+        }),
       };
-      await persist(memory);
+      if (args.outcome === 'win') {
+        memory = {
+          ...memory,
+          unlocked: unlockAfterClearPure(memory.unlocked, args.levelId),
+          updatedAt: Date.now(),
+        };
+      }
+      const snapshot = cloneBlob(memory);
+      if (wasHydrated) {
+        void persist(memory);
+      } else {
+        // Cold path: disk still holds lifetime telemetry this store has not
+        // merged yet. Writing `memory` now would overwrite that history with a
+        // blob that has never seen it — and telemetry SUMS, so it is gone for
+        // good. Hydration is already in flight (kicked above), so chain the
+        // write behind it and persist the union instead. Deliberately writing
+        // late rather than truncating: an app kill inside this window loses one
+        // just-ended run, not every run ever played.
+        void ensureHydrated().then(() => persist(memory));
+      }
+      return snapshot;
     },
     async unlockAfterClear(id: LevelId): Promise<void> {
       await ensureHydrated();

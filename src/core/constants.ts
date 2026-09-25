@@ -70,6 +70,16 @@ export const MAX_LIVES = 5;
 /** Serve launch speed (MAX_BALL_SPEED * 0.5). */
 export const SERVE_SPEED = 360;
 
+/**
+ * F-45 / N-CNT-03 — fraction of SERVE_SPEED added to the ball-speed **floor** per elapsed
+ * second, clamped to MAX_BALL_SPEED (so the cap is reached at t = 100s).
+ *
+ * Set from the E2 headless measurement: a perfect bot's median clear across the campaign
+ * fell 195s → 142s and the 360s "last brick" timeout disappeared. Set to 0 to disable.
+ * See `docs/ops/BALANCE-E2.md`. Worklet mirror: `src/core/rules/speedRamp.ts`.
+ */
+export const SPEED_RAMP_PER_SECOND = 0.01;
+
 // --- Phase 5 run rules / power-ups / anti-stall (worklets must inline matching literals) ---
 
 /** Points awarded per brick hit (D-01 / A1). */

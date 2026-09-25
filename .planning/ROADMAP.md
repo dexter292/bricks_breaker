@@ -1,233 +1,146 @@
-# Roadmap: Neon Brick Breaker
+# Roadmap: Pulse Paddle — v1.2 Retention & Replayability
 
-> **📌 ĐÂY LÀ ROADMAP v1 — 8 phase, đã hoàn tất.** Giữ nguyên làm lịch sử.
->
-> **Công việc phía trước nằm ở [`post-mvp/ROADMAP-NEXT.md`](./post-mvp/ROADMAP-NEXT.md)** (Milestone A…G, đã `FULL LOCK` D1…D7 ngày 2026-09-24).
->
-> | Cần gì | Đọc ở đâu |
-> |---|---|
-> | Kế hoạch hiện tại | `post-mvp/ROADMAP-NEXT.md` |
-> | Cổng phát hành `G0`…`G3` | `post-mvp/RELEASE-GATES.md` |
-> | Requirement post-MVP `N-*` | `post-mvp/REQUIREMENTS-NEXT.md` |
-> | Tình trạng máy móc hiện tại | `post-mvp/CURRENT-STATE.md` |
-> | Được ship tới đâu | `../docs/audit/MVP-CLOSE-REPORT.md` |
->
-> Lịch sử thực thi từng phase: [`phases/`](./phases/) — 8 thư mục `CONTEXT` / `RESEARCH` / `PLAN` / `SUMMARY` / `VERIFICATION`. Đó là sổ ghi của GSD, không phải tài liệu tra cứu hằng ngày.
+**Milestone:** v1.2
+**Started:** 2026-09-25
+**Previous:** v1.1 post-MVP — see [`MILESTONES.md`](./MILESTONES.md)
 
 ## Overview
 
-The journey runs from an empty repo to a single, shippable, 60-FPS neon arcade level. It starts with a cheap empirical spike that proves (or kills) the project's central bet — a deterministic simulation running as UI-thread worklets under Skia immediate-mode rendering — because retrofitting that decision later is a rewrite. Physics is then built headless and proven by property tests before a renderer exists to confuse the picture. The render bridge, relative-drag input, and the first real game loop land as one strictly sequential integration that ends with something you can hold and feel. Only after the feel is honest do the independent workstreams fan out: data-driven levels, run rules and power-ups, the React UI shell, and neon feedback. The showpiece level is authored last, against locked feel constants, alongside real-device performance certification and the store-compliance baseline.
+The game currently ends when the fifth level ends. Everything shipped through v1.1 is a
+finite campaign: five authored boards, a linear unlock chain, one personal best. A player
+who clears it has no reason to open the app again, and the project has no way to find out
+whether they would.
+
+v1.2 makes the game outlast its authored content, using only verbs that already ship and
+without adding a backend. The spine is a seeded board generator: the same component feeds
+an endless mode that escalates forever and a daily challenge that hands every player the
+same board on the same date. Underneath both sits a run-telemetry layer, because
+achievements, statistics and any future balance decision all need counters that do not
+exist yet — v1.1's E2 balance pass had to build a throwaway bot precisely because nothing
+in the app records what actually happens during a run.
+
+Generation is the risk. A procedurally built board must be deterministic for a given seed,
+must survive the N-LVL-03 solvability lint that authored levels are held to, and must stay
+inside the Mid-tier frame budget the ceiling cert was measured against. It gets its own
+phase, before anything depends on it.
 
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+- Integer phases (9, 10, 11): Planned milestone work
+- Decimal phases (10.1, 10.2): Urgent insertions (marked with INSERTED)
 
-Decimal phases appear between their surrounding integers in numeric order.
+Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outside the registry.
 
-- [x] **Phase 1: Foundation & Thread-Boundary Spike** - Prove the worklet-hosted simulation and Skia rendering bet on both real devices before any gameplay code
-- [x] **Phase 2: Headless Core Simulation** - Deterministic, tunneling-free swept physics with paddle-relative bounce, tested in Node
-- [x] **Phase 3: First Playable — Render, Input, Bricks, Lives, Pause** - The mandated sequential integration; ends with a rally you can actually play
-- [x] **Phase 4: Level Format & Brick Types** - Levels become versioned data with multi-HP and structural bricks
-- [x] **Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall** - Skill gets rewarded and no rally can dead-end (completed 2026-09-20)
-- [x] **Phase 6: UI Shell, HUD, Persistence & Platform Seams** - Menus, HUD, instant retry, local high score, responsive layout, monetization seams (completed 2026-09-20)
-- [x] **Phase 7: Feedback — Neon VFX & Audio** - Spectacle and sound that never hide the ball or cost frame time (completed 2026-09-21)
-- [ ] **Phase 8: Showpiece Level, Performance Certification & Launch Baseline** - The authored challenge level, measured 60 FPS on hardware, store paperwork ready
+- [x] **Phase 9: Run Telemetry & Storage v4** - Every run records what happened, persisted through a lossless v3→v4 migration
+- [ ] **Phase 10: Seeded Board Generator** - Deterministic (seed, difficulty) → playable board that passes the solvability lint
+- [ ] **Phase 11: Endless Mode** - A run that never runs out of board, escalating until the player misses
+- [ ] **Phase 12: Daily Challenge** - One shared board per local date, with a streak worth keeping
+- [ ] **Phase 13: Achievements** - Local, deterministic unlocks earned from telemetry
+- [ ] **Phase 14: Meta Shell — Mode Select, Stats & Achievements** - The new modes and records become reachable and readable
 
 ## Phase Details
 
-### Phase 1: Foundation & Thread-Boundary Spike
-**Goal**: The project's central architectural bet is proven on real hardware, and the layer boundaries that protect it are enforced by the repo
-**Depends on**: Nothing (first phase)
-**Requirements**: ARCH-01
+### Phase 9: Run Telemetry & Storage v4
+**Goal**: The app records what happens during a run, so achievements, statistics and future balance work read real numbers instead of a throwaway bot
+**Depends on**: Nothing (builds on shipped v1.1)
+**Requirements**: N-STAT-01, N-STAT-02
 **Success Criteria** (what must be TRUE):
-  1. A dev-client build installs and runs on a real iOS device and on a named mid-range Android reference device, with the Skia version bet either confirmed on EAS or the documented fallback adopted and recorded
-  2. A `'worklet'`-marked pure TypeScript module imported across several files mutates a UI-runtime world object in place across frames inside `useFrameCallback`, in both dev and release builds
-  3. Several hundred dummy sprites recorded into an `SkPicture` hold 60 FPS on the reference Android device, readable from an in-app frame-time overlay behind a dev flag
-  4. `core/` imports nothing from React, Skia, or Reanimated and runs unchanged in Node under Vitest; the separation of logic, physics, rendering, input, and UI is a written, checkable contract
-**Plans:** 4 plans
+  1. A completed run contributes deterministic counters — bricks broken, best combo, power-ups caught, lives lost, ticks played, outcome — derived from the existing event ring, not from ad-hoc call sites sprinkled through the UI
+  2. Counters are aggregated lifetime and per level id, and survive an app kill
+  3. `ProgressBlob` v3 migrates to v4 without losing a single existing best score, star, or unlocked level; a v3 fixture round-trips through migration in a test
+  4. Corrupt or partial v4 data degrades to defaults rather than throwing, matching the existing parse contract
+  5. `hashWorld` and core simulation are untouched — telemetry reads events, it does not participate in the sim
+**Plans:** 5 plans (waves 0-3)
 Plans:
-- [x] 01-01-PLAN.md — Bootstrap Expo SDK 57, Node 24, Skia 2.12.0, EAS profiles
-- [x] 01-02-PLAN.md — core/ stub, Vitest smoke/purity, ESLint boundaries, layer contract
-- [x] 01-03-PLAN.md — Worklet loop + SkPicture harness + overlay + thin app host
-- [x] 01-04-PLAN.md — Device builds, FPS/worklet gates, Skia decision evidence
+- [x] 09-00-PLAN.md — Wave-0 it.todo test scaffolds for N-STAT-01/N-STAT-02 + v3 fixture builder
+- [x] 09-01-PLAN.md — Runtime event-ring reducer (src/runtime/runStats.ts) wired into useGameLoop.ts
+- [x] 09-02-PLAN.md — ProgressBlob v4 schema, fail-soft parse, extended migrate chain, telemetry merge helpers
+- [x] 09-03-PLAN.md — memoryStore.ts / asyncStorageStore.ts extended to the v4 recordRunEnd contract
+- [x] 09-04-PLAN.md — PlayingHost.tsx wiring (win/lose/abandon) + SC-5 verification + manual QA checkpoint
 **UI hint**: no
 
-### Phase 2: Headless Core Simulation
-**Goal**: Ball and paddle physics are correct, deterministic, and provably free of tunneling before any pixels exist
-**Depends on**: Phase 1
-**Requirements**: PHYS-02, PHYS-03, PHYS-04, PHYS-06
+### Phase 10: Seeded Board Generator
+**Goal**: A board can be generated from a seed and a difficulty number, and is as safe to play as a hand-authored one
+**Depends on**: Nothing
+**Requirements**: N-GEN-01, N-GEN-02, N-GEN-03
 **Success Criteria** (what must be TRUE):
-  1. The world advances only in fixed timesteps with a frame clamp and max-substep cap; the same inputs delivered in different frame chunkings produce an identical end state (golden-replay hash)
-  2. A property test fires balls at 2× the intended maximum speed through a dense brick grid with zero tunneling and zero missed collisions against paddle, walls, and bricks
-  3. Bounce direction is a function of the paddle-relative contact point, with clamps that prevent near-horizontal and near-vertical trajectories, verified by tests at the clamp edges
-  4. No React state is written during simulation, and `Math.random()` or wall-clock reads inside the simulation directory fail the build — all randomness comes from two seeded streams
-**Plans:** 6 plans
-Plans:
-- [x] 02-00-PLAN.md — Wave 0: fast-check install, ESLint RNG/clock bans, nested core boundaries
-- [x] 02-01-PLAN.md — World SoA + dual RNG + event ring + hashWorld + thin harness migration
-- [x] 02-02-PLAN.md — Swept CCD primitives (sweep/broadphase/integrate) + PHYS-02 unit tests
-- [x] 02-03-PLAN.md — Classic Breakout paddle english + PHYS-04 clamp tests
-- [x] 02-04-PLAN.md — stepWorld CCD loop + multi-HP/unbreakable + Intent finite guards
-- [x] 02-05-PLAN.md — 2× tunneling props + golden-replay + full suite gate
+  1. `generate(seed, difficulty)` returns a `LevelFileV1` and is pure — the same arguments produce byte-identical output across processes
+  2. Every generated board passes `checkSolvability` with zero unreachable breakables, asserted over a large sweep of seeds and difficulties, not a handful of samples
+  3. Every generated board fits the 360×640 playfield — the bug that shipped in `level-04`/`level-05` cannot recur through the generator
+  4. Difficulty is a single monotone input: higher values produce boards with non-decreasing authored weight (brick count and total HP), verified across the range
+  5. Generation uses only shipped verbs (multi-HP, steel, explosive) and respects the Mid-tier particle budget — no new brick type is introduced here
+  6. Generating a board allocates nothing on the render or simulation hot path; it runs once per board, off the worklet
+**Plans:** TBD
 **UI hint**: no
 
-### Phase 3: First Playable — Render, Input, Bricks, Lives, Pause
-**Goal**: A player can hold the phone and play a real rally — drag the paddle, aim a launch, break bricks, lose lives, pause and come back
-**Depends on**: Phase 2
-**Requirements**: PHYS-01, PHYS-05, RUN-02, PLT-01
+### Phase 11: Endless Mode
+**Goal**: A player can start a run that keeps producing boards until they lose, with a record worth chasing
+**Depends on**: Phase 10, Phase 9
+**Requirements**: N-END-01, N-END-02, N-END-03
 **Success Criteria** (what must be TRUE):
-  1. Dragging anywhere on the playfield moves the paddle by relative offset with tuned gain and light smoothing; the paddle never teleports to the finger on re-press, and control feels responsive on both platforms
-  2. At the start of each life the ball rides the paddle and the player launches it with an aimed tap/release; bricks take damage and disappear as the ball hits them
-  3. A player can deliberately aim the ball at a chosen brick within their first minute of play
-  4. A run ends with a clear win when the last breakable brick is destroyed and a clear lose when the last of three lives is spent
-  5. The player can pause and resume, and backgrounding the app mid-rally for 60+ seconds auto-pauses and resumes via countdown with no physics catch-up jump
-**Plans:** 6 plans
-Plans:
-- [x] 03-00-PLAN.md — Wave 0: pure drag/gate/freeze helpers + Vitest stubs
-- [x] 03-01-PLAN.md — Core dock/serve/lives/win + phase3Grid + stepRun
-- [x] 03-02-PLAN.md — Letterbox camera + entity SkPicture + GameCanvas
-- [x] 03-03-PLAN.md — Relative-drag Race(Pan,Tap) gesture hook
-- [x] 03-04-PLAN.md — useGameLoop Intent/stepRun + AppState freeze
-- [x] 03-05-PLAN.md — GameHost overlays + playable UAT checkpoint
+  1. Clearing a board advances to the next generated one within the same run — lives, score and combo carry over; the run ends only when lives reach zero
+  2. Difficulty rises with wave number through the generator's difficulty input, with the ramp written down rather than tuned by feel in code
+  3. Endless records (best wave, best score) are stored separately from campaign progress; playing endless cannot unlock, lock, or alter a campaign level's best or stars
+  4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
+  5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
+**Plans:** TBD
 **UI hint**: yes
 
-### Phase 4: Level Format & Brick Types
-**Goal**: Levels are data rather than code — versioned, validated, and expressive enough for the showpiece level and a future editor
-**Depends on**: Phase 3
-**Requirements**: LVL-01, LVL-02, LVL-03
+### Phase 12: Daily Challenge
+**Goal**: Every player gets the same board on the same day, once, and has a streak they would be annoyed to lose
+**Depends on**: Phase 10, Phase 9
+**Requirements**: N-DAILY-01, N-DAILY-02, N-DAILY-03
 **Success Criteria** (what must be TRUE):
-  1. A second, structurally different level file loads and plays with zero code changes
-  2. Invalid level files are rejected with actionable validation errors before play starts, and the runtime reads only the compiled form — never the authoring format
-  3. A level contains multiple brick types whose remaining hit points are readable through a non-color cue as well as colour
-  4. Unbreakable/structural bricks reflect the ball, never break, and never block the win condition
-  5. The format carries a version and a migration path, so level files authored today still load after the schema evolves
-**Plans:** 5 plans
-Plans:
-- [x] 04-00-PLAN.md — Wave 0: Nyquist stubs + invalid level fixtures
-- [x] 04-01-PLAN.md — schema/validate/migrations + loadAndCompile gate
-- [x] 04-02-PLAN.md — compile/apply + level-01/02 JSON + spatial SoA
-- [x] 04-03-PLAN.md — damageCues + Skia crack/hatch in recordFrame
-- [x] 04-04-PLAN.md — GameHost wire, LevelErrorOverlay, delete phase3Grid
-**UI hint**: no
-
-### Phase 5: Run Rules — Score, Combo, Power-ups, Anti-Stall
-**Goal**: The run rewards skill and risk-taking, and no rally can dead-end
-**Depends on**: Phase 3 (runs in parallel with Phase 4)
-**Requirements**: RUN-01, PWR-01, PWR-02, PWR-03, PHYS-07
-**Success Criteria** (what must be TRUE):
-  1. Consecutive brick hits without paddle contact raise a combo multiplier that resets on paddle contact, and the score visibly reflects it
-  2. Destroyed bricks can drop multi-ball and paddle-expand pickups, which apply only when caught on the paddle — nothing auto-collects
-  3. With several balls in play, a life is lost only when the last ball leaves the playfield
-  4. While the paddle is expanded, bounce angles respond the same way as at base width, because the angle mapping normalizes to the current width
-  5. A stalled rally escalates visibly and deterministically until it breaks out, with no random bounce jitter
-**Plans:** 7/7 plans complete
-Plans:
-- [x] 05-00-PLAN.md — Wave 0 Nyquist stubs for scoring/pickups/effects/multiball/stall/lives
-- [x] 05-01-PLAN.md — World SoA + constants + hash + ball-pool compact (activeBallCount)
-- [x] 05-02-PLAN.md — Score + combo from event ring (RUN-01, award-then-increment)
-- [x] 05-03-PLAN.md — Pickups, expand effects, multi-ball spawn (PWR-01/02/03 modules)
-- [x] 05-04-PLAN.md — Last-ball lives + stepRun orchestration
-- [x] 05-05-PLAN.md — Deterministic anti-stall tiers (PHYS-07)
-- [x] 05-06-PLAN.md — Score/combo/Stall! SharedValue chrome + flat pickups
-**UI hint**: no
-
-### Phase 6: UI Shell, HUD, Persistence & Platform Seams
-**Goal**: The game is wrapped in a real app — menus, HUD, instant retry, a high score that survives app kills, and clean seams for future monetization
-**Depends on**: Phase 5 (runs in parallel with Phase 7)
-**Requirements**: RUN-03, RUN-04, PLT-02, ARCH-02
-**Success Criteria** (what must be TRUE):
-  1. The player can retry instantly from pause or the lose screen with one tap and no confirmation dialog
-  2. The HUD shows score, combo, and lives, driven by discrete event mirrors rather than a React render per physics frame
-  3. A personal best survives force-quitting the app and is shown on the results screen, entirely offline
-  4. Playfield and UI lay out correctly with safe-area insets on a notched iPhone and on Android, across the target phone sizes
-  5. Ads, IAP, and account interfaces exist as no-op stubs with real call sites, and the whole game is playable in airplane mode
-**Plans**: 6 plans
-Plans:
-- [x] 06-00-PLAN.md — Wave 0: AsyncStorage 2.2.0, ESLint app→services, Nyquist stubs
-- [x] 06-01-PLAN.md — services/storage personal best (compare + AsyncStorage + GREEN tests)
-- [x] 06-02-PLAN.md — services/platform no-op seams (onRunEnded + GREEN tests)
-- [x] 06-03-PLAN.md — Title/PlayingHost shell + Menu on Pause/Results (RUN-03)
-- [x] 06-04-PLAN.md — HudStrip + playfieldSafe.top = insets.top + 48 (PLT-02)
-- [x] 06-05-PLAN.md — End-of-run persist + seams + Results Score/Best/New Record + UAT
+  1. The board is derived from the local calendar date alone — same date, same board, on any device, with no network call
+  2. The day's result (score, stars or wave, completed or not) is recorded once per date, and re-opening the app on the same date shows that result rather than regenerating a fresh attempt
+  3. A streak counter increases on consecutive played dates and resets on a gap, computed from stored dates rather than an incrementing counter that a crash could corrupt
+  4. Device clock changes are handled by an explicit, written policy — the behaviour on a backwards clock jump is a decision recorded in the phase, not an accident
+  5. Daily results never touch campaign progress or endless records
+**Plans:** TBD
 **UI hint**: yes
 
-### Phase 7: Feedback — Neon VFX & Audio
-**Goal**: Hits, breaks, and losses look and sound spectacular without ever hiding the ball or spending frame budget the game needs
-**Depends on**: Phase 5 (runs in parallel with Phase 6)
-**Requirements**: FX-01, FX-02, FX-03
+### Phase 13: Achievements
+**Goal**: The game notices what the player did and tells them, entirely offline
+**Depends on**: Phase 9
+**Requirements**: N-ACH-01, N-ACH-02, N-ACH-03
 **Success Criteria** (what must be TRUE):
-  1. The ball keeps a readable trail at maximum speed, and under reduced motion the trail degrades to a high-contrast minimum instead of vanishing
-  2. Brick destruction produces glow, pooled particles, and subtle shake inside a hard particle budget, and no effect obscures the paddle or ball long enough to cost the player a rally
-  3. One global intensity scalar — defaulting from the OS reduce-motion flag — scales every effect, and deleting the VFX layer leaves gameplay identical
-  4. Paddle hit, brick hit/break, power-up catch, life lost, win, and lose each play a distinct SFX aligned to the frame of impact, with rapid hits overlapping rather than cutting each other off
-  5. Every effect added is measured on the named Android reference device and stays inside the frame budget established in Phase 1
-**Plans**: 7 plans
-Plans:
-- [x] 07-00-PLAN.md — Wave 0: expo-audio, LC-07/vfx boundaries, SFX placeholders, Nyquist stubs
-- [x] 07-01-PLAN.md — EventCode POWERUP_CATCH/LIFE_LOST/WIN/LOSE + core push sites (FX-03)
-- [x] 07-02-PLAN.md — Pure src/vfx intensity/trails/particles/shake/event batch (FX-01/02)
-- [x] 07-03-PLAN.md — services/audio mapping + expo-audio pools (FX-03)
-- [x] 07-04-PLAN.md — Baked glow + recordFrame trails/particles/shake (FX-01/02)
-- [x] 07-05-PLAN.md — useGameLoop drain, eventBridge, intensity, PlayingHost preload
-- [x] 07-06-PLAN.md — Pixel 6a measurement doc + human UAT checkpoint
+  1. Achievements are declared as data — id, description, and a pure predicate over the telemetry snapshot — so adding one does not mean editing game code
+  2. Evaluation is deterministic and idempotent: re-evaluating an unlocked achievement does not re-fire it, and evaluating the same snapshot twice yields the same set
+  3. Unlocks persist across app kills and survive the storage migration contract
+  4. An unlock is surfaced to the player at a point that does not interrupt a live rally
+  5. The catalog covers the shipped verbs and all three modes (campaign, endless, daily), not just score thresholds
+**Plans:** TBD
 **UI hint**: yes
 
-### Phase 8: Showpiece Level, Performance Certification & Launch Baseline
-**Goal**: One authored challenge level, certified at 60 FPS on real hardware, with the store-compliance paperwork ready
-**Depends on**: Phase 4, Phase 6, Phase 7
-**Requirements**: LVL-04, PLT-03, PLT-04
+### Phase 14: Meta Shell — Mode Select, Stats & Achievements
+**Goal**: The new modes and the player's record are reachable and legible from the shell
+**Depends on**: Phase 9, Phase 11, Phase 12, Phase 13
+**Requirements**: N-STAT-03, N-UI-01, N-UI-02
 **Success Criteria** (what must be TRUE):
-  1. A hand-authored ~2–3 minute arcade challenge level plays with escalating difficulty phases and plateaus, and a first-time player wants to replay it to beat their score
-  2. Release builds hold 60 FPS on the named mid-range device through the worst-case frame — multi-ball with a maximum particle burst and combo shake — measured with platform profilers, not the React Native perf monitor
-  3. Device quality tiers cap particle count, trail length, and glow variants, with nothing in `core/` reading the tier
-  4. A mount/unmount soak test shows no worklet or game-loop leaks and no frame-time drift over an extended session
-  5. A public HTTPS privacy policy URL is live, the Play Data Safety form and age rating are complete, the iOS privacy manifest is present, the name is cleared, and every asset and level layout is originally authored
-**Plans:** 6/7 plans executed (device gate pending)
-Plans:
-- [x] 08-00-PLAN.md — Wave 0: expo-device, Nyquist stubs, cert/store doc stubs
-- [x] 08-01-PLAN.md — level-03 showpiece + default boot + DEV level switch (LVL-04)
-- [x] 08-02-PLAN.md — Low/Mid/High quality tiers + VfxCaps wiring (PLT-03 prep)
-- [x] 08-03-PLAN.md — Scripted worst-case cert harness + phase8-certification protocol (PLT-03 prep)
-- [x] 08-04-PLAN.md — DEV soak harness 100× + 15 min + audio lifecycle asserts (PLT-03 prep)
-- [x] 08-05-PLAN.md — Privacy policy HTTPS + privacyManifests + store paperwork (PLT-04)
-- [ ] 08-06-PLAN.md — Device Results recording + phase gate (PLT-03 evidence; closes Phase 7 gfxinfo debt)
-**UI hint**: no
+  1. Title offers campaign, endless and daily as distinct entries, with the daily entry showing whether today has been played
+  2. A statistics screen renders the lifetime and per-level telemetry from Phase 9 without recomputing it on every frame
+  3. An achievements screen shows locked and unlocked entries with their descriptions, and locked entries do not spoil the condition where that would ruin the surprise
+  4. New screens respect the existing shell contract: safe-area insets, dark palette, no ads/shop/login chrome, and `PlayingHost` still unmounts when not playing
+  5. Navigation between modes cannot leave a run mounted in the background consuming frame time
+**Plans:** TBD
+**UI hint**: yes
 
-## Progress
+## Carried Debt
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Inherited from the previous milestone and deliberately **not** scoped into this one.
+These are owner or device gated and stay open regardless of v1.2 progress. Listed so they
+stay visible, not because v1.2 will close them. Full context in [`MILESTONES.md`](./MILESTONES.md).
 
-Phases 4 and 5 may run in parallel (both depend only on Phase 3). Phases 6 and 7 may run in parallel (both depend on Phase 5). Phases 1 → 2 → 3 are strictly sequential: physics, game loop, and rendering integration must not be developed in parallel.
+| Item | Owner action needed |
+|------|---------------------|
+| §5d ceiling cert on a ramp build | Instruments on physical iPhone 16 Pro, capture past t=100s |
+| ASC uniqueness for "Pulse Paddle" | App Store Connect console check before listing |
+| N-OPS-01 Sentry DSN | `./scripts/set-sentry-dsn.sh`, then dashboard verify |
+| Owner sign-off on E2 curve + ramp feel | Play it and accept or reject |
+| Human playtest cohort | Nothing in v1.1 or v1.2 has been validated by a real player |
+| R-10 floor tier / R-12 tier resolver | Floor device + owner pick |
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Foundation & Thread-Boundary Spike | 4/4 | Complete (simulator waiver; D-04/D-05 MVP debt) | 2026-09-20 |
-| 2. Headless Core Simulation | 6/6 | Complete | 2026-09-20 |
-| 3. First Playable | 6/6 | Complete | 2026-09-20 |
-| 4. Level Format & Brick Types | 5/5 | Complete | 2026-09-20 |
-| 5. Run Rules | 7/7 | Complete | 2026-09-20 |
-| 6. UI Shell, HUD & Persistence | 6/6 | Complete | 2026-09-20 |
-| 7. Feedback — Neon VFX & Audio | 7/7 | Complete (Human UAT approved; Pixel 6a gfxinfo → Phase 8 debt) | 2026-09-21 |
-| 8. Showpiece Level & Launch Baseline | 6/7 | In Progress — PLT-03 device gate open (Plan 06) |  |
-
-## Coverage
-
-All 27 v1 requirements map to exactly one phase each. See REQUIREMENTS.md Traceability.
-
-| Phase | Requirements | Count |
-|-------|--------------|-------|
-| 1 | ARCH-01 | 1 |
-| 2 | PHYS-02, PHYS-03, PHYS-04, PHYS-06 | 4 |
-| 3 | PHYS-01, PHYS-05, RUN-02, PLT-01 | 4 |
-| 4 | LVL-01, LVL-02, LVL-03 | 3 |
-| 5 | RUN-01, PWR-01, PWR-02, PWR-03, PHYS-07 | 5 |
-| 6 | RUN-03, RUN-04, PLT-02, ARCH-02 | 4 |
-| 7 | FX-01, FX-02, FX-03 | 3 |
-| 8 | LVL-04, PLT-03, PLT-04 | 3 |
-| **Total** | | **27** |
-
----
-*Roadmap created: 2026-09-19*
+**v1.2 adds frame cost** (generation, more persisted state, more screens) on top of a
+ceiling cert that is already stale. Phase 10's budget criterion is the guard, but it is not
+a substitute for §5d.

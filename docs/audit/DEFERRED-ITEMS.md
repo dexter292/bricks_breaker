@@ -35,5 +35,5 @@ Orphan deferred items that need an explicit owner and Results surface before MVP
 ## Related
 
 - `.planning/STATE.md` — Deferred Items table
-- `.planning/phases/08-showpiece-level-performance-certification-launch-baseline/08-06-PLAN.md` — `<deferred_items>` block
+- `.planning/milestones/v1.0-phases/08-showpiece-level-performance-certification-launch-baseline/08-06-PLAN.md` — `<deferred_items>` block
 - `docs/audit/REMEDIATION-PLAN.md` — T3.4 / T8.2

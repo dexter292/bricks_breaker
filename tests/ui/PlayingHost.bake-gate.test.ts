@@ -38,10 +38,19 @@ describe('PlayingHost R-24 / R-26 bake gate (source contract)', () => {
 
   it('toggleDevLevel does not arm the loop itself (R-26)', () => {
     const m = code.match(
-      /const toggleDevLevel = useCallback\(\(\) => \{([\s\S]*?)\}, \[clearCountdown\]\)/,
+      /const toggleDevLevel = useCallback\(\(\) => \{([\s\S]*?)\}, \[/,
     );
     expect(m?.[1]).toBeTruthy();
     expect(m![1]).not.toMatch(/setActive\s*\(\s*true\s*\)/);
-    expect(m![1]).toMatch(/setLevelId/);
+    expect(m![1]).toMatch(/setLevelId|changeLevelId|onLevelIdChange/);
+  });
+
+  it('goNext / Next callback does not arm the loop (D-03 / R-24)', () => {
+    const m = code.match(
+      /const goNext = useCallback\(\(\) => \{([\s\S]*?)\}, \[/,
+    );
+    expect(m?.[1]).toBeTruthy();
+    expect(m![1]).not.toMatch(/setActive\s*\(\s*true\s*\)/);
+    expect(m![1]).toMatch(/runEndedRef\.current = false/);
   });
 });

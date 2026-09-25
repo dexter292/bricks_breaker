@@ -133,7 +133,7 @@ So với `098921a`: 32ms là một hack xấu nhưng cho UI runtime ~2 frame dun
 **Fix:** `npm i -D @types/react-dom@~19.2` — hoặc thêm cùng lúc với alias react-native-web ở §4.
 
 ### NL-4 — **LOW** — `forEachBrickCandidate` bị xóa mà không cập nhật các plan đặc tả nó — **đúng khuôn mẫu NH-7 vừa được sửa trong cùng commit này**
-`.planning/phases/02-headless-core-simulation/02-04-PLAN.md:109`, `:163`; `02-02-PLAN.md:99`; và `docs/audit/REMEDIATION-PLAN.md:96` (vẫn quy định regression test của F-47 là "test trực tiếp `forEachBrickCandidate`" — một test nay không thể tồn tại).
+`.planning/milestones/v1.0-phases/02-headless-core-simulation/02-04-PLAN.md:109`, `:163`; `02-02-PLAN.md:99`; và `docs/audit/REMEDIATION-PLAN.md:96` (vẫn quy định regression test của F-47 là "test trực tiếp `forEachBrickCandidate`" — một test nay không thể tồn tại).
 
 Symbol đã biến mất khỏi `src/` nhưng bốn tài liệu planning/remediation vẫn đặc tả nó là hợp đồng. Điểm nhẹ: verify tự động ở `02-04-PLAN.md:117` là một alternation grep nên vẫn pass nhờ `sweepCircleAabb` — gate không vỡ, nhưng gate cũng không còn kiểm cái nó tuyên bố.
 **Cùng lớp, còn sót từ chính fix NH-7:** `docs/audit/RELEASE-READINESS.md:56` vẫn liệt F-23 là nguyên nhân mở của gate G-8.

@@ -14,6 +14,7 @@
     "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-font": "~57.0.4",
+    "expo-haptics": "~57.0.3",
     "expo-keep-awake": "~57.0.2",
     "expo-linking": "~57.0.10",
     "expo-router": "~57.0.22",
@@ -56,14 +57,16 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint .",
-    "test": "vitest run && node scripts/assert-worklet-closures.mjs && node scripts/assert-level-solvability.mjs && node scripts/assert-eas-profiles.mjs",
+    "test": "vitest run && node scripts/assert-worklet-closures.mjs && node scripts/assert-level-solvability.mjs && node scripts/assert-eas-profiles.mjs && node scripts/assert-brand-name.mjs",
     "typecheck": "tsc --noEmit",
     "test:core": "vitest run src/core tests",
     "assert:skia": "node scripts/assert-skia-version.mjs",
     "assert:privacy-manifest": "node scripts/assert-privacy-manifest.mjs",
     "assert:worklets": "node scripts/assert-worklet-closures.mjs",
     "assert:solvability": "node scripts/assert-level-solvability.mjs",
-    "assert:eas-profiles": "node scripts/assert-eas-profiles.mjs"
+    "assert:eas-profiles": "node scripts/assert-eas-profiles.mjs && node scripts/assert-brand-name.mjs",
+    "assert:brand": "node scripts/assert-brand-name.mjs",
+    "gen:icons": "node scripts/gen-brand-icons.mjs"
   },
   "engines": {
     "node": ">=24 <25"

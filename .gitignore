@@ -44,3 +44,8 @@ example
 /ios
 /android
 coverage/
+
+# GSD executor worktrees (created per wave, merged back, then removed)
+.claude/worktrees/
+# GSD run-scoped dispatch sentinel
+.gsd/

@@ -6,24 +6,59 @@ type Props = {
   score: number;
   best: number;
   isNewRecord: boolean;
+  /** Win only — merged best stars after handleRunEnded (D-10). */
+  stars?: 1 | 2 | 3 | null;
   onRetry: () => void;
   onMenu: () => void;
+  /** Omit Next when null/undefined (D-11); do not show a gated-off control. */
+  onNext?: (() => void) | null;
 };
 
+function StarRow({ filled }: { filled: 1 | 2 | 3 }) {
+  const glyphs = [0, 1, 2].map((i) => ({
+    glyph: i < filled ? '★' : '☆',
+    filled: i < filled,
+  }));
+  return (
+    <View
+      style={styles.starsRow}
+      accessibilityLabel={`${filled} of 3 stars`}
+    >
+      {glyphs.map((g, i) => (
+        <Text
+          key={i}
+          style={[
+            styles.starGlyph,
+            g.filled ? styles.starFilled : styles.starEmpty,
+          ]}
+        >
+          {g.glyph}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 /**
- * Win / Lose overlay + Score/Best/New Record + Retry + Menu (UI-SPEC D-11).
- * No confirmation. Centered in safe area.
+ * Win / Lose overlay + Score/Best/New Record + Retry + Next? + Menu (UI-SPEC D-11/D-12).
+ * No confirmation. Centered in safe area. Next control omitted when gated off (D-11).
  */
 export function ResultOverlay({
   kind,
   score,
   best,
   isNewRecord,
+  stars,
   onRetry,
   onMenu,
+  onNext,
 }: Props) {
   const insets = useSafeAreaInsets();
   const isWin = kind === 'win';
+  const showNext = isWin && typeof onNext === 'function';
+  const showStars =
+    isWin && (stars === 1 || stars === 2 || stars === 3);
+
   return (
     <View
       style={[
@@ -44,6 +79,7 @@ export function ResultOverlay({
         <Text style={styles.body}>{isWin ? 'All clear' : 'Out of lives'}</Text>
         <Text style={styles.metric}>Score · {score}</Text>
         <Text style={styles.metric}>Best · {best}</Text>
+        {showStars ? <StarRow filled={stars} /> : null}
         {isNewRecord ? (
           <View style={styles.badge}>
             <Text style={styles.badgeLabel}>New Record</Text>
@@ -57,6 +93,16 @@ export function ResultOverlay({
         >
           <Text style={styles.buttonLabel}>Retry</Text>
         </Pressable>
+        {showNext ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Play next level"
+            onPress={onNext}
+            style={[styles.button, styles.buttonSpaced]}
+          >
+            <Text style={styles.buttonLabel}>Next</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Return to title"
@@ -113,6 +159,25 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: 8,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  starGlyph: {
+    fontFamily: 'SpaceMono',
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 24,
+  },
+  starFilled: {
+    color: '#FFFFFF',
+  },
+  starEmpty: {
+    color: '#6B7280',
   },
   badge: {
     alignSelf: 'center',

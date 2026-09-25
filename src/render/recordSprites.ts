@@ -3,6 +3,8 @@ import type { World } from '../core';
 import type { VfxState } from '../vfx';
 import { TRAIL_MAX } from '../vfx/types';
 import { trailLength } from '../vfx/intensity';
+import { ghostDrawFromLife } from '../vfx/brickGhosts';
+import { paddleSquashDrawSize } from '../vfx/paddleSquash';
 import type { OverlayMetrics } from './overlayMetrics';
 import { drawOverlay } from './recordOverlay';
 import type { GlowAtlas } from './textures/bakeGlowSprites';
@@ -43,6 +45,8 @@ type RecorderTools = {
   colorScratch: Float32Array;
   /** Cue strokes: [x0,y0,x1,y1] × up to 3 (F-17). */
   cueScratch: Float32Array;
+  /** Ghost/paddle draw pair — [scale,alpha] or [w,h]; no per-frame object alloc. */
+  pairScratch: Float32Array;
 };
 
 declare const global: typeof globalThis & {
@@ -68,6 +72,7 @@ function ensureRecorderTools(): RecorderTools {
     tools.entityRect == null ||
     tools.surfaceBounds == null ||
     tools.colorScratch == null ||
+    tools.pairScratch == null ||
     tools.srcRect == null ||
     tools.colExplosive == null ||
     tools.colPickupSlow == null ||
@@ -101,6 +106,7 @@ function ensureRecorderTools(): RecorderTools {
       colExplosive: makeColor4(0.976, 0.451, 0.086), // #F97316
       colorScratch: new Float32Array(4),
       cueScratch: new Float32Array(12),
+      pairScratch: new Float32Array(2),
     };
     global.__gameRecorderTools = tools;
   }
@@ -366,6 +372,45 @@ export function recordFrame(
   tools.paint.setStyle(0); // restore Fill
   tools.paint.setAlphaf(1);
 
+  // --- Brick destroy ghosts (flat fill only; under particles / paddle / ball) ---
+  // D-13 / Mid freeze: NO glow atlas blit on ghosts.
+  if (vfx != null && intensity > 0) {
+    const gCap = vfx.ghostCap;
+    const scratch = tools.colorScratch;
+    const pair = tools.pairScratch;
+    for (let gi = 0; gi < gCap; gi++) {
+      if (vfx.ghostActive[gi] === 0) {
+        continue;
+      }
+      ghostDrawFromLife(
+        vfx.ghostLife[gi],
+        vfx.ghostLifeMax[gi],
+        pair,
+      );
+      const scale = pair[0];
+      const alpha = pair[1];
+      const drawAlpha = alpha * intensity;
+      if (drawAlpha <= 0.001) {
+        continue;
+      }
+      const gw = vfx.ghostW[gi];
+      const gh = vfx.ghostH[gi];
+      const cx = vfx.ghostX[gi] + gw * 0.5;
+      const cy = vfx.ghostY[gi] + gh * 0.5;
+      const dw = gw * scale;
+      const dh = gh * scale;
+      scratch[0] = vfx.ghostR[gi];
+      scratch[1] = vfx.ghostG[gi];
+      scratch[2] = vfx.ghostB[gi];
+      scratch[3] = 1;
+      tools.paint.setColor(scratch);
+      tools.paint.setAlphaf(drawAlpha);
+      tools.entityRect.setXYWH(cx - dw * 0.5, cy - dh * 0.5, dw, dh);
+      canvas.drawRect(tools.entityRect, tools.paint);
+    }
+    tools.paint.setAlphaf(1);
+  }
+
   // --- Particles + destroy flash (under pickups / paddle / ball) ---
   if (vfx != null) {
     const cap = vfx.particleCap;
@@ -431,14 +476,31 @@ export function recordFrame(
     canvas.drawRect(tools.entityRect, tools.paint);
   }
 
-  // Paddle — X center-based, Y top of AABB
+  // Paddle — X center-based, Y top of AABB; cosmetic squash (FC-F04) never writes paddleW/H
   tools.paint.setColor(tools.colWhite);
-  const paddleHalfW = world.paddleW * 0.5;
+  tools.paint.setAlphaf(1);
+  let drawPW = world.paddleW;
+  let drawPH = world.paddleH;
+  if (vfx != null && vfx.paddleSquashT > 0) {
+    const pair = tools.pairScratch;
+    paddleSquashDrawSize(
+      world.paddleW,
+      world.paddleH,
+      vfx.paddleSquashT,
+      pair,
+    );
+    drawPW = pair[0];
+    drawPH = pair[1];
+  }
+  const paddleHalfW = drawPW * 0.5;
+  // Keep paddle top edge; squash height about vertical center of rect
+  const paddleTop =
+    world.paddleY + (world.paddleH - drawPH) * 0.5;
   tools.entityRect.setXYWH(
     world.paddleX - paddleHalfW,
-    world.paddleY,
-    world.paddleW,
-    world.paddleH,
+    paddleTop,
+    drawPW,
+    drawPH,
   );
   canvas.drawRect(tools.entityRect, tools.paint);
 

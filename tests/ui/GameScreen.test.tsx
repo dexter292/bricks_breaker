@@ -102,4 +102,57 @@ describe('GameScreen', () => {
     expect(screen.getByRole('button', { name: 'Retry level' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Return to title' })).toBeTruthy();
   });
+
+  it('result win + onNext: shows Next; without onNext omits it', () => {
+    const onNext = () => {};
+    render(
+      createElement(
+        GameScreen,
+        baseProps({
+          uiPhase: 'playing',
+          result: 'win',
+          stars: 2,
+          onNext,
+        }),
+      ),
+    );
+    expect(screen.getByRole('button', { name: 'Play next level' })).toBeTruthy();
+    expect(screen.getByLabelText('2 of 3 stars')).toBeTruthy();
+
+    cleanup();
+    render(
+      createElement(
+        GameScreen,
+        baseProps({
+          uiPhase: 'playing',
+          result: 'win',
+        }),
+      ),
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Play next level' }),
+    ).toBeNull();
+  });
+
+  it('result lose: Retry + Menu only, no Next', () => {
+    render(
+      createElement(
+        GameScreen,
+        baseProps({
+          uiPhase: 'playing',
+          result: 'lose',
+          onNext: () => {},
+          stars: 3,
+        }),
+      ),
+    );
+    expect(screen.getByText('Lose')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry level' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Return to title' }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Play next level' }),
+    ).toBeNull();
+  });
 });

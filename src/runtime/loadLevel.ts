@@ -21,7 +21,7 @@ export type LoadLevelResult =
   | { ok: false; issues: ValidationIssue[] };
 
 const LEVEL_MODULES: Record<LevelId, unknown> = {
-  // Metro static requires — keep literal paths (D-06 default is level-03).
+  // Metro static requires — keep literal paths (caller supplies LevelId).
   'level-01': require('../../assets/levels/level-01.json'),
   'level-03': require('../../assets/levels/level-03.json'),
   'level-04': require('../../assets/levels/level-04.json'),
@@ -30,9 +30,9 @@ const LEVEL_MODULES: Record<LevelId, unknown> = {
 };
 
 /**
- * Validate + compile a bundled level by id. Default id is level-03 (D-06).
+ * Validate + compile a bundled level by id (D-15 — no default; caller must pass LevelId).
  */
-export function loadLevelById(id: LevelId = 'level-03'): LoadLevelResult {
+export function loadLevelById(id: LevelId): LoadLevelResult {
   const raw = LEVEL_MODULES[id];
   return loadAndCompile(raw);
 }

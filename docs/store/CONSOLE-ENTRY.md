@@ -1,4 +1,4 @@
-# Store console entry checklist — Neon Brick Breaker
+# Store console entry checklist — Pulse Paddle
 
 Paste-ready answers for **App Store Connect** and **Google Play Console**.  
 **Status 2026-09-24:** answers locked in-repo. **Console fields not yet submitted.**
@@ -26,7 +26,7 @@ Sources: `play-data-safety.md`, `age-rating.md`, `privacy-policy.md`, `name-clea
 
 | Field | Value |
 |-------|--------|
-| App name | Neon Brick Breaker |
+| App name | Pulse Paddle |
 | Package name | `com.dexter292.bricksbreaker` |
 | Category | Game → Arcade / Casual |
 | Free / Paid | Free |
@@ -73,7 +73,7 @@ Use the live HTTPS URL from `HOSTING.md` (must include Contact `dexter@lkfnb.com
 
 | Field | Value |
 |-------|--------|
-| Name | Neon Brick Breaker *(or differentiated name if conflict at submit)* |
+| Name | Pulse Paddle *(cleared 2026-09-25; run console uniqueness before listing)* |
 | Bundle ID | `com.dexter292.bricksbreaker` |
 | Primary category | Games → Arcade |
 | Age | **4+** (`age-rating.md`) |

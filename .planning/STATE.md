@@ -1,17 +1,21 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: temporary_mvp_closed
-stopped_at: "C1 code complete — awaiting device UAT approved"
-last_updated: "2026-09-24T13:30:00.000Z"
-last_activity: 2026-09-24
+milestone: v1.2
+milestone_name: Retention & Replayability
+current_phase: '9'
+status: in_progress
+stopped_at: "Phase 9 VERIFIED on device (5/5 plans, 451 tests, both checkpoints pass). Next: Phase 10 seeded board generator"
+last_updated: "2026-09-25T13:40:00.000Z"
+last_activity: 2026-09-25
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 48
-  completed_plans: 47
-  percent: 98
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 5
+  percent: 100
+  phase_9_human_checkpoint: passed_2026_09_25
+  v1_0: closed_2026_09_24
+  v1_1_post_mvp: code_complete_2026_09_25_store_track_open
   phase_8_status: temporary_close
   phase_8_plans: 6/7
   plt_03: deferred_ios_first_d2b
@@ -19,9 +23,19 @@ progress:
   post_mvp_a3: skipped_owner
   post_mvp_b0: wont_do_tap_only
   post_mvp_b123: done
-  post_mvp_c1: code_complete_awaiting_uat
+  post_mvp_c1: uat_approved_2026_09_25
+  post_mvp_c2: done_2026_09_25
+  post_mvp_d1: done_2026_09_25
+  post_mvp_d1_cert: pending_section_5d
+  post_mvp_ceiling_rerun_bc2: pass_2026_09_25
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
+  post_mvp_e1b: done_2026_09_25
+  post_mvp_e2: done_with_debt_2026_09_25
+  post_mvp_d2: done_with_debt_2026_09_25
+  post_mvp_display_name: pulse_paddle
+  post_mvp_f45_speed_ramp: shipped_0_01_per_sec
+  post_mvp_owner_gates: skipped_by_owner_2026_09_25
 ---
 
 # Project State
@@ -31,12 +45,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **C1 code complete** (ProgressStore + host wire); **awaiting device UAT**. Next after approve: **C2**. Open ledger: display-name string, R-10 floor, R-12 tier, N-OPS-01 DSN.
+**Current focus:** **v1.2 — Retention & Replayability.** The game ends when the 5th level ends; v1.2 makes it outlast its authored content using shipped verbs and no backend. Phases 9–14: telemetry → seeded generator → endless → daily → achievements → meta shell. v1.1's owner/device debt (§5d on a ramp build, ASC uniqueness, Sentry DSN, cohort, R-10/R-12) is carried, not scoped.
 
 ## Current Position
 
-**TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** Device smoke for C1 — type `approved` or list issues (see C1-02 Task 3). Then **C2** level select.  
+**v1.2 PLANNED** — roadmap written, nothing planned or executed yet.  
+**Next:** `/gsd-discuss-phase 9` (Run Telemetry & Storage v4) — no dependencies, and phases 13/14 both need its counters. Phase 10 (generator) can run in parallel.  
+**Owner-gated, carried from v1.1:** §5d Instruments on a ramp build (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, human playtest cohort.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics
@@ -80,6 +95,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Phase 08 P02 | 3min | 2 tasks | 9 files |
 | Phase 08 P03 | 3min | 2 tasks | 5 files |
 | Phase 08 P04 | 2min | 2 tasks | 4 files |
+| Phase D1-juice-presentation P02 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -143,10 +159,25 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [Phase 08]: A1 lock: p50≤16.7ms; p95≤20ms OR ≤5% jank; RN Perf Monitor invalid
 - [Phase 08]: Soak dwell 750ms; continuous 15min; gated by __DEV__ && SOAK_HARNESS
 - [Phase 08]: Memory AudioService clears plays/cursors on release for soak lifecycle asserts
+- [D1-02]: expo-haptics ~57.0.3 via npx expo install; soft-fail mirrors ExpoAudio probe
+- [D1-02]: Local ImpactFeedbackStyle string consts for Vitest spies; no top-level native import
+- [D1-02]: PlayingHost fan-out deferred to Plan 03; owner rebuild required for device Taptic
+
+### Decisions (Post-MVP close)
+
+- [E1b]: B1 explosive shipped but was placed in zero levels — `E` now on a teaching curve across 03–06; `level-01` left byte-identical as the fundamentals/UAT baseline
+- [E2]: Campaign order is the difficulty curve, not file order — `01→04→05→06→03`, monotone in bricks and HP, pinned by test
+- [E2]: F-45 ramp shipped at 0.01/s as a speed **floor** before `stepAntiStall`, so tier-2 ×1.08 survives; SLOW unaffected (scales at integration)
+- [E2]: Score-band stars rejected — 3.3× score spread at identical bot skill means bands would measure ricochet luck
+- [D2]: Display name `Pulse Paddle`; display-only rename, bundle/slug/scheme unchanged; drift guarded by `assert-brand-name`
+- [D2]: Brand icons generated procedurally (Node `zlib` + hand-rolled PNG encoder) — no image dependency added
 
 ### Pending Todos
 
 - **Phase 8 Plan 06:** Pixel 6a gfxinfo + iPhone Instruments + device soak Results (PLT-03)
+- **§5d ceiling cert must now run on a ramp build** — E2 changed sustained ball speed; §5/§5b/§5c predate it. Set `SPEED_RAMP_PER_SECOND = 0` to reproduce the old baseline
+- **ASC console uniqueness for "Pulse Paddle"** — never run; old name's failure was an exact-title collision
+- **Owner sign-off on the E2 curve + ramp feel** — E2's stated acceptance, not obtained
 - Before MVP: discharge D2 (SC-2 release worklet mutation), D4 (iOS profiling re-run), D13 (`tsc --noEmit` gate)
 
 ### Blockers/Concerns
@@ -164,6 +195,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-21T12:33:15.574Z
-Stopped at: Ready for 08-06-PLAN.md (device gate)
+Last session: 2026-09-25T02:54:51.000Z
+Stopped at: Completed D1-02-PLAN.md (expo-haptics soft-fail service)
 Resume file: None

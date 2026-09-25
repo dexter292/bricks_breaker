@@ -49,12 +49,23 @@ import {
   type ChromeMirror,
 } from './publishChromeMirror';
 import {
+  createRunStatsMirror,
+  publishRunStatsMirror,
+  type RunStatsMirror,
+} from './publishRunStatsMirror';
+import {
   createCertMetricsMirror,
   publishCertMetricsMirror,
   type CertMetricsMirror,
 } from './publishCertMetricsMirror';
 import type { VfxBudget } from './resolveQualityTier';
 import { BUDGETS } from './resolveQualityTier';
+import {
+  allocateRunStats,
+  reduceRunTelemetry,
+  resetRunStats,
+  type RunStats,
+} from './runStats';
 import {
   applyCertWorstCaseInject,
   applyRetryWorldReset,
@@ -153,11 +164,26 @@ export type PlayBatchFn = (
 
 /** Host-owned HUD mirror — one SharedValue write per frame (F-25 / LC-07). */
 export type { ChromeMirror } from './publishChromeMirror';
+/** Run-telemetry mirror — in-place UI mutations cannot cross via `.value` (see module doc). */
+export type { RunStatsMirror } from './publishRunStatsMirror';
 /** CERT Metro metrics mirror — publish from UI thread; host reacts (R-20 / LC-07). */
 export type { CertMetricsMirror } from './publishCertMetricsMirror';
 
 export type GameLoopHandle = {
   world: SharedValue<World | null>;
+  /**
+   * N-STAT-01 per-run counters, accumulated **in place on the UI runtime**.
+   *
+   * JS must NOT read counters off this handle: Reanimated does not propagate in-place
+   * mutation of a held object across the bridge, so `runStats.value.bricksBroken` on the
+   * JS thread returns a stale value (device UAT: a run that broke bricks persisted 0).
+   * Read `runStatsOut` via the `runStatsSeq` reaction instead.
+   */
+  runStats: SharedValue<RunStats | null>;
+  /** JS-readable counter mirror — published from the UI thread, dirty-checked. */
+  runStatsOut: SharedValue<RunStatsMirror>;
+  /** Bumps when `runStatsOut` changes; host reacts and ships plain numbers to JS. */
+  runStatsSeq: SharedValue<number>;
   picture: SharedValue<SkPicture>;
   surfaceSize: SharedValue<SkSize>;
   setActive: (active: boolean) => void;
@@ -260,6 +286,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const world = useSharedValue<World | null>(null);
   const vfxSv = useSharedValue<VfxState | null>(null);
   const audioBatchSv = useSharedValue<AudioBatchSoA | null>(null);
+  /** N-STAT-01 run counters — lazily allocated on the first frame (D-01). */
+  const runStatsSv = useSharedValue<RunStats | null>(null);
+  // N-STAT-01: counters are mutated in place on the UI runtime, so JS cannot read them
+  // off `runStatsSv.value`. Mirror + seq, same as chrome/cert.
+  const runStatsOut = useSharedValue<RunStatsMirror>(createRunStatsMirror());
+  const runStatsSeq = useSharedValue(0);
   const flashSv = useSharedValue<DestroyFlashState>({
     x: 0,
     y: 0,
@@ -312,6 +344,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     let m = metrics.value;
     let vfx = vfxSv.value;
     let batch = audioBatchSv.value;
+    let stats = runStatsSv.value;
     if (!w) {
       w = allocateWorld();
       applyRetryWorldReset(w, compiled.value);
@@ -342,6 +375,10 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       batch = createAudioBatch();
       audioBatchSv.value = batch;
     }
+    if (!stats) {
+      stats = allocateRunStats();
+      runStatsSv.value = stats;
+    }
     if (!m) {
       m = createMetrics();
       metrics.value = m;
@@ -358,6 +395,16 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       flash.life = 0;
       flash.lifeMax = 0.1;
       resetAudioBatch(batch);
+      // D-01: every retry is a new run — zero counters in place (the local `stats`
+      // already holds this reference, so never reassign runStatsSv.value here).
+      const s = runStatsSv.value;
+      if (s) {
+        resetRunStats(s);
+        // Mirror must zero with it, or JS keeps reporting the previous run's counters.
+        if (publishRunStatsMirror(runStatsOut.value, s, 0) === 1) {
+          runStatsSeq.value = runStatsSeq.value + 1;
+        }
+      }
       launchFlag.value = 0;
       paddleTarget.value = w.paddleX;
       w.accumulator = 0;
@@ -401,6 +448,12 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         consumeEventsForVfx(w, vfx, intensity);
         appendEventsForAudio(w, batch);
         updateFlashFromEvents(w, flash);
+        // N-STAT-01: read-only counter fold, same live-ring window as the drains above.
+        reduceRunTelemetry(w, stats);
+        // Publish counters to JS (dirty-checked; bumps only when a counter moves).
+        if (publishRunStatsMirror(runStatsOut.value, stats, w.tick) === 1) {
+          runStatsSeq.value = runStatsSeq.value + 1;
+        }
         // F-16: ball death / compact remaps slots — wipe all rings so ghosts
         // cannot stick to a surviving ball that moved into a dead slot.
         const ballCount = w.activeBallCount;
@@ -538,6 +591,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     metrics,
     vfxSv,
     audioBatchSv,
+    runStatsSv,
+    runStatsOut,
+    runStatsSeq,
     compiled,
     paddleTarget,
     launchFlag,
@@ -681,6 +737,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
 
   return {
     world,
+    runStats: runStatsSv,
+    runStatsOut,
+    runStatsSeq,
     picture,
     surfaceSize,
     setActive,

@@ -1,6 +1,6 @@
 # iOS ceiling certification runbook (N-PLT-02 / A1)
 
-**Status:** **PASS** under owner-locked §5 bar (2026-09-24) — product **60 FPS** gate on `display-surface-swap` Δ  
+**Status:** **PASS** under §5 — historical `13018eb` (2026-09-24) · **Re-run PASS** post B+C2 (2026-09-25, §5c) — D1 execute unblocked  
 **Device:** iPhone 16 Pro (physical)  
 **Authority:** `docs/measurement-methodology.md` · `RELEASE-GATES` G2.16 · `docs/audit/A1-CEILING-ANALYSIS.md` (R-22 / R-23)  
 **Owner lock:** bar §5 (60 FPS + jank OR) — not the prior 120 Hz `p50≤8.33 / p95≤11` lock
@@ -73,6 +73,52 @@ Mid-tier A13–A15 60 Hz floor remains **NOT RUN (R-10)**. Do not fill floor PAS
 | Official (worse) | p95 ≈ **16.11** ms |
 | **Verdict (§5 bar)** | **PASS** — p50≤16.7 ✓; p95≤20 ✓; Hangs 0 ✓. Traces `/tmp/bricks-a1/a1-clean{1,2}.trace`. Distribution bimodal 50/50 @ ~8.3/~16.7 (see A1-CEILING-ANALYSIS §3.3) |
 | Notes | Owner locked §5 2026-09-24. Prior 120 Hz bar retired for G2.16. |
+
+### 5c. Re-run PASS — post Milestone B + C2 (D1 precondition B3)
+
+> **Why:** §5 PASS above is build `13018eb` (pre–Milestone B). B + C2 changed render/core/shell. Owner stamped **PASS** 2026-09-25 on current C2 tip (D1-CONTEXT B3).
+
+| Field | Value |
+|-------|--------|
+| Device | iPhone 16 Pro (physical) |
+| Build | post-B+C2 tip (owner session 2026-09-25; see git log / local Release+CERT) |
+| iOS version | _(owner device)_ |
+| Run 1 / Run 2 / worse | _(owner Instruments session — numbers on device/traces)_ |
+| **Verdict (§5 bar)** | **PASS** — owner stamp 2026-09-25 |
+| Notes | Debt from B+C2 closed for D1 gate; Mid freeze still applies; **post-D1 Cert WC required** (ghost quads = render-load delta) |
+
+- [x] Two ≥30s Cert WC Mid captures on 16 Pro (owner)  
+- [x] Worse run meets §5 (owner)  
+- [x] Floor still NOT RUN  
+- [x] Owner stamped PASS  
+
+**Stamp:** `Human ceiling re-run: PASS 2026-09-25`
+
+### 5c note — D1 second Cert (D-05) — **REQUIRED**
+
+§5c PASS (post B+C2) is retained as the pre-D1 baseline. **After D1 lands, run Instruments Cert WC again** — ghost quads are a real render-load delta even under Mid freeze:
+
+- Each `BRICK_BREAK` adds a flat ghost rect for ~150 ms after the live brick leaves `brickCount`
+- Cascade of 8 breaks → up to 8 extra quads for ~18 frames (cap 16, no glow)
+- Paddle squash changes draw size every frame while `paddleSquashT > 0`
+
+Haptics alone would not trigger a re-run (non-render). Ghosts + squash **do**. Do not treat Mid freeze as “skip Cert” — freeze caps particles/glow; it does not cancel §6 when draw load rises.
+
+**Stamp after D1 Cert:** append `Human ceiling re-run (post-D1): PASS|FAIL YYYY-MM-DD` under a new §5d when measured.
+
+**E2 raises the §5d bar (2026-09-25).** Phase E2 shipped the F-45 ball speed ramp
+(`SPEED_RAMP_PER_SECOND = 0.01`, `src/core/rules/speedRamp.ts`), so ball speed now climbs
+from 360 to the 720 cap over the first 100 s of every run. Sustained higher speed means
+more CCD iterations per frame, and **every figure in §5/§5b/§5c was measured without it**.
+
+- Physics *correctness* at speed is already covered — `PROP-TUNNEL` property-tests at 2×
+  `MAX_BALL_SPEED`, so the clamped ramp stays inside the tested envelope.
+- Frame *cost* at sustained high speed is **unproven**.
+
+§5d must therefore be measured on a build with the ramp active, and the capture window must
+extend past t = 100 s so the cap is actually reached. To measure the pre-E2 baseline
+instead, set `SPEED_RAMP_PER_SECOND = 0`. Rationale and the measurements behind the rate:
+[`BALANCE-E2.md`](./BALANCE-E2.md).
 
 ### 5b. App-loop health (2026-09-24)
 

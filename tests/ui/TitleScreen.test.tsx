@@ -7,6 +7,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
 import { TitleScreen } from '../../app/_components/TitleScreen';
+import { DISPLAY_NAME } from '../../app/_brand';
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
@@ -19,7 +20,7 @@ describe('TitleScreen', () => {
     const onPlay = vi.fn();
     render(createElement(TitleScreen, { best: 42, onPlay }));
 
-    expect(screen.getByText('Neon Brick Breaker')).toBeTruthy();
+    expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
     expect(screen.getByText('Best · 42')).toBeTruthy();
 
     const play = screen.getByRole('button', { name: 'Start game' });

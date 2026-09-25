@@ -6,6 +6,8 @@
 export const TRAIL_MAX = 5;
 export const PARTICLE_POOL_DEFAULT = 128;
 export const PARTICLE_POOL_HARD_MAX = 192;
+/** Cascade-safe ghost pool; separate from particleCap (D-01). */
+export const GHOST_CAP_DEFAULT = 16;
 export const CHIP_SPARKS_AT_1 = 4;
 export const DESTROY_SPARKS_AT_1 = 12;
 export const SHAKE_CAP = 2.5;
@@ -58,6 +60,23 @@ export type VfxState = {
   shakeAmp: number;
   /** Radians — advances in stepShake for oscillating camera offset (F-31). */
   shakePhase: number;
+
+  /** Brick destroy ghost pool (N-FX-01) — VFX-only; never World. */
+  ghostCap: number;
+  ghostX: Float32Array;
+  ghostY: Float32Array;
+  ghostW: Float32Array;
+  ghostH: Float32Array;
+  ghostR: Float32Array;
+  ghostG: Float32Array;
+  ghostB: Float32Array;
+  ghostLife: Float32Array;
+  ghostLifeMax: Float32Array;
+  ghostActive: Uint8Array;
+  /** Oldest-active cursor for FIFO eviction when pool full (D-14). */
+  ghostOldest: number;
+  /** Seconds remaining of paddle squash; 0 = idle (FC-F04). */
+  paddleSquashT: number;
 };
 
 /**
@@ -112,5 +131,19 @@ export function allocateVfx(caps?: VfxCaps): VfxState {
 
     shakeAmp: 0,
     shakePhase: 0,
+
+    ghostCap: GHOST_CAP_DEFAULT,
+    ghostX: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostY: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostW: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostH: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostR: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostG: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostB: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostLife: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostLifeMax: new Float32Array(GHOST_CAP_DEFAULT),
+    ghostActive: new Uint8Array(GHOST_CAP_DEFAULT),
+    ghostOldest: 0,
+    paddleSquashT: 0,
   };
 }

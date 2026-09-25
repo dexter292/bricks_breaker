@@ -9,6 +9,8 @@ import type { VfxState } from './types';
 import { IMPULSE_DESTROY, IMPULSE_LIFE_LOST } from './types';
 import { spawnBurst } from './particles';
 import { punchShake } from './shake';
+import { spawnBrickGhost } from './brickGhosts';
+import { punchPaddleSquash } from './paddleSquash';
 
 export type BrickRgb = { r: number; g: number; b: number };
 
@@ -120,6 +122,22 @@ export function consumeEventsForVfx(
         rng,
       });
       punchShake(vfx, IMPULSE_DESTROY, burstIntensity);
+      if (brickIndex >= 0 && brickIndex < world.brickCount) {
+        spawnBrickGhost(vfx, {
+          x: world.brickX[brickIndex],
+          y: world.brickY[brickIndex],
+          w: world.brickW[brickIndex],
+          h: world.brickH[brickIndex],
+          r: rgb.r,
+          g: rgb.g,
+          b: rgb.b,
+        });
+      }
+      continue;
+    }
+
+    if (code === EventCode.PADDLE_HIT) {
+      punchPaddleSquash(vfx);
       continue;
     }
 

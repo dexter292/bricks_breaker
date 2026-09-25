@@ -150,8 +150,16 @@ Plans:
 | Field | Content |
 |-------|---------|
 | **Goal** | N-LVL-02, N-PROG-03, N-PROG-04 |
-| **Deps** | C1 |
+| **Deps** | C1 (**device UAT before v3 migration**) |
 | **Acceptance** | Unlock/replay/stars correct for 5 levels |
+| **Plans** | 4 plans |
+| **Progress** | **Done** 2026-09-25 — Select + stars (lives) + Next; Progress v3; Human UAT approved |
+
+Plans:
+- [x] `C2-00-PLAN.md` — Wave 0: stars helpers + LevelBest types + Vitest stubs (progress-v3 / Select / Next-bake / Results)
+- [x] `C2-01-PLAN.md` — Wave 1: C1 UAT gate + ProgressBlob v3 parse/migrate/store + recordRunEnd
+- [x] `C2-02-PLAN.md` — Wave 2: SelectScreen + ShellPhase select + ResultOverlay stars/Next chrome
+- [x] `C2-03-PLAN.md` — Wave 3: required levelId + Next bake checklist + docs + device UAT / cert-arm smoke
 
 ---
 
@@ -161,8 +169,16 @@ Plans:
 | Field | Content |
 |-------|---------|
 | **Goal** | N-FX-01…03 |
-| **Deps** | Prefer after B; re-run ceiling Cert WC if budgets change |
-| **Acceptance** | Ball readable; no regression vs A1 |
+| **Deps** | Prefer after B; **ceiling Cert WC re-run after C2 BEFORE D1** (B3) — **§5c PASS 2026-09-25**; freeze Mid |
+| **Acceptance** | Ball readable; no regression vs A1; `hashWorld` unchanged; golden-replay green |
+| **Plans** | 4 plans |
+| **Progress** | **Done** 2026-09-25 — juice + haptics UAT approved; **post-D1 Cert WC still required** (§5d) |
+
+Plans:
+- [x] `D1-00-PLAN.md` — Wave 0: ghost/squash SoA + memory haptics coalesce + Nyquist stubs
+- [x] `D1-01-PLAN.md` — Wave 1: brick ghosts + paddle squash consume/step/draw (N-FX-01)
+- [x] `D1-02-PLAN.md` — Wave 2: expo-haptics ~57.0.3 + expo service soft-fail (N-FX-03)
+- [x] `D1-03-PLAN.md` — Wave 3: PlayingHost wire + ops docs + N-FX-02 harness locks + Human UAT approved 2026-09-25
 
 ### Phase D2 — Brand Surfaces
 | Field | Content |
@@ -170,6 +186,7 @@ Plans:
 | **Goal** | N-BRAND-02 under renamed display name |
 | **Deps** | A3 name string |
 | **Parallel?** | Yes early after A3 |
+| **Progress** | **Done** 2026-09-25 — display name **Pulse Paddle** (owner pick, no cohort pulse); `app/_brand.ts` single source + `assert-brand-name` gate; template Expo icon replaced by generated brand set; **verified on device** after native prebuild+rebuild. **ASC uniqueness for the new string NOT run** |
 
 ---
 
@@ -194,6 +211,7 @@ Plans:
 | **Deps** | B1/B2 (and B3 if fireball used in teaching boards) |
 | **Acceptance** | Playtest notes; lint still green on ship set |
 | **Parallel?** | With C/D |
+| **Progress** | **Done** 2026-09-25 — explosive was shipped by B1 but **placed in zero levels**; `E` now on a curve across 03–06 (sighting → steel immunity → chain → mastery), asserted on the shipped assets. Lint green; `level-02` still red. Playtest notes **skipped** (owner) |
 
 ### Phase E2 — Balance Pass
 | Field | Content |
@@ -201,6 +219,7 @@ Plans:
 | **Goal** | N-CNT-01…03 |
 | **Deps** | E1a (+ E1b if done) + cohort |
 | **Acceptance** | Owner sign-off on curve |
+| **Progress** | **Done (with debt)** 2026-09-25 — headless bot found the curve inverted (`level-03` = 2.7× `level-04` weight, sat at slot 2); reordered to `01→04→05→06→03`, monotone + pinned. **F-45 ramp SHIPPED** at 0.01/s: median clear 195→127s, 360s timeout gone, 20/20 won. N-CNT-02 **no change, on evidence** (3.3× score spread at equal skill ⇒ score bands premature). **Owner sign-off NOT obtained; §5d cert must be re-measured on a ramp build** |
 
 ---
 
@@ -234,8 +253,9 @@ Candidates: achievements; cosmetics; daily challenge; monetization **design then
 | ID | Status |
 |----|--------|
 | **R-10** | Floor mid-tier iOS NOT RUN — ceiling-only |
+| **§5d ceiling cert** | Open **and now harder** — E2 ramp changes sustained ball speed, so §5/§5b/§5c no longer describe ship |
 | **R-12** | Tier resolver RAM-only — N-TIER-01 Documented; **owner pick pending** (`QUALITY-TIER.md` lean #3+#6) |
-| **Display name string** | TBD — A3 / G2.15 |
+| **Display name string** | **Resolved 2026-09-25 → `Pulse Paddle`** (D2). ASC console uniqueness for it still **not run** |
 | **D3 final** | Pending A3 cohort data |
 | **N-OPS-01** | Pending owner Sentry DSN + dashboard event |
 
@@ -278,3 +298,11 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | **A3 SKIPPED** (owner) → **B0 Won’t-Do** tap-only; next **C1** GSD plan |
 | 2026-09-24 | **C1 Planned** — 3 plans (Wave 0 contracts → store/migrate → host wire) in `post-mvp/phases/C1-progress-storage/` |
 | 2026-09-24 | **C1 Done** — ProgressStore v2 + migrate; PlayingHost unlock-on-win + per-level Best; Title rollup; ops doc |
+| 2026-09-25 | **C2 Done** — Level Select + lives-stars (N-PROG-03) + Next/replay; Progress v3; Human UAT approved; ceiling re-run still pending (§6) |
+| 2026-09-25 | **D1 Context** — Mid freeze; cert after C2 before D1; haptics+batch; brick/paddle juice VFX-only; parallax deferred |
+| 2026-09-25 | **Ceiling re-run PASS** post B+C2 (owner) — D1 B3 gate cleared |
+| 2026-09-25 | **D1-03 code/docs** — PlayingHost haptics fan-out; `docs/ops/HAPTICS.md`; Mid freeze + §5c second-Cert note; N-FX-02 harness locks; Nyquist true — device smoke pending |
+| 2026-09-25 | **D1 Done** — Human UAT approved (juice + haptics feel); zero-alloc draw scratch + lint fix; **post-D1 Cert WC still required** (§5d) |
+| 2026-09-25 | **E1b Done** — explosive teaching curve placed across `level-03`…`level-06`; lint green; asserted on shipped assets |
+| 2026-09-25 | **E2 Done (debt)** — curve reordered `01→04→05→06→03`; F-45 ramp shipped at 0.01/s; score bands rejected on variance evidence; owner sign-off + §5d re-cert open |
+| 2026-09-25 | **D2 Done (debt)** — renamed to **Pulse Paddle**; brand icon set generated to replace Expo template art; ASC uniqueness for the new name not run |
