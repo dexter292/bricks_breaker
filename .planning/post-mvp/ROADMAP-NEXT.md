@@ -169,9 +169,16 @@ Plans:
 | Field | Content |
 |-------|---------|
 | **Goal** | N-FX-01…03 |
-| **Deps** | Prefer after B; **ceiling Cert WC re-run after C2 BEFORE D1** (B3); freeze Mid |
-| **Acceptance** | Ball readable; no regression vs A1; `hashWorld` unchanged |
-| **Progress** | Context gathered 2026-09-25 — `post-mvp/phases/D1-juice-presentation/` |
+| **Deps** | Prefer after B; **ceiling Cert WC re-run after C2 BEFORE D1** (B3) — **§5c PASS 2026-09-25**; freeze Mid |
+| **Acceptance** | Ball readable; no regression vs A1; `hashWorld` unchanged; golden-replay green |
+| **Plans** | 4 plans |
+| **Progress** | Planned 2026-09-25 — `post-mvp/phases/D1-juice-presentation/` |
+
+Plans:
+- [ ] `D1-00-PLAN.md` — Wave 0: ghost/squash SoA + memory haptics coalesce + Nyquist stubs
+- [ ] `D1-01-PLAN.md` — Wave 1: brick ghosts + paddle squash consume/step/draw (N-FX-01)
+- [ ] `D1-02-PLAN.md` — Wave 2: expo-haptics ~57.0.3 + expo service soft-fail (N-FX-03)
+- [ ] `D1-03-PLAN.md` — Wave 3: PlayingHost wire + ops docs + N-FX-02 harness locks + golden assert
 
 ### Phase D2 — Brand Surfaces
 | Field | Content |
