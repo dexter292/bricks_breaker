@@ -111,5 +111,41 @@ describe('haptics expo service (N-FX-03 Plan 02)', () => {
     }
   });
 
-  it.todo('PlayingHost playBatch fans out audio + haptics (≤1 scheduleOnRN hop)');
+  it('PlayingHost playBatch fans out audio + haptics (≤1 scheduleOnRN hop)', () => {
+    const hostPath = join(__dirname, '../app/_components/PlayingHost.tsx');
+    const host = readFileSync(hostPath, 'utf8');
+    expect(host).toMatch(/createDefaultHapticsService/);
+    expect(host).toMatch(/createMemoryHapticsService/);
+    expect(host).toMatch(/playFromBatch/);
+    expect(host).toMatch(/haptics\.release\s*\(/);
+    // Haptics must not gate on reduce-motion intensity SharedValue (D-10).
+    expect(host).not.toMatch(
+      /haptics[\s\S]{0,200}useVfxIntensity|playFromBatch[\s\S]{0,80}vfxIntensity/,
+    );
+    expect(host).not.toMatch(/scheduleOnRN\s*\(/);
+
+    // LC-07: sole call site is eventBridge (comments / docs elsewhere OK).
+    const roots = [
+      join(__dirname, '../src'),
+      join(__dirname, '../app'),
+    ];
+    const callSites: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, name.name);
+        if (name.isDirectory()) {
+          if (name.name === 'node_modules' || name.name === 'dist') continue;
+          walk(p);
+          continue;
+        }
+        if (!name.name.endsWith('.ts') && !name.name.endsWith('.tsx')) continue;
+        const src = readFileSync(p, 'utf8');
+        if (/\bscheduleOnRN\s*\(/.test(src)) {
+          callSites.push(p.replace(join(__dirname, '..') + '/', ''));
+        }
+      }
+    };
+    for (const r of roots) walk(r);
+    expect(callSites).toEqual(['src/runtime/eventBridge.ts']);
+  });
 });
