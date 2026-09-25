@@ -1,6 +1,6 @@
 ---
 phase: 09-run-telemetry-storage-v4
-status: partial
+status: passed
 tested_on: iPhone 17 simulator (iOS 26.5), Metro dev bundle
 tested: 2026-09-25
 ---
@@ -132,3 +132,60 @@ device. The D-09 wall-clock claim does not.
 2. Re-run checkpoint 2 — 20 s play / 20 s pause must yield ≈20 s, and `ticks` ≈2 400.
 3. Add a test asserting `uiPhaseSv` reaches `PAUSED` on the Pause press, since no existing
    test covers the freeze path.
+
+
+---
+
+# Correction — checkpoint 2 actually PASSES (2026-09-25, final)
+
+**The FAIL recorded above was my measurement error, not an app defect.** Retracted.
+
+## What was wrong with the measurement
+
+I labelled a `sleep 20` between two tool calls as "20 s of play". It is not. The game keeps
+running through every tool round-trip, so the real play window was far longer than the
+sleep. I then compared a ~39 s wall clock against a play window I had understated as 20 s
+and concluded the pause was being counted.
+
+The supporting argument was wrong too. I read `ticks` matching `wallClockMs` as proof the
+sim ran through the pause. It proves only that a fixed-timestep loop keeping up advances
+1:1 with wall time **while playing** — it says nothing about the paused interval.
+
+## Direct evidence that the loop does freeze
+
+Instrumented `setActive` and watched Metro across a pause:
+
+```
+[DIAG] setActive -> true      (level entered)
+[DIAG] setActive -> false     (Pause pressed)
+   ... 15 s paused, no further output ...
+```
+
+Nothing re-activated the loop. `onPause` → `setActive(false)` → `frameCallback.setActive(false)`
+works, and the gate effect at `PlayingHost.tsx:496` did not re-fire.
+
+## Re-measurement with real timestamps
+
+Wall-clock stamps taken in the shell, bracketing each simulator action:
+
+| Window | Measured |
+|---|---|
+| Play (T0 → T1) | 27.0 s |
+| Paused (T2 → T3) | 25.0 s |
+| Total elapsed (T0 → T3) | 60.7 s |
+| **`wallClockMs` recorded** | **34 820 ms (34.8 s)** |
+| `ticks` | 4176 → 34.8 s simulated |
+
+60.7 s elapsed − 25.0 s paused ≈ 35.7 s, against 34.8 s recorded. The pause is excluded.
+Had it been counted, the figure would have been ~60 s. **D-09 holds.**
+
+## Final verdict
+
+| Checkpoint | Result |
+|---|---|
+| 1 — abandoned-run flush + counters | **PASS** (after `59afd98`) |
+| 2 — wall clock excludes pause | **PASS** |
+
+**Phase 9 is verified on device.** The one real defect this UAT found — counters crossing
+UI→JS as zeros — is fixed and re-verified. The `brickDamage.ts` core change swept in by a
+bookkeeping commit was backed out separately.
