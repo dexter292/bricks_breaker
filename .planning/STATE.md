@@ -3,14 +3,14 @@ gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
 status: in_progress
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-09-25T14:40:07.911Z"
-state_head: ec6dc926cec5c50667561caea14b4ef81d340371
+stopped_at: Completed 11-04-PLAN.md
+last_updated: "2026-09-25T14:52:27.253Z"
+state_head: eed7a21259a0af21f53958596bf972d752420845
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 17
-  completed_plans: 14
+  completed_plans: 15
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -105,6 +105,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Phase 11 P01 | 15min | 3 tasks | 8 files |
 | Phase 11 P02 | 12min | 3 tasks | 8 files |
 | Phase 11 P03 | 12min | 2 tasks | 2 files |
+| Phase 11 P04 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,10 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [Phase 11]: D-11 implemented: recordRunEnd takes the RecordRunEndArgs discriminated union (campaign | endless); the endless arm has no levelId, so TypeScript narrowing forces the runtime mode gate to exist and SC-3 becomes a property of the type rather than a caller convention — A convention-only gate is one careless edit away from returning; the union is pinned by a @ts-expect-error that fails tsc if it ever collapses back to a flat type
 - [Phase 11]: D-12 implemented: ENDLESS_TELEMETRY_KEY is a plain string constant for byMode.endless, and LevelId was NOT widened — LevelId is the key type for bestByLevel and unlocked; admitting an endless value there is the exact SC-3 failure
 - [Phase 11]: EndlessRecord lives inside TelemetryBlob, never on ProgressBlob, and no version bump or migration was needed (PROGRESS_VERSION stays 4, migrateProgress.ts has a zero-line diff) — sanitizeTelemetry already validates telemetry independently of its siblings; that independence IS the SC-3 firewall, and defaultTelemetryBlob() makes an old key-less v4 blob default cleanly
+- [Phase 11]: The endless run driver is DUPLICATED into tests/endless.determinism.test.ts rather than lifted to tests/helpers/ — importing it from tests/endless.wave-loop.test.ts would re-register that file's eight suites inside the determinism file, and the fixture serves two test files, not the shipped code
+- [Phase 11]: D-04's guard is two tests and only 6a is load-bearing: lives immediately after each applyWaveAdvance must equal lives immediately before it. 6b (the MAX_LIVES cap) asserts a real life gain FIRST — in the 12-wave reference run lives first exceed 3 at wave 8 and reach exactly MAX_LIVES = 5 at wave 10 — because an un-exercised cap assertion is green regardless of whether anyone thought about D-04
+- [Phase 11]: SC-4 is scoped in the file that claims it: a DEVICE endless run is not replayable, because intent is read per substep from paddleTarget.value and substep count depends on wall-clock frame timing — nothing records the per-tick intent sequence. No literal hash or digest is pinned anywhere; every case is A-equals-B self-consistency or A-differs-from-B divergence, because an endless sequence is not a frozen corpus
+- [Phase 11]: The seed-divergence case asserts the divergence is a genuine HASH difference inside the shared boundary range, not merely a different run length — the plan's literal wording (differs at at least one boundary) would have been satisfied by the weaker claim
 
 ### Decisions (Post-MVP close)
 
@@ -211,6 +216,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-25T14:40:07.893Z
-Stopped at: Completed 11-03-PLAN.md
+Last session: 2026-09-25T14:51:55.029Z
+Stopped at: Completed 11-04-PLAN.md
 Resume file: None
