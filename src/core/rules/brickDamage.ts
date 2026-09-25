@@ -36,20 +36,41 @@ function brickLatticeCell(
 }
 
 /**
+ * 8-neighbor 1 HP cascade. Neighbor order: row −1…+1, within each row col −1…+1
+ * (skip self). Chains when a damaged neighbor is explosive and breaks.
+ */
+function explodeAtCell(
+  world: World,
+  centerC: number,
+  centerR: number,
+  centerIdx: number,
+): void {
+  'worklet';
+  const cols = world.gridCols;
+  const rows = world.gridRows;
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) {
+        continue;
+      }
+      const nr = centerR + dr;
+      const nc = centerC + dc;
+      if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) {
+        continue;
+      }
+      const nb = world.cellToBrick[nr * cols + nc];
+      if (nb < 0 || nb === centerIdx) {
+        continue;
+      }
+      const hx = world.brickX[nb] + world.brickW[nb] * 0.5;
+      const hy = world.brickY[nb] + world.brickH[nb] * 0.5;
+      applyBrickHpDamage(world, nb, hx, hy, false);
+    }
+  }
+}
+
+/**
  * Apply 1 HP of damage to a brick.
- *
- * An explosive break deals 1 HP to each 8-neighbour (row −1…+1, within each row
- * col −1…+1, skip self) and chains depth-first when a damaged neighbour is
- * itself explosive and breaks.
- *
- * The cascade runs on an explicit stack rather than by recursion: the worklets
- * Babel plugin rewrites each worklet's function declaration into a `var`
- * assignment and snapshots its closure at that point, so two worklets that call
- * each other can never both resolve — whichever is declared second is still
- * `undefined` when the first one's `__closure` is built, and the UI runtime
- * throws "undefined is not a function". Keeping the cascade inside one worklet
- * sidesteps that, and also bounds stack depth on the UI thread.
- *
  * @param fromBall when true, enforces ≤1 ball-HP per brick per step via brickDamagedThisStep.
  *                 AoE cascade passes false so a brick can take ball + AoE in one step.
  */
@@ -61,94 +82,46 @@ export function applyBrickHpDamage(
   fromBall: boolean,
 ): void {
   'worklet';
-  const cols = world.gridCols;
-  const rows = world.gridRows;
+  if (bIdx < 0 || bIdx >= world.brickCount) {
+    return;
+  }
+  if (world.brickHp[bIdx] <= 0) {
+    return;
+  }
 
-  // Pending explosion centres, stride 4: [cellC, cellR, brickIdx, nextNeighbour].
-  // Allocated on the first explosion so plain hits stay allocation-free.
-  let stack: number[] | null = null;
+  const flags = world.brickFlags[bIdx];
+  const unbreakable = (flags & BrickFlags.UNBREAKABLE) !== 0;
 
-  let tIdx = bIdx;
-  let tHx = hx;
-  let tHy = hy;
-  let tFromBall = fromBall;
-  let hasTarget = true;
-
-  for (;;) {
-    if (hasTarget) {
-      hasTarget = false;
-      const i = tIdx;
-      if (i >= 0 && i < world.brickCount && world.brickHp[i] > 0) {
-        const flags = world.brickFlags[i];
-
-        if ((flags & BrickFlags.UNBREAKABLE) !== 0) {
-          if (tFromBall && world.brickDamagedThisStep[i] === 0) {
-            world.brickDamagedThisStep[i] = 1;
-            pushEvent(world, EventCode.BRICK_HIT, world.brickHp[i], i, tHx, tHy);
-          }
-        } else if (tFromBall && world.brickDamagedThisStep[i] !== 0) {
-          // Already took its one ball HP this step.
-        } else {
-          if (tFromBall) {
-            world.brickDamagedThisStep[i] = 1;
-          }
-          const hpBefore = world.brickHp[i];
-          let hp = hpBefore - 1;
-          if (hp < 0) {
-            hp = 0;
-          }
-          world.brickHp[i] = hp;
-
-          if (hp <= 0) {
-            pushEvent(world, EventCode.BRICK_BREAK, hpBefore, i, tHx, tHy);
-            const cell = brickLatticeCell(world, i);
-            clearBrickFromLattice(world, i);
-            if ((flags & BrickFlags.EXPLOSIVE) !== 0 && cell != null) {
-              if (stack === null) {
-                stack = [];
-              }
-              stack.push(cell.c, cell.r, i, 0);
-            }
-          } else {
-            pushEvent(world, EventCode.BRICK_HIT, hpBefore, i, tHx, tHy);
-          }
-        }
-      }
-      continue;
+  if (unbreakable) {
+    if (fromBall && world.brickDamagedThisStep[bIdx] === 0) {
+      world.brickDamagedThisStep[bIdx] = 1;
+      pushEvent(world, EventCode.BRICK_HIT, world.brickHp[bIdx], bIdx, hx, hy);
     }
+    return;
+  }
 
-    if (stack === null) {
+  if (fromBall) {
+    if (world.brickDamagedThisStep[bIdx] !== 0) {
       return;
     }
-    const top = stack.length - 4;
-    if (top < 0) {
-      return;
-    }
+    world.brickDamagedThisStep[bIdx] = 1;
+  }
 
-    const k = stack[top + 3];
-    if (k >= 9) {
-      stack.length = top;
-      continue;
-    }
-    stack[top + 3] = k + 1;
-    if (k === 4) {
-      continue; // dr === 0 && dc === 0 — skip self
-    }
+  const hpBefore = world.brickHp[bIdx];
+  let hp = hpBefore - 1;
+  if (hp < 0) {
+    hp = 0;
+  }
+  world.brickHp[bIdx] = hp;
 
-    const nr = stack[top + 1] + (((k / 3) | 0) - 1);
-    const nc = stack[top] + ((k % 3) - 1);
-    if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) {
-      continue;
+  if (hp <= 0) {
+    pushEvent(world, EventCode.BRICK_BREAK, hpBefore, bIdx, hx, hy);
+    const cell = brickLatticeCell(world, bIdx);
+    clearBrickFromLattice(world, bIdx);
+    if ((flags & BrickFlags.EXPLOSIVE) !== 0 && cell != null) {
+      explodeAtCell(world, cell.c, cell.r, bIdx);
     }
-    const nb = world.cellToBrick[nr * cols + nc];
-    if (nb < 0 || nb === stack[top + 2]) {
-      continue;
-    }
-
-    tIdx = nb;
-    tHx = world.brickX[nb] + world.brickW[nb] * 0.5;
-    tHy = world.brickY[nb] + world.brickH[nb] * 0.5;
-    tFromBall = false;
-    hasTarget = true;
+  } else {
+    pushEvent(world, EventCode.BRICK_HIT, hpBefore, bIdx, hx, hy);
   }
 }
