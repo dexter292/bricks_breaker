@@ -1,5 +1,11 @@
-// tests/vfx.brick-ghosts.test.ts — N-FX-01 brick ghost SoA (Wave 0)
+// tests/vfx.brick-ghosts.test.ts — N-FX-01 brick ghost SoA (Wave 0 + Plan 01 wire)
 import { describe, it, expect } from 'vitest';
+import {
+  allocateWorld,
+  pushEvent,
+  clearEvents,
+  EventCode,
+} from '../src/core';
 import {
   allocateVfx,
   GHOST_CAP_DEFAULT,
@@ -11,6 +17,10 @@ import {
   spawnBrickGhost,
   stepBrickGhosts,
 } from '../src/vfx/brickGhosts';
+import { consumeEventsForVfx } from '../src/vfx/consumeEvents';
+import { stepVfx } from '../src/vfx/stepVfx';
+import { countActiveParticles } from '../src/vfx/particles';
+import { IMPULSE_DESTROY } from '../src/vfx/types';
 
 function countActiveGhosts(vfx: ReturnType<typeof allocateVfx>): number {
   let n = 0;
@@ -102,8 +112,72 @@ describe('vfx brick ghosts (N-FX-01 Wave 0)', () => {
     expect(countActiveGhosts(vfx)).toBe(0);
   });
 
-  it.todo(
-    'consumeEventsForVfx: each BRICK_BREAK spawns a ghost (incl. cascade members)',
-  );
+  it('consumeEventsForVfx: 1× BRICK_BREAK → 1 ghost; spawnBurst + shake still fire', () => {
+    const world = allocateWorld();
+    world.brickCount = 1;
+    world.brickHp[0] = 0;
+    world.brickFlags[0] = 0;
+    world.brickX[0] = 40;
+    world.brickY[0] = 80;
+    world.brickW[0] = 32;
+    world.brickH[0] = 14;
+    clearEvents(world);
+
+    const vfx = allocateVfx();
+    pushEvent(world, EventCode.BRICK_BREAK, 1, 0, 56, 87);
+    consumeEventsForVfx(world, vfx, 1.0, { rng: () => 0.5 });
+
+    expect(countActiveGhosts(vfx)).toBe(1);
+    const slot = vfx.ghostActive.findIndex((a) => a !== 0);
+    expect(vfx.ghostX[slot]).toBe(40);
+    expect(vfx.ghostY[slot]).toBe(80);
+    expect(vfx.ghostW[slot]).toBe(32);
+    expect(vfx.ghostH[slot]).toBe(14);
+    expect(countActiveParticles(vfx)).toBe(12);
+    expect(vfx.shakeAmp).toBeCloseTo(IMPULSE_DESTROY, 5);
+  });
+
+  it('consumeEventsForVfx: 8× BRICK_BREAK cascade → 8 ghosts active', () => {
+    const world = allocateWorld();
+    world.brickCount = 8;
+    clearEvents(world);
+    for (let i = 0; i < 8; i++) {
+      world.brickHp[i] = 0;
+      world.brickFlags[i] = 0;
+      world.brickX[i] = i * 10;
+      world.brickY[i] = 50 + i;
+      world.brickW[i] = 28;
+      world.brickH[i] = 12;
+      pushEvent(world, EventCode.BRICK_BREAK, 1, i, i * 10 + 14, 56);
+    }
+
+    const vfx = allocateVfx();
+    consumeEventsForVfx(world, vfx, 1.0, { rng: () => 0.5 });
+    expect(countActiveGhosts(vfx)).toBe(8);
+  });
+
+  it('stepVfx over GHOST_LIFE_MAX → ghosts inactive', () => {
+    const world = allocateWorld();
+    world.brickCount = 1;
+    world.brickHp[0] = 0;
+    world.brickFlags[0] = 0;
+    world.brickX[0] = 10;
+    world.brickY[0] = 20;
+    world.brickW[0] = 8;
+    world.brickH[0] = 4;
+    clearEvents(world);
+    pushEvent(world, EventCode.BRICK_BREAK, 1, 0, 14, 22);
+
+    const vfx = allocateVfx();
+    consumeEventsForVfx(world, vfx, 1.0, { rng: () => 0.5 });
+    expect(countActiveGhosts(vfx)).toBe(1);
+
+    const steps = Math.ceil(GHOST_LIFE_MAX / 0.02) + 2;
+    for (let i = 0; i < steps; i++) {
+      stepVfx(vfx, 0.02, 1);
+    }
+    expect(countActiveGhosts(vfx)).toBe(0);
+  });
+
   it.todo('recordSprites draws ghosts under ball; flat fill only');
 });
