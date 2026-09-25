@@ -32,6 +32,7 @@ import {
   type PlayBatchFn,
 } from '../../src/runtime/useGameLoop';
 import { useVfxIntensity } from '../../src/runtime/useVfxIntensity';
+import { cloneRunStats, type RunStats } from '../../src/runtime/runStats';
 import {
   readDeviceMemory,
   resolveQualityTier,
@@ -48,11 +49,42 @@ import { triggerTestCrash } from '../../src/services/crashReporting';
 import {
   PLAYABLE_LEVEL_ORDER,
   createDefaultProgressStore,
-  defaultRunStatsInput,
   evaluatePersonalBest,
   isUnlocked,
   nextLevelId,
+  type RunStatsInput,
 } from '../../src/services/storage';
+
+/**
+ * Map the runtime reducer's `RunStats` onto the storage layer's `RunStatsInput`
+ * (N-STAT-01 -> N-STAT-02). Field-by-field on purpose, never a spread:
+ *   - `rallyCurrent` is runtime-internal live bookkeeping and must not leak into the
+ *     persisted shape;
+ *   - `longestRally` (survival streak) and `bestCombo` (aggression streak) stay
+ *     DISTINCT — D-10 forbids collapsing them;
+ *   - `ticksPlayed` / `wallClockMs` are app-layer reads the reducer deliberately does
+ *     not carry (runStats.ts pitfall 2, D-09).
+ */
+function buildRunStatsInput(
+  raw: RunStats,
+  ticksPlayed: number,
+  wallClockMs: number,
+): RunStatsInput {
+  return {
+    bricksBroken: raw.bricksBroken,
+    bestCombo: raw.bestCombo,
+    pickupMultiball: raw.pickupMultiball,
+    pickupExpand: raw.pickupExpand,
+    pickupExtraLife: raw.pickupExtraLife,
+    pickupSlow: raw.pickupSlow,
+    pickupFireball: raw.pickupFireball,
+    livesLost: raw.livesLost,
+    longestRally: raw.longestRally,
+    largestCascade: raw.largestCascade,
+    ticksPlayed,
+    wallClockMs,
+  };
+}
 
 /** F-18 — release baked SkImages so remount / level change does not leak GPU memory. */
 function disposeGlowAtlas(atlas: GlowAtlas | null | undefined): void {
@@ -208,6 +240,27 @@ export function PlayingHost({
   }, []);
   const previousBestRef = useRef(0);
   const runEndedRef = useRef(false);
+  /**
+   * D-09 wall clock — PLAY time, not elapsed time. `runStartedAtRef` marks the start
+   * of the current play segment; `runWallClockMsRef` banks segments already closed.
+   * Leaving 'playing' (Pause button, or the AppState background transition routed
+   * through `onOsPause`) closes a segment, so paused time never enters the total.
+   * Ticks remain the separate simulated-time answer — D-09 stores both.
+   *
+   * Seeded 0, not `Date.now()`: `react-hooks/purity` forbids an impure call during
+   * render, and the seed is never read — `wallClockActiveRef` starts false, and the
+   * uiPhase effect stamps a real start the moment a segment opens.
+   */
+  const runStartedAtRef = useRef(0);
+  const runWallClockMsRef = useRef(0);
+  const wallClockActiveRef = useRef(false);
+  /** This run's play-only wall clock, including the live segment if one is open. */
+  const readRunWallClockMs = useCallback(() => {
+    const live = wallClockActiveRef.current
+      ? Date.now() - runStartedAtRef.current
+      : 0;
+    return runWallClockMsRef.current + live;
+  }, []);
   /** Cold-path: SFX + glow bake key — see loadKey / bakedKey below (NH-5). */
   const [bakedKey, setBakedKey] = useState('');
 
@@ -299,6 +352,18 @@ export function PlayingHost({
           ? UiPhaseNum.PAUSED
           : UiPhaseNum.COUNTDOWN;
     uiPhaseSv.value = mapped;
+    // D-09: the wall clock runs only while the sim does. Entering 'playing' opens a
+    // segment; anything else (pause, OS background via onOsPause, resume countdown)
+    // banks it — so a 30s pause adds 0ms, not 30000ms.
+    if (uiPhase === 'playing') {
+      if (!wallClockActiveRef.current) {
+        wallClockActiveRef.current = true;
+        runStartedAtRef.current = Date.now();
+      }
+    } else if (wallClockActiveRef.current) {
+      wallClockActiveRef.current = false;
+      runWallClockMsRef.current += Date.now() - runStartedAtRef.current;
+    }
   }, [uiPhase, uiPhaseSv]);
 
   const onOsPause = useCallback(() => {
@@ -315,23 +380,32 @@ export function PlayingHost({
     camScale,
   });
 
-  const { picture, surfaceSize, setActive, retry, injectCertWorstCase, certOut, certSeq } =
-    useGameLoop({
-      paddleTarget,
-      launchFlag,
-      uiPhase: uiPhaseSv,
-      chromeOut: chromeSv,
-      chromeSeq,
-      compiled: compiledSv,
-      onOsPause,
-      vfxIntensity,
-      playBatch: playBatchOnJS,
-      glowAtlas: glowAtlasSv,
-      vfxBudget,
-      drawOverlayFlag: PERF_OVERLAY || CERT_HARNESS,
-      hudFont: hudFont ?? null,
-      certMetricsLog: CERT_HARNESS,
-    });
+  const {
+    picture,
+    surfaceSize,
+    setActive,
+    retry,
+    injectCertWorstCase,
+    certOut,
+    certSeq,
+    runStats,
+    world,
+  } = useGameLoop({
+    paddleTarget,
+    launchFlag,
+    uiPhase: uiPhaseSv,
+    chromeOut: chromeSv,
+    chromeSeq,
+    compiled: compiledSv,
+    onOsPause,
+    vfxIntensity,
+    playBatch: playBatchOnJS,
+    glowAtlas: glowAtlasSv,
+    vfxBudget,
+    drawOverlayFlag: PERF_OVERLAY || CERT_HARNESS,
+    hudFont: hudFont ?? null,
+    certMetricsLog: CERT_HARNESS,
+  });
   const setActiveRef = useRef(setActive);
   useEffect(() => {
     setActiveRef.current = setActive;
@@ -453,7 +527,12 @@ export function PlayingHost({
 
   // Cold path only — never await inside useAnimatedReaction / frame callback.
   const handleRunEnded = useCallback(
-    (runScore: number, outcome: 'win' | 'lose', livesRemaining: number) => {
+    (
+      runScore: number,
+      outcome: 'win' | 'lose' | 'abandoned',
+      livesRemaining: number,
+      stats: RunStatsInput,
+    ) => {
       const previous = previousBestRef.current;
       const { best, isNewRecord: record } = evaluatePersonalBest(
         runScore,
@@ -461,16 +540,16 @@ export function PlayingHost({
       );
       // Sync memory merge score/stars/unlock; void persist inside store (D-10).
       // `mode`/`stats` are required by the v4 store contract (Phase 9 Plan 02).
-      // Campaign is the only mode this phase writes (D-04); the all-zero stats are
-      // a placeholder Plan 04 replaces with the real per-run reducer output
-      // (N-STAT-01) once PlayingHost drains run counters.
+      // Campaign is the only mode this phase writes (D-04). `stats` now carries the
+      // real per-run reducer output (N-STAT-01), snapshotted by the caller at the run
+      // boundary — win, lose and abandon all land on this single call site (C2).
       const blob = store.recordRunEnd({
         levelId,
         mode: 'campaign',
         score: runScore,
         outcome,
         livesRemaining,
-        stats: defaultRunStatsInput(),
+        stats,
       });
       setResultBest(best);
       setIsNewRecord(record);
@@ -494,13 +573,33 @@ export function PlayingHost({
       } else {
         setNextGateId(null);
       }
-      const payload = { score: runScore, outcome, isNewRecord: record };
-      platform.ads.onRunEnded(payload);
-      platform.purchases.onRunEnded(payload);
-      platform.accounts.onRunEnded(payload);
+      // RunEndedPayload is deliberately a win/lose concept: abandoning to the Menu is
+      // telemetry, not a monetization beat. Narrowing here keeps the existing platform
+      // contract untouched and stops an interstitial firing on a Menu tap.
+      if (outcome !== 'abandoned') {
+        const payload = { score: runScore, outcome, isNewRecord: record };
+        platform.ads.onRunEnded(payload);
+        platform.purchases.onRunEnded(payload);
+        platform.accounts.onRunEnded(payload);
+      }
     },
     [platform, store, levelId],
   );
+
+  /**
+   * Snapshot this run's counters at the run boundary. One helper, three outcomes —
+   * `cloneRunStats(runStats.value)` copies off the SharedValue before the next retry
+   * zeroes it in place (D-01: every retry is a new run), `world.value.tick` is the
+   * simulated-time read, and `readRunWallClockMs()` the play-only wall clock (D-09).
+   */
+  const snapshotRunStats = useCallback((): RunStatsInput => {
+    const w = world.value;
+    return buildRunStatsInput(
+      cloneRunStats(runStats.value),
+      w ? w.tick : 0,
+      readRunWallClockMs(),
+    );
+  }, [runStats, world, readRunWallClockMs]);
 
   const applyChrome = useCallback(
     (mirror: ChromeMirror) => {
@@ -512,21 +611,36 @@ export function PlayingHost({
       if (mirror.phase === SIM.WON) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
-          handleRunEnded(mirror.score, 'win', mirror.lives);
+          handleRunEnded(mirror.score, 'win', mirror.lives, snapshotRunStats());
         }
         setResult('win');
         setActive(false);
       } else if (mirror.phase === SIM.LOST) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
-          handleRunEnded(mirror.score, 'lose', mirror.lives);
+          handleRunEnded(mirror.score, 'lose', mirror.lives, snapshotRunStats());
         }
         setResult('lose');
         setActive(false);
       }
     },
-    [handleRunEnded, setActive],
+    [handleRunEnded, setActive, snapshotRunStats],
   );
+
+  /**
+   * THE single abandon funnel (T-09-10). Both existing exit-to-Menu paths — the Android
+   * hardware-back handler and the GameScreen `onMenu` prop — route through here, so no
+   * third detection site exists. Reuses the SAME `runEndedRef` the WON/LOST branches
+   * set, which is what makes a run impossible to record twice: whichever boundary
+   * fires first wins, and a finished run leaving to Menu records nothing extra.
+   */
+  const handleMenuPress = useCallback(() => {
+    if (!runEndedRef.current) {
+      runEndedRef.current = true;
+      handleRunEnded(score, 'abandoned', lives, snapshotRunStats());
+    }
+    onMenu();
+  }, [score, lives, handleRunEnded, snapshotRunStats, onMenu]);
 
   // Single chrome bridge (F-25 / NF-8): react to chromeSeq scalar only — no per-frame tuple alloc.
   useAnimatedReaction(
@@ -609,6 +723,10 @@ export function PlayingHost({
     setNextGateId(null);
     setResultBest(previousBestRef.current);
     runEndedRef.current = false;
+    // D-01: every retry is a NEW run — counters and wall clock both start at zero.
+    runStartedAtRef.current = Date.now();
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
     setLives(3);
     setScore(0);
     setCombo(1);
@@ -640,6 +758,10 @@ export function PlayingHost({
     setResultStars(null);
     setNextGateId(null);
     runEndedRef.current = false;
+    // D-01: every retry is a NEW run — counters and wall clock both start at zero.
+    runStartedAtRef.current = Date.now();
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
     setLives(3);
     setScore(0);
     setCombo(1);
@@ -652,7 +774,7 @@ export function PlayingHost({
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (result != null || uiPhase === 'paused') {
-        onMenu();
+        handleMenuPress();
         return true;
       }
       if (uiPhase === 'playing' || uiPhase === 'countdown') {
@@ -662,7 +784,7 @@ export function PlayingHost({
       return false;
     });
     return () => sub.remove();
-  }, [uiPhase, result, onMenu, onPause]);
+  }, [uiPhase, result, handleMenuPress, onPause]);
 
   const toggleDevLevel = useCallback(() => {
     const order = PLAYABLE_LEVEL_ORDER;
@@ -685,6 +807,10 @@ export function PlayingHost({
     setResultStars(null);
     setNextGateId(null);
     runEndedRef.current = false;
+    // D-01: every retry is a NEW run — counters and wall clock both start at zero.
+    runStartedAtRef.current = Date.now();
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
     setLives(3);
     setScore(0);
     setCombo(1);
@@ -715,6 +841,10 @@ export function PlayingHost({
     setNextGateId(null);
     setResultBest(previousBestRef.current);
     runEndedRef.current = false;
+    // D-01: every retry is a NEW run — counters and wall clock both start at zero.
+    runStartedAtRef.current = Date.now();
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
     setLives(3);
     setScore(0);
     setCombo(1);
@@ -898,7 +1028,7 @@ export function PlayingHost({
         onPause={onPause}
         onResume={onResume}
         onRetry={onRetry}
-        onMenu={onMenu}
+        onMenu={handleMenuPress}
         stars={result === 'win' ? resultStars : null}
         onNext={
           result === 'win' && nextGateId != null ? goNext : null
