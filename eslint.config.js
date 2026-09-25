@@ -78,6 +78,89 @@ module.exports = [
     },
   },
   {
+    // LC-15 / LC-17: levelgen/ is a JS cold path and stays pure TypeScript (CONTEXT constraint 3)
+    // N-GEN-01: no ambient input, and no implementation-approximated Math, in levelgen/
+    files: ['src/levelgen/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: FORBIDDEN_IN_CORE,
+              message:
+                'N-GEN-01/LC-17: levelgen/ must stay pure TypeScript — no React, React Native, Skia, Reanimated, or Expo imports (ARCH-01).',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'performance',
+          message:
+            'N-GEN-01: no wall-clock in levelgen/ — a board must depend on (seed, difficulty) alone.',
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='random']",
+          message:
+            'N-GEN-01: use the seeded makeRng stream, not Math.random() — generation must be reproducible from the seed alone.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message:
+            'N-GEN-01: no Date.now() in levelgen/ — ambient input breaks seed reproducibility.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='performance'][callee.property.name='now']",
+          message:
+            'N-GEN-01: no performance.now() in levelgen/ — ambient input breaks seed reproducibility.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='pow']",
+          message:
+            'N-GEN-01: Math.pow is implementation-approximated — engines may differ in the last bit, which can cross a Math.floor boundary and change a brick count. Use integer lerps.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='sin']",
+          message:
+            'N-GEN-01: Math.sin is implementation-approximated — engines may differ in the last bit, which can cross a Math.floor boundary and change a brick count. Use integer lerps.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='cos']",
+          message:
+            'N-GEN-01: Math.cos is implementation-approximated — engines may differ in the last bit, which can cross a Math.floor boundary and change a brick count. Use integer lerps.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='exp']",
+          message:
+            'N-GEN-01: Math.exp is implementation-approximated — engines may differ in the last bit, which can cross a Math.floor boundary and change a brick count. Use integer lerps.',
+        },
+        {
+          selector:
+            "CallExpression[callee.object.name='Math'][callee.property.name='log']",
+          message:
+            'N-GEN-01: Math.log is implementation-approximated — engines may differ in the last bit, which can cross a Math.floor boundary and change a brick count. Use integer lerps.',
+        },
+        {
+          selector: "BinaryExpression[operator='**']",
+          message:
+            'N-GEN-01: the ** operator is implementation-approximated — engines may differ in the last bit, which can change a generated board across Node and Hermes. Use integer arithmetic.',
+        },
+      ],
+    },
+  },
+  {
     // LC-07: no cross-runtime hops on the per-frame hot path (D-14)
     files: [
       'src/runtime/**/*.{ts,tsx}',
@@ -149,6 +232,7 @@ module.exports = [
         { type: 'input', pattern: 'src/input/**' },
         { type: 'vfx', pattern: 'src/vfx/**' },
         { type: 'services', pattern: 'src/services/**' },
+        { type: 'levelgen', pattern: 'src/levelgen/**' },
       ],
       // Single-file flags — element descriptors match folders; use file category (NF-16).
       'boundaries/files': [
@@ -200,6 +284,7 @@ module.exports = [
                         'input',
                         'app',
                         'services',
+                        'levelgen',
                       ],
                     },
                   },
@@ -230,10 +315,22 @@ module.exports = [
             },
             {
               // Services may use core domain types (e.g. LevelId) — never runtime.
+              // LC-16: services may also read the levelgen barrel.
               from: { element: { type: 'services' } },
               allow: {
                 to: {
-                  element: { types: { anyOf: ['services', 'core'] } },
+                  element: { types: { anyOf: ['services', 'core', 'levelgen'] } },
+                },
+              },
+            },
+            {
+              // LC-15: levelgen -> core only (schema/validate/solvability types).
+              // LC-17: never runtime, render, input, vfx or services — generation is a
+              // JS cold path that runs once per board, never per frame.
+              from: { element: { type: 'levelgen' } },
+              allow: {
+                to: {
+                  element: { types: { anyOf: ['levelgen', 'core'] } },
                 },
               },
             },
