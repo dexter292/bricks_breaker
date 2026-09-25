@@ -31,8 +31,8 @@ Zero–/low–fill-rate presentation polish on top of Phase 7 VFX: **brick destr
 <preconditions>
 ## Preconditions & cert sequencing (B3 + §6)
 
-1. **Ceiling Cert WC re-run AFTER C2, BEFORE D1 starts.** Current PASS (`CEILING-CERT.md` build `13018eb`) predates Milestone B + C2; §6 debt already open. This is not optional “C2 polish.”
-2. **If that re-run FAILs → do not start D1** until resolved. Freeze Mid prevents making it worse; it does not fix B-era load.
+1. **Ceiling Cert WC re-run AFTER C2, BEFORE D1 starts.** **DONE PASS 2026-09-25** — see `docs/ops/CEILING-CERT.md` §5c. Historical PASS @ `13018eb` was pre-B; re-run closed B+C2 debt.
+2. **If that re-run FAILs → do not start D1** until resolved. *(Gate cleared — PASS stamped.)*
 3. **§6 trigger for D1:** re-run again only if D1 changes **render load in any way** (not only when `particleCap` numeric changes). Under A1 freeze, a second D1 measurement should be unnecessary; do not pay for a “surely green” second run.
 4. Post-C2 re-run may be on a build **without** haptics; haptics do not affect render path / ceiling metrics.
 
