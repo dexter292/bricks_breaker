@@ -1,13 +1,22 @@
 /**
- * N-FX-03 — haptic batch coalesce (Wave 0 memory service).
+ * N-FX-03 — haptic batch coalesce (Wave 0 memory + Plan 02 expo soft-fail).
  * Strongest-wins: life lost > break; paddle/other → no fire.
+ * Never AND with reduce-motion (D-10).
  */
-import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 import {
   coalesceHapticRank,
   hapticRankForCode,
 } from '../src/services/haptics/mapping';
 import { createMemoryHapticsService } from '../src/services/haptics/memoryHapticsService';
+import {
+  createDefaultHapticsService,
+  createExpoHapticsService,
+  ImpactFeedbackStyle,
+} from '../src/services/haptics/expoHapticsService';
+import type { MemoryHapticsService } from '../src/services/haptics/types';
 
 describe('haptics batch coalesce (N-FX-03 Wave 0)', () => {
   it('hapticRankForCode: break→1, life→2, else→0', () => {
@@ -51,8 +60,52 @@ describe('haptics batch coalesce (N-FX-03 Wave 0)', () => {
     svc.release();
     expect(svc.fires.length).toBe(0);
   });
+});
 
-  it.todo('createDefaultHapticsService soft-falls when ExpoHaptics native missing');
+describe('haptics expo service (N-FX-03 Plan 02)', () => {
+  it('expo playFromBatch(8× break) → 1 impactAsync Light', () => {
+    const impact = vi.fn(async () => undefined);
+    const svc = createExpoHapticsService(impact);
+    svc.playFromBatch(new Array(8).fill(4), 8);
+    expect(impact).toHaveBeenCalledTimes(1);
+    expect(impact).toHaveBeenCalledWith(ImpactFeedbackStyle.Light);
+  });
+
+  it('expo playFromBatch(break+life) → 1 impactAsync Medium', () => {
+    const impact = vi.fn(async () => undefined);
+    const svc = createExpoHapticsService(impact);
+    svc.playFromBatch([4, 7], 2);
+    expect(impact).toHaveBeenCalledTimes(1);
+    expect(impact).toHaveBeenCalledWith(ImpactFeedbackStyle.Medium);
+  });
+
+  it('expo playFromBatch(paddle only) → 0 impactAsync', () => {
+    const impact = vi.fn(async () => undefined);
+    const svc = createExpoHapticsService(impact);
+    svc.playFromBatch([2, 2, 2], 3);
+    expect(impact).toHaveBeenCalledTimes(0);
+  });
+
+  it('createDefaultHapticsService soft-falls when ExpoHaptics native missing', () => {
+    const svc = createDefaultHapticsService() as MemoryHapticsService;
+    expect(svc).toBeDefined();
+    expect(() => svc.playFromBatch([4, 7], 2)).not.toThrow();
+    // Under Vitest, native probe returns false → memory service with fires
+    expect(Array.isArray(svc.fires)).toBe(true);
+    expect(svc.fires.length).toBe(1);
+    expect(svc.fires[0].style).toBe('medium');
+  });
+
+  it('source contract: haptics/* must not import useVfxIntensity / AccessibilityInfo / battery', () => {
+    const dir = join(__dirname, '../src/services/haptics');
+    const files = readdirSync(dir).filter((f) => f.endsWith('.ts'));
+    const forbidden =
+      /useVfxIntensity|AccessibilityInfo|intensityFromReduceMotion|expo-battery/;
+    for (const file of files) {
+      const src = readFileSync(join(dir, file), 'utf8');
+      expect(src, file).not.toMatch(forbidden);
+    }
+  });
+
   it.todo('PlayingHost playBatch fans out audio + haptics (≤1 scheduleOnRN hop)');
-  it.todo('source contract: haptics/* must not import useVfxIntensity');
 });
