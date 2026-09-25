@@ -381,11 +381,31 @@ owner**, so there is no human baseline anywhere in the chain — not for this ph
 the E2 curve it inherits its weight definition from. Phase 11 is expected to re-tune them, and
 no test pins a literal value precisely so that re-tune is cheap.
 
+*The paragraph immediately below is **SUPERSEDED as of 2026-09-25**. It is kept verbatim,
+because this section exists so a later phase can see both what was believed and what corrected
+it. Read it together with the supersession note that follows it.*
+
 The 840-board scan gives Phase 11 one concrete thing to look at: at the top of the range a
 *perfect* bot needs 1495 simulated seconds on the worst board and 416 s at the p99. Since bot
 time is a **floor** on human time, boards at that tail are plausibly unfinishable by a real
 player. This is a balance observation, not a defect, and it is deliberately not asserted
 anywhere — pinning a clear-time ceiling would pin the dial constants by proxy.
+
+> **SUPERSEDED 2026-09-25 — the "plausibly unfinishable" inference does not hold.**
+> Corrected by: `docs/ops/ENDLESS-MODE.md` § *The settled open question* (Phase 11), which
+> carries the full measurement.
+> **What was measured.** A 500-seed scan at difficulty 20 *specifically*: **0 non-wins**
+> (p50 172.5 s, p95 446.2 s, p99 656.8 s, worst 1495.3 s). There is no unclearable board.
+> Replaying the 8 slowest d=20 boards across 7 paddle offsets collapsed `s=33` from
+> **1495.3 s to 83.0 s** — an **18×** spread on the byte-identical lattice; changing only the
+> gameplay RNG seed did the same. Per-difficulty maxima are **non-monotone** in `d`: **d=17
+> peaks at 2735.3 s**, worse than d=20 on a materially lighter board, so "the top of the range
+> is the hard part" is untrue as well.
+> **Conclusion, in one line:** the tail is a **trajectory** property, not a board property, so
+> the inference above does not hold — and `SCHEDULE` was deliberately **not** re-tuned
+> (a re-tune buys ~34 % off the median, re-rolls the tail rather than removing it, and would
+> invalidate the 21 000-board sweep, the monotonicity proof and the A1 device record above).
+> The paragraph above therefore stands as a record of what Phase 10 believed, not as guidance.
 
 **3. The bot proves clearability, not enjoyment.** It tracks the lowest live ball and never
 misses on purpose, so its clear time is a floor on human duration and its lives-remaining is
