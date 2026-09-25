@@ -106,6 +106,20 @@ Haptics alone would not trigger a re-run (non-render). Ghosts + squash **do**. D
 
 **Stamp after D1 Cert:** append `Human ceiling re-run (post-D1): PASS|FAIL YYYY-MM-DD` under a new §5d when measured.
 
+**E2 raises the §5d bar (2026-09-25).** Phase E2 shipped the F-45 ball speed ramp
+(`SPEED_RAMP_PER_SECOND = 0.01`, `src/core/rules/speedRamp.ts`), so ball speed now climbs
+from 360 to the 720 cap over the first 100 s of every run. Sustained higher speed means
+more CCD iterations per frame, and **every figure in §5/§5b/§5c was measured without it**.
+
+- Physics *correctness* at speed is already covered — `PROP-TUNNEL` property-tests at 2×
+  `MAX_BALL_SPEED`, so the clamped ramp stays inside the tested envelope.
+- Frame *cost* at sustained high speed is **unproven**.
+
+§5d must therefore be measured on a build with the ramp active, and the capture window must
+extend past t = 100 s so the cap is actually reached. To measure the pre-E2 baseline
+instead, set `SPEED_RAMP_PER_SECOND = 0`. Rationale and the measurements behind the rate:
+[`BALANCE-E2.md`](./BALANCE-E2.md).
+
 ### 5b. App-loop health (2026-09-24)
 
 | Field | Value |

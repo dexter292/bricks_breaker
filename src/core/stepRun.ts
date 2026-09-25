@@ -7,6 +7,7 @@ import { applyScoringFromEvents } from './rules/scoring';
 import { applyDropsFromBreaks, stepPickups } from './rules/pickups';
 import { stepEffects } from './rules/effects';
 import { stepAntiStall } from './rules/stall';
+import { applySpeedRamp } from './rules/speedRamp';
 import { applyLivesFromBallCount } from './rules/lives';
 import { applyWinCheck } from './rules/win';
 
@@ -45,14 +46,16 @@ export function stepRun(world: World, intent: Intent, dt: number): void {
     return;
   }
 
-  // PLAYING — score → drops → pickups → effects → stall → win → lives
+  // PLAYING — score → drops → pickups → effects → ramp → stall → win → lives
   // Win before lives: cleared board + last-ball miss same step → WON, not LOST/DOCKED.
+  // Ramp before stall so a tier-2 ×1.08 boost lands on top of the floor, not under it.
   clearEvents(world);
   stepWorld(world, intent, dt);
   applyScoringFromEvents(world);
   applyDropsFromBreaks(world);
   stepPickups(world, dt);
   stepEffects(world);
+  applySpeedRamp(world);
   stepAntiStall(world);
   applyWinCheck(world);
   if (world.simPhase === SimPhase.PLAYING) {

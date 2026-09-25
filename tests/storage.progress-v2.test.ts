@@ -23,22 +23,25 @@ import {
 } from '../src/services/storage';
 
 describe('progress catalog + unlock (C1 Wave 0)', () => {
-  it('PLAYABLE_LEVEL_ORDER is 5 ids without level-02', () => {
+  it('PLAYABLE_LEVEL_ORDER is the 5 E2 curve ids without level-02', () => {
     expect(PLAYABLE_LEVEL_ORDER).toHaveLength(5);
+    // Order is the E2 difficulty curve (N-CNT-01), not file-name order.
     expect(PLAYABLE_LEVEL_ORDER).toEqual([
       'level-01',
-      'level-03',
       'level-04',
       'level-05',
       'level-06',
+      'level-03',
     ]);
     expect(PLAYABLE_LEVEL_ORDER.includes('level-02' as never)).toBe(false);
   });
 
   it('nextLevelId follows catalog; end and unknown → null', () => {
-    expect(nextLevelId('level-01')).toBe('level-03');
-    expect(nextLevelId('level-03')).toBe('level-04');
-    expect(nextLevelId('level-06')).toBeNull();
+    // Derived from the catalog so a future curve change does not re-break this.
+    for (let i = 0; i < PLAYABLE_LEVEL_ORDER.length - 1; i++) {
+      expect(nextLevelId(PLAYABLE_LEVEL_ORDER[i]!)).toBe(PLAYABLE_LEVEL_ORDER[i + 1]);
+    }
+    expect(nextLevelId(PLAYABLE_LEVEL_ORDER[PLAYABLE_LEVEL_ORDER.length - 1]!)).toBeNull();
     expect(nextLevelId('level-02' as never)).toBeNull();
   });
 
@@ -48,7 +51,7 @@ describe('progress catalog + unlock (C1 Wave 0)', () => {
 
   it('unlockAfterClear unlocks next; idempotent; never level-02', () => {
     const u1 = unlockAfterClear(['level-01'], 'level-01');
-    expect(u1).toContain('level-03');
+    expect(u1).toContain(PLAYABLE_LEVEL_ORDER[1]);
     expect(u1).not.toContain('level-02' as never);
     expect(unlockAfterClear(u1, 'level-01')).toEqual(u1);
   });
@@ -224,9 +227,10 @@ describe('memory ProgressStore (v3 nested best)', () => {
 
   it('unlockAfterClear on win semantics (store method)', async () => {
     const store = createMemoryProgressStore();
-    expect(await store.isUnlocked('level-03')).toBe(false);
+    const second = PLAYABLE_LEVEL_ORDER[1]!;
+    expect(await store.isUnlocked(second)).toBe(false);
     await store.unlockAfterClear('level-01');
-    expect(await store.isUnlocked('level-03')).toBe(true);
+    expect(await store.isUnlocked(second)).toBe(true);
     const snap = await store.getSnapshot();
     expect(snap.unlocked).not.toContain('level-02' as never);
     await store.unlockAfterClear('level-01');

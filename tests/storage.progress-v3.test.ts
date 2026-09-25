@@ -14,6 +14,7 @@ import {
   migrateOrDefault,
   createMemoryProgressStore,
   mergeHighWatermark,
+  PLAYABLE_LEVEL_ORDER,
   type LevelBest,
   type ProgressBlob,
 } from '../src/services/storage';
@@ -100,33 +101,23 @@ describe('selectRowState (C2 Wave 0 / R-30)', () => {
   });
 
   it('R-30: cleared when next is unlocked even if stars omitted (v2→v3)', () => {
-    const unlocked = ['level-01', 'level-03', 'level-04'] as const;
-    expect(
-      selectRowState('level-01', unlocked, { score: 2150 }),
-    ).toBe('cleared');
-    expect(
-      selectRowState('level-03', unlocked, { score: 900 }),
-    ).toBe('cleared');
-    // next after 03 is 04 (unlocked) ⇒ 03 cleared; 04 has no next unlocked ⇒ uncleared
-    expect(selectRowState('level-04', unlocked, undefined)).toBe('uncleared');
+    // Derived from the catalog so the E2 curve order is the single source of truth.
+    const [first, second, third] = PLAYABLE_LEVEL_ORDER;
+    const unlocked = [first!, second!, third!] as const;
+    expect(selectRowState(first!, unlocked, { score: 2150 })).toBe('cleared');
+    expect(selectRowState(second!, unlocked, { score: 900 })).toBe('cleared');
+    // third's own next is not unlocked ⇒ uncleared
+    expect(selectRowState(third!, unlocked, undefined)).toBe('uncleared');
   });
 
-  it('final level-06: cleared only via stars (no next in catalog)', () => {
-    const unlocked = [
-      'level-01',
-      'level-03',
-      'level-04',
-      'level-05',
-      'level-06',
-    ] as const;
-    expect(
-      selectRowState('level-06', unlocked, { score: 100 }),
-    ).toBe('uncleared');
-    expect(
-      selectRowState('level-06', unlocked, { score: 100, stars: 2 }),
-    ).toBe('cleared');
-    // 05 is cleared because 06 is unlocked
-    expect(selectRowState('level-05', unlocked, { score: 50 })).toBe('cleared');
+  it('final catalog level: cleared only via stars (no next in catalog)', () => {
+    const unlocked = [...PLAYABLE_LEVEL_ORDER] as const;
+    const last = PLAYABLE_LEVEL_ORDER[PLAYABLE_LEVEL_ORDER.length - 1]!;
+    const penultimate = PLAYABLE_LEVEL_ORDER[PLAYABLE_LEVEL_ORDER.length - 2]!;
+    expect(selectRowState(last, unlocked, { score: 100 })).toBe('uncleared');
+    expect(selectRowState(last, unlocked, { score: 100, stars: 2 })).toBe('cleared');
+    // penultimate is cleared because the final level is unlocked
+    expect(selectRowState(penultimate, unlocked, { score: 50 })).toBe('cleared');
   });
 });
 
@@ -347,7 +338,7 @@ describe('recordRunEnd (C2 Plan 01)', () => {
     });
     expect(win.v).toBe(3);
     expect(win.bestByLevel['level-01']).toEqual({ score: 100, stars: 2 });
-    expect(win.unlocked).toContain('level-03');
+    expect(win.unlocked).toContain(PLAYABLE_LEVEL_ORDER[1]);
     expect(win.bestScore).toBe(100);
 
     const lose = store.recordRunEnd({
