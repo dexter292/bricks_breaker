@@ -1,13 +1,14 @@
-# Name Clearance — Neon Brick Breaker
+# Name Clearance — Pulse Paddle (was Neon Brick Breaker)
 
-## Working title
+## Shipping name
 
-**Neon Brick Breaker**
+**Pulse Paddle** (renamed 2026-09-25 from the working title *Neon Brick Breaker*)
 
-- Bundle ID (iOS): `com.dexter292.bricksbreaker`
-- Application ID (Android): `com.dexter292.bricksbreaker`
-- Expo slug: `bricks-breaker`
-- Display name source of truth: `app.config.js` → `name: 'Neon Brick Breaker'`
+- Bundle ID (iOS): `com.dexter292.bricksbreaker` — unchanged by the rename
+- Application ID (Android): `com.dexter292.bricksbreaker` — unchanged
+- Expo slug: `bricks-breaker` — unchanged
+- Display name source of truth: `app/_brand.ts` → `DISPLAY_NAME`, mirrored by
+  `app.config.js` → `name` and enforced by `npm run assert:brand`
 
 ## Clearance research log (F-54)
 
@@ -27,11 +28,12 @@
 
 | Item | Status |
 |------|--------|
-| Internal / temp MVP name | Still `Neon Brick Breaker` in `app.config.js` until rename applied |
-| Public listing name | **Required rename (D1=B)** — string not chosen yet |
-| Informal web uniqueness skim | Exact-title ASC collision (Gosiha) |
+| Shipping display name | **Pulse Paddle** — applied to `app.config.js` + Title (Phase D2, 2026-09-25) |
+| Public listing name | Rename (D1=B) **done**; listing not yet created |
+| Old-name ASC collision (Gosiha) | **Resolved** — no longer the shipped string |
+| Informal web uniqueness skim for *Pulse Paddle* | **Not run** |
 | Formal trademark opinion | Not obtained |
-| Store console uniqueness check | Run after rename, before listing create |
+| Store console uniqueness check | **Still required** before listing create |
 
 ## Differentiation options
 
@@ -57,9 +59,30 @@ Older candidates (weaker): Neon Breakout (Arcade), Brick Neon Rally.
 
 | Field | Value |
 |-------|--------|
-| **Chosen display name** | _TBD — owner to fill (after A3 Q5 pulse OK)_ |
-| **Date decided** | _pending_ |
-| **Applied to `app.config.js` `name`** | No — not until string chosen |
+| **Chosen display name** | Pulse Paddle |
+| **Date decided** | 2026-09-25 |
+| **Applied to `app.config.js` `name`** | Yes — Phase D2 |
+| Source of truth on screen | `app/_brand.ts` `DISPLAY_NAME` |
+| Drift guard | `npm run assert:brand` (wired into `npm test`) |
+| Bundle id / package | `com.dexter292.bricksbreaker` — **unchanged** |
+| Expo slug / URL scheme | `bricks-breaker` / `bricksbreaker` — **unchanged** |
+
+Owner picked shortlist candidate #1 (2026-09-25) without the A3 cohort pulse, which was
+skipped. The name therefore has **no cohort validation** — it was chosen on the
+collision-avoidance argument alone.
+
+### Still outstanding for "Pulse Paddle"
+
+| Check | Status |
+|-------|--------|
+| App Store Connect uniqueness | **Not run** — do at listing creation |
+| Google Play uniqueness | Not run (no Play track this release, D2=B) |
+| Informal web / store skim for "Pulse Paddle" | **Not run** |
+| Formal trademark opinion | Not obtained |
+
+The old name's problem was an **exact-title ASC collision** (Gosiha Pte. Ltd.). Moving off
+the `Neon + Brick` compound removes that specific collision, but "Pulse Paddle" has not
+itself been searched. Run the console check before creating the listing.
 
 ## Product note
 

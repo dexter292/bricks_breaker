@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { DISPLAY_NAME } from '../_brand';
 
 type Props = {
   best: number;
@@ -25,7 +26,7 @@ export function TitleScreen({ best, onPlay }: Props) {
       ]}
     >
       <View style={styles.content}>
-        <Text style={styles.brand}>Neon Brick Breaker</Text>
+        <Text style={styles.brand}>{DISPLAY_NAME}</Text>
         <Text style={styles.best}>{`Best · ${best}`}</Text>
         <Pressable
           accessibilityRole="button"

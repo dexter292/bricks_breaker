@@ -1,4 +1,4 @@
-# Google Play Data Safety — Neon Brick Breaker
+# Google Play Data Safety — Pulse Paddle
 
 > **Prepared; not used for the iOS-first public release (D2=B, 2026-09-24).** Keep for a future Android return. ASC privacy nutrition is the active store path for now.
 >

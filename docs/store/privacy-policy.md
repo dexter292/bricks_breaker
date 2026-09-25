@@ -1,4 +1,4 @@
-# Privacy Policy — Neon Brick Breaker
+# Privacy Policy — Pulse Paddle
 
 **Effective date:** 2026-09-21
 
@@ -8,7 +8,7 @@ Published via GitHub Pages — source branch `main`, folder `/docs`. In-repo HTM
 
 ## Overview
 
-Neon Brick Breaker (“the App”) is an offline arcade game. This policy describes how the App handles data for the current MVP build.
+Pulse Paddle (“the App”) is an offline arcade game. This policy describes how the App handles data for the current MVP build.
 
 ## What the App does with data
 

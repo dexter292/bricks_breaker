@@ -1,8 +1,8 @@
-# Originality Attestation — Neon Brick Breaker
+# Originality Attestation — Pulse Paddle
 
 ## Statement
 
-The MVP build of Neon Brick Breaker uses **original** gameplay levels, sound effects, and visual assets created for this project. It does **not** include copyrighted third-party game IP, branding, music, level layouts, or asset packs from commercial titles.
+The MVP build of Pulse Paddle uses **original** gameplay levels, sound effects, and visual assets created for this project. It does **not** include copyrighted third-party game IP, branding, music, level layouts, or asset packs from commercial titles.
 
 ## Scope covered
 

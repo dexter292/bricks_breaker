@@ -16,6 +16,7 @@ import {
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { GameHost } from '../../app/_components/GameHost';
+import { DISPLAY_NAME } from '../../app/_brand';
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
@@ -91,7 +92,7 @@ describe('GameHost', () => {
   it('Title → Play → Select → PlayingStub → Menu → Title', async () => {
     render(createElement(GameHost));
 
-    expect(screen.getByText('Neon Brick Breaker')).toBeTruthy();
+    expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
     await waitFor(() => {
       expect(screen.getByText('Best · 7')).toBeTruthy();
     });
@@ -106,7 +107,7 @@ describe('GameHost', () => {
     expect(screen.getByText('levelId:level-01')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
-    expect(screen.getByText('Neon Brick Breaker')).toBeTruthy();
+    expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
   });
 
   it('CERT/SOAK source: initial playing when CERT; soak never sets select', () => {
