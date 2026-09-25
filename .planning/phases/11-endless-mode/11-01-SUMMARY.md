@@ -275,3 +275,7 @@ No blockers. One thing 11-03 and 11-05 must not undo: `applyWaveAdvance` takes o
 ---
 *Phase: 11-endless-mode*
 *Completed: 2026-09-25*
+
+## Self-Check: PASSED
+
+All five created artifacts exist on disk (`src/services/endless/ramp.ts`, `src/services/endless/index.ts`, `tests/endless.wave-loop.test.ts`, `tests/endless.ramp.test.ts`, `tests/runtime.wave-advance.test.ts`) and all five commits (`e890dda`, `66c8a82`, `2c912b1`, `0cc779a`, `aebe795`) are present in `git log`.

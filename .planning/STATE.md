@@ -1,18 +1,17 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_phase: '11'
 status: in_progress
-stopped_at: "Phase 11 PLANNED (6 plans, waves 1-4; plan-check 0 blockers, warning + 2 evidence-quality info fixed). Next: execute-phase 11"
-last_updated: "2026-09-25T13:40:00.000Z"
-last_activity: 2026-09-25
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-09-25T14:09:09.507Z"
+state_head: aebe79569d0f655043c3fc4a2cb1f81c57fb9a09
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 5
-  completed_plans: 11
-  percent: 33
+  total_plans: 17
+  completed_plans: 12
+  percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
@@ -36,6 +35,9 @@ progress:
   post_mvp_display_name: pulse_paddle
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
+last_activity: 2026-09-25
+current_phase: 11
+current_phase_name: Endless Mode
 ---
 
 # Project State
@@ -45,7 +47,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** **v1.2 — Retention & Replayability.** The game ends when the 5th level ends; v1.2 makes it outlast its authored content using shipped verbs and no backend. Phases 9–14: telemetry → seeded generator → endless → daily → achievements → meta shell. v1.1's owner/device debt (§5d on a ramp build, ASC uniqueness, Sentry DSN, cohort, R-10/R-12) is carried, not scoped.
+**Current focus:** Phase 11 — Endless Mode
 
 ## Current Position
 
@@ -96,6 +98,11 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Phase 08 P03 | 3min | 2 tasks | 5 files |
 | Phase 08 P04 | 2min | 2 tasks | 4 files |
 | Phase D1-juice-presentation P02 | 2min | 2 tasks | 5 files |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 11 P01 | 15min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -162,6 +169,10 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [D1-02]: expo-haptics ~57.0.3 via npx expo install; soft-fail mirrors ExpoAudio probe
 - [D1-02]: Local ImpactFeedbackStyle string consts for Vitest spies; no top-level native import
 - [D1-02]: PlayingHost fan-out deferred to Plan 03; owner rebuild required for device Taptic
+- [Phase 11]: D-06 implemented: applyWaveAdvance sets world.tick = 0 so every wave starts at serve speed; the effect SoA clear stays above the reset because effectUntilTick is absolute — E2 speed ramp hits MAX_BALL_SPEED at t=100s, inside wave 1 — carrying tick would pin every ball at the cap from wave 3 on and make the written-down difficulty ramp cosmetic
+- [Phase 11]: seedForWave mixes the wave index, not the difficulty — difficulty saturates at D_MAX from wave 21, so mixing it would hand every post-clamp wave the same board
+- [Phase 11]: applyWaveAdvance takes only (World, CompiledLevel or null) — mode-agnostic so Phase 12 daily reuses it verbatim; endless policy stays in src/services/endless
+- [Phase 11]: D-07 implemented: lowestLiveBall exported from tests/helpers/balanceBot.ts instead of duplicating the scan
 
 ### Decisions (Post-MVP close)
 
@@ -195,6 +206,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-25T02:54:51.000Z
-Stopped at: Completed D1-02-PLAN.md (expo-haptics soft-fail service)
+Last session: 2026-09-25T14:08:49.688Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
