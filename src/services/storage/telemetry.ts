@@ -6,10 +6,17 @@
  * running max. `bestComboEver` (brick hits without paddle contact, D-06) and
  * `longestRallyEver` (paddle hits without losing a life, D-10) are deliberately
  * DISTINCT fields — do not collapse them.
+ *
+ * `endless.bestWave` and `endless.bestScore` (N-END-02, Phase 11) are max-fields
+ * on the same contract, and each takes its own max independently — a short
+ * high-scoring run must not lower the deepest wave, nor the reverse. They are
+ * written ONLY by `mergeEndlessRecord`; `mergeRunIntoTelemetry` never touches
+ * them, so no campaign run can reach the endless record (SC-3).
  */
 import {
   RECENT_RUNS_BOUND,
   defaultTelemetryAggregate,
+  type EndlessRecord,
   type GameMode,
   type RunLogEntry,
   type RunOutcome,
@@ -53,23 +60,33 @@ export function cloneTelemetryBlob(t: TelemetryBlob): TelemetryBlob {
       endless: cloneAggregateMap(t.byMode.endless),
       daily: cloneAggregateMap(t.byMode.daily),
     },
-    // RED stub: aliased, not cloned — GREEN must make this a distinct object.
-    endless: t.endless,
+    endless: { ...t.endless },
     recentRuns: t.recentRuns.map((e) => ({ ...e })),
   };
 }
 
 /**
- * RED stub for `mergeEndlessRecord` — returns the blob unchanged so the failing
- * assertions in `tests/storage.progress-v4.test.ts` are about the running-max
- * behaviour, not about a missing export. Replaced in GREEN.
+ * Fold one finished endless run into the endless record (N-END-02).
+ *
+ * Deliberately NOT part of `mergeRunIntoTelemetry`: that function is the
+ * mode-keyed aggregate/log path every mode shares, and keeping the record on a
+ * separate entry point is what makes "a campaign run cannot write the endless
+ * best" a structural fact rather than a convention. Same clone-then-mutate order
+ * as `mergeRunIntoTelemetry` — the input blob is never touched.
+ *
+ * Each field takes its own running max: a deep low-scoring run and a shallow
+ * high-scoring run each keep their own record.
  */
 export function mergeEndlessRecord(
   telemetry: TelemetryBlob,
   run: { wave: number; score: number },
 ): TelemetryBlob {
-  void run;
-  return cloneTelemetryBlob(telemetry);
+  const next = cloneTelemetryBlob(telemetry);
+  next.endless = {
+    bestWave: Math.max(next.endless.bestWave, safeCounter(run.wave)),
+    bestScore: Math.max(next.endless.bestScore, safeCounter(run.score)),
+  };
+  return next;
 }
 
 /** Fold one finished run into an aggregate (cumulative sums, running maxes). */
@@ -185,6 +202,14 @@ function mergeAggregateMaps(
   return out;
 }
 
+/** Per-field running max — the same sum-vs-max contract as `*Ever` (N-END-02). */
+function mergeEndlessRecords(a: EndlessRecord, b: EndlessRecord): EndlessRecord {
+  return {
+    bestWave: Math.max(a.bestWave, b.bestWave),
+    bestScore: Math.max(a.bestScore, b.bestScore),
+  };
+}
+
 /** Merge two telemetry blobs (memory ↔ freshly-hydrated disk). */
 export function mergeTelemetryBlobs(
   memory: TelemetryBlob,
@@ -205,8 +230,7 @@ export function mergeTelemetryBlobs(
       endless: mergeAggregateMaps(memory.byMode.endless, incoming.byMode.endless),
       daily: mergeAggregateMaps(memory.byMode.daily, incoming.byMode.daily),
     },
-    // RED stub: left side wins — GREEN must take the per-field max.
-    endless: memory.endless,
+    endless: mergeEndlessRecords(memory.endless, incoming.endless),
     recentRuns,
   };
 }
