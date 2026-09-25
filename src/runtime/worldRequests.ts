@@ -9,6 +9,7 @@
 import {
   applyCompiledLevel,
   applyServe,
+  derivePaddleWidth,
   dockBall,
   resetWorld,
   spawnMultiballFromPaddle,
@@ -42,14 +43,56 @@ export function applyRetryWorldReset(
 }
 
 /**
- * RED stub (11-01 Task 1) — the wave-advance carry/clear contract is not implemented yet.
- * It currently only swaps the board, so every carry and clear assertion must fail.
+ * Swap the next board onto a live World mid-run (N-END-01 / SC-1 / D-03 / D-06).
+ *
+ * This is deliberately **not** `applyRetryWorldReset`: `resetWorld` zeroes `lives`,
+ * `score` and `combo` and re-seeds both RNG streams (`src/core/reset.ts:44-47,79-81`), and
+ * those are exactly the five fields SC-1 and SC-4 require be carried across a wave. Nothing
+ * below touches `world.lives`, `world.score`, `world.combo`, `world.rngGameplay` or
+ * `world.rngCosmetic` — a run is one continuous score and one continuous RNG stream, and
+ * the wave boundary is invisible to both.
+ *
+ * Mode-agnostic by construction: it takes a World and a CompiledLevel, knows nothing about
+ * waves, seeds or difficulty, and therefore Phase 12's daily challenge reuses it verbatim.
+ *
+ * D-03 is what it *does* clear: timed effects expire, falling pickups vanish, extra balls
+ * are dropped and the ball re-docks onto the existing serve path.
  */
 export function applyWaveAdvance(world: World, level: CompiledLevel | null): void {
   'worklet';
+  // Effects first — see the `world.tick = 0` comment below. This ordering is contract.
+  const maxE = world.maxEffects;
+  for (let i = 0; i < maxE; i++) {
+    world.effectType[i] = 0;
+    world.effectUntilTick[i] = 0;
+  }
+  world.effectCount = 0;
+  // Expand may have been live: restore the base width and re-clamp paddleX into the field.
+  derivePaddleWidth(world);
+
+  const maxP = world.maxPickups;
+  for (let i = 0; i < maxP; i++) {
+    world.pickupActive[i] = 0;
+    world.pickupType[i] = 0;
+    world.pickupX[i] = 0;
+    world.pickupY[i] = 0;
+  }
+  world.pickupCount = 0;
+
   if (level != null) {
     applyCompiledLevel(world, level);
   }
+  // Drops every extra ball and re-docks ball 0 above the paddle (D-03).
+  dockBall(world);
+  world.simPhase = 0; // SimPhase.DOCKED
+  world.stallIdleTicks = 0;
+  world.stallTier = 0;
+  // D-06: each wave starts at serve speed, because the E2 ramp is a pure function of tick
+  // and reaches MAX_BALL_SPEED inside wave 1. The effect clear above MUST stay above this
+  // line: effectUntilTick is an absolute tick, so zeroing tick first would turn a live
+  // 10-second expand into a permanent one.
+  world.tick = 0;
+  world.accumulator = 0;
 }
 
 /** Clear cosmetic SoA so trails / sparks / shake do not leak across Retry. */
