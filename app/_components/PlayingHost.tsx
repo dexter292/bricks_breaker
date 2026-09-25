@@ -45,6 +45,8 @@ import {
   PLAYABLE_LEVEL_ORDER,
   createDefaultProgressStore,
   evaluatePersonalBest,
+  isUnlocked,
+  nextLevelId,
 } from '../../src/services/storage';
 
 /** F-18 — release baked SkImages so remount / level change does not leak GPU memory. */
@@ -93,8 +95,10 @@ const SIM = {
 
 type Props = {
   onMenu: () => void;
-  /** Forward-compat for GameHost shell (C2-02); wired as source of truth in C2-03. */
-  levelId?: LevelId;
+  /** Required — GameHost owns Select / Next / CERT levelId (D-14 / D-15). */
+  levelId: LevelId;
+  /** Next + DEV + cert force when controlled from GameHost. */
+  onLevelIdChange?: (id: LevelId) => void;
 };
 
 /** NG-14 — isolated keep-awake so unmount releases the lock; tag is component-local. */
@@ -111,7 +115,11 @@ function KeepAwakeOn() {
  * Level cold path (D-11…D-15): loadLevelById on JS → compiled SharedValue →
  * useGameLoop applyCompiledLevel only. Fail loudly; never play invalid.
  */
-export function PlayingHost({ onMenu }: Props) {
+export function PlayingHost({
+  onMenu,
+  levelId: levelIdProp,
+  onLevelIdChange,
+}: Props) {
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });
@@ -131,9 +139,27 @@ export function PlayingHost({ onMenu }: Props) {
   const [stallTier, setStallTier] = useState<number>(0);
   const [result, setResult] = useState<null | 'win' | 'lose'>(null);
   const [resultBest, setResultBest] = useState(0);
+  const [resultStars, setResultStars] = useState<1 | 2 | 3 | null>(null);
+  const [nextGateId, setNextGateId] = useState<LevelId | null>(null);
   const [isNewRecord, setIsNewRecord] = useState(false);
   const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
-  const [levelId, setLevelId] = useState<LevelId>('level-03');
+  // Controlled when onLevelIdChange provided; else local fallback (prefer GameHost-controlled).
+  const [uncontrolledLevelId, setUncontrolledLevelId] =
+    useState<LevelId>(levelIdProp);
+  const levelId =
+    onLevelIdChange != null ? levelIdProp : uncontrolledLevelId;
+  const setLevelId = useCallback(
+    (next: LevelId | ((prev: LevelId) => LevelId)) => {
+      const resolved =
+        typeof next === 'function' ? next(levelId) : next;
+      if (onLevelIdChange != null) {
+        onLevelIdChange(resolved);
+      } else {
+        setUncontrolledLevelId(resolved);
+      }
+    },
+    [levelId, onLevelIdChange],
+  );
   /** DEV-only force; null = auto from device (D-11). */
   const [tierOverride, setTierOverride] = useState<QualityTier | null>(null);
 
@@ -407,20 +433,40 @@ export function PlayingHost({ onMenu }: Props) {
 
   // Cold path only — never await inside useAnimatedReaction / frame callback.
   const handleRunEnded = useCallback(
-    (runScore: number, outcome: 'win' | 'lose') => {
+    (runScore: number, outcome: 'win' | 'lose', livesRemaining: number) => {
       const previous = previousBestRef.current;
       const { best, isNewRecord: record } = evaluatePersonalBest(
         runScore,
         previous,
       );
+      // Sync memory merge score/stars/unlock; void persist inside store (D-10).
+      const blob = store.recordRunEnd({
+        levelId,
+        score: runScore,
+        outcome,
+        livesRemaining,
+      });
       setResultBest(best);
       setIsNewRecord(record);
       if (record) {
         previousBestRef.current = best;
-        void store.recordLevelBest(levelId, best).catch(() => {});
       }
-      if (outcome === 'win') {
-        void store.unlockAfterClear(levelId).catch(() => {});
+      const entry = blob.bestByLevel[levelId];
+      const stars = entry?.stars;
+      if (outcome === 'win' && (stars === 1 || stars === 2 || stars === 3)) {
+        setResultStars(stars);
+      } else {
+        setResultStars(null);
+      }
+      const next = nextLevelId(levelId);
+      if (
+        outcome === 'win' &&
+        next != null &&
+        isUnlocked(blob.unlocked, next)
+      ) {
+        setNextGateId(next);
+      } else {
+        setNextGateId(null);
       }
       const payload = { score: runScore, outcome, isNewRecord: record };
       platform.ads.onRunEnded(payload);
@@ -440,14 +486,14 @@ export function PlayingHost({ onMenu }: Props) {
       if (mirror.phase === SIM.WON) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
-          handleRunEnded(mirror.score, 'win');
+          handleRunEnded(mirror.score, 'win', mirror.lives);
         }
         setResult('win');
         setActive(false);
       } else if (mirror.phase === SIM.LOST) {
         if (!runEndedRef.current) {
           runEndedRef.current = true;
-          handleRunEnded(mirror.score, 'lose');
+          handleRunEnded(mirror.score, 'lose', mirror.lives);
         }
         setResult('lose');
         setActive(false);
@@ -533,6 +579,8 @@ export function PlayingHost({ onMenu }: Props) {
     setCountdownNumeral(null);
     setResult(null);
     setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
     setResultBest(previousBestRef.current);
     runEndedRef.current = false;
     setLives(3);
@@ -544,6 +592,35 @@ export function PlayingHost({ onMenu }: Props) {
     retry();
     setActive(true);
   }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
+
+  /**
+   * Next = exact toggleDevLevel checklist (D-13). Change levelId only —
+   * gate effect owns setActive(true). NEVER setActive(true) here (R-24).
+   */
+  const goNext = useCallback(() => {
+    const next = nextGateId;
+    if (next == null) {
+      return;
+    }
+    setLevelId(next);
+    // Clear end-of-run chrome so the new layout is visible immediately.
+    // Loop re-arm: levelId → loadKey flip → bake → fxReady → gate effect
+    // (retry + setActive(true)). Do not setActive(true) here — fxReady is false
+    // until bake finishes (R-26 / R-24).
+    clearCountdown();
+    setCountdownNumeral(null);
+    setResult(null);
+    setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
+    runEndedRef.current = false;
+    setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
+    setSimPhaseNum(SIM.DOCKED);
+    setUiPhase('playing');
+  }, [clearCountdown, nextGateId, setLevelId]);
 
   // F-30: Android hardware Back — pause mid-run; Menu from Pause/Result.
   useEffect(() => {
@@ -579,6 +656,8 @@ export function PlayingHost({ onMenu }: Props) {
     setCountdownNumeral(null);
     setResult(null);
     setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
     runEndedRef.current = false;
     setLives(3);
     setScore(0);
@@ -586,7 +665,7 @@ export function PlayingHost({ onMenu }: Props) {
     setStallTier(0);
     setSimPhaseNum(SIM.DOCKED);
     setUiPhase('playing');
-  }, [clearCountdown]);
+  }, [clearCountdown, setLevelId]);
 
   /** DEV force Low→Mid→High→auto; session remount via budget change + retry (Pitfall 5). */
   const cycleDevTier = useCallback(() => {
@@ -606,6 +685,8 @@ export function PlayingHost({ onMenu }: Props) {
     setCountdownNumeral(null);
     setResult(null);
     setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
     setResultBest(previousBestRef.current);
     runEndedRef.current = false;
     setLives(3);
@@ -790,6 +871,10 @@ export function PlayingHost({ onMenu }: Props) {
         onResume={onResume}
         onRetry={onRetry}
         onMenu={onMenu}
+        stars={result === 'win' ? resultStars : null}
+        onNext={
+          result === 'win' && nextGateId != null ? goNext : null
+        }
         showServeHint={showServeHint}
         levelError={levelError}
         devLevelSwitch={devLevelSwitch}

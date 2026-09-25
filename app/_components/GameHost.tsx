@@ -172,6 +172,7 @@ export function GameHost() {
       {harnessAwake}
       <PlayingHost
         levelId={CERT_HARNESS ? 'level-03' : activeLevelId}
+        onLevelIdChange={setActiveLevelId}
         onMenu={() => setShellPhase('title')}
       />
     </View>
