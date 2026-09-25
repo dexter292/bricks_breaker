@@ -153,13 +153,13 @@ Plans:
 | **Deps** | C1 (**device UAT before v3 migration**) |
 | **Acceptance** | Unlock/replay/stars correct for 5 levels |
 | **Plans** | 4 plans |
-| **Progress** | Planned 2026-09-25 — `post-mvp/phases/C2-level-select-stars-replay/` |
+| **Progress** | **Done** 2026-09-25 — Select + stars (lives) + Next; Progress v3; Human UAT approved |
 
 Plans:
 - [x] `C2-00-PLAN.md` — Wave 0: stars helpers + LevelBest types + Vitest stubs (progress-v3 / Select / Next-bake / Results)
 - [x] `C2-01-PLAN.md` — Wave 1: C1 UAT gate + ProgressBlob v3 parse/migrate/store + recordRunEnd
 - [x] `C2-02-PLAN.md` — Wave 2: SelectScreen + ShellPhase select + ResultOverlay stars/Next chrome
-- [ ] `C2-03-PLAN.md` — Wave 3: required levelId + Next bake checklist + docs + device UAT / cert-arm smoke
+- [x] `C2-03-PLAN.md` — Wave 3: required levelId + Next bake checklist + docs + device UAT / cert-arm smoke
 
 ---
 
@@ -286,3 +286,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | **A3 SKIPPED** (owner) → **B0 Won’t-Do** tap-only; next **C1** GSD plan |
 | 2026-09-24 | **C1 Planned** — 3 plans (Wave 0 contracts → store/migrate → host wire) in `post-mvp/phases/C1-progress-storage/` |
 | 2026-09-24 | **C1 Done** — ProgressStore v2 + migrate; PlayingHost unlock-on-win + per-level Best; Title rollup; ops doc |
+| 2026-09-25 | **C2 Done** — Level Select + lives-stars (N-PROG-03) + Next/replay; Progress v3; Human UAT approved; ceiling re-run still pending (§6) |

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: temporary_mvp_closed
-stopped_at: "C2 Wave 3 code done — awaiting device UAT + cert-arm smoke"
-last_updated: "2026-09-25T01:25:00.000Z"
+stopped_at: "C2 Done — Select + stars + Next; Human UAT approved"
+last_updated: "2026-09-25T01:50:00.000Z"
 last_activity: 2026-09-25
 progress:
   total_phases: 8
@@ -20,7 +20,7 @@ progress:
   post_mvp_b0: wont_do_tap_only
   post_mvp_b123: done
   post_mvp_c1: uat_approved_2026_09_25
-  post_mvp_c2: wave_3_awaiting_device_uat
+  post_mvp_c2: done_2026_09_25
   post_mvp_a4: wired_pending_sentry_verify
   post_mvp_e1a: levels_04_06_shipped
 ---
@@ -32,12 +32,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Post-MVP — **C2 code complete** (Select + stars + Next). Awaiting **C2 device UAT** + cert-arm smoke. Open ledger: display-name string, R-10 floor, R-12 tier, N-OPS-01 DSN.
+**Current focus:** Post-MVP — **C2 Done** (Select + lives-stars + Next; Progress v3). Next candidates: **D1** polish, **E1b**, or **one** ceiling Cert WC re-run (§6). Open ledger: display-name string, R-10 floor, R-12 tier, N-OPS-01 DSN.
 
 ## Current Position
 
 **TEMPORARY MVP CLOSED** — iOS internal / soft playtest authorized.  
-**Next:** C2 device UAT checklist → reply `approved` (or defect list). Then ceiling re-run after approve (separate session).  
+**Next:** Optional post-C2 ceiling Cert WC (one session). Then Milestone D / E1b as owner directs.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
 ## Performance Metrics

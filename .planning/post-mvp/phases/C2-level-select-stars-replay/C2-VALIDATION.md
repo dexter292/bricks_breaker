@@ -73,30 +73,30 @@ created: 2026-09-24
 - [x] Update `tests/ui/GameHost.test.tsx` for Select
 - [x] Update `tests/runtime.loadLevel.test.ts` — no default id (Plan 03)
 - [x] ResultOverlay / GameScreen Next + stars coverage
-- [ ] Plan gate: **C1 device UAT approved** before v3 write-through
-- [ ] Plan 03: **Human device UAT + cert-arm smoke** (Manual-Only rows below)
+- [x] Plan gate: **C1 device UAT approved** before v3 write-through
+- [x] Plan 03: **Human device UAT + cert-arm smoke** (Manual-Only rows below)
 
 ---
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| C1 ProgressStore durable on device | Precondition | AsyncStorage native | Complete C1-02 UAT before enabling v3 migration ship |
-| Cert harness still arms after play-path change | D-16 | Instruments / device | One CERT session confirm inject after remount — **before** A1 ceiling re-run. See `docs/ops/PROGRESS-STORAGE.md` ops note. |
-| Post-C2 ceiling Cert WC | RELEASE-GATES §6 | Hardware | **One** re-run after C2 chrome lands — do not measure twice |
-| Select visual three-states | N-LVL-02 | Aesthetic | Smoke on device: locked / ☆☆☆ / ★★★ + best |
-| Select + stars + Next + cert arm (Plan 03 Task 3) | N-LVL-02 / N-PROG-03 / N-PROG-04 / D-16 | Device UAT | Follow C2-03-PLAN Task 3 how-to-verify; append `Human UAT: approved YYYY-MM-DD` when done |
+| Behavior | Requirement | Why Manual | Test Instructions | Status |
+|----------|-------------|------------|-------------------|--------|
+| C1 ProgressStore durable on device | Precondition | AsyncStorage native | Complete C1-02 UAT before enabling v3 migration ship | ✅ 2026-09-25 |
+| Cert harness still arms after play-path change | D-16 | Instruments / device | One CERT session confirm inject after remount — **before** A1 ceiling re-run. See `docs/ops/PROGRESS-STORAGE.md` ops note. | ✅ owner UAT |
+| Post-C2 ceiling Cert WC | RELEASE-GATES §6 | Hardware | **One** re-run after C2 chrome lands — do not measure twice | ⬜ separate session |
+| Select visual three-states | N-LVL-02 | Aesthetic | Smoke on device: locked / ☆☆☆ / ★★★ + best | ✅ owner UAT |
+| Select + stars + Next + cert arm (Plan 03 Task 3) | N-LVL-02 / N-PROG-03 / N-PROG-04 / D-16 | Device UAT | Follow C2-03-PLAN Task 3 how-to-verify | ✅ 2026-09-25 |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 45s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 45s
+- [ ] `nyquist_compliant: true` set in frontmatter *(optional verify-work polish)*
 
-**Approval:** pending
+**Approval:** Human UAT: approved 2026-09-25 (owner — Select/stars/Next/cert-arm smoke)

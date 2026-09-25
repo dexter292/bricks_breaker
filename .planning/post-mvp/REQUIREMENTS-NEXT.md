@@ -71,12 +71,12 @@
 | ID | Requirement | Status | Notes |
 |----|-------------|--------|-------|
 | **N-LVL-01** | Campaign ships with **exactly 5** authored playable levels (schema + migrations if bumped) | **Approved** | D4; **3 baseline via E1a** with shipped verbs only; E1b enriches after B |
-| **N-LVL-02** | Level select with lock/unlock | **Approved** | |
+| **N-LVL-02** | Level select with lock/unlock | **Done** 2026-09-25 | C2 SelectScreen |
 | **N-LVL-03** | Solvability / reachability lint: every breakable brick reachable (not steel-enclosed on all approachable sides); warn if steel corridor narrower than `2 × (BALL_RADIUS + SEPARATION_EPS)`; CI runs on `assets/levels/*.json`; **`level-02` must fail (negative fixture)** | **Approved** | D6=A / R-14 — self-check must go red on level-02 |
 | **N-PROG-01** | Clear unlocks next; offline across kills | **Approved** | Storage v2 |
 | **N-PROG-02** | Per-level best score on Results | **Approved** | |
-| **N-PROG-03** | Stars 1–3: **C2 = lives-based** (`clamp(livesRemaining,1,3)` on win; best-stars max). Score bands **not** in C2 — evaluated in **E2** (N-CNT-02) | **Approved** | Amended 2026-09-24 (C2 discuss): global score T2 unfair (~3× max-score spread across 5 levels); per-level thresholds = tuning without playtest |
-| **N-PROG-04** | Cleared levels replayable | **Approved** | |
+| **N-PROG-03** | Stars 1–3: **C2 = lives-based** (`clamp(livesRemaining,1,3)` on win; best-stars max). Score bands **not** in C2 — evaluated in **E2** (N-CNT-02) | **Done** 2026-09-25 | Progress v3; R-30 unlock-chain cleared |
+| **N-PROG-04** | Cleared levels replayable | **Done** 2026-09-25 | Retry + gated Next |
 
 **Out of scope for C:** player-facing editor, cloud sync, daily challenge.
 

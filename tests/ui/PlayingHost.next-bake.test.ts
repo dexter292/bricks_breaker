@@ -11,6 +11,7 @@ import { createElement, useState } from 'react';
 import { cleanup, render, act, waitFor } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { LevelId } from '../../src/core';
 
 const HOST = join(process.cwd(), 'app/_components/PlayingHost.tsx');
 
@@ -152,11 +153,9 @@ describe('PlayingHost Next bake gate (behavioral D-03)', () => {
       await import('../../app/_components/PlayingHost');
 
     // Controlled wrapper — parent owns id (same as GameHost after goNext)
-    let setId: ((id: 'level-01' | 'level-03') => void) | null = null;
+    let setId: ((id: LevelId) => void) | null = null;
     function Controlled() {
-      const [levelId, setLevelId] = useState<'level-01' | 'level-03'>(
-        'level-01',
-      );
+      const [levelId, setLevelId] = useState<LevelId>('level-01');
       setId = setLevelId;
       return createElement(PlayingHost, {
         levelId,
