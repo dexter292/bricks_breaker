@@ -32,7 +32,10 @@ import {
   type PlayBatchFn,
 } from '../../src/runtime/useGameLoop';
 import { useVfxIntensity } from '../../src/runtime/useVfxIntensity';
-import { cloneRunStats, type RunStats } from '../../src/runtime/runStats';
+import {
+  createRunStatsMirror,
+  type RunStatsMirror,
+} from '../../src/runtime/publishRunStatsMirror';
 import {
   readDeviceMemory,
   resolveQualityTier,
@@ -62,12 +65,11 @@ import {
  *     persisted shape;
  *   - `longestRally` (survival streak) and `bestCombo` (aggression streak) stay
  *     DISTINCT — D-10 forbids collapsing them;
- *   - `ticksPlayed` / `wallClockMs` are app-layer reads the reducer deliberately does
- *     not carry (runStats.ts pitfall 2, D-09).
+ *   - `ticksPlayed` rides the mirror (it is a UI-thread `world.tick` read); `wallClockMs`
+ *     stays an app-layer ref read, because pause-exclusion is a React concern (D-09).
  */
 function buildRunStatsInput(
-  raw: RunStats,
-  ticksPlayed: number,
+  raw: RunStatsMirror,
   wallClockMs: number,
 ): RunStatsInput {
   return {
@@ -81,7 +83,7 @@ function buildRunStatsInput(
     livesLost: raw.livesLost,
     longestRally: raw.longestRally,
     largestCascade: raw.largestCascade,
-    ticksPlayed,
+    ticksPlayed: raw.ticksPlayed,
     wallClockMs,
   };
 }
@@ -388,8 +390,8 @@ export function PlayingHost({
     injectCertWorstCase,
     certOut,
     certSeq,
-    runStats,
-    world,
+    runStatsOut,
+    runStatsSeq,
   } = useGameLoop({
     paddleTarget,
     launchFlag,
@@ -587,19 +589,50 @@ export function PlayingHost({
   );
 
   /**
-   * Snapshot this run's counters at the run boundary. One helper, three outcomes —
-   * `cloneRunStats(runStats.value)` copies off the SharedValue before the next retry
-   * zeroes it in place (D-01: every retry is a new run), `world.value.tick` is the
-   * simulated-time read, and `readRunWallClockMs()` the play-only wall clock (D-09).
+   * JS-side copy of the UI-thread counters (N-STAT-01).
+   *
+   * `runStats` is mutated in place on the UI runtime and Reanimated does not propagate
+   * in-place mutation across the bridge — reading `runStats.value` here returned the
+   * object's crossing-time values, which is why device UAT saw `bricksBroken: 0` after a
+   * run that visibly destroyed bricks. The reaction below is the same mirror+seq route
+   * chrome and CERT metrics already use.
+   */
+  const runStatsMirrorRef = useRef<RunStatsMirror>(createRunStatsMirror());
+  const applyRunStatsMirror = useCallback((m: RunStatsMirror) => {
+    runStatsMirrorRef.current = m;
+  }, []);
+  useAnimatedReaction(
+    () => runStatsSeq.value,
+    (seq, prev) => {
+      if (prev === null || seq !== prev) {
+        const m = runStatsOut.value;
+        runOnJS(applyRunStatsMirror)({
+          bricksBroken: m.bricksBroken,
+          bestCombo: m.bestCombo,
+          pickupMultiball: m.pickupMultiball,
+          pickupExpand: m.pickupExpand,
+          pickupExtraLife: m.pickupExtraLife,
+          pickupSlow: m.pickupSlow,
+          pickupFireball: m.pickupFireball,
+          livesLost: m.livesLost,
+          longestRally: m.longestRally,
+          largestCascade: m.largestCascade,
+          ticksPlayed: m.ticksPlayed,
+        });
+      }
+    },
+  );
+
+  /**
+   * Snapshot this run's counters at the run boundary. One helper, three outcomes.
+   * Counters and ticks come from the JS-side mirror the seq reaction keeps fresh — the
+   * UI-thread object itself is unreadable from here (see the mirror ref above). The
+   * mirror is republished zeroed on reset, so D-01 (every retry is a new run) holds.
+   * `readRunWallClockMs()` stays the play-only wall clock (D-09).
    */
   const snapshotRunStats = useCallback((): RunStatsInput => {
-    const w = world.value;
-    return buildRunStatsInput(
-      cloneRunStats(runStats.value),
-      w ? w.tick : 0,
-      readRunWallClockMs(),
-    );
-  }, [runStats, world, readRunWallClockMs]);
+    return buildRunStatsInput(runStatsMirrorRef.current, readRunWallClockMs());
+  }, [readRunWallClockMs]);
 
   const applyChrome = useCallback(
     (mirror: ChromeMirror) => {
