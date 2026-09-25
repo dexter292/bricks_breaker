@@ -80,11 +80,11 @@ notes: Nyquist contract for N-PROG-01 / N-PROG-02; awaiting human device UAT
 
 | Behavior | Requirement | Why Manual | Test Instructions | Status |
 |----------|-------------|------------|-------------------|--------|
-| Unlock + best survive force-quit | N-PROG-01/02 | Native AsyncStorage | Win level-01 → force-quit → relaunch → progress still has unlock + level best (inspect via Title rollup / DEV or later C2 select) | ⬜ |
-| Lose does not unlock next | N-PROG-01 | Device flow | Lose on level-01 → confirm next stays locked in store (until C2 UI: use DEV/logs/`getSnapshot` in __DEV__) | ⬜ |
-| Results New Record is per-level | N-PROG-02 | UX | Beat a weak level best below global PB → badge fires; fail to beat global on another level → no false global badge | ⬜ |
-| Title Best = max rollup | N-PROG-02 | UX | Set highs on two levels → Menu → Title shows max | ⬜ |
-| Airplane / offline | N-PROG-01 | Product | Full Title→Play→Win→Menu with no network | ⬜ |
+| Unlock + best survive force-quit | N-PROG-01/02 | Native AsyncStorage | Win level-01 → force-quit → relaunch → progress still has unlock + level best (inspect via Title rollup / DEV or later C2 select) | ✅ 2026-09-25 |
+| Lose does not unlock next | N-PROG-01 | Device flow | Lose on level-01 → confirm next stays locked in store (until C2 UI: use DEV/logs/`getSnapshot` in __DEV__) | ✅ owner |
+| Results New Record is per-level | N-PROG-02 | UX | Beat a weak level best below global PB → badge fires; fail to beat global on another level → no false global badge | ✅ owner |
+| Title Best = max rollup | N-PROG-02 | UX | Set highs on two levels → Menu → Title shows max | ✅ 2026-09-25 Best · 127420 |
+| Airplane / offline | N-PROG-01 | Product | Full Title→Play→Win→Menu with no network | ✅ owner |
 
 ---
 
@@ -107,4 +107,4 @@ notes: Nyquist contract for N-PROG-01 / N-PROG-02; awaiting human device UAT
 - [ ] `nyquist_compliant: true` set in frontmatter *(left for verify-work gate)*
 - [x] `wave_0_complete: true` after Plan 00
 
-**Approval:** pending human device UAT (type `approved`)
+**Approval:** Human UAT: approved 2026-09-25 (owner — win L01, Title Best · 127420, ProgressStore v2 durable)
