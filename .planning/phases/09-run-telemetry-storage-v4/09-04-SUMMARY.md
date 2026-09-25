@@ -23,7 +23,7 @@ affects: [13-achievements, 14-stats-screen, any phase adding a run mode beyond c
 actuals:
   tokens: 3200
   tasks: 2
-  commits: 2
+  commits: 3
 plan_head_before: 036b879a6d0fc72f1f0ecfb080495f87e47da872
 
 tech-stack:
@@ -130,7 +130,7 @@ status: complete
 
 **Plan metadata:** the `docs(09-04)` commit carrying this SUMMARY.
 
-Measured from `plan_head_before` (`036b879`): the range reads 2 commits once the metadata commit lands (1 code + 1 docs).
+Measured from `plan_head_before` (`036b879`): the range reads **3** commits — 1 code, 1 docs carrying this SUMMARY, 1 docs carrying the self-check below.
 
 ## Files Created/Modified
 
@@ -235,6 +235,17 @@ Two things gate declaring the phase done:
 2. **The `src/core/rules/brickDamage.ts` attribution question** under Issues Encountered.
 
 Downstream, 13-achievements can now read `largestCascade` and 14-stats-screen can read the lifetime aggregates from real data rather than zeros.
+
+## Self-Check: PASSED
+
+- `app/_components/PlayingHost.tsx` — FOUND on disk
+- `.planning/phases/09-run-telemetry-storage-v4/09-04-SUMMARY.md` — FOUND on disk
+- Commit `9e97167` (feat, Task 1) — FOUND in history
+- Commit `dfaf49f` (docs, this SUMMARY) — FOUND in history
+- Commit count from `plan_head_before` `036b879` to HEAD — **3**, matching `actuals.commits`
+- Task 1 acceptance criteria: `handleMenuPress` occurrences = 4 (≥4 required); `onMenu={onMenu}` occurrences = 0; `runStartedAtRef.current = Date.now()` occurrences = 5 (≥4 required); `mode: 'campaign'` present inside `store.recordRunEnd`; typecheck 0; lint 0 — all PASS
+- Task 2 acceptance criteria: working-tree core diff empty; golden-replay + hash-canonical 8/8; `eslint src/core src/runtime` 0; `npm test` 81 files / 444 tests / 0 todo; typecheck 0 — all PASS
+- Task 3 acceptance criteria: **NOT MET — awaiting human**. Its automated companion (telemetry + storage suites, 44 passed) is green; the two manual checks are unperformed by design.
 
 ---
 *Phase: 09-run-telemetry-storage-v4*
