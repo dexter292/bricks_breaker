@@ -301,11 +301,70 @@ and CI**, which is precisely the failure daily mode cannot tolerate: the leaderb
 compare scores on boards that were never the same board. Plan 10-05's `__DEV__` on-device
 probe is what discharges this, by computing the u32 fingerprint on device and comparing.
 
-> **On-device u32 fingerprint:** `________________` *(to be filled by plan 10-05)*
+> **Device digest:** PENDING — no Hermes observation has been recorded yet.
+> **On-device u32 fingerprint:** `________________` *(probe shipped by plan 10-05; awaiting one device run)*
 > Expected: `0x2e8f6c23` = `781151267`
 
 Until that blank is filled with a matching value, treat every determinism claim in this
-document as scoped to V8.
+document as scoped to V8. The probe exists as of plan 10-05; what is still missing is the
+single observation only a device can supply.
+
+### Device probe procedure
+
+The probe is `app/_components/GameHost.tsx`'s one-shot mount effect, double-gated on the
+`LEVELGEN_PROBE` devflag **and** `__DEV__`. Unarmed builds compute nothing.
+
+1. Arm it on a dev build of the branch:
+
+   ```bash
+   EXPO_PUBLIC_LEVELGEN_PROBE=1 npx expo start
+   ```
+
+   `EXPO_PUBLIC_*` flags are inlined at bundle time, so the variable must be set for the
+   bundler process — not exported inside the app. Restart Metro if it was already running.
+
+2. Open the app on a physical device or simulator and read the Metro / device console for the
+   line tagged `[levelgen]`:
+
+   ```
+   [levelgen] corpus fingerprint u32=0xXXXXXXXX seeds=200 boards=4200 ms=NNN (expected 0x2e8f6c23 …)
+   ```
+
+   It fires once at shell mount, before Title renders anything interesting. The corpus is
+   4 200 boards, so expect a visible pause — roughly 140 ms on Node and plausibly several
+   times that on a low-end device.
+
+3. Compare the printed `u32` against the pinned value below. The comparison is against the
+   **u32**, never the SHA-256: Hermes ships no `node:crypto` and no `Buffer`, which is the
+   whole reason `corpusFingerprint` exists as shared source rather than test code.
+
+| Pin | Value |
+|-----|-------|
+| u32 fingerprint (compare this) | `0x2e8f6c23` = `781151267` |
+| Corpus | `CORPUS_SEEDS = 200` seeds x `d` in `0..20` = 4 200 boards, `s` outer, `d` inner |
+| SHA-256 (Node side only — Hermes cannot compute it) | `9e3748c89bc4d15f0c7c9e61b79d70f2ba58c327651ca81077dc7adf9572c4ea` |
+
+**Outcome A — the values match.** Assumption A1 is discharged. Replace the PENDING line and
+the blank above with the observed value and the date, and note the device and OS version. The
+determinism claims in this document then cover Hermes as well as V8, and Phase 12's daily
+challenge is unblocked.
+
+**Outcome B — the values differ.** The generator is **not** cross-engine deterministic. This
+blocks Phase 12's daily challenge; it is not something to work around by having the device
+trust its own value, because then device and CI are handing players different boards under the
+same seed. Find the cause by bisecting the corpus rather than by reading the generator:
+
+1. Halve `CORPUS_SEEDS` — call `corpusFingerprint(100)`, then `corpusFingerprint(50)`, and so
+   on — running each on both engines until the smallest diverging seed range is isolated.
+   The fold is sequential over `s` outer, so a prefix that agrees means the divergence is in
+   the seeds after it.
+2. Narrow to a single board by generating `s`/`d` pairs directly in that range.
+3. Compare that one board's `JSON.stringify(generate(s, d))` byte-for-byte between engines.
+   The diff names the operation that differs — the most likely candidates are float
+   formatting in `JSON.stringify`, property enumeration order, or an `Math.imul`/`>>> 0`
+   assumption that does not hold.
+4. Report the finding. Do **not** re-pin the digests to the device's value; both pins describe
+   one generator, and a mismatch means the generator itself needs an engine-portable fix.
 
 **2. No human play calibrated the dial constants.** They were calibrated against authored
 weight and perfect-bot clear time only. The E2 human playtest cohort (A3) was **skipped by the

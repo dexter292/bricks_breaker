@@ -29,6 +29,9 @@ vi.mock('expo-font', () => ({
 vi.mock('../../src/devflags', () => ({
   SOAK_HARNESS: false,
   CERT_HARNESS: false,
+  // Unarmed, exactly as an ordinary build: the A1 probe must never generate its
+  // 4 200-board corpus inside a UI test (Phase 10 plan 05).
+  LEVELGEN_PROBE: false,
 }));
 
 vi.mock('expo-keep-awake', () => ({

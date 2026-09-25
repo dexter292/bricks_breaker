@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
-import { CERT_HARNESS, SOAK_HARNESS } from '../../src/devflags';
+import { CERT_HARNESS, LEVELGEN_PROBE, SOAK_HARNESS } from '../../src/devflags';
+import { CORPUS_SEEDS, D_MAX, corpusFingerprint } from '../../src/levelgen';
 import type { LevelId } from '../../src/runtime/loadLevel';
 import { createDefaultProgressStore } from '../../src/services/storage';
 import { PlayingHost } from './PlayingHost';
@@ -41,6 +42,27 @@ export function GameHost() {
   useEffect(() => {
     if (!CERT_HARNESS) return;
     console.log('[cert] GameHost CERT=1 phase=playing (skip Title)');
+  }, []);
+  // A1 probe (Phase 10 plan 05): compute the corpus fingerprint on THIS device's JS engine.
+  // Hermes is the one execution environment no vitest run, CI runner or Node process reaches,
+  // so byte-identity with Node is spec-based inference until this line prints a matching value.
+  // Double-gated (EXPO_PUBLIC_LEVELGEN_PROBE=1 *and* __DEV__) because the corpus is
+  // CORPUS_SEEDS x (D_MAX + 1) = 4 200 generated boards — ~140 ms on Node, more on Hermes.
+  // Unarmed builds must not pay it, so nothing is computed before the early return.
+  // Cold path: one-shot at shell mount, the same slot the CERT log uses. Never renders,
+  // never sets state, never touches the game loop.
+  useEffect(() => {
+    if (!LEVELGEN_PROBE) return;
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+    const startedAt = Date.now();
+    const fingerprint = corpusFingerprint();
+    const elapsedMs = Date.now() - startedAt;
+    const hex = (fingerprint >>> 0).toString(16).padStart(8, '0');
+    console.log(
+      `[levelgen] corpus fingerprint u32=0x${hex} seeds=${CORPUS_SEEDS} boards=${
+        CORPUS_SEEDS * (D_MAX + 1)
+      } ms=${elapsedMs} (expected 0x2e8f6c23 — see docs/ops/BOARD-GENERATOR.md § Limits)`,
+    );
   }, []);
   const [best, setBest] = useState(0);
   const [activeLevelId, setActiveLevelId] = useState<LevelId>('level-01');
