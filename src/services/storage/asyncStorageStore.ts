@@ -4,7 +4,13 @@ import {
   createMemoryProgressStore,
 } from './memoryStore';
 import { migrateOrDefault } from './migrateProgress';
-import { parsePersonalBestResult, parseProgressResult } from './parseBlob';
+import {
+  parsePersonalBestResult,
+  parseProgressResult,
+  parseProgressV2Result,
+} from './parseBlob';
+import { computeStars, mergeLevelBest } from './stars';
+import { mergeHighWatermark } from './watermark';
 import {
   unlockAfterClear as unlockAfterClearPure,
   isUnlocked as isUnlockedPure,
@@ -13,13 +19,17 @@ import {
   PERSONAL_BEST_KEY,
   PERSONAL_BEST_VERSION,
   PROGRESS_KEY,
+  PROGRESS_KEY_V2,
   defaultProgressBlob,
+  type LevelBest,
   type PersonalBestBlob,
   type PersonalBestStore,
   type ProgressBlob,
   type ProgressStore,
 } from './types';
 import type { LevelId } from '../../core';
+
+export { mergeHighWatermark } from './watermark';
 
 type AsyncStorageLike = {
   getItem: (key: string) => Promise<string | null>;
@@ -142,49 +152,27 @@ export function __resetSharedProgressStoreForTests(): void {
   sharedProgressStore = null;
 }
 
-function cloneBlob(b: ProgressBlob): ProgressBlob {
-  return {
-    v: 2,
-    unlocked: [...b.unlocked],
-    bestByLevel: { ...b.bestByLevel },
-    bestScore: b.bestScore,
-    updatedAt: b.updatedAt,
-  };
+function cloneLevelBest(b: LevelBest): LevelBest {
+  const out: LevelBest = { score: b.score };
+  if (b.stars === 1 || b.stars === 2 || b.stars === 3) {
+    out.stars = b.stars;
+  }
+  return out;
 }
 
-/** Never lower known watermarks when merging disk into memory (F-26). */
-function mergeHighWatermark(
-  memory: ProgressBlob,
-  incoming: ProgressBlob,
-): ProgressBlob {
-  const bestByLevel: Partial<Record<LevelId, number>> = {
-    ...memory.bestByLevel,
-  };
-  for (const [key, val] of Object.entries(incoming.bestByLevel)) {
-    if (typeof val !== 'number') continue;
-    const id = key as LevelId;
-    const prev = bestByLevel[id] ?? 0;
-    if (val > prev) {
-      bestByLevel[id] = val;
+function cloneBlob(b: ProgressBlob): ProgressBlob {
+  const bestByLevel: Partial<Record<LevelId, LevelBest>> = {};
+  for (const [key, val] of Object.entries(b.bestByLevel)) {
+    if (val != null) {
+      bestByLevel[key as LevelId] = cloneLevelBest(val);
     }
-  }
-  const unlocked: LevelId[] = [];
-  const seen = new Set<LevelId>();
-  for (const id of [...memory.unlocked, ...incoming.unlocked]) {
-    if (!seen.has(id)) {
-      seen.add(id);
-      unlocked.push(id);
-    }
-  }
-  if (!seen.has('level-01')) {
-    unlocked.unshift('level-01');
   }
   return {
-    v: 2,
-    unlocked,
+    v: 3,
+    unlocked: [...b.unlocked],
     bestByLevel,
-    bestScore: Math.max(memory.bestScore, incoming.bestScore),
-    updatedAt: Math.max(memory.updatedAt, incoming.updatedAt),
+    bestScore: b.bestScore,
+    updatedAt: b.updatedAt,
   };
 }
 
@@ -271,13 +259,22 @@ function createAsyncStorageProgressStoreFrom(
     }
   }
 
+  function applyLevelBest(id: LevelId, next: LevelBest): void {
+    memory = {
+      ...memory,
+      bestByLevel: { ...memory.bestByLevel, [id]: next },
+      bestScore: Math.max(memory.bestScore, next.score),
+      updatedAt: Date.now(),
+    };
+  }
+
   async function ensureHydrated(): Promise<void> {
     if (hydrated) {
       return;
     }
     try {
-      const v2Raw = await AsyncStorage.getItem(PROGRESS_KEY);
-      const parsed = parseProgressResult(v2Raw);
+      const v3Raw = await AsyncStorage.getItem(PROGRESS_KEY);
+      const parsed = parseProgressResult(v3Raw);
 
       if (parsed.status === 'ok') {
         memory = mergeHighWatermark(memory, parsed.progress);
@@ -285,16 +282,16 @@ function createAsyncStorageProgressStoreFrom(
         return;
       }
 
-      // Absent or corrupt v2 → try v1 migrate (D-08); never clobber watermarks.
+      // Absent or corrupt v3 → migrate from v2 + v1 (D-05); never clobber watermarks.
+      // Leave v1/v2 keys on disk (rollback safety).
+      const v2Raw = await AsyncStorage.getItem(PROGRESS_KEY_V2);
       const v1Raw = await AsyncStorage.getItem(PERSONAL_BEST_KEY);
-      const migrated = migrateOrDefault(v2Raw, v1Raw);
+      const migrated = migrateOrDefault(v3Raw, v2Raw, v1Raw);
       memory = mergeHighWatermark(memory, migrated);
 
-      // Write-through once when we seeded from v1 (v2 was absent/corrupt — already branched).
-      if (
-        !wroteMigrateThrough &&
-        parsePersonalBestResult(v1Raw).status === 'ok'
-      ) {
+      const fromV2 = parseProgressV2Result(v2Raw).status === 'ok';
+      const fromV1 = parsePersonalBestResult(v1Raw).status === 'ok';
+      if (!wroteMigrateThrough && (fromV2 || fromV1)) {
         wroteMigrateThrough = true;
         await persist(memory);
       }
@@ -311,7 +308,7 @@ function createAsyncStorageProgressStoreFrom(
     },
     async getBestForLevel(id: LevelId): Promise<number> {
       await ensureHydrated();
-      return memory.bestByLevel[id] ?? 0;
+      return memory.bestByLevel[id]?.score ?? 0;
     },
     async recordLevelBest(id: LevelId, score: number): Promise<void> {
       await ensureHydrated();
@@ -319,17 +316,44 @@ function createAsyncStorageProgressStoreFrom(
       if (!(n >= 0) || !Number.isFinite(n)) {
         return;
       }
-      const prev = memory.bestByLevel[id] ?? 0;
-      if (!(n > prev)) {
+      const prevScore = memory.bestByLevel[id]?.score ?? 0;
+      if (!(n > prevScore)) {
         return;
       }
-      memory = {
-        ...memory,
-        bestByLevel: { ...memory.bestByLevel, [id]: n },
-        bestScore: Math.max(memory.bestScore, n),
-        updatedAt: Date.now(),
-      };
+      applyLevelBest(id, mergeLevelBest(memory.bestByLevel[id], n, null));
       await persist(memory);
+    },
+    recordRunEnd(args: {
+      levelId: LevelId;
+      score: number;
+      outcome: 'win' | 'lose';
+      livesRemaining: number;
+    }): ProgressBlob {
+      // Sync memory update first so Results can use returned blob (D-10 / F-26).
+      // Hydration is best-effort fire-and-forget if not yet done — callers that
+      // need disk state should await getSnapshot/getBest first (hosts do).
+      if (!hydrated) {
+        // Kick hydrate without blocking return; rare cold path before first read.
+        void ensureHydrated();
+      }
+      const starsFromWin =
+        args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
+      const merged = mergeLevelBest(
+        memory.bestByLevel[args.levelId],
+        args.score,
+        starsFromWin,
+      );
+      applyLevelBest(args.levelId, merged);
+      if (args.outcome === 'win') {
+        memory = {
+          ...memory,
+          unlocked: unlockAfterClearPure(memory.unlocked, args.levelId),
+          updatedAt: Date.now(),
+        };
+      }
+      const snapshot = cloneBlob(memory);
+      void persist(memory);
+      return snapshot;
     },
     async unlockAfterClear(id: LevelId): Promise<void> {
       await ensureHydrated();

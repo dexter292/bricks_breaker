@@ -5,7 +5,13 @@
 
 import type { LevelId } from '../../core';
 import { PLAYABLE_LEVEL_ORDER } from './catalog';
-import { defaultProgressBlob, type ProgressBlob } from './types';
+import {
+  defaultProgressBlob,
+  type LevelBest,
+  type ProgressBlob,
+  type ProgressBlobV2,
+  type StarCount,
+} from './types';
 
 export type ParseBestResult =
   | { status: 'ok'; best: number }
@@ -49,18 +55,28 @@ export type ParseProgressResult =
   | { status: 'absent'; progress: ProgressBlob }
   | { status: 'corrupt'; progress: ProgressBlob };
 
+export type ParseProgressResultV2 =
+  | { status: 'ok'; progress: ProgressBlobV2 }
+  | { status: 'absent'; progress: ProgressBlobV2 }
+  | { status: 'corrupt'; progress: ProgressBlobV2 };
+
 const PLAYABLE_SET = new Set<string>(PLAYABLE_LEVEL_ORDER);
 
-function sanitizeProgress(raw: {
-  unlocked: unknown;
-  bestByLevel: unknown;
-  bestScore: unknown;
-  updatedAt: unknown;
-}): ProgressBlob {
+function defaultProgressBlobV2(): ProgressBlobV2 {
+  return {
+    v: 2,
+    unlocked: ['level-01'],
+    bestByLevel: {},
+    bestScore: 0,
+    updatedAt: 0,
+  };
+}
+
+function sanitizeUnlocked(raw: unknown): LevelId[] {
   const unlocked: LevelId[] = [];
   const seen = new Set<LevelId>();
-  if (Array.isArray(raw.unlocked)) {
-    for (const id of raw.unlocked) {
+  if (Array.isArray(raw)) {
+    for (const id of raw) {
       if (typeof id === 'string' && PLAYABLE_SET.has(id) && !seen.has(id as LevelId)) {
         seen.add(id as LevelId);
         unlocked.push(id as LevelId);
@@ -70,6 +86,75 @@ function sanitizeProgress(raw: {
   if (!seen.has('level-01')) {
     unlocked.unshift('level-01');
   }
+  return unlocked;
+}
+
+function sanitizeLevelBest(raw: unknown): LevelBest | null {
+  if (raw == null || typeof raw !== 'object') {
+    return null;
+  }
+  const entry = raw as { score?: unknown; stars?: unknown };
+  if (typeof entry.score !== 'number' || !Number.isFinite(entry.score) || entry.score < 0) {
+    return null;
+  }
+  const best: LevelBest = { score: Math.floor(entry.score) };
+  if (entry.stars === 1 || entry.stars === 2 || entry.stars === 3) {
+    best.stars = entry.stars as StarCount;
+  }
+  return best;
+}
+
+function sanitizeProgressV3(raw: {
+  unlocked: unknown;
+  bestByLevel: unknown;
+  bestScore: unknown;
+  updatedAt: unknown;
+}): ProgressBlob {
+  const unlocked = sanitizeUnlocked(raw.unlocked);
+
+  const bestByLevel: Partial<Record<LevelId, LevelBest>> = {};
+  if (raw.bestByLevel != null && typeof raw.bestByLevel === 'object') {
+    const map = raw.bestByLevel as Record<string, unknown>;
+    for (const key of Object.keys(map)) {
+      if (!PLAYABLE_SET.has(key)) continue;
+      const best = sanitizeLevelBest(map[key]);
+      if (best != null) {
+        bestByLevel[key as LevelId] = best;
+      }
+    }
+  }
+
+  let bestScore = 0;
+  if (typeof raw.bestScore === 'number' && Number.isFinite(raw.bestScore) && raw.bestScore >= 0) {
+    bestScore = Math.floor(raw.bestScore);
+  }
+  for (const v of Object.values(bestByLevel)) {
+    if (v != null && v.score > bestScore) {
+      bestScore = v.score;
+    }
+  }
+
+  let updatedAt = 0;
+  if (typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt)) {
+    updatedAt = raw.updatedAt;
+  }
+
+  return {
+    v: 3,
+    unlocked,
+    bestByLevel,
+    bestScore,
+    updatedAt,
+  };
+}
+
+function sanitizeProgressV2(raw: {
+  unlocked: unknown;
+  bestByLevel: unknown;
+  bestScore: unknown;
+  updatedAt: unknown;
+}): ProgressBlobV2 {
+  const unlocked = sanitizeUnlocked(raw.unlocked);
 
   const bestByLevel: Partial<Record<LevelId, number>> = {};
   if (raw.bestByLevel != null && typeof raw.bestByLevel === 'object') {
@@ -107,6 +192,7 @@ function sanitizeProgress(raw: {
   };
 }
 
+/** Parse current ProgressBlob (v===3 only). */
 export function parseProgressResult(raw: string | null): ParseProgressResult {
   if (raw == null) {
     return { status: 'absent', progress: defaultProgressBlob() };
@@ -123,7 +209,7 @@ export function parseProgressResult(raw: string | null): ParseProgressResult {
       bestScore?: unknown;
       updatedAt?: unknown;
     };
-    if (blob.v !== 2) {
+    if (blob.v !== 3) {
       return { status: 'corrupt', progress: defaultProgressBlob() };
     }
     if (!Array.isArray(blob.unlocked)) {
@@ -137,7 +223,7 @@ export function parseProgressResult(raw: string | null): ParseProgressResult {
     }
     return {
       status: 'ok',
-      progress: sanitizeProgress({
+      progress: sanitizeProgressV3({
         unlocked: blob.unlocked,
         bestByLevel: blob.bestByLevel,
         bestScore: blob.bestScore,
@@ -146,5 +232,48 @@ export function parseProgressResult(raw: string | null): ParseProgressResult {
     };
   } catch {
     return { status: 'corrupt', progress: defaultProgressBlob() };
+  }
+}
+
+/** Parse legacy v2 blob for migrate-on-read input. */
+export function parseProgressV2Result(raw: string | null): ParseProgressResultV2 {
+  if (raw == null) {
+    return { status: 'absent', progress: defaultProgressBlobV2() };
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed == null || typeof parsed !== 'object') {
+      return { status: 'corrupt', progress: defaultProgressBlobV2() };
+    }
+    const blob = parsed as {
+      v?: unknown;
+      unlocked?: unknown;
+      bestByLevel?: unknown;
+      bestScore?: unknown;
+      updatedAt?: unknown;
+    };
+    if (blob.v !== 2) {
+      return { status: 'corrupt', progress: defaultProgressBlobV2() };
+    }
+    if (!Array.isArray(blob.unlocked)) {
+      return { status: 'corrupt', progress: defaultProgressBlobV2() };
+    }
+    if (blob.bestByLevel == null || typeof blob.bestByLevel !== 'object') {
+      return { status: 'corrupt', progress: defaultProgressBlobV2() };
+    }
+    if (typeof blob.bestScore !== 'number' || !Number.isFinite(blob.bestScore)) {
+      return { status: 'corrupt', progress: defaultProgressBlobV2() };
+    }
+    return {
+      status: 'ok',
+      progress: sanitizeProgressV2({
+        unlocked: blob.unlocked,
+        bestByLevel: blob.bestByLevel,
+        bestScore: blob.bestScore,
+        updatedAt: blob.updatedAt,
+      }),
+    };
+  } catch {
+    return { status: 'corrupt', progress: defaultProgressBlobV2() };
   }
 }

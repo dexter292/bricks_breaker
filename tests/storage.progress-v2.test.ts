@@ -1,9 +1,11 @@
 /**
- * N-PROG-01 / N-PROG-02 — progress v2 catalog, unlock, parse, migrate, store.
+ * N-PROG-01 / N-PROG-02 — catalog, unlock, v2 migrate-input helpers, v3 store basics.
+ * ProgressBlob is v3; legacy v2 JSON is covered via parseProgressV2Result + migrateOrDefault.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   PROGRESS_KEY,
+  PROGRESS_KEY_V2,
   PROGRESS_VERSION,
   PERSONAL_BEST_KEY,
   defaultProgressBlob,
@@ -13,6 +15,7 @@ import {
   unlockAfterClear,
   isUnlocked,
   parseProgressResult,
+  parseProgressV2Result,
   migrateOrDefault,
   createMemoryProgressStore,
   createDefaultProgressStore,
@@ -56,28 +59,30 @@ describe('progress catalog + unlock (C1 Wave 0)', () => {
     expect(isUnlocked(['level-01', 'level-03'], 'level-03')).toBe(true);
   });
 
-  it('defaultProgressBlob shape', () => {
+  it('defaultProgressBlob shape (v3)', () => {
     const b = defaultProgressBlob();
     expect(b.v).toBe(PROGRESS_VERSION);
-    expect(b.v).toBe(2);
-    expect(PROGRESS_KEY).toBe('@nbb/progress/v2');
+    expect(b.v).toBe(3);
+    expect(PROGRESS_KEY).toBe('@nbb/progress/v3');
+    expect(PROGRESS_KEY_V2).toBe('@nbb/progress/v2');
     expect(b.unlocked).toEqual(['level-01']);
     expect(b.bestByLevel).toEqual({});
     expect(b.bestScore).toBe(0);
   });
 });
 
-describe('parseProgressResult (C1 Wave 1)', () => {
+describe('parseProgressV2Result (migrate input)', () => {
   it('null → absent defaults', () => {
-    const r = parseProgressResult(null);
+    const r = parseProgressV2Result(null);
     expect(r.status).toBe('absent');
-    expect(r.progress).toEqual(defaultProgressBlob());
+    expect(r.progress.v).toBe(2);
+    expect(r.progress.unlocked).toEqual(['level-01']);
   });
 
   it('corrupt JSON / wrong v / bad unlocked → corrupt', () => {
-    expect(parseProgressResult('{not-json').status).toBe('corrupt');
+    expect(parseProgressV2Result('{not-json').status).toBe('corrupt');
     expect(
-      parseProgressResult(
+      parseProgressV2Result(
         JSON.stringify({
           v: 1,
           unlocked: ['level-01'],
@@ -87,7 +92,7 @@ describe('parseProgressResult (C1 Wave 1)', () => {
       ).status,
     ).toBe('corrupt');
     expect(
-      parseProgressResult(
+      parseProgressV2Result(
         JSON.stringify({
           v: 2,
           unlocked: 'nope',
@@ -97,7 +102,7 @@ describe('parseProgressResult (C1 Wave 1)', () => {
       ).status,
     ).toBe('corrupt');
     expect(
-      parseProgressResult(
+      parseProgressV2Result(
         JSON.stringify({
           v: 2,
           unlocked: ['level-01'],
@@ -107,7 +112,7 @@ describe('parseProgressResult (C1 Wave 1)', () => {
       ).status,
     ).toBe('corrupt');
     expect(
-      parseProgressResult(
+      parseProgressV2Result(
         JSON.stringify({
           v: 2,
           unlocked: ['level-01'],
@@ -116,12 +121,10 @@ describe('parseProgressResult (C1 Wave 1)', () => {
         }),
       ).status,
     ).toBe('corrupt');
-    const corrupt = parseProgressResult('{not-json');
-    expect(corrupt.progress).toEqual(defaultProgressBlob());
   });
 
   it('ok blob floors scores, drops unknown ids, ensures level-01', () => {
-    const r = parseProgressResult(
+    const r = parseProgressV2Result(
       JSON.stringify({
         v: 2,
         unlocked: ['level-03', 'level-02', 'level-99'],
@@ -142,21 +145,36 @@ describe('parseProgressResult (C1 Wave 1)', () => {
   });
 });
 
-describe('migrateOrDefault (C1 Wave 1)', () => {
+describe('parseProgressResult rejects v2 under v3 key', () => {
+  it('v2 JSON is corrupt for parseProgressResult', () => {
+    expect(
+      parseProgressResult(
+        JSON.stringify({
+          v: 2,
+          unlocked: ['level-01'],
+          bestByLevel: { 'level-01': 5 },
+          bestScore: 5,
+        }),
+      ).status,
+    ).toBe('corrupt');
+  });
+});
+
+describe('migrateOrDefault (v1/v2→v3)', () => {
   it('v1-only seeds bestScore; unlocked=[level-01]; empty bestByLevel', () => {
     const v1 = JSON.stringify({
       v: 1,
       bestScore: 42,
       updatedAt: 1,
     });
-    const m = migrateOrDefault(null, v1);
-    expect(m.v).toBe(2);
+    const m = migrateOrDefault(null, null, v1);
+    expect(m.v).toBe(3);
     expect(m.bestScore).toBe(42);
     expect(m.unlocked).toEqual(['level-01']);
     expect(m.bestByLevel).toEqual({});
   });
 
-  it('valid v2 preferred over v1', () => {
+  it('valid v2 preferred over v1; maps to nested {score}', () => {
     const v2 = JSON.stringify({
       v: 2,
       unlocked: ['level-01', 'level-03'],
@@ -165,27 +183,28 @@ describe('migrateOrDefault (C1 Wave 1)', () => {
       updatedAt: 2,
     });
     const v1 = JSON.stringify({ v: 1, bestScore: 999, updatedAt: 1 });
-    const m = migrateOrDefault(v2, v1);
+    const m = migrateOrDefault(null, v2, v1);
+    expect(m.v).toBe(3);
     expect(m.bestScore).toBe(5);
     expect(m.unlocked).toContain('level-03');
-    expect(m.bestByLevel['level-01']).toBe(5);
+    expect(m.bestByLevel['level-01']).toEqual({ score: 5 });
   });
 
-  it('null,null → defaults', () => {
-    expect(migrateOrDefault(null, null)).toEqual(defaultProgressBlob());
+  it('null,null,null → defaults', () => {
+    expect(migrateOrDefault(null, null, null)).toEqual(defaultProgressBlob());
   });
 
   it('corrupt v2 + ok v1 seeds from v1 (do not lose PB)', () => {
     const v1 = JSON.stringify({ v: 1, bestScore: 77, updatedAt: 1 });
-    const m = migrateOrDefault('{broken', v1);
+    const m = migrateOrDefault(null, '{broken', v1);
     expect(m.bestScore).toBe(77);
     expect(m.unlocked).toEqual(['level-01']);
     expect(m.bestByLevel).toEqual({});
   });
 });
 
-describe('memory ProgressStore (C1 Wave 1)', () => {
-  it('recordLevelBest strict >; rollup bestScore', async () => {
+describe('memory ProgressStore (v3 nested best)', () => {
+  it('recordLevelBest strict >; rollup bestScore; getBestForLevel nested score', async () => {
     const store = createMemoryProgressStore();
     expect(await store.getBestForLevel('level-01')).toBe(0);
     await store.recordLevelBest('level-01', 100);
@@ -198,6 +217,9 @@ describe('memory ProgressStore (C1 Wave 1)', () => {
     await store.recordLevelBest('level-03', 120);
     expect(await store.getBest()).toBe(120);
     expect(await store.getBestForLevel('level-01')).toBe(100);
+    const snap = await store.getSnapshot();
+    expect(snap.bestByLevel['level-01']).toEqual({ score: 100 });
+    expect(snap.bestByLevel['level-01']).not.toHaveProperty('stars');
   });
 
   it('unlockAfterClear on win semantics (store method)', async () => {

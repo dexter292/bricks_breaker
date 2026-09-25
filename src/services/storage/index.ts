@@ -5,8 +5,10 @@ export {
   type PersonalBestStore,
   PROGRESS_VERSION,
   PROGRESS_KEY,
+  PROGRESS_KEY_V2,
   defaultProgressBlob,
   type ProgressBlob,
+  type ProgressBlobV2,
   type ProgressStore,
   type StarCount,
   type LevelBest,
@@ -29,10 +31,13 @@ export {
   parsePersonalBestBlob,
   parsePersonalBestResult,
   parseProgressResult,
+  parseProgressV2Result,
   type ParseBestResult,
   type ParseProgressResult,
+  type ParseProgressResultV2,
 } from './parseBlob';
 export { migrateOrDefault } from './migrateProgress';
+export { mergeHighWatermark } from './watermark';
 export {
   createMemoryPersonalBestStore,
   createMemoryProgressStore,
