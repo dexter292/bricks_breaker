@@ -51,8 +51,17 @@ export {
   type ParseProgressV3Result,
   type ParseProgressResultV2,
 } from './parseBlob';
-export { migrateOrDefault } from './migrateProgress';
-export { mergeHighWatermark } from './watermark';
+export {
+  migrateOrDefault,
+  migrateOrDefaultV3,
+  v3ToV4,
+} from './migrateProgress';
+export { mergeHighWatermark, mergeHighWatermarkV3 } from './watermark';
+export {
+  mergeRunIntoTelemetry,
+  mergeTelemetryBlobs,
+  cloneTelemetryBlob,
+} from './telemetry';
 export {
   createMemoryPersonalBestStore,
   createMemoryProgressStore,

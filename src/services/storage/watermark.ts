@@ -1,9 +1,15 @@
 /**
- * Nested high-watermark merge for ProgressBlob v3 (F-26 / D-04).
+ * Nested high-watermark merge for ProgressBlob (F-26 / D-04 / N-STAT-02).
  * Never lowers known score/stars when merging disk into memory.
  */
 import type { LevelId } from '../../core';
-import type { LevelBest, ProgressBlob, StarCount } from './types';
+import { mergeTelemetryBlobs } from './telemetry';
+import type {
+  LevelBest,
+  ProgressBlob,
+  ProgressBlobV3,
+  StarCount,
+} from './types';
 
 function cloneLevelBest(b: LevelBest): LevelBest {
   const out: LevelBest = { score: b.score };
@@ -13,11 +19,11 @@ function cloneLevelBest(b: LevelBest): LevelBest {
   return out;
 }
 
-/** Never lower known watermarks when merging disk into memory (F-26). */
-export function mergeHighWatermark(
-  memory: ProgressBlob,
-  incoming: ProgressBlob,
-): ProgressBlob {
+/** Never lower known watermarks when merging disk into memory (F-26) — v3 legacy. */
+export function mergeHighWatermarkV3(
+  memory: ProgressBlobV3,
+  incoming: ProgressBlobV3,
+): ProgressBlobV3 {
   const bestByLevel: Partial<Record<LevelId, LevelBest>> = {};
   for (const [key, val] of Object.entries(memory.bestByLevel)) {
     if (val != null) {
@@ -67,5 +73,35 @@ export function mergeHighWatermark(
     bestByLevel,
     bestScore: Math.max(memory.bestScore, incoming.bestScore),
     updatedAt: Math.max(memory.updatedAt, incoming.updatedAt),
+  };
+}
+
+/** Strip the v4-only fields so the shared four-field merge stays single-sourced. */
+function asV3(blob: ProgressBlob): ProgressBlobV3 {
+  return {
+    v: 3,
+    unlocked: blob.unlocked,
+    bestByLevel: blob.bestByLevel,
+    bestScore: blob.bestScore,
+    updatedAt: blob.updatedAt,
+  };
+}
+
+/**
+ * v4 watermark merge: unlocked/bestByLevel/bestScore/updatedAt go through the
+ * unchanged v3 max-based logic; telemetry merges on its own sum-vs-max rules.
+ */
+export function mergeHighWatermark(
+  memory: ProgressBlob,
+  incoming: ProgressBlob,
+): ProgressBlob {
+  const shared = mergeHighWatermarkV3(asV3(memory), asV3(incoming));
+  return {
+    v: 4,
+    unlocked: shared.unlocked,
+    bestByLevel: shared.bestByLevel,
+    bestScore: shared.bestScore,
+    updatedAt: shared.updatedAt,
+    telemetry: mergeTelemetryBlobs(memory.telemetry, incoming.telemetry),
   };
 }
