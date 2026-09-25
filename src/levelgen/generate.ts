@@ -36,8 +36,20 @@
  * RESEARCH falsified two plausible local steel rules against the real lint, and produced a
  * half-board with **0** unreachable breakables that yielded **20** once mirrored. Both
  * cells of a pair are therefore set *before* the invariant is checked, the check runs over
- * the full `rows * cols` mask, and the pair is accepted or reverted together. Checking the
- * half-board is the documented catastrophic failure.
+ * the full `rows * cols` mask, and the pair is accepted or reverted together.
+ *
+ * **Which "half-board check" is the catastrophic one — measured in plan 10-03, because the
+ * earlier wording here conflated two different mutations.** Committing `a`, checking, and
+ * only then committing the mirror `b` is the unsound ordering: over 105 000 boards with the
+ * adjacency rule below removed it produces **291** boards carrying unreachable breakables
+ * (up to 126 on one board, first at `s=0 d=13`), rising to **16 610** if the steel dial is
+ * tripled. Running `allNonSteelReachable` over a *half-width* mask is a different thing and
+ * is **not** unsound: the half's flood is a subset of the full board's flood (same bottom-row
+ * seeds, every half-move is a legal full-board move) and the half's right edge is a wall
+ * where the full board has an opening, so the half condition is at least as strong. It was
+ * mutation-tested at 105 000 boards, with and without the adjacency rule and at a tripled
+ * steel dial, and never failed. The code keeps the full-board form anyway — it is the one
+ * whose soundness needs no symmetry argument — but do not expect a sweep to defend it.
  *
  * ## No aliasing on output (RESEARCH Pitfall 3)
  *
@@ -71,11 +83,22 @@ const ORTHOGONAL = [
  * True if setting cell `i` steel would put two steel cells orthogonally adjacent, counting
  * `other` (the not-yet-committed mirror of `i`) as steel.
  *
- * Polish from RESEARCH §Q3, **not** a substitute for the invariant: on this fixed lattice
- * this predicate alone eliminates every corridor warning, measured over 63 000 boards,
- * making generated boards cleaner than the campaign. It also rejects the centre seam
- * automatically — a pair at `cols/2 - 1` and `cols/2` is orthogonally adjacent to itself,
- * which is the single riskiest steel placement on an even-width board.
+ * **Load-bearing. Do not delete this as "polish".** It began as RESEARCH §Q3 cosmetics — on
+ * this fixed lattice the predicate alone eliminates every corridor warning, measured over
+ * 63 000 boards, making generated boards cleaner than the campaign — but plan 10-03
+ * measured what it is actually doing, and it is more than that.
+ *
+ * It rejects the centre seam automatically: a pair at `cols/2 - 1` and `cols/2` is
+ * orthogonally adjacent to itself. Columns 4 and 5 therefore carry steel on **0 of 105 000**
+ * boards (with the rule removed: ~64 000 occurrences per column), which leaves a permanently
+ * open two-wide vertical corridor from the top row down to the bottom row. With that corridor
+ * present the two halves are reachability-independent, so every cell reaches the flood
+ * through its own half and committing the mirror can never change the other half's answer.
+ * That is *why* the ordering above is currently unfalsifiable: remove this predicate and the
+ * pre-mirror ordering immediately produces 291 unreachable boards per 105 000.
+ *
+ * It is still **not** a substitute for the invariant — the invariant is what makes D-03 a
+ * theorem — but anyone removing this rule must re-run the mirror-ordering mutation first.
  */
 function wouldTouchSteel(
   steel: Uint8Array,
@@ -233,7 +256,9 @@ export function generate(seed: number | string, difficulty: number): LevelFileV1
     if (wouldTouchSteel(steel, cols, rows, a, b)) continue;
     if (wouldTouchSteel(steel, cols, rows, b, a)) continue;
 
-    // Set BOTH cells, then check the FULL board. Never the half.
+    // Set BOTH cells, then check the FULL board — the ordering whose soundness needs no
+    // symmetry argument. See the header: at ship settings this is indistinguishable from
+    // checking before committing `b`, and the thing making it so is `wouldTouchSteel`.
     steel[a] = 1;
     steel[b] = 1;
     if (allNonSteelReachable(steel, cols, rows)) {
