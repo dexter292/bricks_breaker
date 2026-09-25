@@ -93,6 +93,8 @@ const SIM = {
 
 type Props = {
   onMenu: () => void;
+  /** Forward-compat for GameHost shell (C2-02); wired as source of truth in C2-03. */
+  levelId?: LevelId;
 };
 
 /** NG-14 — isolated keep-awake so unmount releases the lock; tag is component-local. */

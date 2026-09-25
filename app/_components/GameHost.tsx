@@ -3,11 +3,13 @@ import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
 import { CERT_HARNESS, SOAK_HARNESS } from '../../src/devflags';
+import type { LevelId } from '../../src/runtime/loadLevel';
 import { createDefaultProgressStore } from '../../src/services/storage';
 import { PlayingHost } from './PlayingHost';
+import { SelectScreen } from './SelectScreen';
 import { TitleScreen } from './TitleScreen';
 
-type ShellPhase = 'title' | 'playing';
+type ShellPhase = 'title' | 'select' | 'playing';
 
 /** Dwell between Title↔Playing edges during soak cycles (D-19). Not on the frame path. */
 const SOAK_CYCLE_DWELL_MS = 750;
@@ -21,9 +23,9 @@ function HarnessKeepAwake() {
 }
 
 /**
- * App shell: Title ↔ Playing (D-01, D-02, D-05).
- * Shell only — PlayingHost mounts while playing so Menu unmount
- * tears down the game loop worklets (RESEARCH Pattern 1 / Pitfall 1).
+ * App shell: Title → Select → Playing (D-01, D-14, D-17, D-22).
+ * CERT/SOAK stay Title↔Playing only — never insert Select (D-01).
+ * PlayingHost mounts while playing so Menu unmount tears down worklets.
  */
 export function GameHost() {
   // Intentional second useFonts site (PlayingHost also loads SpaceMono for HUD).
@@ -31,7 +33,7 @@ export function GameHost() {
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
   });
-  // Cert WC: skip Title so Instruments can attach to an active playfield immediately.
+  // Cert WC: skip Title+Select so Instruments can attach to an active playfield immediately.
   // Allowed when EXPO_PUBLIC_CERT=1 even if __DEV__ is false (profiling IPA).
   const [shellPhase, setShellPhase] = useState<ShellPhase>(() =>
     CERT_HARNESS && !SOAK_HARNESS ? 'playing' : 'title',
@@ -41,6 +43,7 @@ export function GameHost() {
     console.log('[cert] GameHost CERT=1 phase=playing (skip Title)');
   }, []);
   const [best, setBest] = useState(0);
+  const [activeLevelId, setActiveLevelId] = useState<LevelId>('level-01');
   // F-26: same ProgressStore singleton as PlayingHost — Title rollup matches max.
   const store = useMemo(() => createDefaultProgressStore(), []);
 
@@ -62,6 +65,7 @@ export function GameHost() {
 
   // DEV soak: 100 Title↔Playing mounts then 15 min continuous (D-19…D-23).
   // Discrete setTimeout only — never useFrameCallback / per-frame work.
+  // D-01: only 'title' | 'playing' — never 'select'.
   useEffect(() => {
     if (typeof __DEV__ === 'undefined' || !__DEV__ || !SOAK_HARNESS) {
       return;
@@ -143,7 +147,22 @@ export function GameHost() {
     return (
       <View style={styles.root}>
         {harnessAwake}
-        <TitleScreen best={best} onPlay={() => setShellPhase('playing')} />
+        <TitleScreen best={best} onPlay={() => setShellPhase('select')} />
+      </View>
+    );
+  }
+
+  if (shellPhase === 'select') {
+    return (
+      <View style={styles.root}>
+        {harnessAwake}
+        <SelectScreen
+          onBack={() => setShellPhase('title')}
+          onChoose={(id) => {
+            setActiveLevelId(id);
+            setShellPhase('playing');
+          }}
+        />
       </View>
     );
   }
@@ -151,7 +170,10 @@ export function GameHost() {
   return (
     <View style={styles.root}>
       {harnessAwake}
-      <PlayingHost onMenu={() => setShellPhase('title')} />
+      <PlayingHost
+        levelId={CERT_HARNESS ? 'level-03' : activeLevelId}
+        onMenu={() => setShellPhase('title')}
+      />
     </View>
   );
 }
