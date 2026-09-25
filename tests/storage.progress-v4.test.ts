@@ -883,6 +883,41 @@ describe('AsyncStorage-backed store: v4 hydrate chain (N-STAT-02)', () => {
     expect(storage.reads.filter((k) => k === PROGRESS_KEY)).toHaveLength(1);
   });
 
+  it('a run recorded before hydration finishes still persists the UNION of disk history and the new run', async () => {
+    const first = PLAYABLE_LEVEL_ORDER[0];
+    const storage = fakeAsyncStorage({
+      [PROGRESS_KEY]: JSON.stringify(diskBlobWithTelemetry()),
+    });
+    const store = __createAsyncStorageProgressStoreForTests(storage);
+
+    // Cold path: recordRunEnd fires before any awaited read, so it kicks
+    // hydration itself. Persisting the in-memory blob right away would write a
+    // blob that has not seen the disk history yet — destroying 5 runs' worth of
+    // lifetime counters on the next app kill.
+    const returned = store.recordRunEnd({
+      mode: 'campaign',
+      levelId: first,
+      score: 1_000,
+      outcome: 'win',
+      livesRemaining: 3,
+      stats: runStats({ bricksBroken: 40, ticksPlayed: 500 }),
+    });
+    // The synchronous return is still pre-hydration by contract (D-10 / F-26).
+    expect(returned.telemetry.lifetime.bricksBroken).toBe(40);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const persisted = parseProgressResult(storage.map.get(PROGRESS_KEY) ?? null);
+    expect(persisted.status).toBe('ok');
+    expect(persisted.progress.telemetry.lifetime.runsPlayed).toBe(6);
+    expect(persisted.progress.telemetry.lifetime.bricksBroken).toBe(290);
+    expect(persisted.progress.telemetry.lifetime.ticksPlayed).toBe(4_500);
+    expect(persisted.progress.bestScore).toBe(1_000);
+    // And the store's own view agrees with what landed on disk.
+    const snap = await store.getSnapshot();
+    expect(snap.telemetry.lifetime.bricksBroken).toBe(290);
+  });
+
   it('re-reading an already-hydrated store is idempotent — repeated reads never grow the counters', async () => {
     const storage = fakeAsyncStorage({
       [PROGRESS_KEY]: JSON.stringify(diskBlobWithTelemetry()),

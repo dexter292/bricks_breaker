@@ -372,7 +372,8 @@ function createAsyncStorageProgressStoreFrom(
       // Sync memory update first so Results can use returned blob (D-10 / F-26).
       // Hydration is best-effort fire-and-forget if not yet done — callers that
       // need disk state should await getSnapshot/getBest first (hosts do).
-      if (!hydrated) {
+      const wasHydrated = hydrated;
+      if (!wasHydrated) {
         // Kick hydrate without blocking return; rare cold path before first read.
         void ensureHydrated();
       }
@@ -403,7 +404,18 @@ function createAsyncStorageProgressStoreFrom(
         };
       }
       const snapshot = cloneBlob(memory);
-      void persist(memory);
+      if (wasHydrated) {
+        void persist(memory);
+      } else {
+        // Cold path: disk still holds lifetime telemetry this store has not
+        // merged yet. Writing `memory` now would overwrite that history with a
+        // blob that has never seen it — and telemetry SUMS, so it is gone for
+        // good. Hydration is already in flight (kicked above), so chain the
+        // write behind it and persist the union instead. Deliberately writing
+        // late rather than truncating: an app kill inside this window loses one
+        // just-ended run, not every run ever played.
+        void ensureHydrated().then(() => persist(memory));
+      }
       return snapshot;
     },
     async unlockAfterClear(id: LevelId): Promise<void> {
