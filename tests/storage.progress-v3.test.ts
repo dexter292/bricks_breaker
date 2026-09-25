@@ -1,22 +1,23 @@
 /**
- * N-PROG-03 — progress v3 stars helpers + migrate/parse/store (C2 Plan 01).
+ * N-PROG-03 — progress v3 stars helpers + migrate/parse (C2 Plan 01).
+ *
+ * Phase 9 bumped the active blob to v4, so the v3-active functions live on here
+ * under their legacy `*V3` names with unchanged behavior. The v4 equivalents (and
+ * the store-level recordRunEnd coverage) live in tests/storage.progress-v4.test.ts.
  */
 import { describe, it, expect } from 'vitest';
 import {
-  PROGRESS_KEY,
-  PROGRESS_VERSION,
   PERSONAL_BEST_KEY,
   computeStars,
   mergeLevelBest,
   selectRowState,
-  defaultProgressBlob,
-  parseProgressResult,
-  migrateOrDefault,
-  createMemoryProgressStore,
-  mergeHighWatermark,
+  defaultProgressBlobV3,
+  parseProgressV3Result,
+  migrateOrDefaultV3,
+  mergeHighWatermarkV3,
   PLAYABLE_LEVEL_ORDER,
   type LevelBest,
-  type ProgressBlob,
+  type ProgressBlobV3,
 } from '../src/services/storage';
 
 describe('computeStars (C2 Wave 0)', () => {
@@ -111,7 +112,7 @@ describe('selectRowState (C2 Wave 0 / R-30)', () => {
       bestScore: 900,
       updatedAt: 7,
     });
-    const m = migrateOrDefault(preE2, null, null);
+    const m = migrateOrDefaultV3(preE2, null, null);
 
     expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 4));
     // No gap: every unlocked level is contiguous from the start of the campaign.
@@ -142,26 +143,14 @@ describe('selectRowState (C2 Wave 0 / R-30)', () => {
   });
 });
 
-describe('PROGRESS_KEY / VERSION (C2 Plan 01)', () => {
-  it("PROGRESS_KEY === '@nbb/progress/v3' and PROGRESS_VERSION === 3", () => {
-    expect(PROGRESS_VERSION).toBe(3);
-    expect(PROGRESS_KEY).toBe('@nbb/progress/v3');
-    const b = defaultProgressBlob();
-    expect(b.v).toBe(3);
-    expect(b.unlocked).toEqual(['level-01']);
-    expect(b.bestByLevel).toEqual({});
-    expect(b.bestScore).toBe(0);
-  });
-});
-
-describe('migrateOrDefault (C2 Plan 01)', () => {
+describe('migrateOrDefaultV3 (C2 Plan 01)', () => {
   it('v1→v3 seeds bestScore; unlocked=[level-01]; empty bestByLevel', () => {
     const v1 = JSON.stringify({
       v: 1,
       bestScore: 42,
       updatedAt: 1,
     });
-    const m = migrateOrDefault(null, null, v1);
+    const m = migrateOrDefaultV3(null, null, v1);
     expect(m.v).toBe(3);
     expect(m.bestScore).toBe(42);
     expect(m.unlocked).toEqual(['level-01']);
@@ -176,7 +165,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
       bestScore: 100,
       updatedAt: 9,
     });
-    const m = migrateOrDefault(null, v2, null);
+    const m = migrateOrDefaultV3(null, v2, null);
     expect(m.v).toBe(3);
     expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(m.bestByLevel['level-01']).toEqual({ score: 100 });
@@ -202,7 +191,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
       updatedAt: 2,
     });
     const v1 = JSON.stringify({ v: 1, bestScore: 50_000, updatedAt: 1 });
-    const m = migrateOrDefault(v3, v2, v1);
+    const m = migrateOrDefaultV3(v3, v2, v1);
     expect(m.bestScore).toBe(5);
     expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
     expect(m.bestByLevel['level-01']).toEqual({ score: 5, stars: 2 });
@@ -216,7 +205,7 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
       bestScore: 77,
       updatedAt: 2,
     });
-    const m = migrateOrDefault('{broken', v2, null);
+    const m = migrateOrDefaultV3('{broken', v2, null);
     expect(m.v).toBe(3);
     expect(m.bestScore).toBe(77);
     expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
@@ -224,16 +213,16 @@ describe('migrateOrDefault (C2 Plan 01)', () => {
   });
 });
 
-describe('parseProgressResult v3 (C2 Plan 01)', () => {
+describe('parseProgressV3Result (C2 Plan 01)', () => {
   it('corrupt v3 → defaults; never throw', () => {
-    expect(() => parseProgressResult('{not-json')).not.toThrow();
-    expect(parseProgressResult('{not-json').status).toBe('corrupt');
-    expect(parseProgressResult('{not-json').progress).toEqual(
-      defaultProgressBlob(),
+    expect(() => parseProgressV3Result('{not-json')).not.toThrow();
+    expect(parseProgressV3Result('{not-json').status).toBe('corrupt');
+    expect(parseProgressV3Result('{not-json').progress).toEqual(
+      defaultProgressBlobV3(),
     );
     // wrong version (v2 under v3 parser)
     expect(
-      parseProgressResult(
+      parseProgressV3Result(
         JSON.stringify({
           v: 2,
           unlocked: ['level-01'],
@@ -243,7 +232,7 @@ describe('parseProgressResult v3 (C2 Plan 01)', () => {
       ).status,
     ).toBe('corrupt');
     expect(
-      parseProgressResult(
+      parseProgressV3Result(
         JSON.stringify({
           v: 3,
           unlocked: 'nope',
@@ -253,7 +242,7 @@ describe('parseProgressResult v3 (C2 Plan 01)', () => {
       ).status,
     ).toBe('corrupt');
     expect(
-      parseProgressResult(
+      parseProgressV3Result(
         JSON.stringify({
           v: 3,
           unlocked: ['level-01'],
@@ -265,7 +254,7 @@ describe('parseProgressResult v3 (C2 Plan 01)', () => {
   });
 
   it('ok parse: floors scores; stars only 1|2|3; drops unknown ids', () => {
-    const r = parseProgressResult(
+    const r = parseProgressV3Result(
       JSON.stringify({
         v: 3,
         unlocked: ['level-03', 'level-02', 'level-99'],
@@ -293,9 +282,9 @@ describe('parseProgressResult v3 (C2 Plan 01)', () => {
   });
 });
 
-describe('mergeHighWatermark (C2 Plan 01 / F-26)', () => {
+describe('mergeHighWatermarkV3 (C2 Plan 01 / F-26)', () => {
   it('corrupt disk must not lower memory score/stars', () => {
-    const memory: ProgressBlob = {
+    const memory: ProgressBlobV3 = {
       v: 3,
       unlocked: ['level-01', 'level-03'],
       bestByLevel: {
@@ -304,7 +293,7 @@ describe('mergeHighWatermark (C2 Plan 01 / F-26)', () => {
       bestScore: 200,
       updatedAt: 50,
     };
-    const incoming: ProgressBlob = {
+    const incoming: ProgressBlobV3 = {
       v: 3,
       unlocked: ['level-01'],
       bestByLevel: {
@@ -313,7 +302,7 @@ describe('mergeHighWatermark (C2 Plan 01 / F-26)', () => {
       bestScore: 10,
       updatedAt: 1,
     };
-    const merged = mergeHighWatermark(memory, incoming);
+    const merged = mergeHighWatermarkV3(memory, incoming);
     expect(merged.bestByLevel['level-01']).toEqual({
       score: 200,
       stars: 3,
@@ -323,14 +312,14 @@ describe('mergeHighWatermark (C2 Plan 01 / F-26)', () => {
   });
 
   it('maxes score; maxes stars when both present; never drops stars when incoming omits', () => {
-    const memory: ProgressBlob = {
+    const memory: ProgressBlobV3 = {
       v: 3,
       unlocked: ['level-01'],
       bestByLevel: { 'level-01': { score: 50, stars: 2 } },
       bestScore: 50,
       updatedAt: 1,
     };
-    const incoming: ProgressBlob = {
+    const incoming: ProgressBlobV3 = {
       v: 3,
       unlocked: ['level-01', 'level-03'],
       bestByLevel: {
@@ -340,72 +329,11 @@ describe('mergeHighWatermark (C2 Plan 01 / F-26)', () => {
       bestScore: 80,
       updatedAt: 2,
     };
-    const merged = mergeHighWatermark(memory, incoming);
+    const merged = mergeHighWatermarkV3(memory, incoming);
     expect(merged.bestByLevel['level-01']).toEqual({ score: 80, stars: 2 });
     expect(merged.bestByLevel['level-03']).toEqual({ score: 40, stars: 1 });
     expect(merged.unlocked).toContain('level-03');
     expect(merged.bestScore).toBe(80);
-  });
-});
-
-describe('recordRunEnd (C2 Plan 01)', () => {
-  it('win merges max(stars); lose does not write stars; returns blob', () => {
-    const store = createMemoryProgressStore();
-    const win = store.recordRunEnd({
-      levelId: 'level-01',
-      score: 100,
-      outcome: 'win',
-      livesRemaining: 2,
-    });
-    expect(win.v).toBe(3);
-    expect(win.bestByLevel['level-01']).toEqual({ score: 100, stars: 2 });
-    expect(win.unlocked).toContain(PLAYABLE_LEVEL_ORDER[1]);
-    expect(win.bestScore).toBe(100);
-
-    const lose = store.recordRunEnd({
-      levelId: 'level-01',
-      score: 150,
-      outcome: 'lose',
-      livesRemaining: 0,
-    });
-    expect(lose.bestByLevel['level-01']).toEqual({ score: 150, stars: 2 });
-    expect(lose.bestByLevel['level-01']).toHaveProperty('stars', 2);
-
-    const winLowerStars = store.recordRunEnd({
-      levelId: 'level-01',
-      score: 90,
-      outcome: 'win',
-      livesRemaining: 1,
-    });
-    expect(winLowerStars.bestByLevel['level-01']).toEqual({
-      score: 150,
-      stars: 2,
-    });
-
-    const winHigherStars = store.recordRunEnd({
-      levelId: 'level-01',
-      score: 160,
-      outcome: 'win',
-      livesRemaining: 3,
-    });
-    expect(winHigherStars.bestByLevel['level-01']).toEqual({
-      score: 160,
-      stars: 3,
-    });
-  });
-
-  it('getBestForLevel returns nested .score', async () => {
-    const store = createMemoryProgressStore();
-    expect(await store.getBestForLevel('level-01')).toBe(0);
-    store.recordRunEnd({
-      levelId: 'level-01',
-      score: 42,
-      outcome: 'lose',
-      livesRemaining: 1,
-    });
-    expect(await store.getBestForLevel('level-01')).toBe(42);
-    const snap = await store.getSnapshot();
-    expect(snap.bestByLevel['level-01']).toEqual({ score: 42 });
   });
 });
 

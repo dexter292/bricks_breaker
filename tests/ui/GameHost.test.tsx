@@ -44,13 +44,14 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
       getBest: () => Promise.resolve(7),
       getSnapshot: () =>
         Promise.resolve({
-          v: 3 as const,
+          v: 4 as const,
           unlocked: ['level-01', 'level-03'] as const,
           bestByLevel: {
             'level-01': { score: 100, stars: 1 as const },
           },
           bestScore: 100,
           updatedAt: 0,
+          telemetry: actual.defaultTelemetryBlob(),
         }),
     }),
   };

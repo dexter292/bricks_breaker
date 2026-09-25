@@ -1,22 +1,23 @@
 /**
- * N-PROG-01 / N-PROG-02 — catalog, unlock, v2 migrate-input helpers, v3 store basics.
- * ProgressBlob is v3; legacy v2 JSON is covered via parseProgressV2Result + migrateOrDefault.
+ * N-PROG-01 / N-PROG-02 — catalog, unlock, v2 migrate-input helpers, store basics.
+ * Phase 9 made v3 a legacy migrate-input shape (the active blob is v4), so the v3
+ * assertions below target the `*V3` functions; v2 JSON is still covered via
+ * parseProgressV2Result + migrateOrDefaultV3.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  PROGRESS_KEY,
+  PROGRESS_KEY_V3,
   PROGRESS_KEY_V2,
-  PROGRESS_VERSION,
   PERSONAL_BEST_KEY,
-  defaultProgressBlob,
+  defaultProgressBlobV3,
   PLAYABLE_LEVEL_ORDER,
   nextLevelId,
   defaultUnlocked,
   unlockAfterClear,
   isUnlocked,
-  parseProgressResult,
+  parseProgressV3Result,
   parseProgressV2Result,
-  migrateOrDefault,
+  migrateOrDefaultV3,
   createMemoryProgressStore,
   createDefaultProgressStore,
   __resetSharedProgressStoreForTests,
@@ -62,11 +63,10 @@ describe('progress catalog + unlock (C1 Wave 0)', () => {
     expect(isUnlocked(['level-01', 'level-03'], 'level-03')).toBe(true);
   });
 
-  it('defaultProgressBlob shape (v3)', () => {
-    const b = defaultProgressBlob();
-    expect(b.v).toBe(PROGRESS_VERSION);
+  it('defaultProgressBlobV3 shape (legacy migrate-input)', () => {
+    const b = defaultProgressBlobV3();
     expect(b.v).toBe(3);
-    expect(PROGRESS_KEY).toBe('@nbb/progress/v3');
+    expect(PROGRESS_KEY_V3).toBe('@nbb/progress/v3');
     expect(PROGRESS_KEY_V2).toBe('@nbb/progress/v2');
     expect(b.unlocked).toEqual(['level-01']);
     expect(b.bestByLevel).toEqual({});
@@ -150,10 +150,10 @@ describe('parseProgressV2Result (migrate input)', () => {
   });
 });
 
-describe('parseProgressResult rejects v2 under v3 key', () => {
-  it('v2 JSON is corrupt for parseProgressResult', () => {
+describe('parseProgressV3Result rejects v2 under v3 key', () => {
+  it('v2 JSON is corrupt for parseProgressV3Result', () => {
     expect(
-      parseProgressResult(
+      parseProgressV3Result(
         JSON.stringify({
           v: 2,
           unlocked: ['level-01'],
@@ -165,14 +165,14 @@ describe('parseProgressResult rejects v2 under v3 key', () => {
   });
 });
 
-describe('migrateOrDefault (v1/v2→v3)', () => {
+describe('migrateOrDefaultV3 (v1/v2→v3)', () => {
   it('v1-only seeds bestScore; unlocked=[level-01]; empty bestByLevel', () => {
     const v1 = JSON.stringify({
       v: 1,
       bestScore: 42,
       updatedAt: 1,
     });
-    const m = migrateOrDefault(null, null, v1);
+    const m = migrateOrDefaultV3(null, null, v1);
     expect(m.v).toBe(3);
     expect(m.bestScore).toBe(42);
     expect(m.unlocked).toEqual(['level-01']);
@@ -188,7 +188,7 @@ describe('migrateOrDefault (v1/v2→v3)', () => {
       updatedAt: 2,
     });
     const v1 = JSON.stringify({ v: 1, bestScore: 999, updatedAt: 1 });
-    const m = migrateOrDefault(null, v2, v1);
+    const m = migrateOrDefaultV3(null, v2, v1);
     expect(m.v).toBe(3);
     expect(m.bestScore).toBe(5);
     expect(m.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
@@ -196,19 +196,19 @@ describe('migrateOrDefault (v1/v2→v3)', () => {
   });
 
   it('null,null,null → defaults', () => {
-    expect(migrateOrDefault(null, null, null)).toEqual(defaultProgressBlob());
+    expect(migrateOrDefaultV3(null, null, null)).toEqual(defaultProgressBlobV3());
   });
 
   it('corrupt v2 + ok v1 seeds from v1 (do not lose PB)', () => {
     const v1 = JSON.stringify({ v: 1, bestScore: 77, updatedAt: 1 });
-    const m = migrateOrDefault(null, '{broken', v1);
+    const m = migrateOrDefaultV3(null, '{broken', v1);
     expect(m.bestScore).toBe(77);
     expect(m.unlocked).toEqual(['level-01']);
     expect(m.bestByLevel).toEqual({});
   });
 });
 
-describe('memory ProgressStore (v3 nested best)', () => {
+describe('memory ProgressStore (nested best)', () => {
   it('recordLevelBest strict >; rollup bestScore; getBestForLevel nested score', async () => {
     const store = createMemoryProgressStore();
     expect(await store.getBestForLevel('level-01')).toBe(0);

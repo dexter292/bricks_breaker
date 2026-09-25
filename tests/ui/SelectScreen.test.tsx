@@ -13,7 +13,10 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { SelectScreen } from '../../app/_components/SelectScreen';
-import type { ProgressBlob } from '../../src/services/storage';
+import {
+  defaultTelemetryBlob,
+  type ProgressBlob,
+} from '../../src/services/storage';
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
@@ -23,11 +26,12 @@ afterEach(cleanup);
 
 function snapshot(partial: Partial<ProgressBlob> = {}): ProgressBlob {
   return {
-    v: 3,
+    v: 4,
     unlocked: ['level-01'],
     bestByLevel: {},
     bestScore: 0,
     updatedAt: 0,
+    telemetry: defaultTelemetryBlob(),
     ...partial,
   };
 }

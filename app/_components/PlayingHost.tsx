@@ -48,6 +48,7 @@ import { triggerTestCrash } from '../../src/services/crashReporting';
 import {
   PLAYABLE_LEVEL_ORDER,
   createDefaultProgressStore,
+  defaultRunStatsInput,
   evaluatePersonalBest,
   isUnlocked,
   nextLevelId,
@@ -459,11 +460,17 @@ export function PlayingHost({
         previous,
       );
       // Sync memory merge score/stars/unlock; void persist inside store (D-10).
+      // `mode`/`stats` are required by the v4 store contract (Phase 9 Plan 02).
+      // Campaign is the only mode this phase writes (D-04); the all-zero stats are
+      // a placeholder Plan 04 replaces with the real per-run reducer output
+      // (N-STAT-01) once PlayingHost drains run counters.
       const blob = store.recordRunEnd({
         levelId,
+        mode: 'campaign',
         score: runScore,
         outcome,
         livesRemaining,
+        stats: defaultRunStatsInput(),
       });
       setResultBest(best);
       setIsNewRecord(record);
