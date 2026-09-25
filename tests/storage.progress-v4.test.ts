@@ -13,8 +13,16 @@
  * defaults and never throws into gameplay. Research Pitfall 4: telemetry corruption must
  * degrade telemetry ALONE, never the sibling progress fields.
  */
-import { describe, it } from 'vitest';
-import { PLAYABLE_LEVEL_ORDER } from '../src/services/storage';
+import { describe, it, expect } from 'vitest';
+import {
+  PLAYABLE_LEVEL_ORDER,
+  PROGRESS_KEY,
+  PROGRESS_KEY_V3,
+  PROGRESS_VERSION,
+  defaultProgressBlob,
+  defaultTelemetryBlob,
+  parseProgressResult,
+} from '../src/services/storage';
 
 /**
  * A realistic "existing player" v3 blob, shaped exactly like today's persisted
@@ -43,9 +51,18 @@ export function buildV3Fixture() {
 }
 
 describe('PROGRESS_KEY / VERSION (v4)', () => {
-  it.todo(
-    'PROGRESS_KEY is @nbb/progress/v4 and PROGRESS_VERSION is 4; PROGRESS_KEY_V3 preserves the old @nbb/progress/v3 string as a legacy migrate-on-read source',
-  );
+  it('PROGRESS_KEY is @nbb/progress/v4 and PROGRESS_VERSION is 4; PROGRESS_KEY_V3 preserves the old @nbb/progress/v3 string as a legacy migrate-on-read source', () => {
+    expect(PROGRESS_VERSION).toBe(4);
+    expect(PROGRESS_KEY).toBe('@nbb/progress/v4');
+    // Legacy keys are never deleted — they stay as migrate-on-read sources.
+    expect(PROGRESS_KEY_V3).toBe('@nbb/progress/v3');
+    const b = defaultProgressBlob();
+    expect(b.v).toBe(4);
+    expect(b.unlocked).toEqual(['level-01']);
+    expect(b.bestByLevel).toEqual({});
+    expect(b.bestScore).toBe(0);
+    expect(b.telemetry).toEqual(defaultTelemetryBlob());
+  });
 });
 
 describe('migrateOrDefault (v4, extends the existing v3/v2/v1 chain)', () => {
@@ -58,13 +75,117 @@ describe('migrateOrDefault (v4, extends the existing v3/v2/v1 chain)', () => {
 });
 
 describe('parseProgressResult (v4, telemetry validated independently — Pitfall 4)', () => {
-  it.todo('ok v4 blob parses unlocked/bestByLevel/bestScore/telemetry all correctly');
-  it.todo(
-    'corrupt telemetry sub-object alone degrades ONLY telemetry to defaultTelemetryBlob(); unlocked/bestByLevel/bestScore survive untouched',
-  );
-  it.todo(
-    'structurally corrupt top-level JSON degrades the whole blob to defaults and never throws',
-  );
+  it('ok v4 blob parses unlocked/bestByLevel/bestScore/telemetry all correctly', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 9;
+    telemetry.lifetime.runsWon = 4;
+    telemetry.lifetime.bricksBroken = 812;
+    telemetry.lifetime.bestComboEver = 11;
+    telemetry.lifetime.longestRallyEver = 23;
+    telemetry.lifetime.largestCascadeEver = 6;
+    telemetry.byMode.campaign[first] = {
+      ...telemetry.lifetime,
+    };
+    telemetry.recentRuns.push({
+      mode: 'campaign',
+      levelId: first,
+      outcome: 'win',
+      score: 1200,
+      ticks: 3600,
+      timestamp: 1700000000000,
+    });
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 1200, stars: 3 } },
+        bestScore: 1200,
+        updatedAt: 1700000000000,
+        telemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.v).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1200);
+    expect(r.progress.telemetry).toEqual(telemetry);
+  });
+
+  it('corrupt telemetry sub-object alone degrades ONLY telemetry to defaultTelemetryBlob(); unlocked/bestByLevel/bestScore survive untouched', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 640, stars: 2 } },
+        bestScore: 640,
+        updatedAt: 42,
+        telemetry: 'not-an-object',
+      }),
+    );
+
+    // SC-4: corrupt telemetry must NOT make the whole blob read as corrupt…
+    expect(r.status).toBe('ok');
+    // …and must not wipe the sibling progress fields.
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 640, stars: 2 });
+    expect(r.progress.bestScore).toBe(640);
+    expect(r.progress.updatedAt).toBe(42);
+    // Only telemetry degrades.
+    expect(r.progress.telemetry).toEqual(defaultTelemetryBlob());
+  });
+
+  it('partial telemetry keeps the fields it does have and defaults only the missing/invalid ones', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 10 } },
+        bestScore: 10,
+        updatedAt: 1,
+        telemetry: {
+          lifetime: { runsPlayed: 3, bricksBroken: 'nope', bestComboEver: 7 },
+          byMode: { campaign: { [first]: { runsPlayed: 3 } } },
+          recentRuns: [
+            { mode: 'campaign', levelId: first, outcome: 'win', score: 5, ticks: 9, timestamp: 1 },
+            { mode: 'bogus-mode', levelId: first, outcome: 'win', score: 5, ticks: 9, timestamp: 2 },
+          ],
+        },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.bestScore).toBe(10);
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(3);
+    expect(r.progress.telemetry.lifetime.bestComboEver).toBe(7);
+    // Invalid counter degrades to 0, siblings survive.
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(0);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(3);
+    // Unknown mode entries are dropped, valid ones kept.
+    expect(r.progress.telemetry.recentRuns).toHaveLength(1);
+    expect(r.progress.telemetry.recentRuns[0]?.timestamp).toBe(1);
+  });
+
+  it('structurally corrupt top-level JSON degrades the whole blob to defaults and never throws', () => {
+    expect(() => parseProgressResult('{not-json')).not.toThrow();
+    expect(parseProgressResult('{not-json').status).toBe('corrupt');
+    expect(parseProgressResult('{not-json').progress).toEqual(defaultProgressBlob());
+    // Wrong version under the v4 key is corrupt, not silently accepted.
+    expect(
+      parseProgressResult(
+        JSON.stringify({ v: 3, unlocked: ['level-01'], bestByLevel: {}, bestScore: 1 }),
+      ).status,
+    ).toBe('corrupt');
+    // null → absent (not corrupt), with defaults.
+    const absent = parseProgressResult(null);
+    expect(absent.status).toBe('absent');
+    expect(absent.progress).toEqual(defaultProgressBlob());
+  });
 });
 
 describe('recordRunEnd (v4, mode-aware, D-03/D-04)', () => {
