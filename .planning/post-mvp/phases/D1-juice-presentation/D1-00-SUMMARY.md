@@ -83,7 +83,7 @@ Each task was committed atomically (TDD RED → GREEN):
 3. **Task 2 RED: Haptics coalesce failing tests** — `8a7af9a` (test)
 4. **Task 2 GREEN: Memory haptics + VALIDATION Wave 0** — `cfaa8f1` (feat)
 
-**Plan metadata:** _(pending final docs commit)_
+**Plan metadata:** `04b74cd` (docs: complete plan)
 
 ## Files Created/Modified
 
