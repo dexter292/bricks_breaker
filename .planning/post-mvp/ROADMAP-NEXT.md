@@ -169,8 +169,9 @@ Plans:
 | Field | Content |
 |-------|---------|
 | **Goal** | N-FX-01…03 |
-| **Deps** | Prefer after B; re-run ceiling Cert WC if budgets change |
-| **Acceptance** | Ball readable; no regression vs A1 |
+| **Deps** | Prefer after B; **ceiling Cert WC re-run after C2 BEFORE D1** (B3); freeze Mid |
+| **Acceptance** | Ball readable; no regression vs A1; `hashWorld` unchanged |
+| **Progress** | Context gathered 2026-09-25 — `post-mvp/phases/D1-juice-presentation/` |
 
 ### Phase D2 — Brand Surfaces
 | Field | Content |
@@ -287,3 +288,4 @@ Roadmap scope is **locked**. When owner says start:
 | 2026-09-24 | **C1 Planned** — 3 plans (Wave 0 contracts → store/migrate → host wire) in `post-mvp/phases/C1-progress-storage/` |
 | 2026-09-24 | **C1 Done** — ProgressStore v2 + migrate; PlayingHost unlock-on-win + per-level Best; Title rollup; ops doc |
 | 2026-09-25 | **C2 Done** — Level Select + lives-stars (N-PROG-03) + Next/replay; Progress v3; Human UAT approved; ceiling re-run still pending (§6) |
+| 2026-09-25 | **D1 Context** — Mid freeze; cert after C2 before D1; haptics+batch; brick/paddle juice VFX-only; parallax deferred |
