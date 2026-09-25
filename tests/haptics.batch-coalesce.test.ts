@@ -99,11 +99,15 @@ describe('haptics expo service (N-FX-03 Plan 02)', () => {
   it('source contract: haptics/* must not import useVfxIntensity / AccessibilityInfo / battery', () => {
     const dir = join(__dirname, '../src/services/haptics');
     const files = readdirSync(dir).filter((f) => f.endsWith('.ts'));
-    const forbidden =
-      /useVfxIntensity|AccessibilityInfo|intensityFromReduceMotion|expo-battery/;
+    // Import/require only — comments documenting the ban are allowed.
+    const forbiddenImport =
+      /(?:from\s+['"]|require\s*\(\s*['"])[^'"]*(?:useVfxIntensity|AccessibilityInfo|intensityFromReduceMotion|expo-battery)/;
+    const forbiddenNamed =
+      /import\s*\{[^}]*(?:useVfxIntensity|AccessibilityInfo|intensityFromReduceMotion)[^}]*\}/;
     for (const file of files) {
       const src = readFileSync(join(dir, file), 'utf8');
-      expect(src, file).not.toMatch(forbidden);
+      expect(src, file).not.toMatch(forbiddenImport);
+      expect(src, file).not.toMatch(forbiddenNamed);
     }
   });
 
