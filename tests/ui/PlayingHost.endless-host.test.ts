@@ -693,12 +693,56 @@ describe('PlayingHost endless host (source contract)', () => {
       'FOUR run-boundary branches, enumerated by name — the count is pinned so a fifth cannot be added without an author coming here',
     ).toBe(4);
 
-    for (const [name, body] of branches) {
+    // 11-17 Task 3, CONTRACT B — A2 repaired. What stood here was a loop asserting
+    // `.toMatch(/runEndedRef\.current/)` on each of the four branches, and it was
+    // VACUOUS: the `runEndedRef.current = true;` ASSIGNMENT one line below each guard
+    // satisfied it. The verifier proved that by mutation — replacing all three
+    // remaining `if (!runEndedRef.current)` with `if (true)` left the whole workspace
+    // suite GREEN at 97 files / 645 tests. The repair asserts the GUARD SHAPE.
+    //
+    // DECISION, taken here rather than inherited: REPAIR THE INSTRUMENT. The three
+    // guards are correct defence-in-depth and stay; deleting live source during gap
+    // closure is exactly the scope creep this phase's last two rounds refused.
+    //
+    // WHAT THIS DOES NOT PROVE. Post-hoist those three guards are unreachable in the
+    // TRUE direction — control cannot pass applyChrome's function preamble with the
+    // latch set — so NO behavioural test COULD kill them. This contract pins their
+    // PRESENCE and SHAPE only. The run-lifetime property itself is pinned by 11-15's
+    // three added assertions further down (the preamble ordering, the bare-return
+    // regex and the five-mirror-write count), all mutation-killed, and by the driven
+    // cases in `tests/ui/PlayingHost.endless-record.test.tsx` and
+    // `tests/ui/PlayingHost.endless-retry.test.tsx`. Do not mistake this contract for
+    // the one that matters.
+    const GUARD_SHAPE =
+      /if \(!runEndedRef\.current\) \{\s*runEndedRef\.current = true;\s*handleRunEnded\(/;
+    for (const [name, body] of [
+      ['the mid-run wave-build failure branch', waveBuildFailure],
+      ['the campaign WON branch', campaignWon],
+      ['the campaign LOST branch', campaignLost],
+    ] as const) {
       expect(
         body,
-        `${name} must consult runEndedRef — applyChrome is ONE latch, EVERY boundary, and the endless WON branch was the single asymmetry gap 3 measured`,
-      ).toMatch(/runEndedRef\.current/);
+        `${name} must carry the record-once guard in its own SHAPE — a negated test on the latch whose body sets the latch and then calls handleRunEnded(. A bare mention of the identifier is not enough: the assignment one line below the guard satisfies that, which is precisely how this contract was vacuous for two rounds`,
+      ).toMatch(GUARD_SHAPE);
     }
+
+    expect(
+      (applyChrome.match(new RegExp(GUARD_SHAPE.source, 'g')) ?? []).length,
+      'THREE record-once guards in applyChrome — the mid-run wave-build failure, campaign WON and campaign LOST. Counted independently of the enumeration above, because an enumeration cannot notice a branch nobody added to it. The mutation that left the suite green at 97 files / 645 tests — one `if (!runEndedRef.current)` becoming `if (true)` — moves this number',
+    ).toBe(3);
+
+    // The endless WON branch, stated HONESTLY rather than folded into a claim that is
+    // now false for it. 11-15 deliberately REMOVED its inner guard, so it consults the
+    // latch through applyChrome's FUNCTION PREAMBLE and not through a guard of its
+    // own. The old loop passed for this branch only because its nested
+    // wave-build-failure sub-branch supplied the match — the same one-symbol-away
+    // failure this whole round exists to close. It keeps its place in the four-name
+    // enumeration and the `.toBe(4)` count above: that is the extraction-honesty half
+    // and it still catches a fifth branch.
+    expect(
+      endlessWon.replace(waveBuildFailure, ''),
+      'the endless WON branch must carry NO record-once guard of its OWN — 11-15 removed it when the latch was hoisted to the function preamble, and a copy reappearing here would be unreachable code masquerading as a safety term. Its run-lifetime obligation is discharged by the preamble assertions below',
+    ).not.toMatch(/if \(!runEndedRef\.current\)/);
 
     // The independent structural count that actually catches a FIFTH branch. Every
     // run-END site in applyChrome stops the frame loop; the enumeration above cannot
@@ -1345,6 +1389,194 @@ describe('PlayingHost endless host (source contract)', () => {
       (code.match(/modeRef\.current = 'campaign';/g) ?? []).length,
       'toggleDevLevel is the ONLY writer returning modeRef to campaign — if a second appears, the A-02 note above needs rewriting',
     ).toBe(1);
+  });
+
+  /**
+   * 11-17 Task 3, CONTRACT A — the re-arm enumeration becomes MECHANICAL.
+   *
+   * THE DERIVATION, and a reader can re-run both halves of it against
+   * `app/_components/PlayingHost.tsx` after stripping comment lines:
+   *
+   *     grep -c 'setActive(true);'   ->  5
+   *     grep -c 'setLevelId('        ->  3
+   *
+   * Strip first, always: measured on the round-5 base tree the UNFILTERED re-arm
+   * count is 6, because one `//` line names the literal in prose. Eight members, not
+   * five — and that difference is the whole of round-4's gap. 11-15 enumerated the
+   * five chrome WRITERS and asserted a safety property over "every path that begins
+   * or resumes a run", which is a DIFFERENT and larger set: the loop RE-ARM sites.
+   * A level writer arms the loop INDIRECTLY, because the compiled-push gate effect
+   * fires on any campaign `levelId` change and ends in `retry(); setActive(true);`.
+   *
+   * THE EIGHT MEMBERS, each classified, each naming the assertion below that BINDS
+   * the classification rather than merely claiming it:
+   *
+   *  1. `startEndlessRun`          — clears the latch on its own synchronous path,
+   *                                  above its own arm. ASSERTION 4.
+   *  2. `onRetry` (campaign)       — same shape, below its endless early return.
+   *                                  ASSERTION 4.
+   *  3. `remountDevSession` (camp.)— same shape, below its endless early return.
+   *                                  ASSERTION 4.
+   *  4. `goNext`                   — clears the latch, then hands the level to the
+   *                                  gate effect. Never arms directly (R-24).
+   *                                  ASSERTION 3.
+   *  5. `toggleDevLevel`           — same. ASSERTION 3.
+   *  6. `runCertWorstCase`         — GUARDED rather than resetting. A reset here
+   *                                  would need the five chrome writes as well as
+   *                                  the clear — a sixth copy of the block the
+   *                                  verifier's WR-06 advisory names as this phase's
+   *                                  structural defect — and a clear without them
+   *                                  would leave a dead run's score and lives on the
+   *                                  HUD of a fresh board. ASSERTION 3.
+   *  7. `onResume`                 — needs NO clear, and the reason is the FULL
+   *                                  render condition of the overlay it hangs off,
+   *                                  not a fragment of it. `PauseOverlay` is the sole
+   *                                  holder of the `onResume` prop and renders only
+   *                                  under `showPauseOverlay`, which is
+   *                                  `!hasLevelError && uiPhase === 'paused' &&
+   *                                  result == null`. `result == null` is the
+   *                                  LOAD-BEARING term: `applyChrome`'s WON and LOST
+   *                                  branches set `result` on the same synchronous
+   *                                  path as the latch. `uiPhase === 'paused'` alone
+   *                                  excludes NOTHING — `handleMenuPress` latches
+   *                                  from exactly that state. Round 4 quoted only the
+   *                                  `uiPhase` term and reached the right answer by a
+   *                                  route the source does not support, which is this
+   *                                  phase's signature failure at one member's
+   *                                  granularity. ASSERTION 5.
+   *  8. the compiled-push gate effect — the SEAM where "a levelId change" becomes "a
+   *                                  run starts". It owns no latch term of its own
+   *                                  and trusts its callers. Deliberately the one
+   *                                  member with no assertion: a term there would
+   *                                  also gate `goNext` and `toggleDevLevel`, which
+   *                                  already reset correctly.
+   *
+   * This contract is what would have sent 11-15's author from the gate effect to the
+   * level half. An enumeration of chrome WRITERS is not an enumeration of loop
+   * RE-ARM sites, and nothing in the round-4 instruments could tell them apart.
+   */
+  it('every path that re-arms the frame loop is enumerated — five direct sites and three levelId writers (round-5)', () => {
+    // Local to this case ON PURPOSE. `codeOnly()` is shared by every contract in this
+    // file and strips `//` only; widening it would move all of them at once (the
+    // verifier names that as a durable improvement, not as this round's work). Here
+    // the block strip matters because the counts below are over LITERALS that the
+    // surrounding prose legitimately names.
+    const noBlocks = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '');
+    const src = noBlocks(code);
+
+    // A SECOND source file, read and never written. `src/runtime/GameScreen.tsx` is
+    // not in 11-17's files_modified; assertion 5 needs it because `onResume`'s
+    // exemption is a property of the render condition, which lives there.
+    const screenSrc = noBlocks(
+      codeOnly(
+        readFileSync(join(process.cwd(), 'src/runtime/GameScreen.tsx'), 'utf8'),
+      ),
+    );
+
+    const bodyOf = (name: string): string => {
+      const m = src.match(
+        new RegExp(
+          `const ${name} = useCallback\\(\\(\\) => \\{([\\s\\S]*?)\\n {2}\\}, \\[`,
+        ),
+      );
+      return m?.[1] ?? '';
+    };
+
+    // ---- ASSERTION 1: the direct re-arm sites -------------------------------
+    expect(
+      (src.match(/setActive\(true\)/g) ?? []).length,
+      'FIVE statements arm the frame loop: the compiled-push gate effect, onResume’s countdown terminal timeout, startEndlessRun, onRetry’s campaign branch and remountDevSession’s campaign branch. A SIXTH means a new path re-arms the loop — come here and prove it either clears the run-ended latch on its own synchronous path or is guarded by it',
+    ).toBe(5);
+
+    // ---- ASSERTION 2: the indirect re-arm sites ------------------------------
+    expect(
+      (src.match(/setLevelId\(/g) ?? []).length,
+      'THREE levelId writers: goNext, toggleDevLevel and runCertWorstCase. A level writer IS a loop re-arm — the compiled-push gate effect fires on any campaign levelId change and ends in retry() and setActive(true), so it arms the loop on the writer’s behalf. A FOURTH carries the same obligation as a sixth arm',
+    ).toBe(3);
+
+    // ---- ASSERTION 3: the level writers carry their own latch term -----------
+    for (const name of ['goNext', 'toggleDevLevel'] as const) {
+      const body = bodyOf(name);
+      // Non-empty FIRST (11-09 Pattern 2): a drifted anchor must be RED, never
+      // vacuously green.
+      expect(body, `${name} must be extractable, or its classification below is vacuous`).not.toBe('');
+      expect(
+        body,
+        `${name} hands a levelId to the gate effect, so it must clear the run-ended latch on its own synchronous path first — otherwise the gate effect arms the loop for a run that is over`,
+      ).toMatch(/runEndedRef\.current = false;/);
+    }
+
+    const certBodyA = bodyOf('runCertWorstCase');
+    expect(
+      certBodyA,
+      'runCertWorstCase must be extractable, or the guard shape below is vacuous',
+    ).not.toBe('');
+    expect(
+      certBodyA,
+      'runCertWorstCase is the third levelId writer and it is GUARDED rather than resetting: the level-forcing call must sit inside a block whose condition OPENS on the negated run-ended latch. A reset here would need the five chrome writes as well as the clear — a sixth copy of the block WR-06 names as this phase’s structural defect. Whitespace is free so a prettier re-wrap of the long condition cannot red this',
+    ).toMatch(
+      /if\s*\(\s*!runEndedRef\.current\s*&&[\s\S]*?\)\s*\{[\s\S]*?setLevelId\(/,
+    );
+    expect(
+      (certBodyA.match(/runEndedRef/g) ?? []).length,
+      'EXACTLY ONE occurrence of the run-ended latch identifier in runCertWorstCase. A second means either a second unguarded route or a comment that leaked a counted literal — 11-14 measured that failure directly with a different literal. codeOnly() has already stripped // comments here, so an explanatory line comment is invisible to this count and is the correct place for prose',
+    ).toBe(1);
+
+    // ---- ASSERTION 4: each DIRECT site carries its OWN clear -----------------
+    // What the aggregate reset-block count cannot say. `grep -c` over the file proves
+    // five clears exist SOMEWHERE and stays at five if one is MOVED out of this body
+    // into a neighbour's. Binding the clear to the named site is what makes each of
+    // these three classifications derived rather than asserted — and relocating a
+    // clear is the falsification that proves the binding is real.
+    for (const name of [
+      'startEndlessRun',
+      'onRetry',
+      'remountDevSession',
+    ] as const) {
+      const body = bodyOf(name);
+      expect(body, `${name} must be extractable, or its classification is vacuous`).not.toBe('');
+      const clearAt = body.indexOf('runEndedRef.current = false;');
+      const armAt = body.indexOf('setActive(true);');
+      expect(
+        clearAt,
+        `${name} must clear the run-ended latch inside its OWN body. The aggregate reset-block count of five would stay at five if this clear were relocated into a neighbouring callback — that is precisely the mutation this assertion exists to catch`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        armAt,
+        `${name} must arm the frame loop inside its OWN body, or it is not one of the five direct sites and assertion 1 above is naming the wrong function`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        clearAt,
+        `${name} must clear the latch BEFORE it arms the loop — same synchronous path, clear first. A clear below the arm leaves a window in which the new run is locked out of its own chrome`,
+      ).toBeLessThan(armAt);
+    }
+
+    // ---- ASSERTION 5: onResume's exemption, at its FULL condition ------------
+    const pauseCond =
+      screenSrc.match(/const showPauseOverlay =([\s\S]*?);/)?.[1] ?? '';
+    expect(
+      pauseCond,
+      'the showPauseOverlay assignment must be extractable from src/runtime/GameScreen.tsx, or onResume’s exemption below is vacuous',
+    ).not.toBe('');
+    expect(
+      pauseCond,
+      'showPauseOverlay must still test `result == null`. THIS is the term that excludes an ENDED run, because applyChrome’s WON and LOST branches set `result` on the same synchronous path as the latch — so it is the whole reason onResume needs no latch clear of its own. Dropping it silently invalidates member 7 of the enumeration above',
+    ).toMatch(/result == null/);
+    expect(
+      pauseCond,
+      'showPauseOverlay must still test `uiPhase === \'paused\'` — but note what this term does NOT do: on its own it excludes NOTHING, because handleMenuPress latches the run-ended ref from exactly that state. Round 4 quoted this term alone as onResume’s exemption and was right by accident',
+    ).toMatch(/uiPhase === 'paused'/);
+    const gateAt = screenSrc.search(/showPauseOverlay \?/);
+    const tagAt = screenSrc.search(/<PauseOverlay/);
+    expect(
+      gateAt,
+      'PauseOverlay must still be rendered behind a showPauseOverlay test — it is the sole holder of the onResume prop, so that condition IS the reachability precondition the exemption rests on',
+    ).toBeGreaterThanOrEqual(0);
+    expect(tagAt, 'and the PauseOverlay tag must still be findable').toBeGreaterThanOrEqual(0);
+    expect(
+      gateAt,
+      'the gate must PRECEDE the tag — if PauseOverlay is ever mounted outside that condition, onResume becomes reachable on an ended run and member 7 needs re-deriving',
+    ).toBeLessThan(tagAt);
   });
 
   /**
