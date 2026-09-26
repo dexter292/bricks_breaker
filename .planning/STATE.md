@@ -5,12 +5,12 @@ milestone_name: Retention & Replayability
 current_plan: 4
 status: in_progress
 stopped_at: Phase 11 re-verified after gap-closure round 2 — gaps_found (3 gaps)
-last_updated: "2026-09-26T08:33:02.655Z"
-state_head: a20ad366def1a9d89b2aca266fd6964e940b9ea5
+last_updated: "2026-09-26T09:05:53.039Z"
+state_head: 503070342967fbfc6aea07b30ff927e9ed4f4cd9
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 22
+  total_plans: 25
   completed_plans: 22
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
+current_phase_name: endless-mode
 current_phase: 11
-current_phase_name: Endless Mode
 ---
 
 # Project State
@@ -53,7 +53,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Current Plan: 4
-Total Plans in Phase: 11
+Total Plans in Phase: 14
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
 **Next:** `/gsd-verify-work 11` (harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
