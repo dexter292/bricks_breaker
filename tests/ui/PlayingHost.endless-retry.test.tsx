@@ -1821,7 +1821,7 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     ).toBe('lose');
     expect(
       injectCertWorstCase,
-      'with the tier already Mid and the level half guarded, `defer` stays false and the press injects DIRECTLY into a world whose loop is already stopped. MEASURED, not derived',
+      'with the tier already Mid and the level half guarded, `defer` stays false and the host reaches the injector exactly once — and that is ALL this count proves. The injector here is the `vi.fn()` declared at :325, so no assertion in this file can observe where the load goes; a count on a stub sees that the host called something, never the destination. Corrected 2026-09-26 (round 6): the call bumps `certRequest`, which only `onFrame` consumes, and the loop is stopped here — so the load is QUEUED and applies on the first frame of the next run that arms the loop, below the retry-reset block, onto the freshly reset world. That chain is pinned at source in `tests/runtime.cert-request.test.ts`, not here. Round 5 labelled this count as a measurement of the mechanism; it never was one, and the label is struck',
     ).toHaveBeenCalledTimes(1);
 
     // The straggler half. The ABSENT trailing `setActive(false)` below is correct

@@ -204,8 +204,24 @@ is the unstoppable loop, not a lost record.
 ### The measured `injectCertWorstCase` count — the plan's one derived behaviour change
 
 The plan derived that with the level half guarded and the tier already Mid, `defer` stays
-false and the press injects DIRECTLY into an already-stopped world — count 1 — and required
-this to be MEASURED rather than assumed, with the measurement as the authority.
+false and the press reaches the injector — count 1 — and required this to be MEASURED rather
+than assumed, with the measurement as the authority.
+
+> **CORRECTION 2026-09-26 (round 6).** As originally written, this paragraph went one clause
+> further than the count supports and named WHERE the load went — it said the press applied it
+> into the run that had just ended. That clause is struck. The count of `1` is correct and
+> stands; what was wrong was the destination, and the instrument could not have caught it
+> (`injectCertWorstCase` is a `vi.fn()` at `tests/ui/PlayingHost.endless-retry.test.tsx:325`, so
+> the count can only show that the host reached the injector). What the code does:
+> `injectCertWorstCase` bumps `certRequest` (`src/runtime/useGameLoop.ts:787`); the only
+> consumer of that counter sits inside `onFrame` (`:440`); the frame loop is stopped on this
+> branch; and nothing clears the counter at any run boundary. So the load is **QUEUED**, and it
+> applies on the **first frame of the next run that arms the loop** — below the retry-reset
+> block, onto the freshly reset world. Pinned link by link in
+> `tests/runtime.cert-request.test.ts`. That file reads source and cannot produce a frame, so
+> this is a source contract and **not** a frame-level measurement. The superseded clause is
+> described rather than quoted because plan 11-20 pins it at 0 occurrences in this file; the
+> verbatim original is recoverable from git at `6bb18bf`.
 
 **Measured: 1. It matched the derivation.** No assertion was edited and no reconciliation was
 needed. (Pre-fix the count was also 1, but by the other route: `defer` was true, so it was the
@@ -358,7 +374,22 @@ None — no external service configuration required.
 - **Advisory 1 of round 4** — `ENDLESS-MODE.md` calling `level-03` "the shipped default level". Out of scope here, unchanged.
 - **Four advisories recorded rather than fixed**, as the plan directs: the `certPendingRef` ASSIGN-vs-OR side effect (IN-01), the deferred-cert effect consuming its flag before its own timer (WR-05, fails safe), the five duplicated reset blocks (WR-06 — the right first task for Phase-14 work in this file), and `codeOnly()` stripping line but not block comments (IN-02/IN-04, worked around via the `//`-only prohibition). The two `ReadonlyArray<T>` lint warnings also stay.
 
-**Concern worth carrying into Phase 14.** The `Cert WC` press from a mounted campaign Results panel with the tier already Mid now injects the worst-case load directly into a world whose loop is already stopped. That is stated, measured and benign — nothing re-arms, nothing is recorded, and `Retry` still resets the world through `retry()` — but it is a behaviour, not a no-op, and the dev row that reaches it is scheduled for deletion in Phase 14.
+**Concern worth carrying into Phase 14.** The `Cert WC` press from a mounted campaign Results panel with the tier already Mid reaches the injector — count 1 — while nothing re-arms and nothing is recorded. It is a behaviour, not a no-op, and the dev row that reaches it is scheduled for deletion in Phase 14.
+
+> **CORRECTION 2026-09-26 (round 6).** This paragraph originally named the run that had just
+> ended as the destination of that load, and called the outcome benign on the strength of that
+> destination. Both halves are withdrawn. The press bumps `certRequest`
+> (`src/runtime/useGameLoop.ts:787`), which only `onFrame` consumes (`:440`); the loop is
+> stopped here and nothing clears the counter at a run boundary, so the load is **queued** and
+> applies on the **first frame of the next run that arms the loop**, below the retry-reset
+> block, onto the freshly reset world. The `Retry` named above is that next run — its reset
+> runs ABOVE the injection on the same frame rather than after it, so the press contaminates
+> the very run an SC-5 operator would go on to measure. Not benign: an instructional hazard,
+> now stated as one in `docs/ops/ENDLESS-MODE.md` (the run-boundary table row and § Limits
+> item 2). Instrument: `tests/runtime.cert-request.test.ts`, which reads source and cannot
+> produce a frame — no claim here is a frame-level measurement. The superseded clause is
+> described rather than quoted because plan 11-20 pins it at 0 occurrences in this file; the
+> verbatim original is recoverable from git at `6bb18bf`.
 
 ## Self-Check: PASSED
 

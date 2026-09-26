@@ -1791,6 +1791,30 @@ export function PlayingHost({
     // `level-04 0 | level-05 0 | level-06 0 | level-03 1` — the stranded one-shot
     // discharging on a later campaign session. Driven in
     // `tests/ui/PlayingHost.endless-retry.test.tsx`.
+    //
+    // WHAT IT COSTS — CORRECTED 2026-09-26 (round 6). A round-5 revision of this
+    // paragraph told the reader that a press from a mounted Results panel applies
+    // its worst-case load to the run that has just ended, and that the cost was
+    // therefore spent on a board nobody would see again. That is false, and the
+    // evidence it was written from could not have caught it: the injector is a spy
+    // in the host tests, so a call count there shows only that this function reached
+    // it. The superseded clause is described rather than quoted — plan 11-20 pins it
+    // at zero occurrences in this file and the verbatim original is in git at
+    // `6bb18bf`.
+    //
+    // What the press ACTUALLY costs. The injection is a REQUEST. It bumps a counter
+    // on the UI runtime (`certRequest`, `src/runtime/useGameLoop.ts:787`) and the one
+    // and only thing that consumes that counter lives inside `onFrame` (`:440`). On
+    // this branch the frame loop is stopped, and nothing anywhere clears the counter
+    // at a run boundary — so the load is QUEUED, and it applies on the FIRST FRAME OF
+    // THE NEXT RUN that arms the loop, below the retry-reset block, onto the freshly
+    // reset world. A `Retry` straight from the panel the operator is looking at is
+    // that next run. The cost of the press is not contained in the run that is over.
+    //
+    // Pinned link by link in `tests/runtime.cert-request.test.ts`. That file reads
+    // source and CANNOT produce a frame — nothing in this repo drives a Reanimated
+    // worklet — so nothing above is a frame-level measurement and must not be written
+    // up as one.
     if (plan === 'force') {
       setLevelId('level-03');
       defer = true;
