@@ -287,3 +287,10 @@ None — no external service configuration required.
 ---
 *Phase: 11-endless-mode*
 *Completed: 2026-09-26*
+
+## Self-Check: PASSED
+
+- `tests/ui/PlayingHost.endless-retry.test.tsx` — present on disk
+- `.planning/phases/11-endless-mode/11-07-SUMMARY.md` — present on disk
+- `app/_components/PlayingHost.tsx` — present on disk
+- All six commits found in `git log`: `7498897`, `388445e`, `bc37157`, `14f1eea`, `9415e13`, `319fc1e`

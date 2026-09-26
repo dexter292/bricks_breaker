@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 6
+current_plan: 2
 status: in_progress
-stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-09-26T01:49:27.033Z"
-state_head: 7159cdd08b438e45d8a46deb5757cf7d8da2d58d
+stopped_at: Completed 11-07-PLAN.md
+last_updated: "2026-09-26T04:55:34.020Z"
+state_head: 319fc1e264b901c41b226ca55a1ac8be3349940a
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
-current_phase_name: endless-mode
 current_phase: 11
+current_phase_name: Endless Mode
 ---
 
 # Project State
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 6
+Current Plan: 2
 Total Plans in Phase: 8
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -113,6 +113,7 @@ Total Plans in Phase: 8
 | Phase 11 P04 | 12min | 2 tasks | 2 files |
 | Phase 11 P05 | 20 min | 3 tasks | 5 files |
 | Phase 11 P06 | 8min | 3 tasks | 3 files |
+| Phase 11 P07 | 1h 16m | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Total Plans in Phase: 8
 - [Phase 11]: The device half of SC-5 is recorded as a dated OPEN assumption in docs/ops/ENDLESS-MODE.md rather than assumed to pass — no automated step in this repo can measure a frame on hardware, and the block names 'no device available' as a valid outcome that keeps it OPEN
 - [Phase 11]: BOARD-GENERATOR.md § Limits item 2's 'plausibly unfinishable' inference is marked superseded in place (20 insertions, 0 deletions) with a dated note cross-linked to ENDLESS-MODE.md — the original belief stays visible next to its correction, which is what that section exists for
 - [Phase 11]: SCHEDULE was deliberately NOT re-tuned — the clear-time tail is a trajectory property (18x spread on one lattice across paddle offsets) and per-difficulty maxima are non-monotone (d=17 at 2735.3 s beats d=20), so a re-tune buys ~34% off the median while re-rolling the tail and invalidating Phase 10's digests, sweep, proof and the A1 device record
+- [Phase 11]: A-01 decided retry-in-place: a Retry that cannot build wave 1 keeps the endless Results overlay up with Retry live, body copy `Wave 1 could not be built — tap Retry` (literal wave 1, never templated) — The mid-run body says run saved, which is false at Retry time — there is no in-flight run to save. A silent no-op was rejected too: it presents a dead-looking Retry button. Owner decision 2026-09-26.
+- [Phase 11]: genIssues removed: a generated board that fails to compile ends the run instead of rendering LevelErrorOverlay — LevelErrorOverlay has no controls and GameScreen suppresses showResult while levelError is non-null, so the old route left a live sim behind a modal with two dead buttons (11-UI-SPEC Error state (board)).
 
 ### Decisions (Post-MVP close)
 
@@ -227,6 +230,6 @@ Total Plans in Phase: 8
 
 ## Session Continuity
 
-Last session: 2026-09-26T01:09:54.505Z
-Stopped at: Phase 11 UI-SPEC approved
-Resume file: .planning/phases/11-endless-mode/11-UI-SPEC.md
+Last session: 2026-09-26T04:55:33.998Z
+Stopped at: Completed 11-07-PLAN.md
+Resume file: None

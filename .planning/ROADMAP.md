@@ -105,14 +105,14 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 8 plans — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
+**Plans:** 7/8 plans executed — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
 
 Plans:
 **Wave 1**
 
 - [x] 11-01-PLAN.md — Wave ramp, per-wave seed, the mode-agnostic board-swap seam, and an end-to-end tracer transition (wave 1)
 - [x] 11-02-PLAN.md — Endless record inside the telemetry blob, and the campaign-write firewall in both stores (wave 1)
-- [ ] 11-07-PLAN.md — Gap 1: mode-aware run boundaries — Retry and the dev-session remount restart at wave 1, the in-flight abandon funnel, and a terminal wave-build failure (gap closure, wave 1)
+- [x] 11-07-PLAN.md — Gap 1: mode-aware run boundaries — Retry and the dev-session remount restart at wave 1, the in-flight abandon funnel, and a terminal wave-build failure (gap closure, wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
