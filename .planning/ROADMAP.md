@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 11/11 plans executed — 8 executed (6 original waves 1-4; 2 gap-closure round 1); 3 gap-closure round-2 plans pending (gap waves 1-3)
+**Plans:** 14 plans — 11 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2); 3 gap-closure round-3 plans pending (gap waves 1-3)
 
 Plans:
 **Wave 1**
@@ -133,6 +133,12 @@ Plans:
 - [x] 11-09-PLAN.md — Gaps 2+3: `failEndlessStart()` gives a failed start a surface on every entry path, the seed attempt becomes atomic, and the Retry-time boundary gets a named, tested discriminant (gap wave 1)
 - [x] 11-10-PLAN.md — Gap 1: the abandon funnel moves inside `startEndlessRun`, and `Lv` becomes an explicit exit from endless (A-02, owner-decided) (gap wave 2)
 - [x] 11-11-PLAN.md — WR-04 publishes the endless watermark as `best`, the ops record is corrected to match the shipped code, and the round is gated against the frozen core (gap wave 3)
+
+**Gap closure round 3** *(neither inflation nor loss is true any more — the third harm is that the record can be WRONG ON SCREEN)*
+
+- [ ] 11-12-PLAN.md — Gap 1: `resultBest` gets one mode-aware publication point, the endless exit republishes the campaign best, the WR-04 contract is re-pointed at `setResultBest`, and `N-END-02` is reverted then re-ticked on round-3 evidence (gap wave 1)
+- [ ] 11-13-PLAN.md — Gap 3: the endless WON branch consults the shared `runEndedRef` latch and returns, all three ended-run states get one post-condition, and three behaviour cases pin that an ended run stays ended (gap wave 2)
+- [ ] 11-14-PLAN.md — Gaps 1+2 shared: `runCertWorstCase` gets a mode term (owner decision), then the SC-5 discharge procedure loses its two false mechanisms, the boundary table gains `Cert WC`, and 11-11-SUMMARY's overstated verification claim is corrected beside itself (gap wave 3)
 
 **UI hint**: yes
 
