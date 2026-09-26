@@ -255,7 +255,16 @@ mode and the wave-advance guard — and every reset now routes to it:
 | Pause `Retry` during a live run | Same, and the in-flight run **is** recorded `abandoned` at the wave reached |
 | Pause `Menu` | Records `abandoned`, then Title |
 | `__DEV__` tier change (`remountDevSession`) | Records `abandoned`, then routes to `startEndlessRun()` |
+| `__DEV__` `Endless` button (`onPress={startEndlessRun}`) | It stays mounted and tappable for the **whole** run, so a second press mid-run is a boundary. The in-flight run is recorded `abandoned` at the wave reached, then a **new run starts at wave 1** — because the funnel is the first statement of `startEndlessRun()` itself, not a call sitting at some of its callers |
+| `Lv` (`toggleDevLevel`) | Records the in-flight run `abandoned` at the wave reached, then **exits endless**: `modeRef` / `mode` return to `'campaign'`, the `W{n}` readout disappears, `waveRef` and the wave-advance guard clear, and the next run is a **campaign** run recorded through the campaign arm (assumption **A-02**, owner decision of 2026-09-26) |
 | A wave that will not compile | **Ends the run.** The advance guard is released, the run is recorded `abandoned` at the last successfully built wave, and the frame loop stops |
+
+**The record-first rule is enforced in exactly one place: the first statement of
+`startEndlessRun()`.** That placement is the point, not an implementation detail. Enforced at the
+callers instead, it covered two of five of them — and the two it missed included the `Endless`
+button itself. Phase 14 promotes `startEndlessRun` to the production entry point, so an invariant
+living inside that function survives the promotion while one living at today's `__DEV__` callers
+would be deleted along with the dev row.
 
 The campaign `retry()` is unreachable from an endless Retry. It refills lives against whatever
 board is sitting in `compiledSv`, which mid-run is the **wave-N generated board** — so before
@@ -265,6 +274,18 @@ this change a Retry chain from wave K would let the next loss record wave K+1.
 raised by a wave that some single continuous run actually reached, because every path that
 discards a run records it first and every path that starts one returns to wave 1. That sentence
 is the phase goal, and it was false until this round.
+
+> **Correction, 2026-09-26.** The sentence above is left standing because this is the document
+> where a superseded claim is kept visible next to its correction (the same treatment
+> `docs/ops/BOARD-GENERATOR.md` § Limits item 2 received), not quietly rewritten as though it had
+> always held. **Its first conjunct was FALSE as originally shipped.** The round that wrote it
+> wired the abandon funnel at two of `startEndlessRun`'s five callers, and the verifier measured
+> the consequence rather than inferring it: from a live run at wave 2, pressing the `__DEV__`
+> `Endless` button returned the readout to `W1` with `recordRunEnd` called **zero** times, and
+> `Lv` did the same while additionally filing the next loss under `{mode:'endless', wave:2}` for
+> a campaign level. A reader picking the mode up would have trusted the bold sentence over the
+> code. It became true on **2026-09-26**, when the funnel moved inside `startEndlessRun` and
+> `toggleDevLevel` became an explicit exit — the two boundary rows added to the table above.
 
 A generated board that fails to compile deliberately does **not** route to `LevelErrorOverlay`.
 That overlay has no controls, and `GameScreen` suppresses `showResult` while `levelError` is
@@ -308,15 +329,28 @@ where work gets picked up.
   is **not** templated — a Retry-time failure is always at wave 1. The mid-run body
   `Wave {n} could not be built — run saved` is deliberately not reused there: at Retry time
   there is no in-flight run to save, so it would state something untrue.
-- **A-02 — the other `__DEV__` row controls after endless is entered. OPEN; an owner decision is
-  owed.** `modeRef` is written only to `'endless'` and never back, so once endless is entered the
-  compiled-push gate effect early-returns for the rest of the mount: `Lv`, the tier button and
-  `Cert WC` bake, flip `fxReady`, and never reach `setActive(true)` — a stopped frame loop behind
-  a live HUD. Nothing in this round changes those controls, and the UI-SPEC declines to say what
-  they should do. **The decision owed:** whether entering endless should disable those controls,
-  whether they should exit endless back to campaign, or whether the `__DEV__` row should simply
-  be documented as one-way. Until it is taken, the SC-5 discharge procedure in item 2 carries a
-  do-not-press note so the reading is not lost to it.
+- **A-02 — the other `__DEV__` row controls after endless is entered. DECIDED 2026-09-26
+  (owner).** *The problem, as it stood:* `modeRef` was written only to `'endless'` and never
+  back, so once endless was entered the compiled-push gate effect early-returned for the rest of
+  the mount — `Lv`, the tier button and `Cert WC` baked, flipped `fxReady`, and never reached
+  `setActive(true)`, leaving a stopped frame loop behind a live HUD.
+  **The decision taken:** `Lv` **exits endless back to campaign**. `toggleDevLevel` records the
+  in-flight run `abandoned` at the wave it reached, then returns `modeRef` / `mode` to
+  `'campaign'`, clears `waveRef` and the wave-advance guard, and switches the level; the next run
+  is a campaign run recorded through the campaign arm.
+  **The two options rejected:** *disable the controls while endless is live* (it hides a
+  one-way trap behind a greyed-out button rather than removing it, and the dev row is where the
+  mode is exercised from), and *defer the whole question to Phase 14* (the trap is live now, and
+  Phase 14 deletes the dev row — deferring would mean the mode ships its whole `__DEV__` life
+  with it).
+  **The consequence that matters beyond this control:** `toggleDevLevel` is now the **first and
+  only** writer returning `modeRef` to `'campaign'`, so the compiled-push gate effect is live
+  again for the rest of the mount instead of dead after the first endless entry. A source
+  contract asserts that writer count is exactly one, so a second writer forces this claim to be
+  rewritten rather than silently invalidated.
+  **What is NOT resolved by this decision:** the tier button and `Cert WC` are unchanged and are
+  not re-specified. The SC-5 discharge procedure in item 2 therefore keeps a do-not-press note,
+  **narrowed** to those two.
 - **A-03 — the per-run seed can collide inside one millisecond. RECORDED, not fixed.**
   `runSeedRef.current = Date.now() >>> 0` is re-minted by the same expression at every run start,
   so two run starts inside one millisecond draw the same board sequence. A new seed policy would
@@ -372,15 +406,32 @@ it, and the discharge procedure with it.
 > in the `__DEV__` dev row on the playing HUD (alongside Lv / tier / Cert WC / Crash); play
 > **waves 1 through 5**; watch each transition specifically — the moment the last brick of a
 > board breaks and the next board appears.
-> **Do not press `Lv`, the tier button or `Cert WC` during the reading.** Once endless has been
-> entered, `modeRef` latches to `'endless'` for the lifetime of the mount (`11-VERIFICATION.md`
-> WR-02) and never returns to `'campaign'`, so the compiled-push gate effect early-returns: those
-> three controls bake, flip `fxReady`, and never reach `setActive(true)`, leaving a **stopped
-> frame loop behind a live HUD**. That is a known consequence of the latch, not a transition
-> defect — but a reading taken after pressing one of them is measuring a dead loop. If it
-> happens, restart the app and take the reading again. (Amended 2026-09-26, per the verification
-> report's own recommended correction; the control behaviour itself is assumption **A-02**, still
-> an open owner decision.)
+> **Do not press the tier button or `Cert WC` during the reading.** Both are still hazardous,
+> for reasons verified against the shipped source rather than inherited from the earlier note:
+> - **the tier button** (`cycleDevTier`) changes `tierOverride`, which fires `remountDevSession`;
+>   its endless branch routes straight to `startEndlessRun()`, so the run you are measuring is
+>   recorded `abandoned` and **restarted at wave 1**, and the new quality budget **re-bakes the
+>   glow atlas** — forcing the very bake cold path this reading exists to prove is *not* entered
+>   at a transition. Any frame time captured across it is measuring the re-bake, not a wave
+>   transition.
+> - **`Cert WC`** (`runCertWorstCase`) sets `levelId` to `level-03` **and** the tier to `mid`
+>   while `modeRef` is still `'endless'`. The tier half restarts the run and re-bakes exactly as
+>   above; the level half is swallowed, because the compiled-push gate effect early-returns while
+>   the mode is endless, so the `level-03` board is never pushed and `setActive(true)` is never
+>   reached from it. The cert inject itself is left deferred behind `certPendingRef`, waiting on
+>   a campaign-shaped remount that the endless branch does not perform.
+>
+> If either is pressed, **restart the app and take the reading again** — the numbers from that
+> point on are not a wave-transition measurement.
+>
+> **`Lv` came OUT of this warning on 2026-09-26** and must not be put back without a reason.
+> Assumption **A-02** was decided that day: `toggleDevLevel` now records the in-flight run and
+> **exits endless**, returning `modeRef` to `'campaign'`, so it no longer leaves a stopped frame
+> loop behind a live HUD. It is an explicit, visible exit rather than a silent trap — pressing it
+> ends the endless run, and the reading simply resumes by pressing `Endless` again from wave 1.
+> (Amended 2026-09-26: originally this note named `Lv`, the tier button and `Cert WC` together,
+> on the premise that `modeRef` never returned to `'campaign'`; A-02's resolution removes `Lv`
+> from the set and nothing else.)
 > **Failure signatures — what the reader is looking for:**
 > (a) a **visible black playfield** at a transition;
 > (b) an **audio hiccup** at a transition;
