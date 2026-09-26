@@ -1748,7 +1748,29 @@ export function PlayingHost({
       defer = true;
     }
     if (defer) {
-      certPendingRef.current = true;
+      // 11-VERIFICATION.md round-3 gap 2 / 11-REVIEW.md WR-01. 11-14 gated the half
+      // above on the run mode and left this bookkeeping unconditional, so an endless
+      // press armed a one-shot that only a campaign session standing where the
+      // consumer effect requires could ever discharge.
+      //
+      // Measured end to end before the term landed: endless at wave 2 with the tier
+      // Auto injected NOTHING at the press and recorded the run correctly
+      // (`{mode:'endless', wave:2, outcome:'abandoned'}`, restarted at wave 1) — and
+      // then walking the dev row's level control forward fired one worst-case
+      // injection on a later CAMPAIGN session that never pressed this button.
+      //
+      // The rule this is an instance of: do not arm a latch whose discharge
+      // preconditions the same change has made unreachable.
+      //
+      // The term also suppresses the OTHER endless sub-branch, where the session is
+      // already where the consumer effect wants it. Measured there before the term:
+      // the tier half's remount restarts the endless run in place, both preconditions
+      // stay satisfiable, and the one-shot DID discharge — one injection onto the
+      // freshly restarted endless board. That branch was never stranded, and
+      // suppressing it is a deliberate behaviour change, not a no-op.
+      //
+      // `modeRef` is a ref and is deliberately absent from the dependency array.
+      certPendingRef.current = modeRef.current !== 'endless';
       return;
     }
     injectCertWorstCase();
