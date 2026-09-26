@@ -1190,3 +1190,136 @@ describe('PlayingHost — Lv exits endless (A-02)', () => {
     ).toBeNull();
   });
 });
+
+/**
+ * Plan 11-14 — `Cert WC` was the last `__DEV__` control with no mode term.
+ *
+ * `11-VERIFICATION.md` gap 1 `missing[]` bullet 5 and gap 2 `missing[]` bullet 4 both
+ * land here. `runCertWorstCase` has two independent halves — a level half that forces
+ * `level-03` and a tier half that forces Mid — and until this plan neither knew what
+ * mode the player was in.
+ *
+ * The TIER half is a genuine, funnel-covered run boundary: `setTierOverride('mid')`
+ * fires the `tierOverrideRef` effect, which calls `remountDevSession`, whose endless
+ * branch routes to `startEndlessRun()` — recorded, then restarted at wave 1. The
+ * verifier measured that (P3) and the first case below pins it so it cannot regress.
+ *
+ * The LEVEL half was not a boundary at all, it was a hole. Measured pre-fix with the
+ * tier ALREADY Mid — so the tier half no-ops and the level half runs alone — the `Lv`
+ * label moved to `level-03`, the compiled-push gate early-returned because
+ * `modeRef.current === 'endless'`, and the bake effect's `setActiveRef.current(false)`
+ * left a stopped frame loop behind a live HUD with nothing recorded. It was also the
+ * only deterministic, race-free trigger for a campaign per-level best being published
+ * into the endless `best` prop, which 11-12 guarded at the publication end.
+ *
+ * Owner decision 2026-09-26: gate the level half on the mode. "Document only" and
+ * "disable `Cert WC` while endless" were both rejected — the latter is inconsistent
+ * with how A-02 was just resolved next door via an explicit exit.
+ */
+describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+  });
+
+  const CERT = 'Cert worst-case: level-03 Mid multi-ball particles shake';
+  const TIER_AUTO = 'Force quality tier, current Auto mid';
+  const TIER_LOW = 'Force quality tier, current Low';
+  const TIER_MID = 'Force quality tier, current Mid';
+  const LV_01 = 'Switch level, current level-01';
+  const LV_03 = 'Switch level, current level-03';
+
+  it('with the tier UNSET, Cert WC still records the run at the wave it reached and restarts at wave 1 (P3)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: TIER_AUTO }),
+      'the tier must be UNSET going in — this case is about the branch that DOES cross a boundary',
+    ).toBeTruthy();
+
+    setActive.mockClear();
+    await press(CERT);
+
+    expect(
+      recordRunEnd,
+      'the tier half fires remountDevSession -> startEndlessRun, which records before it resets',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode).toBe('endless');
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome).toBe('abandoned');
+    expect(args.wave, 'at the wave reached BEFORE the reset').toBe(2);
+    expect(screen.getByText('W1'), 'and then it is a new run at wave 1').toBeTruthy();
+    expect(boardFingerprint(), 'on a freshly generated board').not.toBe(wave2);
+    expect(hostProps.current?.result, 'a restart, not a Results overlay').toBeNull();
+  });
+
+  it('with the tier already Mid, Cert WC leaves the endless run live and the level unchanged', async () => {
+    await mountOnly();
+    // The tier must really be Mid BEFORE endless is entered, or this case would pass
+    // against a run on some other tier and prove nothing about the level half alone.
+    await press(TIER_AUTO); // null -> low
+    await press(TIER_LOW); // low -> mid
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'the tier half of runCertWorstCase must be a no-op for this case to isolate the level half',
+    ).toBeTruthy();
+
+    await press('Start an endless run');
+    await advanceToWaveTwo();
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: LV_01 }),
+      'and it is on a level that is NOT level-03, so the level half would have fired',
+    ).toBeTruthy();
+    const wave2 = boardFingerprint();
+
+    recordRunEnd.mockClear();
+    setActive.mockClear();
+    await press(CERT);
+
+    // The `Lv` label exposes the live `levelId`. This is the RENDERED proof that the
+    // level half did not fire — measured pre-fix it read `level-03` after the press.
+    expect(
+      screen.queryByRole('button', { name: LV_03 }),
+      'measured pre-fix: setLevelId(level-03) fired while endless and the label moved',
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: LV_01 }),
+      'the run keeps the level it started on',
+    ).toBeTruthy();
+    expect(screen.getByText('W2'), 'and the run is still live at wave 2').toBeTruthy();
+    expect(
+      boardFingerprint(),
+      'the generated board under measurement is untouched',
+    ).toBe(wave2);
+    expect(hostProps.current?.result, 'the run did not end').toBeNull();
+    expect(
+      recordRunEnd,
+      'nothing was recorded, because nothing ended',
+    ).toHaveBeenCalledTimes(0);
+    expect(
+      setActive.mock.calls.filter((c) => c[0] === false),
+      'measured pre-fix: the level switch re-entered the bake cold path and stopped the loop behind a live HUD',
+    ).toHaveLength(0);
+  });
+});
