@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 8/8 plans executed — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
+**Plans:** 11 plans — 8 executed (6 original waves 1-4; 2 gap-closure round 1); 3 gap-closure round-2 plans pending (gap waves 1-3)
 
 Plans:
 **Wave 1**
@@ -127,6 +127,12 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 11-06-PLAN.md — `ENDLESS-MODE.md`, the `BOARD-GENERATOR.md` §Limits amendment, and the device SC-5 assumption (wave 4)
+
+**Gap closure round 2** *(no run is lost — the three remaining gaps are data LOSS, not record inflation)*
+
+- [ ] 11-09-PLAN.md — Gaps 2+3: `failEndlessStart()` gives a failed start a surface on every entry path, the seed attempt becomes atomic, and the Retry-time boundary gets a named, tested discriminant (gap wave 1)
+- [ ] 11-10-PLAN.md — Gap 1: the abandon funnel moves inside `startEndlessRun`, and `Lv` becomes an explicit exit from endless (A-02, owner-decided) (gap wave 2)
+- [ ] 11-11-PLAN.md — WR-04 publishes the endless watermark as `best`, the ops record is corrected to match the shipped code, and the round is gated against the frozen core (gap wave 3)
 
 **UI hint**: yes
 
