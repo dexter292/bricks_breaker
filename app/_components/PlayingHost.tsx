@@ -63,6 +63,10 @@ import {
   nextLevelId,
   type RunStatsInput,
 } from '../../src/services/storage';
+import {
+  certLevelPlanFor,
+  type CertLevelPlan,
+} from './certLevelPlan';
 
 /**
  * Map the runtime reducer's `RunStats` onto the storage layer's `RunStatsInput`
@@ -1703,6 +1707,26 @@ export function PlayingHost({
   const certPendingRef = useRef(false);
   const certArmedRef = useRef(false);
 
+  // 11-19 / 11-VERIFICATION round-5 gap 1. ONE named decision, read by three
+  // consumers below: the level half, the deferral arm, and the deferred-cert
+  // effect's self-cancel. It replaces two separate expressions that answered the
+  // same question and drifted apart in three consecutive rounds — each round
+  // taught one of them a new term and left the other ignorant of it. A fourth term
+  // added to `certLevelPlanFor` now reaches every consumer by construction.
+  //
+  // `modeRef` and `runEndedRef` are refs, read at call time, and deliberately
+  // absent from the dependency array — the same reason the surrounding comments
+  // already give. `levelId` is state and is listed.
+  const certLevelPlan = useCallback(
+    (): CertLevelPlan =>
+      certLevelPlanFor({
+        mode: modeRef.current,
+        runEnded: runEndedRef.current,
+        levelId,
+      }),
+    [levelId],
+  );
+
   const runCertWorstCase = useCallback(() => {
     // Profiling IPA: CERT_HARNESS with __DEV__ false must still arm (A1).
     if (
@@ -1712,53 +1736,49 @@ export function PlayingHost({
       return;
     }
     let defer = false;
-    // 11-14 / 11-VERIFICATION gap 1 bullet 5 + gap 2 bullet 4. The LEVEL half is
-    // gated on the run mode; the tier half below is deliberately NOT.
+    // ONE consultation per press, stored. The level half below and the arm are two
+    // consumers of this same value, not two expressions that happen to agree today.
+    const plan = certLevelPlan();
+    // 11-14 / 11-VERIFICATION gap 1 bullet 5 + gap 2 bullet 4 and round-4 gap. The
+    // LEVEL half is gated; the tier half below is deliberately NOT.
     //
     // Line comments only in this function — `codeOnly()` in
     // `tests/ui/PlayingHost.endless-host.test.ts` strips `//` but not `/** */`, so a
     // block comment here could satisfy or falsify a source contract with prose.
     //
-    // Why the gate: the level-forcing call below was the last deterministic,
-    // race-free trigger for a CAMPAIGN per-level best being published into the
-    // endless `best` prop — it drives the `getBestForLevel` preload effect, which
-    // 11-12 guarded at the publication end. Gating here shuts the same defect at the
-    // trigger end. (The call is written once and only once in this function, so the
-    // plan's structural gate can count it — do not restate it in prose.)
+    // WHAT THE GATE IS NOW. This half no longer tests anything itself: it asks
+    // `certLevelPlan()` once, above, and acts on the answer. The predicate and the
+    // reasons for its three answers live in `app/_components/certLevelPlan.ts`, and
+    // the answers are driven cell by cell in `tests/ui/certLevelPlan.test.ts`. Do not
+    // restate either here, and do not add a term at this call site — add it to the
+    // predicate, where all three consumers will see it.
     //
-    // Why it cost nothing: while endless the level switch could not take effect
-    // anyway. The compiled-push gate effect early-returns on
-    // `modeRef.current === 'endless'`, and the deferred-cert effect below requires
-    // `levelId === 'level-03'` AND `tierOverride === 'mid'`. So with the tier already
-    // Mid the only product of this half was the bake effect's
-    // `setActiveRef.current(false)` — a stopped frame loop behind a live HUD, with
-    // nothing recorded because `runEndedRef` was never latched.
+    // WHY THE PREDICATE EXISTS. This half and the arm below used to be two separate
+    // expressions asking the same question, and they drifted apart in three
+    // consecutive rounds: round 3 taught this half the run mode and left the arm
+    // ignorant of it; round 4 taught the arm the mode; round 5 taught this half the
+    // run-ended latch and left the arm ignorant of THAT, which armed a one-shot whose
+    // discharge the same press had just made unreachable. They are now one value.
     //
-    // Owner decision 2026-09-26, in preference to a documentation-only change and to
-    // disabling `Cert WC` while endless — the latter is inconsistent with how A-02
-    // was resolved for `Lv` next door, via an explicit exit rather than a dead button.
+    // WHY THIS HALF IS GUARDED RATHER THAN RESETTING. A reset here would have to
+    // clear the run-ended latch AND write the five chrome values on the same
+    // synchronous path — a sixth copy of the five near-identical run-boundary reset
+    // blocks the verifier's WR-06 advisory names as the structural cause of this
+    // phase's whole "fix one half, leave the neighbour" pattern. Clearing without
+    // those writes is worse still: it leaves a dead run's score and lives standing on
+    // the HUD of a fresh board.
     //
-    // 11-17 / 11-VERIFICATION round-4 gap. The leading conjunct below is the
-    // run-ended latch, negated: this half now refuses to fire from a MOUNTED Results
-    // overlay. It was the one caller of the compiled-push gate effect that neither
-    // reset that latch nor was guarded by it, so the seam armed the frame loop on its
-    // behalf for a run that was already over.
+    // WHY THIS HALF ONLY. Gating the tier half below would be the "disable `Cert WC`
+    // while endless" option the owner rejected on 2026-09-26; it is a real,
+    // funnel-covered run boundary that routes through `remountDevSession`. A-02 was
+    // resolved the same way for `Lv` next door — an explicit exit, not a dead button.
     //
-    // WHY GUARD RATHER THAN RESET. A reset here would have to clear the latch AND
-    // write the five chrome values on the same synchronous path — a sixth copy of the
-    // five near-identical run-boundary reset blocks the verifier's WR-06 advisory
-    // names as the structural cause of this phase's whole "fix one half, leave the
-    // neighbour" pattern. Clearing without those writes is worse still: it leaves a
-    // dead run's score and lives standing on the HUD of a fresh board.
-    //
-    // WHY THIS HALF ONLY. Gating the tier half below would be the "disable
-    // `Cert WC` while endless" option the owner rejected on 2026-09-26; it is a real,
-    // funnel-covered run boundary that routes through `remountDevSession`.
-    //
-    // WHAT IT COSTS. On a LIVE run the new conjunct is true, so the condition
-    // evaluates exactly as it did before and the campaign harness is unchanged. On an
-    // ENDED run with the tier already Mid nothing defers, and the press injects the
-    // worst-case load directly into a world whose loop is already stopped.
+    // WHY THE LEVEL HALF MATTERED IN THE FIRST PLACE. The level-forcing call below
+    // was the last deterministic, race-free trigger for a CAMPAIGN per-level best
+    // being published into the endless `best` prop — it drives the `getBestForLevel`
+    // preload effect, which 11-12 guarded at the publication end. (The call is
+    // written once and only once in this function, so the structural gate can count
+    // it — do not restate it in prose.)
     //
     // MEASURED PRE-FIX, one press from a mounted campaign lose panel at
     // `{score: 2400, lives: 0}` with the tier already Mid: the `Lv` label moved to the
@@ -1766,13 +1786,12 @@ export function PlayingHost({
     // fresh board simulating behind the overlay of a run that is over. Its own later
     // loss was swallowed by the latch, so the loop was never stopped.
     //
-    // `modeRef` is a ref and is deliberately absent from the dependency array; so is
-    // the run-ended latch read below, for the same reason.
-    if (
-      !runEndedRef.current &&
-      modeRef.current !== 'endless' &&
-      levelId !== 'level-03'
-    ) {
+    // MEASURED PRE-FIX on the neighbouring branch (round-6 cell 5, tier AUTO): the
+    // press injected 0 and moved no level, and then four `Lv` presses gave
+    // `level-04 0 | level-05 0 | level-06 0 | level-03 1` — the stranded one-shot
+    // discharging on a later campaign session. Driven in
+    // `tests/ui/PlayingHost.endless-retry.test.tsx`.
+    if (plan === 'force') {
       setLevelId('level-03');
       defer = true;
     }
@@ -1781,35 +1800,30 @@ export function PlayingHost({
       defer = true;
     }
     if (defer) {
-      // 11-VERIFICATION.md round-3 gap 2 / 11-REVIEW.md WR-01. 11-14 gated the half
-      // above on the run mode and left this bookkeeping unconditional, so an endless
-      // press armed a one-shot that only a campaign session standing where the
-      // consumer effect requires could ever discharge.
+      // 11-VERIFICATION.md round-3 gap 2 / WR-01, then round-5 gap 1. This
+      // bookkeeping was unconditional, then it knew one term of the half above, and
+      // both times it armed a one-shot that no reachable session could discharge.
       //
-      // Measured end to end before the term landed: endless at wave 2 with the tier
-      // Auto injected NOTHING at the press and recorded the run correctly
-      // (`{mode:'endless', wave:2, outcome:'abandoned'}`, restarted at wave 1) — and
-      // then walking the dev row's level control forward fired one worst-case
-      // injection on a later CAMPAIGN session that never pressed this button.
+      // It is now the SAME value the half above acted on, so the two cannot disagree.
+      // `'unreachable'` is the only answer that must not arm: under `'force'` the
+      // half above has just moved the session to where the consumer effect wants it,
+      // and under `'ready'` the session is already there.
       //
       // The rule this is an instance of: do not arm a latch whose discharge
       // preconditions the same change has made unreachable.
-      //
-      // The term also suppresses the OTHER endless sub-branch, where the session is
-      // already where the consumer effect wants it. Measured there before the term:
-      // the tier half's remount restarts the endless run in place, both preconditions
-      // stay satisfiable, and the one-shot DID discharge — one injection onto the
-      // freshly restarted endless board. That branch was never stranded, and
-      // suppressing it is a deliberate behaviour change, not a no-op.
-      //
-      // `modeRef` is a ref and is deliberately absent from the dependency array.
-      certPendingRef.current = modeRef.current !== 'endless';
+      certPendingRef.current = plan !== 'unreachable';
       return;
     }
     injectCertWorstCase();
     // setLevelId / setTierOverride are stable useState setters — listed so R-24
     // deps at this cert-arm site stay explicit (exhaustive-deps must not be ignored here).
-  }, [levelId, tierOverride, injectCertWorstCase, setLevelId, setTierOverride]);
+  }, [
+    certLevelPlan,
+    tierOverride,
+    injectCertWorstCase,
+    setLevelId,
+    setTierOverride,
+  ]);
 
   // After remount to level-03 + Mid, fire deferred cert inject once (not per-frame).
   useEffect(() => {

@@ -1512,15 +1512,36 @@ describe('PlayingHost endless host (source contract)', () => {
       'runCertWorstCase must be extractable, or the guard shape below is vacuous',
     ).not.toBe('');
     expect(
-      certBodyA,
-      'runCertWorstCase is the third levelId writer and it is GUARDED rather than resetting: the level-forcing call must sit inside a block whose condition OPENS on the negated run-ended latch. A reset here would need the five chrome writes as well as the clear — a sixth copy of the block WR-06 names as this phase’s structural defect. Whitespace is free so a prettier re-wrap of the long condition cannot red this',
-    ).toMatch(
-      /if\s*\(\s*!runEndedRef\.current\s*&&[\s\S]*?\)\s*\{[\s\S]*?setLevelId\(/,
-    );
-    expect(
-      (certBodyA.match(/runEndedRef/g) ?? []).length,
-      'EXACTLY ONE occurrence of the run-ended latch identifier in runCertWorstCase. A second means either a second unguarded route or a comment that leaked a counted literal — 11-14 measured that failure directly with a different literal. codeOnly() has already stripped // comments here, so an explanatory line comment is invisible to this count and is the correct place for prose',
+      (certBodyA.match(/const plan = certLevelPlan\(\);/g) ?? []).length,
+      '11-19. runCertWorstCase must consult the cert-level predicate EXACTLY ONCE per press and store the answer. Measured base 0 (the memo did not exist). Zero means this function decides for itself again; two means two consultations and therefore two chances to act on different answers within one press',
     ).toBe(1);
+    expect(
+      certBodyA,
+      'runCertWorstCase is the third levelId writer and it is GUARDED rather than resetting: the level-forcing call must sit inside a block whose condition tests the stored `plan`. A reset here would need the five chrome writes as well as the clear — a sixth copy of the block WR-06 names as this phase’s structural defect. Whitespace is free so a prettier re-wrap cannot red this',
+    ).toMatch(/if\s*\(\s*plan\s*===[\s\S]*?\)\s*\{[\s\S]*?setLevelId\(/);
+    // 11-19, REPLACING the round-5 pin of `runEndedRef` at EXACTLY 1.
+    //
+    // WHAT CHANGED AND WHY. That count was 1 because the run-ended latch was tested
+    // INLINE here, in the level half’s condition — and the arm 34 lines below tested a
+    // different subset of the same terms, which is round-5 gap 1. The terms now live
+    // in ONE predicate (`app/_components/certLevelPlan.ts`) that every decision site
+    // reads, so ANY occurrence of either identifier in this body is a decision site
+    // that has STOPPED consulting it. That is the exact drift this round removed, and
+    // a count of 0 is strictly stronger than the count of 1 it replaces: the old pin
+    // permitted the inline test and was also a fix-blocker, because the most direct
+    // repair added a second occurrence and reddened it.
+    //
+    // Measured bases on the round-5 tree: runEndedRef 1, modeRef 2. Both are
+    // discriminating, not regression gates.
+    const certNoBlocksA = certBodyA.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(
+      (certNoBlocksA.match(/runEndedRef/g) ?? []).length,
+      'ZERO occurrences of the run-ended latch identifier in runCertWorstCase (measured base 1, where it was tested inline). A non-zero count means a decision site here re-tests a predicate term instead of reading certLevelPlan() — add the term to the predicate, never to this call site',
+    ).toBe(0);
+    expect(
+      (certNoBlocksA.match(/modeRef/g) ?? []).length,
+      'and ZERO occurrences of the run-mode ref (measured base 2: once in the level half’s condition, once in the arm). The arm knowing the mode term while the level half also knew the run-ended term IS round-5 gap 1 — one value, read once, is what makes them impossible to disagree',
+    ).toBe(0);
 
     // ---- ASSERTION 4: each DIRECT site carries its OWN clear -----------------
     // What the aggregate reset-block count cannot say. `grep -c` over the file proves
@@ -1611,11 +1632,11 @@ describe('PlayingHost endless host (source contract)', () => {
       ).not.toBe('');
     });
 
-    it('the pending-cert arm carries the run-mode term (gap 2)', () => {
+    it('the pending-cert arm is the predicate’s value, not a second expression (gap 2 / round-6 gap 1)', () => {
       expect(
         certBody,
-        'a deferral armed while endless can only be discharged by a session this function has made unreachable — arm it conditionally or not at all',
-      ).toMatch(/certPendingRef\.current = modeRef\.current !== 'endless';/);
+        '11-19, REPLACING the literal mode-only arm this pinned before. A deferral armed where the discharge preconditions are unreachable can only fire on some later, unrelated session — and an arm written as its OWN expression is how this drifted from the level half in three consecutive rounds. It must now be the stored predicate answer: `certPendingRef.current = plan !== \'unreachable\';`. The old form (`modeRef.current !== \'endless\'`) is strictly weaker: it knew the mode term and not the run-ended one, which is round-5 gap 1',
+      ).toMatch(/certPendingRef\.current = plan !== 'unreachable';/);
       expect(
         certBody,
         'and unconditionally NOWHERE — a second bare arm would restore the hazard beside the guarded one',
