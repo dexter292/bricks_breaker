@@ -1728,6 +1728,116 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
   });
 
   /**
+   * 11-17 Task 1. BRANCH: CAMPAIGN, below `level-03`, tier ALREADY Mid, run ENDED.
+   * The intersection none of the three neighbouring cases covers, and the one that
+   * falsified 11-15's must_have truth 6 — "no path that begins or resumes a run can
+   * be locked out of its own chrome". 11-15 enumerated the five chrome WRITERS; the
+   * set truth 6 quantifies over is the loop RE-ARM sites, which is larger by three.
+   *
+   * Measured pre-fix on the real host (11-17 Task 1 STEP A; the transcript is in
+   * `.planning/phases/11-endless-mode/11-17-SUMMARY.md`): ONE press moved `Lv` to
+   * `level-03`, called `retry()` once and recorded `setActive`
+   * `[[false],[false],[false],[true]]` — a fresh board simulating behind a mounted
+   * Results overlay for a run that is over. Every mirror it then produced was
+   * swallowed by `applyChrome`'s hoisted latch, INCLUDING its own `LOST`, so
+   * `setActive(false)` was never reached and the frame loop was never stopped. That
+   * unstoppable loop is the harm this case pins — not a lost record: `handleRunEnded`
+   * sat behind the record-once guard on both sides of the hoist and `recordRunEnd`
+   * measured 0 either way.
+   *
+   * The tier presses come FIRST, and deliberately: a tier change fires
+   * `remountDevSession`, whose campaign branch legitimately clears the latch. Cycling
+   * the tier after the boundary would be testing that reset instead of this hole.
+   */
+  it('an ENDED campaign run is not re-armed: a press from the mounted lose panel with the tier already Mid moves no level and starts no loop', async () => {
+    await mountOnly();
+    await press(TIER_AUTO); // null -> low
+    await settle();
+    await press(TIER_LOW); // low -> mid
+    await settle();
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'the tier must ALREADY be Mid going in — without this the tier half fires and the drive is testing remountDevSession, not the level half',
+    ).toBeTruthy();
+    expect(
+      levelSwitchLabel(),
+      'and the session is below level-03, so the level half has something to do',
+    ).toBe(LV_01);
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    expect(hostProps.current?.result, 'the lose panel is mounted').toBe('lose');
+    expect(
+      hostProps.current?.score,
+      'and it is coherent BEFORE any mock is cleared — the run that just ended',
+    ).toBe(2400);
+    expect(hostProps.current?.lives).toBe(0);
+    expect(
+      recordRunEnd,
+      'the boundary recorded the run exactly once',
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      setActive.mock.calls.at(-1),
+      'and STOPPED the loop — which is what makes any later `true` a re-arm rather than a start',
+    ).toEqual([false]);
+
+    setActive.mockClear();
+    retry.mockClear();
+    injectCertWorstCase.mockClear();
+    recordRunEnd.mockClear();
+
+    await press(CERT);
+    await settle();
+
+    expect(
+      levelSwitchLabel(),
+      'measured pre-fix: `Switch level, current level-03` — the level half moved the level of a run that is over',
+    ).toBe(LV_01);
+    expect(
+      setActive.mock.calls.filter((c) => c[0] === true),
+      'measured pre-fix: one — the compiled-push gate effect armed the frame loop on the level half’s behalf',
+    ).toHaveLength(0);
+    expect(
+      retry,
+      'measured pre-fix: called once — a fresh board built behind a mounted Results overlay',
+    ).not.toHaveBeenCalled();
+    expect(
+      hostProps.current?.result,
+      'and the panel is still the same panel, so the assertions above are about the guard and not an unmount',
+    ).toBe('lose');
+    expect(
+      injectCertWorstCase,
+      'with the tier already Mid and the level half guarded, `defer` stays false and the press injects DIRECTLY into a world whose loop is already stopped. MEASURED, not derived',
+    ).toHaveBeenCalledTimes(1);
+
+    // The straggler half. The ABSENT trailing `setActive(false)` below is correct
+    // here and was a LEAK pre-fix: nothing was re-armed, so there is nothing to stop.
+    // Pre-fix a fresh board HAD been armed, and its own loss could not reach
+    // `setActive(false)` because `applyChrome`'s hoisted latch returned above the
+    // branch that calls it — leaving a frame loop with no surface left to stop it.
+    await deliverPhase(SIM.PLAYING, { lives: 2, score: 555 });
+    expect(
+      hostProps.current?.score,
+      'the ended run keeps its own numbers — the latch is doing its job',
+    ).toBe(2400);
+    expect(hostProps.current?.lives).toBe(0);
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 8888 });
+    expect(hostProps.current?.score).toBe(2400);
+    expect(hostProps.current?.lives).toBe(0);
+    expect(hostProps.current?.result).toBe('lose');
+    expect(
+      recordRunEnd,
+      'and nothing is recorded a second time',
+    ).toHaveBeenCalledTimes(0);
+
+    expect(
+      setActive.mock.calls.filter((c) => c[0] === true),
+      'still no re-arm across either straggler — no orphan run exists to produce one',
+    ).toHaveLength(0);
+  });
+
+  /**
    * 11-16 Task 2, case C1. BRANCH: CAMPAIGN, below `level-03`, tier not Mid — both
    * halves fire, so the press defers, and this is the side of Task 1's new condition
    * that Task 1 does NOT change. Without it the endless fix could have closed the
