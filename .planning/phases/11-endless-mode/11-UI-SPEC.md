@@ -1,10 +1,11 @@
 ---
 phase: 11
 slug: endless-mode
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-09-26
+reviewed_at: 2026-09-26
 ---
 
 # Phase 11 — UI Design Contract
@@ -331,25 +332,79 @@ In-repo files the endless contract binds. Not a design-system inventory and not 
 
 ## UI Considerations
 
-Applicable state considerations resolved: **8 covered, 1 backstop, 0 unresolved.**
+Produced by the `ui-consideration-probe` engine over 5 described surfaces (36 applicable
+considerations), resolved at `/gsd-ui-phase` step 9.5. Element kinds were probe-detected and
+user-confirmed (no kind added).
 
-| Category | Element(s) | Status | Resolution / Reason |
-|----------|------------|--------|---------------------|
-| empty | endless Results record block | ✅ covered | First endless run ever renders `Best · 0` and `Best wave · 0` from `defaultEndlessRecord()` — no empty-state panel, no placeholder copy (see Copywriting § Empty state body) |
-| loading | endless Results record block | ✅ covered | The endless watermark refs are seeded at mount from `getSnapshot()`; the overlay renders the last known values immediately and never blocks on an in-flight async read |
-| error | storage read/write failure | ✅ covered | Fails soft to last-known or `0`; overlay stays fully playable; no error modal (Copywriting § Error state (storage)) |
-| error | `advanceToWave(n)` returns false mid-run | ✅ covered | Run ends, recorded `abandoned` at wave `n-1`, Results renders the wave-build-failure body, `waveAdvanceInFlightRef` cleared (Copywriting § Error state (board); Interaction § Run boundaries) |
-| partial | corrupt `telemetry.endless` | ✅ covered | `sanitizeTelemetry` (`parseBlob.ts:415-446`) degrades the endless record **alone** to zeros; the overlay shows `Best · 0` / `Best wave · 0` and campaign bests/stars/unlocks are provably untouched (SC-3) |
-| populated | endless Results, mid-range run | ✅ covered | Six lines in fixed order: `Lose`, `Out of lives`, `Wave · n`, `Score · n`, `Best · n`, `Best wave · n`, plus optional badge and the two CTAs |
-| zero-one-many | wave count `1` vs `100+` | ✅ covered | The `·` metric form has no plural, so `Wave · 1` and `Wave · 137` need no pluralization branch. Wave is unbounded (difficulty clamps at `D_MAX`, the wave index does not) and is rendered as a bare integer |
-| long-text | all overlay strings | ✅ covered | Every string is a fixed English literal plus digits — no user input, no i18n, no truncation path |
-| overflow | 7-digit score / 4-digit wave in the 320px panel | 🧪 backstop | One metric per line at Body 16px SpaceMono inside a 320px panel with 24px padding gives ≈28 monospace characters; the longest line (`Best wave · 9999`) is 16. A UI-state test at a 7-digit score and a 4-digit wave must show no wrap and no clipping in the shipped panel width |
+Resolved: **20 specify · 2 backstop · 12 dismiss · 2 unresolved.**
+
+### E1 — Endless Results record block *(list-collection, static-content)*
+
+| Category | Status | Resolution / Reason |
+|----------|--------|---------------------|
+| empty | ✅ covered | A first endless run renders `Best · 0` and `Best wave · 0` from `defaultEndlessRecord()` — no empty-state panel and no placeholder copy |
+| loading | ✅ covered | The endless watermark refs are seeded at mount from `getSnapshot()`; the overlay renders the last known values immediately and never blocks on an in-flight async read |
+| error | ✅ covered | A storage read/write failure fails soft to the last known values, or `0` if never read; the overlay stays fully playable and no error modal renders |
+| populated | ✅ covered | Six lines in fixed order — `Lose`, `Out of lives`, `Wave · n`, `Score · n`, `Best · n`, `Best wave · n` — plus the optional `New Record` badge and the two CTAs |
+| partial | ✅ covered | A corrupt `telemetry.endless` is degraded **alone** to zeros by `sanitizeTelemetry` (`parseBlob.ts:415-446`); the overlay shows `Best · 0` / `Best wave · 0` and campaign bests, stars and unlocks are provably untouched (SC-3) |
+| zero-one-many | ✅ covered | The `·` metric form has no plural, so `Wave · 1` and `Wave · 137` need no pluralization branch; wave is unbounded (difficulty clamps at `D_MAX`, the wave index does not) and renders as a bare integer |
+| long-text | ✅ covered | Every string is a fixed English literal plus digits — no user input, no i18n, no truncation path |
+| overflow | 🧪 backstop | { statement: A UI-state test at a 7-digit score and a 4-digit wave must show no wrap and no clipping in the shipped 320px panel width, verification: backstop } — the ≈28-monospace-character fit is computed from Body 16px SpaceMono inside 320px with 24px padding, not observed on a rendered panel |
+
+### E2 — Endless Results action controls *(list-collection, nav, interactive-control, static-content)*
+
+| Category | Status | Resolution / Reason |
+|----------|--------|---------------------|
+| loading | ✅ covered | `Retry` and `Menu` are instant and always enabled once the overlay renders; wave-1 generation runs on the cold path and does not gate either control (RUN-03) |
+| populated | ✅ covered | Exactly two controls in fixed order — `Retry` (accent-white filled, primary) then `Menu`; the campaign `Next` control and the star row never render in endless |
+| overflow | ✅ covered | Both labels are fixed single words at Body 16px SpaceMono inside the 320px panel — no reflow path exists |
+| long-text | ✅ covered | Labels are fixed English literals, never user input or i18n; the a11y label `Retry endless run from wave 1` is not rendered visually and so has no layout path |
+| **error** | ⚠ unresolved — planner must treat as assumption | The contract states what happens when `advanceToWave(n)` returns false **mid-run**, but not when `startEndlessRun()` fails to build wave 1 from `Retry`. The wave-build-failure body `Wave {n} could not be built — run saved` does not fit that case: there is no in-flight run to save |
+| empty | ✗ dismissed | A fixed pair of literal controls, not a data-driven collection; the unreachability of `Next` and the star row in endless is a contracted fixed absence, not an empty state |
+| partial | ✗ dismissed | All-or-nothing — both controls render with the overlay or neither does; no partial-data path reaches a fixed literal button row |
+| zero-one-many | ✗ dismissed | A fixed pair, not a variable-count collection; the `list-collection` kind here is a prose-cue artifact of the phrase "results panel" |
+
+### E3 — HudStrip during an endless run *(form, list-collection, static-content)*
+
+| Category | Status | Resolution / Reason |
+|----------|--------|---------------------|
+| loading | ✅ covered | HUD values arrive as discrete React mirrors via `useAnimatedReaction`, never a per-physics-frame `setState`; they are present from the first frame of the run, with no skeleton or spinner |
+| populated | ✅ covered | `Score · n`, `×combo` and `Lives · n` always render; `Stall! · tier` only when PLAYING and `stallTier > 0`; all values carry across a wave swap without resetting to 0 |
+| zero-one-many | ✅ covered | No plural branch exists at any count; `×combo` renders from `×1` upward, and `Lives · n` counts down to `0`, at which point the run ends into the Results overlay |
+| overflow | 🧪 backstop | { statement: A UI-state test at a 7-digit score and a 3-digit combo must show the 48px HUD row neither wrapping nor clipping, verification: backstop } — an endless run's score is unbounded and the contract states no maximum width for the HUD row |
+| empty | ✗ dismissed | The strip always renders live run values; score, lives and combo are always present integers, never an absent-data state |
+| error | ✗ dismissed | Reads in-memory world state, not storage — there is no load or submit that can fail. Storage failure is covered at E1 |
+| partial | ✗ dismissed | Prose-cue artifact: the `form` kind was matched on the phrase "gains no wave **field**". The strip has no fields and no partial-data path |
+| long-text | ✗ dismissed | All HUD strings are fixed literals plus integers — no user input and no i18n path this phase |
+
+### E4 — PauseOverlay in endless *(nav, interactive-control, static-content)*
+
+| Category | Status | Resolution / Reason |
+|----------|--------|---------------------|
+| loading | ✅ covered | `Resume`, `Retry` and `Menu` are instant; `Resume`'s 3·2·1 countdown is deliberate shell behaviour rather than a loading state, and a wave transition never triggers a countdown |
+| error | ✅ covered | The pause controls have no failure path of their own; the `abandoned` run-record write they trigger fails soft per the storage rule, and the reset still proceeds |
+| overflow | ✅ covered | Three fixed single-word labels stacked in the 200px pause panel at Body 16px SpaceMono — no reflow path exists |
+| long-text | ✅ covered | Fixed English literals, unchanged from campaign — no user input and no i18n path |
+
+### E5 — `__DEV__` dev row *(list-collection, interactive-control)*
+
+| Category | Status | Resolution / Reason |
+|----------|--------|---------------------|
+| loading | ✅ covered | The `Endless` button is instant; the `W{n}` readout is a cold-path value updated once per transition, never a per-frame mirror |
+| populated | ✅ covered | The row renders the `Endless` entry button alongside the `W{n}` wave readout, which carries `accessibilityLabel: Wave {n}` |
+| **error** | ⚠ unresolved — planner must treat as assumption | `11-VERIFICATION.md` (WR-02) records that the other `__DEV__` row controls — `Lv`, `Cert WC` and the tier button — have undefined behaviour once an endless run is entered, to the point that the human-verification script instructs the tester to avoid them. This contract does not state what they should do |
+| empty | ✗ dismissed | A dev-only strip of fixed literal controls; no data-driven collection can be empty |
+| partial | ✗ dismissed | Fixed literal controls with no partial-data path |
+| overflow | ✗ dismissed | `__DEV__`-only surface, deleted in Phase 14 — the Typography exception table fences 12px to this row, and no production overflow contract is owed |
+| zero-one-many | ✗ dismissed | `W{n}` is a single scalar readout, not a collection; `list-collection` is a prose-cue artifact of the phrase "dev **row**" |
+| long-text | ✗ dismissed | Fixed literals plus an integer, on a dev-only surface |
 
 <!-- Status vocabulary (locked by probe-core projectTruths):
      ✅ covered   → a plain truth string lifted into must_haves.truths
      🧪 backstop  → a flat scalar { statement, verification: backstop }; at verify time, no explicit
                     evidence → insufficient_spec → human_needed (never a silent pass, #1154)
      ⚠ unresolved → an explicit planner assumption (surfaced, never silently dropped)
+     ✗ dismissed  → not applicable, with the reason stated; never lifted, never silently dropped
      Rows are REPLACED (not appended) on a probe re-run — idempotent. -->
 
 ---
@@ -369,12 +424,23 @@ plan ever proposes a package, the project rule stands: pin via `npx expo install
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: FLAG — every endless surface has exact strings and real
+      empty/error/partial copy; the visible CTAs `Retry` / `Menu` are bare verbs without an
+      object (inherited from `06-UI-SPEC.md`; the endless a11y label resolves the ambiguity
+      for assistive tech). Non-blocking.
+- [x] Dimension 2 Visuals: FLAG — hierarchy is inferable from the locked line order and the
+      accent-white CTA fill, but no line names the primary visual anchor of the endless
+      Results panel. Non-blocking.
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: FLAG — the shipped scale is exactly 4 sizes and 2 weights; the
+      5th size (12px) is declared in the Exception table for the `__DEV__` row only and is
+      fenced from every production surface. Non-blocking.
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS — `Tool: none` is an explicit PASS condition of
+      the dimension. (The researcher's "per the template rule" citation was checked and found
+      to overstate the template, which carries no such rule; the verdict rests on the
+      dimension's own clause.)
 
-**Approval:** pending
+**Approval:** APPROVED by gsd-ui-checker, 2026-09-26 — 7/7 dimensions, 3 non-blocking FLAGs,
+0 BLOCKs. `## UI Considerations` resolved by the step 9.5 probe after approval.
