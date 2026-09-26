@@ -175,6 +175,10 @@ type HostProps = {
   lives?: number;
   score?: number;
   levelError?: unknown;
+  /** 11-13 case (b): the integer that drives BOTH the failure body copy and the
+   *  run-line suppression in `ResultOverlay`. Read back here, rendered in the
+   *  sibling `PlayingHost.endless-record.test.tsx`. */
+  waveBuildFailedWave?: number | null;
   onRetry?: () => void;
   onMenu?: () => void;
   onPause?: () => void;
@@ -949,6 +953,71 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(
       recordRunEnd,
       'and still exactly one record, for the one run that happened',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * 11-13 Task 2, case (b) from `11-VERIFICATION.md` gap 3 `missing[]`.
+   *
+   * The sibling WR-04 case above drives a repeat WON while compilation is STILL
+   * forced to fail, so post-fix it cannot tell "the branch was not re-entered" from
+   * "it was re-entered and failed again". This case DISARMS the failure first, so the
+   * second mirror is one that WOULD have built a board. That is what makes it
+   * discriminating: pre-fix the readout moved to W3 while the overlay behind it was
+   * still reading the wave-3 FAILURE copy — the run's own chrome contradicting itself.
+   */
+  it('a mid-run wave-build failure ENDS the run — a later WON that WOULD have succeeded moves nothing (gap 3, case b)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    expect(screen.queryByText('W2'), 'the run reached wave 2').not.toBeNull();
+
+    // Fail exactly the wave-3 build.
+    failCompileFrom = compileCalls + 1;
+    await deliverPhase(SIM.WON, { score: 2400 });
+
+    expect(hostProps.current?.result, 'the failed build ENDED the run').toBe('lose');
+    expect(
+      recordRunEnd,
+      'recorded once, at the last SUCCESSFULLY built wave',
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      hostProps.current?.waveBuildFailedWave,
+      'the overlay is told which wave could not be built — 3, the one the failure was armed for',
+    ).toBe(3);
+    advanceWave.mockClear();
+
+    // DISARM, then deliver a WON that would build a real board.
+    failCompileFrom = 0;
+    await deliverPhase(SIM.WON, { score: 2400 });
+
+    expect(
+      screen.queryByText('W3'),
+      'measured pre-fix: the readout moved to W3 while the overlay still read the wave-3 failure copy',
+    ).toBeNull();
+    expect(
+      screen.queryByText('W2'),
+      'an ended run holds its last successfully built wave',
+    ).not.toBeNull();
+    expect(
+      advanceWave,
+      'measured pre-fix: advanceWave called once, on a run that had already ended',
+    ).not.toHaveBeenCalled();
+    expect(
+      boardFingerprint(),
+      'and no board was generated, compiled or swapped in behind the overlay',
+    ).toBe(wave2);
+    expect(
+      hostProps.current?.waveBuildFailedWave,
+      'the decided failure copy is not rewritten by a mirror that arrived after the run ended',
+    ).toBe(3);
+    // Secondary and deliberately non-discriminating: `runEndedRef` already blocked the
+    // RECORD pre-fix — that is the half of the latch this branch always honoured. Kept
+    // because the post-condition is the claim, not because it moves.
+    expect(
+      recordRunEnd,
+      'and the finished run is still recorded exactly once',
     ).toHaveBeenCalledTimes(1);
   });
 

@@ -1146,6 +1146,58 @@ describe('PlayingHost endless — a failed start from a fresh mount (gap 3)', ()
       'an abandoned record at wave 1 with score 0 is a fabricated run in the data Phase 13 achievements read',
     ).toHaveBeenCalledTimes(0);
   });
+
+  /**
+   * 11-13 Task 2, case (c) from `11-VERIFICATION.md` gap 3 `missing[]` — the worst
+   * face of the walking wave, and the reason it is a COPY defect and not only an
+   * incoherent counter.
+   *
+   * A failed START is an ENDED run: `failEndlessStart` sets `waveBuildFailedWave` to
+   * 1, which `waveBuildFailureKind` classifies as Retry-time — body
+   * `Wave 1 could not be built — tap Retry`, run-scoped lines SUPPRESSED because
+   * there is no run to describe. Pre-fix, one straggler WON re-entered the endless
+   * branch, attempted `advanceToWave(2)`, failed again and REWROTE the value to 2.
+   * `waveBuildFailureKind` then reads mid-run and BOTH consumers flip at once: the
+   * body becomes `Wave 2 could not be built — run saved` (a run was saved — there was
+   * no run) and `showRunLines` un-suppresses, rendering `Wave · 0` for a run that
+   * never began. That is exactly the class 11-09's IN-05 suppression exists to
+   * prevent, and the owner decided this copy on 2026-09-26.
+   *
+   * Asserted on the RENDERED `result-slot` subtree, not on the prop alone, because a
+   * source contract that proved the WRITE and never the RENDER is the mechanism that
+   * let the original gap 3 ship green. The `Wave · 0` absence is checked against the
+   * SLOT's text, never a document-wide query: the `host-best` probe and the dev row
+   * live outside the slot by design.
+   */
+  it('a failed START stays ended — one WON mirror cannot rewrite the decided tap-Retry copy (gap 3, case c)', async () => {
+    await failFirstStart();
+    expect(
+      hostProps.current?.waveBuildFailedWave,
+      'the failed start decided wave 1 — Retry-time, no run to describe',
+    ).toBe(1);
+
+    await deliverPhase(SIM.WON, { score: 0 });
+
+    expect(
+      hostProps.current?.waveBuildFailedWave,
+      'measured pre-fix: rewritten to 2, which flips waveBuildFailureKind from start to mid',
+    ).toBe(1);
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(
+      slot.getByText('Wave 1 could not be built — tap Retry'),
+      'measured pre-fix: the body read `Wave 2 could not be built — run saved` — a run saved where no run began',
+    ).toBeTruthy();
+    expect(
+      overlayText(),
+      'measured pre-fix: `Wave · 0` rendered, because the rewritten value un-suppressed the run-scoped lines (11-09 IN-05)',
+    ).not.toContain('Wave · 0');
+    // Secondary and deliberately non-discriminating: `runEndedRef` already blocked the
+    // RECORD pre-fix. The defect was never a fabricated run here — it was the copy.
+    expect(
+      recordRunEnd,
+      'and a start that never began still reaches no telemetry',
+    ).not.toHaveBeenCalled();
+  });
 });
 
 /**
