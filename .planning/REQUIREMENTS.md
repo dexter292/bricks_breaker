@@ -175,7 +175,8 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 ### Endless Mode
 
 - [x] **N-END-01** (FC-R04): Clearing a board advances to the next generated one in the same run; lives, score and combo carry over; the run ends only at zero lives
-- [x] **N-END-02**: Endless records (best wave, best score) are stored separately — endless play cannot alter campaign unlocks, bests or stars
+- [ ] **N-END-02**: Endless records (best wave, best score) are stored separately — endless play cannot alter campaign unlocks, bests or stars
+  - **Caveat (Phase 11, 2026-09-26):** reverted to unchecked by round 3. The STORAGE firewall is structurally verified and did not regress — `RecordRunEndArgs` makes the campaign write unreachable for an endless run and `tsc` is the gate that says so. But this requirement is about what the player SEES, and `11-VERIFICATION.md` gap 1 MEASURED a campaign per-level best rendered as the endless `Best ·` line (`4200` → `7777`) when the mount-time `getBestForLevel` preload resolved while the endless Results overlay was mounted. The box stays unchecked until that display leak closes; it is re-ticked by Task 3 of `11-12-PLAN.md` on the evidence of the Task 1 behaviour case in `tests/ui/PlayingHost.endless-record.test.tsx`.
 - [ ] **N-END-03**: A seeded endless run is reproducible end to end; wave transitions cause no frame spike outside the Mid budget
   - **Caveat (Phase 11, 2026-09-25):** the reproducibility half is proven headlessly (and is scoped — a *device* run is not replayable, no per-tick intent recorder exists). The **frame-budget half is device-gated and still UNMEASURED** — recorded as a dated OPEN assumption in `docs/ops/ENDLESS-MODE.md` § Limits and tracked in `.planning/STATE.md` § Pending Todos.
 
