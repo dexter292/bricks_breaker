@@ -175,6 +175,11 @@ type HostProps = {
   lives?: number;
   score?: number;
   levelError?: unknown;
+  /** 11-17 Task 2 — the rendered `Best ·` line's source (`best={resultBest}` on the
+   *  host's GameScreen). Previously unreadable from this file, which is the other
+   *  half of why no case here could see WR-02: a mounted campaign panel's per-level
+   *  best repainted by a `levelId` change that does not clear `result`. */
+  best?: number;
   /** 11-13 case (b): the integer that drives BOTH the failure body copy and the
    *  run-line suppression in `ResultOverlay`. Read back here, rendered in the
    *  sibling `PlayingHost.endless-record.test.tsx`. */
@@ -285,7 +290,16 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
   return {
     ...actual,
     createDefaultProgressStore: () => ({
-      getBestForLevel: () => Promise.resolve(0),
+      // 11-17 Task 2 / round-3 advisory 1. This ignored its `id` and returned a
+      // constant, which is why NO case in this file could observe a per-level best
+      // MOVING — and why WR-02 (a `level-03` best repainted over a `level-01` run's
+      // mounted panel) hid for three rounds. The non-`level-03` arm stays 0, the value
+      // the blind mock returned, so every existing case is byte-for-byte unaffected:
+      // they all mount on `level-01`. The verifier suggested 1111 there; that would
+      // have moved `previousBestRef` from 0 to 1111 for ~30 cases and could silently
+      // shift a `New Record` or a `best` expectation.
+      getBestForLevel: (id: LevelId) =>
+        Promise.resolve(id === 'level-03' ? 7777 : 0),
       // 11-08 seeds the endless watermark refs from this at mount. Zeros here, so
       // this file's contracts are unchanged: the display half is not what it drives.
       getSnapshot: () =>
@@ -1835,6 +1849,82 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       setActive.mock.calls.filter((c) => c[0] === true),
       'still no re-arm across either straggler — no orphan run exists to produce one',
     ).toHaveLength(0);
+  });
+
+  /**
+   * 11-17 Task 2 — WR-02, the `Best ·` sibling of the case above, and the only
+   * reachability it ever had.
+   *
+   * The `getBestForLevel` preload effect ASSIGNS `previousBestRef` unconditionally by
+   * design — the campaign cache must stay warm while endless is live — and PUBLISHES
+   * through `setResultBest` behind a MODE test. A mode test cannot see a
+   * campaign-to-campaign move, so the run-ENDED twin of 11-12's defect needed a
+   * `levelId` change that does NOT clear `result`, and `runCertWorstCase`'s level half
+   * was the only such writer in the file. Measured pre-fix (11-17 Task 2 RED, with
+   * Task 1's conjunct temporarily reverted): the mounted campaign panel's `best` went
+   * 2400 -> 7777 across one press — a `level-03` best displayed over a `level-01` run.
+   *
+   * The POSITIVE CONTROL at the end is what makes the pass non-vacuous, and it is the
+   * direct answer to the mock defect that hid this for three rounds: the shipped
+   * `getBestForLevel` ignored its `id`, so no case here could observe a per-level best
+   * moving at all and a green assertion meant nothing. `toggleDevLevel` is a
+   * LEGITIMATE reset path — it clears the latch, clears `result` and republishes the
+   * cached campaign best synchronously — so a `Best ·` that moves THERE is correct,
+   * while a `Best ·` that moves under a mounted panel is the defect.
+   */
+  it('and the same press leaves the mounted campaign panel reading the level it was played on (WR-02)', async () => {
+    await mountOnly();
+    await press(TIER_AUTO); // null -> low
+    await settle();
+    await press(TIER_LOW); // low -> mid
+    await settle();
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'same setup as the case above: the tier is ALREADY Mid, so only the level half is in play',
+    ).toBeTruthy();
+    expect(levelSwitchLabel(), 'and the session is on level-01').toBe(LV_01);
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    expect(hostProps.current?.result, 'the lose panel is mounted').toBe('lose');
+    expect(
+      hostProps.current?.best,
+      'the run’s own 2400 became the level-01 campaign best, because the preload for level-01 resolved 0. A 0 or a 7777 here means the drive is wrong and everything below it would be vacuous',
+    ).toBe(2400);
+
+    await press(CERT);
+    await settle();
+
+    expect(
+      hostProps.current?.best,
+      'measured pre-fix: 7777 — level-03’s best repainted over a level-01 run’s mounted panel',
+    ).toBe(2400);
+    expect(
+      levelSwitchLabel(),
+      'and the level never moved, so the line above is about the guard',
+    ).toBe(LV_01);
+    expect(
+      hostProps.current?.result,
+      'and the panel is still the same panel, not an unmounted overlay',
+    ).toBe('lose');
+
+    // ANTI-VACUITY CONTROL. PLAYABLE_LEVEL_ORDER is five entries with level-03 LAST
+    // (src/services/storage/catalog.ts), so four Lv presses walk
+    // level-01 -> 04 -> 05 -> 06 -> level-03. This is a legitimate reset path and the
+    // best SHOULD move here; if it does not, the mock is still blind to its `id` and
+    // the assertion above proves nothing.
+    for (let i = 0; i < 4; i += 1) {
+      await pressLevelSwitch();
+      await settle();
+    }
+    expect(
+      levelSwitchLabel(),
+      'four presses reach level-03 — the control has actually walked',
+    ).toBe(LV_03);
+    expect(
+      hostProps.current?.best,
+      'the mock IS level-aware: a legitimate reset path republishes level-03’s best. Still 2400 here would mean the guarded assertion above was vacuous',
+    ).toBe(7777);
   });
 
   /**
