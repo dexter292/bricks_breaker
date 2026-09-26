@@ -2011,4 +2011,96 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       'exactly one injection; this case asserts the COUNT, not that the call skipped the deferral',
     ).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * 11-19 Task 2 — CELL 5 of the control cross-product, and round-5 gap 1.
+   *
+   * BRANCH: CAMPAIGN, run ENDED, below `level-03`, tier still AUTO. One step from the
+   * two 11-17 cases above, which both cycle the tier to Mid FIRST — and that is exactly
+   * what hid this for five rounds. A Mid tier no-ops the tier half, so `defer` never
+   * becomes true and the arming statement never executes at all.
+   *
+   * With the tier AUTO the tier half DOES fire, `defer` becomes true, and pre-fix the
+   * arm ran `certPendingRef.current = modeRef.current !== 'endless'` — true in campaign.
+   * The level half had just been REFUSED by 11-17's run-ended conjunct, so the one-shot
+   * was armed for a discharge precondition the same press had made unreachable. It sat
+   * there until some later session walked to `level-03`.
+   *
+   * MEASURED PRE-FIX (11-19 Task 2 RED, against the unwired host): the press injects 0
+   * and moves no level, and then the `Lv` walk gives
+   *   level-04 inject=0 | level-05 inject=0 | level-06 inject=0 | level-03 inject=1
+   * One worst-case injection on a campaign session that never pressed the button.
+   *
+   * The tier assertion after the press is not decoration: it proves the press still
+   * crossed its legitimate run boundary, so what changed is the ARMING and nothing else.
+   * The tier half is deliberately ungated (owner decision 2026-09-26).
+   */
+  it('a CAMPAIGN press from a mounted lose panel with the tier AUTO arms nothing — the later Lv walk to level-03 injects nothing (round-6 gap 1)', async () => {
+    await mountOnly();
+    expect(
+      screen.queryByText('W1'),
+      'mountOnly leaves the host in CAMPAIGN mode — no endless run, no wave readout',
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: TIER_AUTO }),
+      'the tier must be AUTO going in — this is the whole difference from the two ENDED cases above, and with it Mid the tier half no-ops and the arm is never reached',
+    ).toBeTruthy();
+    expect(
+      levelSwitchLabel(),
+      'and below level-03, so the level half has something it would do if the run were live',
+    ).toBe(LV_01);
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    expect(hostProps.current?.result, 'the lose panel is mounted').toBe('lose');
+    expect(
+      hostProps.current?.score,
+      'and it is coherent BEFORE any mock is cleared — the run that just ended',
+    ).toBe(2400);
+    expect(hostProps.current?.lives).toBe(0);
+
+    injectCertWorstCase.mockClear();
+
+    await press(CERT);
+    await settle();
+
+    expect(
+      levelSwitchLabel(),
+      'the level half is refused on an ended run — 11-17’s guard, unchanged by this round',
+    ).toBe(LV_01);
+    expect(
+      injectCertWorstCase,
+      'nothing is injected at the press itself: the tier half sets defer, so the function returns at the defer branch',
+    ).toHaveBeenCalledTimes(0);
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'and the tier half DID fire — the press still crossed its legitimate run boundary. Only the arming changed; gating this half is prohibited (owner decision 2026-09-26)',
+    ).toBeTruthy();
+
+    // The walk the round-5 verifier ran by hand: level-01 -> 04 -> 05 -> 06 -> 03.
+    // settle() runs the deferred-cert effect's 50 ms timeout at every step, so a
+    // stranded arm gets every chance to discharge — which pre-fix it took, at step 4.
+    const walk: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      await pressLevelSwitch();
+      await settle();
+      walk.push(
+        `${levelSwitchLabel()} inject=${injectCertWorstCase.mock.calls.length}`,
+      );
+    }
+    expect(
+      levelSwitchLabel(),
+      'four Lv presses reach level-03 — if the catalog shortens or lengthens the walk this case must RED rather than pass vacuously short of the discharge level',
+    ).toBe(LV_03);
+    expect(
+      walk.join(' | '),
+      'measured pre-fix: level-04 inject=0 | level-05 inject=0 | level-06 inject=0 | level-03 inject=1',
+    ).toBe(
+      'Switch level, current level-04 inject=0 | Switch level, current level-05 inject=0 | Switch level, current level-06 inject=0 | Switch level, current level-03 inject=0',
+    );
+    expect(
+      injectCertWorstCase,
+      'measured pre-fix: exactly ONE call, on walk step 4, on a later campaign session that never pressed Cert WC. The arm is now derived from the same value as the level half, so there is nothing to strand',
+    ).toHaveBeenCalledTimes(0);
+  });
 });
