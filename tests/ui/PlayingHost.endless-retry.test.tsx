@@ -759,7 +759,7 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(screen.queryByLabelText('Wave 1')).toBeNull();
   });
 
-  it('a wave that cannot be built ENDS the run, records it, and releases the guard (WR-04)', async () => {
+  it('a wave that cannot be built ENDS the run, records it, and the ended run STAYS ended (WR-04 / gap 3)', async () => {
     const devError = vi.spyOn(console, 'error').mockImplementation(() => {});
     await mountAndStartEndless();
     expect(compileCalls, 'wave 1 compiled for real').toBeGreaterThan(0);
@@ -807,29 +807,148 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       'the failure still has to be loud on the __DEV__ diagnostic channel',
     ).toHaveBeenCalled();
 
-    // The guard half of the SC-1 break: a latched `waveAdvanceInFlightRef` makes the
-    // endless WON branch a no-op forever, so the next WON is swallowed in silence.
+    // 11-13 Task 2 Step B — a DISCLOSED TIER CHANGE, not a silent rewrite.
     //
-    // The next mirror below is a bare WON, with NO intervening DOCKED — that shape is
-    // load-bearing. `applyChrome` releases the guard on any phase that is neither WON
-    // nor LOST (Pitfall 5), so a DOCKED in between would release it by the ordinary
-    // path and this assertion would pass whether or not the failure branch cleared it.
-    // A repeat WON is also the realistic shape: Pitfall 5 is precisely that the WON
-    // mirror can arrive twice.
+    // What this block used to assert: `compileCalls` INCREASES across a repeat WON,
+    // on the reasoning that "the failure branch RELEASED the guard, so a repeat WON
+    // re-enters the branch and attempts the build again". That was a real property
+    // and it was really observed here.
+    //
+    // 11-13 Task 1 makes that observation IMPOSSIBLE BY DESIGN. The endless WON
+    // branch now returns on `runEndedRef.current`, and a wave-build failure always
+    // ends the run, so no later mirror can re-enter the branch at all — there is no
+    // drive left in this repo that can see the release. The property did not go away;
+    // its OBSERVATION did. The release itself is now a SOURCE contract, in
+    // `tests/ui/PlayingHost.endless-host.test.ts` § 'the failed wave build ends the
+    // run and releases the guard, inside the endless branch (WR-04 / SC-1)'. Be clear
+    // about what that buys: counting the statement proves the WRITE, never a
+    // behaviour. Nothing below is dressed up as the old assertion.
+    //
+    // What the same drive now asserts instead is strictly the property gap 3 is
+    // about: an ENDED run stays ended. That is not a consolation prize — it is the
+    // defect this case sat one line away from for two rounds.
+    //
+    // The next mirror below is still a bare WON, with NO intervening DOCKED, and that
+    // shape is still load-bearing: `applyChrome` releases the guard on any phase that
+    // is neither WON nor LOST (Pitfall 5), so a DOCKED in between would let the
+    // ordinary release path decide the outcome instead of the latch. A repeat WON is
+    // also the realistic shape — Pitfall 5 is precisely that the WON mirror can
+    // arrive twice.
+    //
+    // Measured on the pre-fix code, this same drive: `compileCalls` rose by one.
     const compilesAfterFailure = compileCalls;
     await deliverPhase(SIM.WON, { score: 1500 });
 
     expect(
       compileCalls,
-      'the failure branch RELEASED the guard: a repeat WON re-enters the branch and attempts the build again',
-    ).toBeGreaterThan(compilesAfterFailure);
+      'the run has ENDED: a repeat WON must not re-enter the branch and attempt another build — measured pre-fix, compileCalls rose by one',
+    ).toBe(compilesAfterFailure);
     expect(
       advanceWave,
-      'and it fails again — same seed, same wave, same board, so no wave swap is ever requested',
+      'an ended run never requests a wave swap',
     ).not.toHaveBeenCalled();
     expect(
       recordRunEnd,
       'runEndedRef still holds: the finished run is not recorded a second time',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * 11-13 Task 1 — `11-VERIFICATION.md` gap 3: an endless run that has ENDED does not
+   * stay ended.
+   *
+   * `applyChrome` is built around ONE `runEndedRef` latch that every run-boundary
+   * branch consults — campaign WON, campaign LOST and the mid-run wave-build failure
+   * all do. The endless WON branch gated on `modeRef` and `waveAdvanceInFlightRef`
+   * only, and the inner `if (!waveAdvanceInFlightRef.current)` guards CONCURRENCY,
+   * not run lifetime. So after the run boundary had fired, further WON mirrors kept
+   * regenerating boards and walking the wave.
+   *
+   * SEVERITY, stated the way the verifier settled it rather than the way `11-REVIEW`
+   * CR-01 opened it. This cannot inflate the record: from an ended run walked to W7,
+   * `Menu` records nothing (`runEndedRef` is latched) and `Retry` resets to wave 1, so
+   * the next loss records wave 1. Every path that clears `runEndedRef` either routes
+   * through a wave-1 restart or exits to campaign, so no walked wave can reach
+   * `telemetry.endless.bestWave`. What it IS: an incoherent ENDED state, a burned seed
+   * walk, and an overlay that contradicts the readout behind it.
+   *
+   * Reachability is bounded and the cases below are honest about the shape they drive:
+   * `chromeSeq` bumps only when the mirror CHANGES, and both ended states have already
+   * called `setActive(false)`, so the in-app producer is a straggler frame that was in
+   * flight when the loop stopped.
+   */
+  it('an endless run that LOST stays ended — one further WON mirror builds no board (gap 3)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    expect(screen.getByText('W2'), 'the run reached wave 2').toBeTruthy();
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(
+      recordRunEnd,
+      'the loss is the run boundary — it records exactly once',
+    ).toHaveBeenCalledTimes(1);
+    advanceWave.mockClear();
+
+    // ONE straggler WON. This is the whole defect in a single mirror.
+    await deliverPhase(SIM.WON, { score: 2400 });
+
+    expect(
+      screen.queryByText('W3'),
+      'measured pre-fix: the readout had walked to W3 on a run that was already over',
+    ).toBeNull();
+    expect(
+      screen.queryByText('W2'),
+      'the wave readout must not move after the run ended',
+    ).not.toBeNull();
+    expect(
+      advanceWave,
+      'measured pre-fix: advanceWave called ONCE, on a run the player had already lost',
+    ).not.toHaveBeenCalled();
+    expect(
+      boardFingerprint(),
+      'measured pre-fix: the compiled board CHANGED — a fresh wave-3 board sitting behind the lose overlay',
+    ).toBe(wave2);
+    expect(
+      recordRunEnd,
+      'and the ended run is still recorded exactly once',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('and it stays ended through a WALK — four more WON/DOCKED pairs do not move the wave (gap 3)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    advanceWave.mockClear();
+
+    // The DOCKED half of each pair is what made the walk unbounded pre-fix:
+    // `applyChrome` releases `waveAdvanceInFlightRef` on any phase that is neither WON
+    // nor LOST, so every pair handed the branch a fresh, unlatched guard.
+    for (let i = 0; i < 4; i += 1) {
+      await deliverPhase(SIM.WON, { score: 2400 });
+      await deliverPhase(SIM.DOCKED, { score: 2400 });
+    }
+
+    expect(
+      screen.queryByText('W6'),
+      'measured pre-fix: four pairs walked the readout to W6 with the lose overlay still up',
+    ).toBeNull();
+    expect(
+      screen.queryByText('W2'),
+      'four WON/DOCKED pairs after the run ended must change nothing',
+    ).not.toBeNull();
+    expect(
+      advanceWave,
+      'measured pre-fix: four advanceWave calls, one per pair',
+    ).not.toHaveBeenCalled();
+    expect(
+      boardFingerprint(),
+      'and four generated boards were compiled and swapped in behind the overlay pre-fix',
+    ).toBe(wave2);
+    expect(
+      recordRunEnd,
+      'and still exactly one record, for the one run that happened',
     ).toHaveBeenCalledTimes(1);
   });
 
