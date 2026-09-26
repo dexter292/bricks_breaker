@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: "Completed 11-19-PLAN.md (round-6 gap 1 closed structurally: one cert-level predicate, three consumers, zero inline term tests; cells 5 and 7 driven)"
-last_updated: "2026-09-26T15:04:39.354Z"
-state_head: 9fa2835c8ec1f59bebbd3149a2c19c0326616281
+stopped_at: "Completed 11-20-PLAN.md (round-6 gap 2 closed: cert load proven QUEUED at source; five corrected statements across four artifacts; MEASURED label struck)"
+last_updated: "2026-09-26T15:20:47.988Z"
+state_head: a7683677221bd338cb88fce89e2c1ffaf5bbd823
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 32
-  completed_plans: 30
+  completed_plans: 31
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 21
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -126,6 +126,7 @@ Total Plans in Phase: 21
 | Phase 11 P17 | 12 min | 3 tasks | 3 files |
 | Phase 11 P18 | 7 min | 3 tasks | 3 files |
 | Phase 11 P19 | 10 min | 3 tasks | 5 files |
+| Phase 11 P20 | 13 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -239,6 +240,10 @@ Total Plans in Phase: 21
 - [Phase 11]: Round-5 gap 1 closed structurally: certLevelPlanFor is the single cert-level decision and three PlayingHost consumers read its returned value — Rounds 3, 4 and 5 each added a term to one of two copies of the same decision. Extracting the decision removes the drift class, not its fourth instance. Enforced by count: runEndedRef and modeRef pinned at 0 occurrences inside both decision bodies (measured bases 1 and 2).
 - [Phase 11]: certLevelPlanFor evaluation order is contract: endless first, level-03 before the run-ended latch, then run-ended — Endless first preserves 11-16 suppression of both endless sub-branches; level-03 before the latch preserves cell 7, where an ended run already at the cert level needs no level move and the 11-17 guard has nothing to guard (T-11-39). Both orderings were falsified by mutation and the RED signals recorded.
 - [Phase 11]: The deferred-cert self-cancel is source-pinned only; its positive direction is unobservable by any harness in this repo — Measured by deletion: only the Part C source contract reds, no behavioural case moves. Recorded as human_judgment true in the SUMMARY coverage block rather than claimed proven.
+- [Phase 11]: src/runtime is NOT changed by 11-20: no harness in this repo can drive onFrame, and a reset in the retry block would swallow a request issued between a retry() and the next frame — silently disabling the deferred-inject path. link 4 of tests/runtime.cert-request.test.ts is the tripwire for a future change
+- [Phase 11]: Round-6 gap 2: the Cert WC load is QUEUED on certRequest and applies on the FIRST FRAME OF THE NEXT RUN, below the retry-reset block, onto the freshly reset world — proven link by link at source in tests/runtime.cert-request.test.ts, which states in its own header that it cannot produce a frame. The MEASURED label round 5 attached to a vi.fn() count is struck
+- [Phase 11]: 11-20 ticks NO requirement. N-END-03 device half stays unmeasured by plan prohibition; N-END-01 gets no new closing evidence from a plan that repairs an instruction rather than taking a reading. REQUIREMENTS.md untouched
+- [Phase 11]: The 1,400-word Cert WC table cell in ENDLESS-MODE.md is corrected in content and deliberately NOT restructured (advisory IN-03) — a compression would relocate five dated corrections away from where the SC-5 operator reads them. Owner rewrite option stays open
 
 ### Decisions (Post-MVP close)
 
@@ -275,6 +280,6 @@ Total Plans in Phase: 21
 
 ## Session Continuity
 
-Last session: 2026-09-26T15:04:16.877Z
-Stopped at: Completed 11-19-PLAN.md (round-6 gap 1 closed structurally: one cert-level predicate, three consumers, zero inline term tests; cells 5 and 7 driven)
+Last session: 2026-09-26T15:20:26.112Z
+Stopped at: Completed 11-20-PLAN.md (round-6 gap 2 closed: cert load proven QUEUED at source; five corrected statements across four artifacts; MEASURED label struck)
 Resume file: None

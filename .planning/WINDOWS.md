@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 10
+open_count: 12
 waived_count: 0
 fixed_count: 1
-total_count: 11
-last_updated: 2026-09-26T09:53:22.231Z
+total_count: 13
+last_updated: 2026-09-26T15:20:54.201Z
 ---
 
 # Broken Windows Ledger
@@ -26,6 +26,8 @@ last_updated: 2026-09-26T09:53:22.231Z
 | 9 | 11 | deviation | tests/ui/PlayingHost.endless-host.test.ts |  | Task 2 source contract (b) scoped to the failure preamble, not the whole startEndlessRun body — the literal plan wording would have required deleting the success-path setWaveBuildFailedWave(null) clear, a user-visible copy defect | open |  | 2026-09-26T07:29:19.613Z |  |
 | 10 | 11 | deviation | .planning/phases/11-endless-mode/11-11-PLAN.md |  | Phase gate freeze command uses origin/main...HEAD, which predates Phase 10 and so lists all of src/levelgen; correct base is the phase base b99607b (diff 0). Reported by 11-11 Task 3, not fixed (a gate may not repair what it measures). | open |  | 2026-09-26T08:01:01.198Z |  |
 | 11 | 11 | unrun-verify | docs/ops/ENDLESS-MODE.md |  | SC-5 device reading remains OPEN — no frame measurement taken; discharge procedure improved only | open |  | 2026-09-26T09:53:22.231Z |  |
+| 12 | 11 | unrun-verify | docs/ops/ENDLESS-MODE.md |  | SC-5 device frame-budget reading remains UNMEASURED: 11-20 repaired the instructions for taking it and explicitly did not take it; no automated step in this repo can drive onFrame | open |  | 2026-09-26T15:20:54.093Z |  |
+| 13 | 11 | deviation | app/_components/PlayingHost.tsx |  | 11-20 base disagreement: plan measured the falsified clause at 1 here on 6bb18bf; wave 9 (07907f3) had already deleted it, so the phase-wide enumeration is 5 on the executed tree, not 6 | open |  | 2026-09-26T15:20:54.201Z |  |
 
 ````json
 [
@@ -169,6 +171,32 @@ last_updated: 2026-09-26T09:53:22.231Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-26T09:53:22.231Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 12,
+    "kind": "unrun-verify",
+    "phase": "11",
+    "file": "docs/ops/ENDLESS-MODE.md",
+    "line": null,
+    "description": "SC-5 device frame-budget reading remains UNMEASURED: 11-20 repaired the instructions for taking it and explicitly did not take it; no automated step in this repo can drive onFrame",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-26T15:20:54.093Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 13,
+    "kind": "deviation",
+    "phase": "11",
+    "file": "app/_components/PlayingHost.tsx",
+    "line": null,
+    "description": "11-20 base disagreement: plan measured the falsified clause at 1 here on 6bb18bf; wave 9 (07907f3) had already deleted it, so the phase-wide enumeration is 5 on the executed tree, not 6",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-26T15:20:54.201Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }

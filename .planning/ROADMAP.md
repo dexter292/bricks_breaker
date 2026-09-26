@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 19/21 plans executed — 18 executed (6 original waves 1-4; 2 gap-closure round 1; 3 round 2; 3 round 3; 2 round 4; 2 round 5); 3 gap-closure round-6 plans pending (waves 9-11)
+**Plans:** 20/21 plans executed — 18 executed (6 original waves 1-4; 2 gap-closure round 1; 3 round 2; 3 round 3; 2 round 4; 2 round 5); 3 gap-closure round-6 plans pending (waves 9-11)
 
 Plans:
 **Wave 1**
@@ -153,7 +153,7 @@ Plans:
 **Gap closure round 6** *(five rounds each added a term to one half of one decision and left the neighbour ignorant — round 6 fixes the SHAPE: one predicate, every decision site consults it, and the cross-product is enumerated with per-cell coverage)*
 
 - [x] 11-19-PLAN.md — Gap 1, structurally: the cert-level decision becomes one pure predicate with a 20-cell truth table; the level half, the arm and the deferred consumer all read the same returned value; the campaign / ENDED / tier-AUTO cell and its nearest neighbour are both driven (wave 9)
-- [ ] 11-20-PLAN.md — Gap 2: a source contract that can actually observe the queueing, then the false mechanism claim corrected in all four owned files and the `MEASURED` label struck from the count that could not see it; the operator consequence for the SC-5 reading spelled out (wave 10)
+- [x] 11-20-PLAN.md — Gap 2: a source contract that can actually observe the queueing, then the false mechanism claim corrected in all four owned files and the `MEASURED` label struck from the count that could not see it; the operator consequence for the SC-5 reading spelled out (wave 10)
 - [ ] 11-21-PLAN.md — The `showPauseOverlay` advisory gets a negative render case and a recorded decision; `REQUIREMENTS.md` stops contradicting itself (N-END-01/02 re-ticked on a round-6 evidence gate, N-END-03 stays `[ ]`); the round gate and the round-6 record (wave 11)
 
 **UI hint**: yes
