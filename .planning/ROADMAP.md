@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 6/6 plans executed (waves 1-4)
+**Plans:** 8 plans — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
 
 Plans:
 
@@ -115,6 +115,8 @@ Plans:
 - [x] 11-04-PLAN.md — Multi-wave SC-1 integration and the SC-4 determinism suite (wave 2)
 - [x] 11-05-PLAN.md — Bake-key re-key, `PlayingHost` endless wiring, and the temporary `__DEV__` entry (wave 3)
 - [x] 11-06-PLAN.md — `ENDLESS-MODE.md`, the `BOARD-GENERATOR.md` §Limits amendment, and the device SC-5 assumption (wave 4)
+- [ ] 11-07-PLAN.md — Gap 1: mode-aware run boundaries — Retry and the dev-session remount restart at wave 1, the in-flight abandon funnel, and a terminal wave-build failure (gap closure, wave 1)
+- [ ] 11-08-PLAN.md — Gap 2: the endless record display contract — per-mode watermark refs, the endless Results variant, and the ops-record amendment (gap closure, wave 2)
 
 **UI hint**: yes
 
