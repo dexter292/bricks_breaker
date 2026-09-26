@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 8
+open_count: 9
 waived_count: 0
 fixed_count: 1
-total_count: 9
-last_updated: 2026-09-26T07:29:19.613Z
+total_count: 10
+last_updated: 2026-09-26T08:01:01.198Z
 ---
 
 # Broken Windows Ledger
@@ -24,6 +24,7 @@ last_updated: 2026-09-26T07:29:19.613Z
 | 7 | 11 | deviation | tests/ui/PlayingHost.endless-run.test.tsx |  | Added a behavioural endless-run suite beyond the plan's file list — the plan pinned SC-1 only by absence-greps (Rule 2) | open |  | 2026-09-25T15:12:29.896Z |  |
 | 8 | 11 | stub | app/_components/PlayingHost.tsx | 209 | waveBuildFailedWave is written but not read until 11-08 renders the wave-build-failure body; carries an eslint-disable for no-unused-vars | fixed |  | 2026-09-26T04:52:59.617Z | 2026-09-26T05:14:10.420Z |
 | 9 | 11 | deviation | tests/ui/PlayingHost.endless-host.test.ts |  | Task 2 source contract (b) scoped to the failure preamble, not the whole startEndlessRun body — the literal plan wording would have required deleting the success-path setWaveBuildFailedWave(null) clear, a user-visible copy defect | open |  | 2026-09-26T07:29:19.613Z |  |
+| 10 | 11 | deviation | .planning/phases/11-endless-mode/11-11-PLAN.md |  | Phase gate freeze command uses origin/main...HEAD, which predates Phase 10 and so lists all of src/levelgen; correct base is the phase base b99607b (diff 0). Reported by 11-11 Task 3, not fixed (a gate may not repair what it measures). | open |  | 2026-09-26T08:01:01.198Z |  |
 
 ````json
 [
@@ -141,6 +142,19 @@ last_updated: 2026-09-26T07:29:19.613Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-26T07:29:19.613Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 10,
+    "kind": "deviation",
+    "phase": "11",
+    "file": ".planning/phases/11-endless-mode/11-11-PLAN.md",
+    "line": null,
+    "description": "Phase gate freeze command uses origin/main...HEAD, which predates Phase 10 and so lists all of src/levelgen; correct base is the phase base b99607b (diff 0). Reported by 11-11 Task 3, not fixed (a gate may not repair what it measures).",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-26T08:01:01.198Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
