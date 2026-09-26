@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 7
+open_count: 8
 waived_count: 0
 fixed_count: 0
-total_count: 7
-last_updated: 2026-09-25T15:12:29.896Z
+total_count: 8
+last_updated: 2026-09-26T04:52:59.617Z
 ---
 
 # Broken Windows Ledger
@@ -22,6 +22,7 @@ last_updated: 2026-09-25T15:12:29.896Z
 | 5 | 11 | deviation | app/_components/PlayingHost.tsx |  | Task 3's __DEV__ entry Pressable and W{n} readout landed in Task 2's commit — without a consumer, 'wave' and 'startEndlessRun' are unused symbols and lint warns, which both tasks' acceptance criteria forbid (Rule 3) | open |  | 2026-09-25T15:12:29.666Z |  |
 | 6 | 11 | deviation | tests/ui/PlayingHost.endless-host.test.ts |  | Added a test file the plan did not list: Task 2 is behaviour-adding with no test file of its own, and the TDD RED gate needs a failing target test (Rule 2) | open |  | 2026-09-25T15:12:29.779Z |  |
 | 7 | 11 | deviation | tests/ui/PlayingHost.endless-run.test.tsx |  | Added a behavioural endless-run suite beyond the plan's file list — the plan pinned SC-1 only by absence-greps (Rule 2) | open |  | 2026-09-25T15:12:29.896Z |  |
+| 8 | 11 | stub | app/_components/PlayingHost.tsx | 209 | waveBuildFailedWave is written but not read until 11-08 renders the wave-build-failure body; carries an eslint-disable for no-unused-vars | open |  | 2026-09-26T04:52:59.617Z |  |
 
 ````json
 [
@@ -113,6 +114,19 @@ last_updated: 2026-09-25T15:12:29.896Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-25T15:12:29.896Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 8,
+    "kind": "stub",
+    "phase": "11",
+    "file": "app/_components/PlayingHost.tsx",
+    "line": 209,
+    "description": "waveBuildFailedWave is written but not read until 11-08 renders the wave-build-failure body; carries an eslint-disable for no-unused-vars",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-26T04:52:59.617Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
