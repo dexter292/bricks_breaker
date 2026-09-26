@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 7
+open_count: 8
 waived_count: 0
 fixed_count: 1
-total_count: 8
-last_updated: 2026-09-26T05:14:10.420Z
+total_count: 9
+last_updated: 2026-09-26T07:29:19.613Z
 ---
 
 # Broken Windows Ledger
@@ -23,6 +23,7 @@ last_updated: 2026-09-26T05:14:10.420Z
 | 6 | 11 | deviation | tests/ui/PlayingHost.endless-host.test.ts |  | Added a test file the plan did not list: Task 2 is behaviour-adding with no test file of its own, and the TDD RED gate needs a failing target test (Rule 2) | open |  | 2026-09-25T15:12:29.779Z |  |
 | 7 | 11 | deviation | tests/ui/PlayingHost.endless-run.test.tsx |  | Added a behavioural endless-run suite beyond the plan's file list — the plan pinned SC-1 only by absence-greps (Rule 2) | open |  | 2026-09-25T15:12:29.896Z |  |
 | 8 | 11 | stub | app/_components/PlayingHost.tsx | 209 | waveBuildFailedWave is written but not read until 11-08 renders the wave-build-failure body; carries an eslint-disable for no-unused-vars | fixed |  | 2026-09-26T04:52:59.617Z | 2026-09-26T05:14:10.420Z |
+| 9 | 11 | deviation | tests/ui/PlayingHost.endless-host.test.ts |  | Task 2 source contract (b) scoped to the failure preamble, not the whole startEndlessRun body — the literal plan wording would have required deleting the success-path setWaveBuildFailedWave(null) clear, a user-visible copy defect | open |  | 2026-09-26T07:29:19.613Z |  |
 
 ````json
 [
@@ -128,6 +129,19 @@ last_updated: 2026-09-26T05:14:10.420Z
     "reason": "",
     "recorded_at": "2026-09-26T04:52:59.617Z",
     "resolved_at": "2026-09-26T05:14:10.420Z",
+    "milestone": "v1.2"
+  },
+  {
+    "id": 9,
+    "kind": "deviation",
+    "phase": "11",
+    "file": "tests/ui/PlayingHost.endless-host.test.ts",
+    "line": null,
+    "description": "Task 2 source contract (b) scoped to the failure preamble, not the whole startEndlessRun body — the literal plan wording would have required deleting the success-path setWaveBuildFailedWave(null) clear, a user-visible copy defect",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-26T07:29:19.613Z",
+    "resolved_at": null,
     "milestone": "v1.2"
   }
 ]
