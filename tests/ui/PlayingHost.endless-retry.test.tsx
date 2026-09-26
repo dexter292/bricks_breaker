@@ -303,6 +303,12 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
 const setActive = vi.fn();
 const retry = vi.fn();
 const advanceWave = vi.fn();
+/**
+ * 11-16 Task 1 Step A. This was a bare no-op arrow, so no case in this file could
+ * count injections — and the whole of round-4 gap 2 is a claim about WHEN
+ * `injectCertWorstCase` fires and on whose session. A spy is the instrument.
+ */
+const injectCertWorstCase = vi.fn();
 
 vi.mock('../../src/runtime/useGameLoop', () => ({
   UiPhaseNum: { PLAYING: 0, PAUSED: 1, COUNTDOWN: 2 },
@@ -312,7 +318,7 @@ vi.mock('../../src/runtime/useGameLoop', () => ({
     setActive,
     retry,
     advanceWave,
-    injectCertWorstCase: () => {},
+    injectCertWorstCase,
     certOut: { value: { p50: 0, p95: 0, mean: 0, fps: 60, n: 0, over: 0 } },
     certSeq: { value: 0 },
     runStatsOut: {
@@ -395,11 +401,44 @@ async function press(name: string): Promise<void> {
   });
 }
 
-async function mountAndStartEndless(): Promise<void> {
+/**
+ * Give every deferred effect its chance: the level-load promise, the bake effect and
+ * — the reason this exists — the deferred-cert effect's 50 ms `setTimeout`. A walk
+ * step that never settles would be green for the wrong reason: the PRE-fix run has to
+ * be able to produce its one `injectCertWorstCase` call, or the case proves nothing.
+ */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 3; i += 1) {
+    await act(async () => {
+      await Promise.resolve();
+      vi.runAllTimers();
+      await Promise.resolve();
+    });
+  }
+}
+
+/** The `Lv` control's live label — `Switch level, current level-0N`. */
+function levelSwitchLabel(): string {
+  const el = screen.getByRole('button', { name: /^Switch level, current / });
+  return el.getAttribute('aria-label') ?? '';
+}
+
+/** One `Lv` press, whatever level the row is currently on. */
+async function pressLevelSwitch(): Promise<void> {
+  const el = screen.getByRole('button', { name: /^Switch level, current / });
+  await act(async () => {
+    fireEvent.click(el);
+    await Promise.resolve();
+  });
+}
+
+async function mountAndStartEndless(
+  levelId: LevelId = 'level-01' as LevelId,
+): Promise<void> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
   render(
     createElement(PlayingHost, {
-      levelId: 'level-01' as LevelId,
+      levelId,
       onMenu: () => {},
     }),
   );
@@ -416,6 +455,7 @@ async function mountAndStartEndless(): Promise<void> {
   setActive.mockClear();
   retry.mockClear();
   advanceWave.mockClear();
+  injectCertWorstCase.mockClear();
   recordRunEnd.mockClear();
   await press('Start an endless run');
 }
@@ -446,6 +486,7 @@ async function mountOnly(): Promise<void> {
   setActive.mockClear();
   retry.mockClear();
   advanceWave.mockClear();
+  injectCertWorstCase.mockClear();
   recordRunEnd.mockClear();
 }
 
@@ -473,6 +514,7 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     setActive.mockClear();
     retry.mockClear();
     advanceWave.mockClear();
+    injectCertWorstCase.mockClear();
     recordRunEnd.mockClear();
   });
 
@@ -1158,6 +1200,7 @@ describe('PlayingHost — the ended-run chrome latch covers CAMPAIGN too (11-15,
     setActive.mockClear();
     retry.mockClear();
     advanceWave.mockClear();
+    injectCertWorstCase.mockClear();
     recordRunEnd.mockClear();
   });
 
@@ -1299,6 +1342,7 @@ describe('PlayingHost — Lv exits endless (A-02)', () => {
     setActive.mockClear();
     retry.mockClear();
     advanceWave.mockClear();
+    injectCertWorstCase.mockClear();
     recordRunEnd.mockClear();
   });
 
@@ -1438,6 +1482,7 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     setActive.mockClear();
     retry.mockClear();
     advanceWave.mockClear();
+    injectCertWorstCase.mockClear();
     recordRunEnd.mockClear();
   });
 
@@ -1525,5 +1570,150 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       setActive.mock.calls.filter((c) => c[0] === false),
       'measured pre-fix: the level switch re-entered the bake cold path and stopped the loop behind a live HUD',
     ).toHaveLength(0);
+  });
+
+  /**
+   * BRANCH: endless, level NOT already `level-03`, tier not already Mid — the branch
+   * `11-VERIFICATION.md` round-3 gap 2 was reported on. 11-14 gated the LEVEL half on
+   * the mode and left the deferral bookkeeping unconditional, so the press armed a
+   * one-shot whose own discharge preconditions (`levelId === 'level-03'` AND
+   * `tierOverride === 'mid'`) the same gate had just made unreachable from endless.
+   *
+   * Step-0 measurement, 11-16, against the UNCHANGED source:
+   *   at the press  — injectCertWorstCase 0, recordRunEnd 1
+   *                   {mode:'endless', wave:2, outcome:'abandoned'}, readout W1
+   *   Lv walk       — level-04 inject=0, level-05 inject=0, level-06 inject=0,
+   *                   level-03 inject=1
+   * One injection landed on a CAMPAIGN `level-03` session that never pressed the
+   * button. That is the hazard; this case is what keeps it closed.
+   */
+  it('while endless below level-03, Cert WC arms nothing — a later campaign walk to level-03 never injects (gap 2)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: TIER_AUTO }),
+      'the tier must be UNSET going in — a Mid tier would no-op the half that arms the deferral',
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: LV_01 }),
+      'and NOT already on level-03 — that is the other endless sub-branch, covered by the case below',
+    ).toBeTruthy();
+
+    recordRunEnd.mockClear();
+    injectCertWorstCase.mockClear();
+    await press(CERT);
+    await settle();
+
+    expect(
+      injectCertWorstCase,
+      'measured pre-fix: 0 at the press — the function returns at its defer branch before the injection',
+    ).toHaveBeenCalledTimes(0);
+    expect(
+      recordRunEnd,
+      'the tier half is still a real run boundary: remountDevSession -> startEndlessRun records before it resets',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode).toBe('endless');
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome, 'measured pre-fix: abandoned').toBe('abandoned');
+    expect(args.wave, 'measured pre-fix: at the wave reached, 2').toBe(2);
+    expect(
+      screen.getByText('W1'),
+      'measured pre-fix: the restart lands at wave 1 — the boundary half is unchanged by this plan',
+    ).toBeTruthy();
+    expect(
+      boardFingerprint(),
+      'measured pre-fix: a freshly generated board',
+    ).not.toBe(wave2);
+
+    // The walk the verifier ran by hand (P6/P7): level-01 -> 04 -> 05 -> 06 -> 03.
+    // Timers run between presses so the deferred-cert effect and its 50 ms timeout
+    // get their chance — pre-fix they take it, which is what makes this case sharp.
+    const walk: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      await pressLevelSwitch();
+      await settle();
+      walk.push(
+        `${levelSwitchLabel()} inject=${injectCertWorstCase.mock.calls.length}`,
+      );
+    }
+    expect(
+      levelSwitchLabel(),
+      'four Lv presses reach level-03 — if the walk stops short the assertion below is vacuous',
+    ).toBe(LV_03);
+    expect(
+      walk.join(' | '),
+      'measured pre-fix: level-04 inject=0 | level-05 inject=0 | level-06 inject=0 | level-03 inject=1',
+    ).toBe(
+      'Switch level, current level-04 inject=0 | Switch level, current level-05 inject=0 | Switch level, current level-06 inject=0 | Switch level, current level-03 inject=0',
+    );
+    expect(
+      injectCertWorstCase,
+      'measured pre-fix: exactly ONE call, on walk step 4, on a campaign session that never pressed Cert WC',
+    ).toHaveBeenCalledTimes(0);
+  });
+
+  /**
+   * BRANCH: endless, level ALREADY `level-03`, tier not already Mid — the SECOND
+   * endless sub-branch, which no prior round measured. `level-03` is the shipped
+   * default `LevelId` (Phase 08 D-06), so this is the common case on a real device,
+   * not an exotic one.
+   *
+   * Step-0 measurement, 11-16, against the UNCHANGED source:
+   *   before the press — Lv `level-03`, tier `Auto mid`
+   *   at the press     — injectCertWorstCase 1, recordRunEnd 1
+   *                      {mode:'endless', wave:2, outcome:'abandoned'}, readout W1,
+   *                      level still `level-03`
+   * So here the deferral was NOT stranded: the tier half's remount restarts the
+   * endless run and leaves both preconditions satisfiable, and the one-shot
+   * discharged the pathological load onto the freshly restarted endless board. The
+   * mode term suppresses that too — a deliberate behaviour change on a branch the
+   * review's one-liner did not enumerate, recorded here rather than left silent.
+   */
+  it('while endless already on level-03, Cert WC injects nothing either — the deferral that WOULD have discharged is suppressed (gap 2)', async () => {
+    await mountAndStartEndless('level-03' as LevelId);
+    await advanceToWaveTwo();
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+    expect(
+      levelSwitchLabel(),
+      'the session must really START on level-03, or this case silently tests the OTHER sub-branch',
+    ).toBe(LV_03);
+    expect(
+      screen.getByRole('button', { name: TIER_AUTO }),
+      'and the tier UNSET, so the tier half fires and the press defers',
+    ).toBeTruthy();
+
+    recordRunEnd.mockClear();
+    injectCertWorstCase.mockClear();
+    await press(CERT);
+    await settle();
+
+    expect(
+      injectCertWorstCase,
+      'measured pre-fix: 1 — the deferral discharged into the freshly restarted endless run',
+    ).toHaveBeenCalledTimes(0);
+    expect(
+      recordRunEnd,
+      'measured pre-fix: 1 — the tier half is a real run boundary on this branch too',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode).toBe('endless');
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome, 'measured pre-fix: abandoned').toBe('abandoned');
+    expect(args.wave, 'measured pre-fix: at the wave reached, 2').toBe(2);
+    expect(
+      screen.getByText('W1'),
+      'measured pre-fix: still endless, restarted at wave 1 — the mode is not what changes here',
+    ).toBeTruthy();
+    expect(
+      levelSwitchLabel(),
+      'measured pre-fix: still level-03 — the level half no-ops because it is already there',
+    ).toBe(LV_03);
   });
 });
