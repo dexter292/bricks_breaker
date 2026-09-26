@@ -197,6 +197,100 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toMatch(/previousBestRef\.current = best/);
   });
 
+  /**
+   * WR-04 (11-11) — `previousBestRef` is a CAMPAIGN value and only campaign code may
+   * touch it.
+   *
+   * WHAT THIS DOES NOT PROVE, stated first because the distinction is the whole point
+   * (11-09 Pattern 1). Counting assignment sites proves the WRITE. It proves nothing
+   * about the RENDER — a source contract standing in for a driven one is exactly how
+   * the previous round's gap 3 shipped green, and nothing here may stand in for
+   * `tests/ui/PlayingHost.endless-record.test.tsx`'s WR-04 case, which asserts on the
+   * rendered `host-best` probe and on the real `ResultOverlay`.
+   *
+   * WHY THE BEHAVIOURAL PROBE IS NO LONGER AVAILABLE, which is a measured fact about
+   * this repo rather than a preference. Before 11-11, a poisoned `previousBestRef`
+   * was observable because `startEndlessRun` republished it into `best` at every run
+   * start — that republication IS WR-04, the defect being removed here. Once it is
+   * gone the ref has exactly two remaining readers, both campaign resets
+   * (`onRetry`'s and `remountDevSession`'s campaign branches), and neither is
+   * reachable while `modeRef` is latched to endless for the life of the mount. Worse,
+   * the `getBestForLevel` mount effect re-reads the store and OVERWRITES the ref on
+   * every `levelId` change, so a poisoned value would be healed before any campaign
+   * overlay could render it. There is therefore no behavioural probe of campaign-ref
+   * poisoning left in this repo, and this contract is what replaces it. Do not read
+   * the count below as coverage of the display.
+   *
+   * "Exactly two places" means two REGIONS, not two statements: the mount effect
+   * carries a success assignment and a fail-soft `= 0` assignment, which is one place.
+   * The contract is that EVERY assignment in the file falls inside one of the two
+   * named campaign-only regions and none falls outside them.
+   */
+  it('previousBestRef is assigned only inside the two campaign-only regions, and startEndlessRun never touches it (WR-04)', () => {
+    const seedEffect = (() => {
+      const m = code.match(
+        /void store\s*\.getBestForLevel\(levelId\)([\s\S]*?)\n {2}\}, \[store, levelId\]\);/,
+      );
+      return m?.[1] ?? '';
+    })();
+    const campaignArm = (() => {
+      const runEnded = code.match(
+        /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+      );
+      const body = runEnded?.[1] ?? '';
+      const elseAt = body.search(/\n {6}\} else \{\n/);
+      return elseAt < 0 ? '' : body.slice(elseAt);
+    })();
+    const startEndless = (() => {
+      const m = code.match(
+        /const startEndlessRun = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+
+    // Every region non-empty FIRST — an un-extracted region makes every pin below it
+    // vacuously green (11-09 Pattern 2).
+    expect(seedEffect, 'the getBestForLevel mount effect must be extractable').not.toBe('');
+    expect(campaignArm, "handleRunEnded's campaign arm must be extractable").not.toBe('');
+    expect(startEndless, 'startEndlessRun must be extractable').not.toBe('');
+
+    const ASSIGN = /previousBestRef\.current\s*=/g;
+    const total = (code.match(ASSIGN) ?? []).length;
+    const inSeedEffect = (seedEffect.match(ASSIGN) ?? []).length;
+    const inCampaignArm = (campaignArm.match(ASSIGN) ?? []).length;
+
+    expect(
+      total,
+      'previousBestRef must be assigned somewhere, or this contract is vacuous',
+    ).toBeGreaterThan(0);
+    expect(
+      inSeedEffect,
+      'the campaign per-level preload assigns it (success and fail-soft)',
+    ).toBeGreaterThan(0);
+    expect(
+      inCampaignArm,
+      "handleRunEnded's campaign arm writes the new personal best back",
+    ).toBe(1);
+    expect(
+      inSeedEffect + inCampaignArm,
+      'EXACTLY TWO PLACES: every previousBestRef assignment in the file must fall inside the getBestForLevel mount effect or handleRunEnded campaign arm — a third writer means a campaign value is being set from somewhere that is not campaign-only',
+    ).toBe(total);
+
+    // The WR-04 half: the endless entry point must not so much as mention the ref.
+    expect(
+      startEndless,
+      'startEndlessRun must not reference previousBestRef at all (WR-04) — it published a campaign per-level best as the endless `best` prop for the life of a run',
+    ).not.toMatch(/previousBestRef/);
+    expect(
+      startEndless,
+      'and it must publish the ENDLESS score watermark instead',
+    ).toMatch(/setResultBest\(endlessBestScoreRef\.current\)/);
+    expect(
+      startEndless,
+      'and the ENDLESS wave watermark on the same Record Display Contract row',
+    ).toMatch(/setResultBestWave\(endlessBestWaveRef\.current\)/);
+  });
+
   it('an endless run skips the campaign star / next-gate follow-up (SC-3)', () => {
     const runEnded = code.match(
       /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,

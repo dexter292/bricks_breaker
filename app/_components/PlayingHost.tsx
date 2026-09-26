@@ -1258,7 +1258,25 @@ export function PlayingHost({
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);
-    setResultBest(previousBestRef.current);
+    // WR-04 (11-11). This published `previousBestRef.current` — a CAMPAIGN per-level
+    // best — into the host's `best` prop for the entire lifetime of the endless run
+    // being started. It was LATENT: `best` reaches `ResultOverlay` and nothing else
+    // today, the overlay is unmounted while a run is live, and `handleRunEnded`'s
+    // endless arm always overwrites `resultBest` before `setResult` raises it. It was
+    // not latent for long: Phase 14 adds a mid-run endless record surface, at which
+    // point a campaign level best would be RENDERED as the player's endless record for
+    // the whole duration of every run — prohibition 3 of 11-08, "MUST NOT display a
+    // record belonging to one mode as the player record of another mode". The owner
+    // chose on 2026-09-26 to fold the fix in now rather than record it as debt.
+    //
+    // Both halves are published, not just the score: the run being started is an
+    // endless run, and `resultBestWave` is the endless-only counterpart on the same
+    // 11-UI-SPEC § Record Display Contract row. `previousBestRef` may not appear in
+    // this function at all — pinned by `tests/ui/PlayingHost.endless-host.test.ts`.
+    // The campaign branches of `onRetry` and `remountDevSession` keep publishing it,
+    // unchanged: those are campaign resets.
+    setResultBest(endlessBestScoreRef.current);
+    setResultBestWave(endlessBestWaveRef.current);
     runEndedRef.current = false;
     waveAdvanceInFlightRef.current = false;
     // D-01: every run start is a NEW run — counters and wall clock both start at zero.

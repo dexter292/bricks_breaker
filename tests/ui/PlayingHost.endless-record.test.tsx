@@ -697,9 +697,35 @@ describe('PlayingHost endless record display (gap 2)', () => {
     expect(screen.getAllByText('New Record')).toHaveLength(1);
   });
 
-  it('an endless run does not write the campaign personal best (T-11-08-02 / WR-02)', async () => {
-    // The endless run score must EXCEED the campaign best, or the pre-fix host would
-    // not have written it back either and this probe would prove nothing.
+  /**
+   * WR-04 (11-11) — the host's `best` prop belongs to the mode the player is in at
+   * EVERY moment of an endless run, not only at the moments the overlay happens to be
+   * mounted.
+   *
+   * THE TIER CHANGE, stated plainly because the old shape of this case is exactly the
+   * kind of thing that looks like coverage and is not.
+   *
+   * This case was `an endless run does not write the campaign personal best
+   * (T-11-08-02 / WR-02)`. Its intent was sound — prove an endless run did not poison
+   * `previousBestRef` — but the only probe available for it was a read-back through
+   * `host-best`, and that read-back worked ONLY because `startEndlessRun` republished
+   * `previousBestRef.current` into `best` at every run start. That republication is
+   * WR-04: a campaign per-level best published as the endless `best` prop for the
+   * whole lifetime of a run. The probe therefore depended on the defect, and asserting
+   * `host-best=100` after a Retry PINNED the defect as expected behaviour.
+   *
+   * With the defect removed, the campaign-ref claim moves to the SOURCE-CONTRACT tier
+   * (`tests/ui/PlayingHost.endless-host.test.ts`, `previousBestRef is assigned in
+   * exactly two places…`), and the render claim asserted here gets strictly STRONGER:
+   * `best` is the endless watermark while the overlay is up, still the endless
+   * watermark after a Retry re-starts the run, and still the endless watermark on the
+   * NEXT run's overlay. Pre-fix the post-Retry value measured `host-best=100`, so the
+   * middle assertion discriminates the fix rather than restating the first one.
+   *
+   * `campaignBest = 100` is load-bearing: it must differ from every endless number in
+   * this case so a leak is unmistakable rather than a coincidence of equal integers.
+   */
+  it('a new endless run publishes the ENDLESS watermark as `best`, never the campaign level best (T-11-08-02 / WR-02 / WR-04)', async () => {
     campaignBest = 100;
     seededRecord = { bestScore: 0, bestWave: 0 };
     postMergeRecord = { bestScore: 2400, bestWave: 2 };
@@ -707,19 +733,32 @@ describe('PlayingHost endless record display (gap 2)', () => {
     await advanceToWaveTwo();
     await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
 
-    // While the overlay is up, `best` is the ENDLESS record — that is the fix.
+    // Test 1 — while the overlay is up, `best` is the ENDLESS record.
     expect(screen.getByTestId('host-best').textContent).toBe('host-best=2400');
 
-    // `modeRef` latches to endless for the life of the mount (WR-02), so no campaign
-    // Results overlay is reachable to read a `Best` line from. The host's own
-    // read-back is the available probe: `startEndlessRun` republishes
-    // `previousBestRef.current` into `best` at every run start. Pre-fix,
-    // `handleRunEnded` wrote 2400 into that ref and this press would republish it.
+    // Test 2 — and it STAYS the endless record across the run restart. `modeRef`
+    // latches to endless for the life of the mount (WR-02), so this Retry routes
+    // through `startEndlessRun`, which is where WR-04 lived.
     await press(RETRY);
     expect(
       screen.getByTestId('host-best').textContent,
-      'previousBestRef still holds the campaign best — the endless run did not poison it',
-    ).toBe('host-best=100');
+      'startEndlessRun must publish the ENDLESS watermark (WR-04) — measured pre-fix: host-best=100, a campaign per-level best carried as the endless `best` for the life of the run',
+    ).toBe('host-best=2400');
+    expect(
+      screen.getByTestId('host-best').textContent,
+      'WR-04: a campaign number must never reach the host `best` prop during an endless run',
+    ).not.toBe('host-best=100');
+
+    // Test 3 — and the NEXT run's Results overlay renders it. The write is not the
+    // point; the render is. Proving the write and never the render is how the
+    // previous round's gap 3 shipped green.
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(slot.getByText('Best · 2400')).toBeTruthy();
+    expect(
+      overlayText(),
+      'the campaign level best must appear nowhere on the endless overlay of the run that FOLLOWS a retry',
+    ).not.toContain('Best · 100');
   });
 
   /**
