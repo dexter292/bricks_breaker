@@ -1643,6 +1643,47 @@ describe('PlayingHost endless host (source contract)', () => {
       ).not.toMatch(/certPendingRef\.current = true;/);
     });
 
+    /**
+     * 11-19 Task 3 Part C — the THIRD consumer.
+     *
+     * `certLevelPlanFor` has three readers: the level half, the deferral arm (both
+     * above) and this effect's self-cancel. The self-cancel is what stops an arm
+     * outliving its own reachability — a session that goes endless or ends its run
+     * after arming drops the one-shot instead of carrying it to some later session.
+     *
+     * WHICH COUNT DISCRIMINATES. `certLevelPlan()` here moves 0 -> 1: that is the
+     * discriminating gate, and a 0 means Part B was never added or was deleted. The
+     * two identifier counts are 0 on the round-5 base tree as well, so they are
+     * REGRESSION gates and not discriminating ones — stated plainly rather than
+     * presented as evidence they are not.
+     */
+    it('the deferred-cert effect is the predicate’s third consumer (round-6 self-cancel)', () => {
+      const effect = code.match(
+        /if \(!certPendingRef\.current\) \{[\s\S]*?\n {2}\}, \[/,
+      )?.[0] ?? '';
+      expect(
+        effect,
+        'the deferred-cert effect must be extractable, or every count below it is vacuously green',
+      ).not.toBe('');
+      const body = effect.replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(
+        (body.match(/certLevelPlan\(\)/g) ?? []).length,
+        'EXACTLY ONE consultation of the predicate in the deferred-cert effect (measured base 0 — this is the discriminating gate). Zero means the self-cancel is gone and a stranded arm can wait indefinitely; two means the effect asks twice and can act on two different answers within one commit',
+      ).toBe(1);
+      expect(
+        (body.match(/certPendingRef\.current = false/g) ?? []).length,
+        'and at least one clear of the one-shot (measured base 1, the discharge clear). Part B adds the self-cancel clear beside it; deleting either leaves a latch nothing resets',
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        (body.match(/runEndedRef/g) ?? []).length,
+        'ZERO occurrences of the run-ended latch identifier here. REGRESSION GATE, not a discriminating one: the measured base is already 0. It exists so the third consumer cannot acquire the inline term the first two just shed',
+      ).toBe(0);
+      expect(
+        (body.match(/modeRef/g) ?? []).length,
+        'ZERO occurrences of the run-mode ref here. REGRESSION GATE, measured base 0, same reason as the line above',
+      ).toBe(0);
+    });
+
     it('exactly one level-forcing call remains (11-14 count, unmoved)', () => {
       expect(
         (certBody.match(/setLevelId\('level-03'\)/g) ?? []).length,

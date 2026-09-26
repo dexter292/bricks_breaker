@@ -2103,4 +2103,70 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       'measured pre-fix: exactly ONE call, on walk step 4, on a later campaign session that never pressed Cert WC. The arm is now derived from the same value as the level half, so there is nothing to strand',
     ).toHaveBeenCalledTimes(0);
   });
+
+  /**
+   * 11-19 Task 3 Part A — CELL 7, the neighbour one step from the gap, and the cell
+   * this round must NOT change.
+   *
+   * BRANCH: CAMPAIGN, run ENDED, ALREADY at `level-03`, tier still AUTO. It differs
+   * from cell 5 above in the level term alone, and that single term flips the
+   * predicate from `'unreachable'` to `'ready'`: the discharge precondition is already
+   * satisfied, so no level move is needed and the arm is legitimate.
+   *
+   * WHAT IT IS FOR. T-11-39 — the fix must not close the hazard by breaking the cert
+   * harness outright. A predicate that answered `'unreachable'` for every ENDED
+   * campaign run would make cell 5 above pass and leave `Cert WC` useless on the
+   * branch where the injection genuinely lands. This case is the other side of that
+   * boundary, and no previous round drove it.
+   *
+   * DECLARED FALSIFICATION (run and recorded in 11-19-SUMMARY.md): move the run-ended
+   * test ABOVE the `level-03` test in `certLevelPlanFor` and this case goes RED with
+   * the count at 0, while the cell-5 case above stays green.
+   */
+  it('a CAMPAIGN press from a mounted lose panel ALREADY at level-03 with the tier AUTO still injects exactly once (cell 7, unchanged)', async () => {
+    await mountOnly();
+    for (let i = 0; i < 4; i += 1) {
+      await pressLevelSwitch();
+      await settle();
+    }
+    expect(
+      levelSwitchLabel(),
+      'four Lv presses reach level-03 — if the walk stops short this case is testing cell 5, not cell 7, and would pass for the wrong reason',
+    ).toBe(LV_03);
+    expect(
+      screen.getByRole('button', { name: TIER_AUTO }),
+      'and the tier is still AUTO — without this the tier half no-ops, defer stays false and the case silently tests cell 8 (the DIRECT injection) instead of the deferral',
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('W1'),
+      'still CAMPAIGN — no endless run was ever started',
+    ).toBeNull();
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    expect(hostProps.current?.result, 'the lose panel is mounted').toBe('lose');
+    expect(
+      hostProps.current?.score,
+      'and coherent BEFORE any mock is cleared — the run that just ended',
+    ).toBe(2400);
+    expect(hostProps.current?.lives).toBe(0);
+
+    injectCertWorstCase.mockClear();
+
+    await press(CERT);
+    await settle();
+
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'the tier half fired, so the press deferred — the same route as cell 5, differing only in the level term',
+    ).toBeTruthy();
+    expect(
+      levelSwitchLabel(),
+      'and the level never had to move, which is exactly why the arm here is legitimate',
+    ).toBe(LV_03);
+    expect(
+      injectCertWorstCase,
+      'ONE injection. The predicate returns ready here because the discharge precondition is already satisfied; suppressing this cell would disable the cert harness on the branch where it genuinely works (T-11-39)',
+    ).toHaveBeenCalledTimes(1);
+  });
 });

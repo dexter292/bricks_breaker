@@ -1830,6 +1830,32 @@ export function PlayingHost({
     if (!certPendingRef.current) {
       return;
     }
+    // 11-19 Task 3 Part B — an arm must not outlive its own reachability.
+    //
+    // The THIRD consumer of the one predicate. If the session has gone endless or its
+    // run has ended since the press, the answer is `'unreachable'` and this one-shot
+    // can no longer discharge onto anything it was armed for — so drop it here rather
+    // than leave it waiting for some later session's preconditions to line up.
+    //
+    // WHY HERE AND NOT A SIXTH RESET BLOCK. The verifier names the five near-identical
+    // run-boundary reset blocks as the structural cause of this phase's
+    // fix-one-half-leave-the-neighbour pattern; a clear added to each would be five
+    // more places that have to stay in step with the predicate. One clause at the
+    // single consumer reuses the one predicate and needs no reset block to remember
+    // anything.
+    //
+    // WHY IT CANNOT CANCEL A LEGITIMATE DISCHARGE. The tier-change effect is declared
+    // ABOVE this one, so React runs `remountDevSession` first within the same commit
+    // and its campaign branch has already cleared the run-ended latch by the time this
+    // body runs. And where the session is already at the cert level the predicate
+    // answers `'ready'` from the level test regardless of the latch, so that discharge
+    // is robust to the ordering either way. The two campaign cases in
+    // `tests/ui/PlayingHost.endless-retry.test.tsx` are the behavioural guards on this
+    // direction; both stay green.
+    if (certLevelPlan() === 'unreachable') {
+      certPendingRef.current = false;
+      return;
+    }
     if (
       !levelReady ||
       levelError != null ||
@@ -1845,6 +1871,7 @@ export function PlayingHost({
     }, 50);
     return () => clearTimeout(t);
   }, [
+    certLevelPlan,
     levelReady,
     levelError,
     fxReady,
