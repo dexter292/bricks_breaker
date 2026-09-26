@@ -1180,6 +1180,24 @@ export function PlayingHost({
    * not cosmetic.
    */
   const startEndlessRun = useCallback(() => {
+    // 11-VERIFICATION.md gap 1 — THE invariant, and it lives HERE because this
+    // function is what "a new run starts" means. Round 1 wired the funnel at two of
+    // the five callers instead, and the three it missed included the `__DEV__`
+    // `Endless` button itself: driving a live run to wave 2 and pressing it returned
+    // the readout to `W1` with `recordRunEnd` called ZERO times, while
+    // `docs/ops/ENDLESS-MODE.md` asserted in bold that no such path existed.
+    //
+    // FIRST statement, above the readiness gate and above every write, because the
+    // funnel reads `waveRef.current` to decide the wave it records — anything that
+    // can move the wave must come after it.
+    //
+    // Safe from all five callers on two deliberate no-ops inside the funnel: it
+    // returns immediately when `modeRef.current !== 'endless'` (a first entry from
+    // campaign records nothing) and again when `runEndedRef.current` is already true
+    // (a Retry from the lose overlay cannot double-record, and — since 11-09's
+    // `failEndlessStart` latch — a Retry after a failed START cannot manufacture a
+    // phantom `{ wave: 1, score: 0, abandoned }` run for a run that never began).
+    recordInFlightEndlessRun();
     // A-01, decided `retry-in-place` by the owner on 2026-09-26. Both early returns
     // below route through `failEndlessStart`, which OWNS the failure post-condition:
     // the mode flip, the Results overlay, the endless watermarks and the body copy,
@@ -1259,6 +1277,7 @@ export function PlayingHost({
     advanceToWave,
     clearCountdown,
     failEndlessStart,
+    recordInFlightEndlessRun,
     retry,
     setActive,
     levelReady,
@@ -1267,9 +1286,6 @@ export function PlayingHost({
   ]);
 
   const onRetry = useCallback(() => {
-    if (!levelReady || levelError != null || !fxReady) {
-      return;
-    }
     // 11-07 gap 1 — the run boundary is MODE-AWARE. In endless a run owns a seed, a
     // wave number, a mode and an in-flight advance guard; the campaign reset below
     // touches none of them, so falling through would refill lives against the wave-N
@@ -1277,13 +1293,25 @@ export function PlayingHost({
     // wave N+1. `startEndlessRun` is the only site that resets all four, which is why
     // routing here beats duplicating a reset.
     //
-    // The funnel placement makes ONE branch satisfy TWO contract rows: reached from
-    // the lose overlay `runEndedRef.current` is already true (the LOST branch set it)
-    // so the funnel no-ops; reached from Pause mid-run it is false, so the in-flight
-    // wave is recorded `abandoned` before the reset discards it.
+    // 11-10: this branch is now the FIRST statement, ABOVE the campaign readiness
+    // gate, and it no longer records anything itself — `startEndlessRun` owns the
+    // funnel (see its first statement) and owns the readiness decision for endless,
+    // routing a closed gate to `failEndlessStart()` so the decided A-01 copy reaches
+    // the screen. Leaving the gate above this branch would re-create gap 3 here: a
+    // Retry pressed while `fxReady` is false returned SILENTLY, which is verbatim the
+    // `silent-noop` the owner rejected on 2026-09-26. The behaviour change is
+    // deliberate and is driven end-to-end in
+    // `tests/ui/PlayingHost.endless-record.test.tsx`.
+    //
+    // The funnel inside `startEndlessRun` still makes ONE branch satisfy TWO contract
+    // rows: reached from the lose overlay `runEndedRef.current` is already true (the
+    // LOST branch set it) so it no-ops; reached from Pause mid-run it is false, so the
+    // in-flight wave is recorded `abandoned` before the reset discards it.
     if (modeRef.current === 'endless') {
-      recordInFlightEndlessRun();
       startEndlessRun();
+      return;
+    }
+    if (!levelReady || levelError != null || !fxReady) {
       return;
     }
     // Keep current levelId — never cycle 01↔02 (D-11).
@@ -1315,7 +1343,6 @@ export function PlayingHost({
     levelReady,
     levelError,
     fxReady,
-    recordInFlightEndlessRun,
     startEndlessRun,
   ]);
 
@@ -1414,16 +1441,20 @@ export function PlayingHost({
   }, []);
 
   const remountDevSession = useCallback(() => {
-    if (!levelReady || levelError != null || !fxReady) {
-      return;
-    }
     // 11-07 gap 1, second half. A DEV tier change during a live endless run used to
     // reset lives/score/combo while leaving `waveRef`, `runSeedRef` and
     // `waveAdvanceInFlightRef` untouched — silently discarding the in-flight run and
     // carrying its wave into the next loss. Same funnel, same route as `onRetry`.
+    //
+    // 11-10: hoisted above the readiness gate and stripped of its own funnel call,
+    // for the same two reasons `onRetry` was — `startEndlessRun` owns the invariant
+    // and owns the endless readiness decision, and a gate above this branch would
+    // silently swallow the boundary instead of ending and reporting the run.
     if (modeRef.current === 'endless') {
-      recordInFlightEndlessRun();
       startEndlessRun();
+      return;
+    }
+    if (!levelReady || levelError != null || !fxReady) {
       return;
     }
     clearCountdown();
@@ -1454,7 +1485,6 @@ export function PlayingHost({
     levelReady,
     levelError,
     fxReady,
-    recordInFlightEndlessRun,
     startEndlessRun,
   ]);
 

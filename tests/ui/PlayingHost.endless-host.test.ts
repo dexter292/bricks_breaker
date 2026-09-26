@@ -480,6 +480,16 @@ describe('PlayingHost endless host (source contract)', () => {
     return m?.[1] ?? '';
   })();
 
+  /** The dependency array of a named `useCallback`, contents only. */
+  function depsOf(name: string): string {
+    const m = code.match(
+      new RegExp(
+        `const ${name} = useCallback\\(\\(\\) => \\{[\\s\\S]*?\\n {2}\\}, \\[([\\s\\S]*?)\\]\\);`,
+      ),
+    );
+    return m?.[1] ?? '';
+  }
+
   it('the run-boundary regions parse — the harness itself is honest', () => {
     expect(
       onRetryBody,
@@ -496,6 +506,9 @@ describe('PlayingHost endless host (source contract)', () => {
       /if \(modeRef\.current === 'endless'\) \{/,
     );
     const retryAt = onRetryBody.search(/\n\s*retry\(\);/);
+    const readinessAt = onRetryBody.search(
+      /if \(!levelReady \|\| levelError != null \|\| !fxReady\) \{/,
+    );
     expect(
       endlessAt,
       'onRetry must branch on the mode — the campaign reset is not a new endless run',
@@ -508,12 +521,29 @@ describe('PlayingHost endless host (source contract)', () => {
       endlessAt,
       'behind retry() the branch would never run, and lives would refill on the wave-N board',
     ).toBeLessThan(retryAt);
+    // 11-10: the HOIST. Pre-11-10 the readiness gate opened the function, so an
+    // endless Retry pressed while `fxReady` was false returned SILENTLY — verbatim
+    // the `silent-noop` the owner rejected on 2026-09-26, on a third path.
+    // `startEndlessRun` owns the endless readiness decision and routes a closed gate
+    // to `failEndlessStart()`, which puts the decided copy on screen.
+    expect(
+      readinessAt,
+      'the campaign readiness gate must still exist — campaign behaviour is unchanged',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'the endless branch must come FIRST, above the readiness gate — beneath it a Retry against a closed gate is a silent no-op',
+    ).toBeLessThan(readinessAt);
     expect(
       onRetryBody,
-      'the branch must record the in-flight run, route to startEndlessRun, and RETURN',
+      'the branch routes to startEndlessRun and RETURNS — it no longer records anything itself (11-10: the funnel moved INSIDE startEndlessRun)',
     ).toMatch(
-      /if \(modeRef\.current === 'endless'\) \{\s*recordInFlightEndlessRun\(\);\s*startEndlessRun\(\);\s*return;\s*\}/,
+      /if \(modeRef\.current === 'endless'\) \{\s*startEndlessRun\(\);\s*return;\s*\}/,
     );
+    expect(
+      onRetryBody,
+      'and it must not keep a second copy of the invariant — three readable sites is exactly the condition that let two of five callers be missed (gap 1)',
+    ).not.toMatch(/recordInFlightEndlessRun/);
   });
 
   /**
@@ -623,6 +653,9 @@ describe('PlayingHost endless host (source contract)', () => {
       /if \(modeRef\.current === 'endless'\) \{/,
     );
     const retryAt = remountDevSessionBody.search(/\n\s*retry\(\);/);
+    const readinessAt = remountDevSessionBody.search(
+      /if \(!levelReady \|\| levelError != null \|\| !fxReady\) \{/,
+    );
     expect(
       endlessAt,
       'a DEV tier change during an endless run must not silently discard it',
@@ -633,10 +666,90 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toBeGreaterThanOrEqual(0);
     expect(endlessAt).toBeLessThan(retryAt);
     expect(
+      readinessAt,
+      'the campaign readiness gate must still exist — campaign behaviour is unchanged',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'the endless branch must come FIRST, above the readiness gate — same hoist as onRetry, same reason',
+    ).toBeLessThan(readinessAt);
+    expect(
       remountDevSessionBody,
-      'the branch must record the in-flight run, route to startEndlessRun, and RETURN',
+      'the branch routes to startEndlessRun and RETURNS — it no longer records anything itself (11-10)',
     ).toMatch(
-      /if \(modeRef\.current === 'endless'\) \{\s*recordInFlightEndlessRun\(\);\s*startEndlessRun\(\);\s*return;\s*\}/,
+      /if \(modeRef\.current === 'endless'\) \{\s*startEndlessRun\(\);\s*return;\s*\}/,
     );
+    expect(
+      remountDevSessionBody,
+      'and it must not keep a second copy of the invariant (gap 1)',
+    ).not.toMatch(/recordInFlightEndlessRun/);
+  });
+
+  /**
+   * 11-10 — `11-VERIFICATION.md` gap 1: WHERE the abandon funnel lives.
+   *
+   * Round 1 wired `recordInFlightEndlessRun()` at the CALLERS. Two of the five
+   * `startEndlessRun` callers were missed, and one of them was the `__DEV__`
+   * `Endless` button itself — measured at `recordRunEnd` calls = 0 against the real
+   * host. The invariant belongs inside `startEndlessRun`, because that function is
+   * what "a new run starts" MEANS, and it is the function Phase 14 promotes to the
+   * production endless entry point.
+   *
+   * What this case does NOT prove: statement order is not evidence that a run reached
+   * the store. It pins placement and nothing else. `tests/ui/PlayingHost.endless-retry.test.tsx`
+   * is what proves the behaviour, by asserting on the argument `recordRunEnd`
+   * actually RECEIVED — do not let this case stand in for it. That substitution, a
+   * source contract standing in for a driven one, is exactly how the previous round's
+   * gap shipped green.
+   */
+  it('startEndlessRun opens with the abandon funnel, above every write (gap 1)', () => {
+    const body = (() => {
+      const m = code.match(
+        /const startEndlessRun = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+    // Non-empty FIRST — a region that failed to extract makes every pin below it
+    // vacuously green (11-09 Pattern 2).
+    expect(
+      body,
+      'startEndlessRun must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+
+    // The FIRST statement, comments stripped. `waveRef.current` is what the funnel
+    // reads to decide the wave it records, so anything able to move the wave — the
+    // readiness gate's failEndlessStart, the seed mint, advanceToWave — must follow.
+    const firstStatement = body
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('//'))[0];
+    expect(
+      firstStatement,
+      'the funnel must be the FIRST statement — a run recorded after anything that can move waveRef is recorded at the wrong wave',
+    ).toBe('recordInFlightEndlessRun();');
+    expect(
+      (body.match(/recordInFlightEndlessRun\(\)/g) ?? []).length,
+      'exactly once — the invariant must be readable at ONE site, which is the whole correction',
+    ).toBe(1);
+    expect(
+      depsOf('startEndlessRun'),
+      'and it must be a declared dependency, or the memoised callback closes over a stale funnel',
+    ).toMatch(/\brecordInFlightEndlessRun\b/);
+
+    // The two callers that used to carry their own copy keep startEndlessRun and drop
+    // the funnel — both halves, because a leftover dependency on a deleted call is how
+    // a "cleaned up" site quietly keeps its second copy.
+    for (const name of ['onRetry', 'remountDevSession'] as const) {
+      const deps = depsOf(name);
+      expect(deps, `${name} deps must be extractable`).not.toBe('');
+      expect(
+        deps,
+        `${name} still routes to startEndlessRun, so it stays a dependency`,
+      ).toMatch(/\bstartEndlessRun\b/);
+      expect(
+        deps,
+        `${name} no longer calls the funnel, so it must not list it either`,
+      ).not.toMatch(/\brecordInFlightEndlessRun\b/);
+    }
   });
 });

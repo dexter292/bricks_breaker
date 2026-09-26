@@ -559,6 +559,112 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(boardFingerprint(), 'on a freshly generated board').not.toBe(wave2);
   });
 
+  /**
+   * 11-10 — `11-VERIFICATION.md` gap 1, the DURABLE half.
+   *
+   * The `__DEV__` `Endless` button binds `onPress={startEndlessRun}` directly and the
+   * dev row stays mounted and tappable for the whole run, so a second press mid-run
+   * is a run boundary — and it was the one round 1 missed, because the funnel was
+   * wired at the CALLERS rather than inside `startEndlessRun`. Measured pre-fix:
+   * readout `W2` → `W1`, `recordRunEnd` calls = ZERO. No case in this file pressed
+   * that button twice before now.
+   *
+   * `startEndlessRun` is the function Phase 14 promotes to the production endless
+   * entry point, which is why the omission outlives the dev row that exposed it.
+   */
+  it('a second press of the __DEV__ Endless button records the run it discards (gap 1)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+    expect(recordRunEnd, 'nothing recorded yet — the run is still live').toHaveBeenCalledTimes(0);
+
+    await press('Start an endless run');
+
+    expect(
+      recordRunEnd,
+      'measured pre-fix: 0 calls — the in-flight run vanished from telemetry entirely',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode, 'filed under the endless arm, not the campaign one').toBe(
+      'endless',
+    );
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(
+      args.wave,
+      'at the wave the discarded run REACHED — recorded before anything can move waveRef',
+    ).toBe(2);
+    expect(args.outcome, 'the player did not lose it — they replaced it').toBe(
+      'abandoned',
+    );
+    expect(
+      screen.getByText('W1'),
+      'and only AFTER the record does the readout return to W1',
+    ).toBeTruthy();
+  });
+
+  it('that second press starts a genuinely NEW run — the wave does not carry forward (gap 1)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000_000);
+    await mountAndStartEndless();
+    const wave1A = boardFingerprint();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    advanceWave.mockClear();
+
+    now.mockReturnValue(9_876_543);
+    await press('Start an endless run');
+
+    expect(wave1A, 'the harness produced a real board to compare against').not.toBe(
+      'none',
+    );
+    expect(
+      boardFingerprint(),
+      'the wave-2 generated board must be replaced, not refilled with lives',
+    ).not.toBe(wave2);
+    expect(
+      boardFingerprint(),
+      'and the seed was re-minted — a reused seed would replay the identical board sequence',
+    ).not.toBe(wave1A);
+    expect(
+      advanceWave,
+      'a run START is not a wave transition — advanceWave belongs to the WON intercept alone',
+    ).not.toHaveBeenCalled();
+    expect(hostProps.current?.lives, 'lives reset').toBe(3);
+    expect(hostProps.current?.score, 'score reset').toBe(0);
+
+    // The discriminating assertion: a mid-run restart that carried the wave forward
+    // would file this loss at wave 3, silently inflating the record it just dropped.
+    recordRunEnd.mockClear();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 300 });
+    expect(recordRunEnd, 'the new run records on its own loss').toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.wave, 'a new run starts at wave 1 and loses at wave 1').toBe(1);
+  });
+
+  it('Retry from the endless lose overlay records nothing extra — the funnel latch survived the move (T-11-11)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(recordRunEnd, 'the loss recorded the finished run once').toHaveBeenCalledTimes(1);
+
+    await press('Retry');
+
+    // The funnel now runs on EVERY startEndlessRun, so the shared `runEndedRef` gate
+    // is the only thing standing between a Retry and a double-record of the run that
+    // just ended. Without it every single Retry writes the finished run a second time.
+    expect(
+      recordRunEnd,
+      'the run already ended at zero lives — a Retry must not write it again',
+    ).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('W1'), 'and the Retry still starts a new run').toBeTruthy();
+    expect(hostProps.current?.result, 'which clears the overlay').toBeNull();
+  });
+
   it('Pause then Retry records the in-flight run, then restarts at wave 1 (UI-SPEC run boundaries)', async () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();

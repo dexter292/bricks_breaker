@@ -138,11 +138,36 @@ vi.mock('../../src/render/textures/bakeGlowSprites', () => ({
  */
 let compileCalls = 0;
 let failCompileFrom = 0;
+/**
+ * The READINESS lever (11-10) — deliberately independent of `failCompileFrom` above.
+ *
+ * `fxReady` is `loadResult.ok && bakedKey === loadKey`, and `setBakedKey` runs
+ * SYNCHRONOUSLY inside the bake effect's async body before its first `await`, so
+ * there is no mid-bake window a test can stand in. A not-ok `loadResult` is the only
+ * lever that holds all three readiness terms false — `levelReady` false, `levelError`
+ * non-null, `fxReady` false — and it is reachable only by changing `levelId`. Naming
+ * one catalog id whose `loadLevelById` call is rejected is therefore the only way to
+ * drive the closed-gate endless Retry that 11-10's hoist exists to change.
+ *
+ * It must stay independent of `compileGeneratedLevel`: a GENERATED board that fails
+ * to compile is not a catalog error, and collapsing the two would make a case unable
+ * to say which failure it is measuring.
+ */
+let rejectLevelId: LevelId | null = null;
 vi.mock('../../src/runtime/loadLevel', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../src/runtime/loadLevel')>();
   return {
     ...actual,
+    loadLevelById: (id: LevelId) => {
+      if (rejectLevelId !== null && id === rejectLevelId) {
+        return {
+          ok: false as const,
+          issues: [{ path: 'forced', message: 'forced catalog rejection' }],
+        };
+      }
+      return actual.loadLevelById(id);
+    },
     compileGeneratedLevel: (
       raw: Parameters<typeof actual.compileGeneratedLevel>[0],
     ) => {
@@ -171,6 +196,9 @@ type HostProps = {
   bestWave?: number;
   isNewRecord?: boolean;
   waveBuildFailedWave?: number | null;
+  // 11-10: the readiness gate's own term, read back so a case can PROVE the gate is
+  // genuinely closed rather than assume its lever worked.
+  levelError?: unknown;
   stars?: 1 | 2 | 3 | null;
   onPause?: () => void;
   onRetry?: () => void;
@@ -403,14 +431,13 @@ async function press(name: string | RegExp): Promise<void> {
  */
 const RETRY = /^Retry/;
 
-async function mountAndStartEndless(): Promise<void> {
-  const { PlayingHost } = await import('../../app/_components/PlayingHost');
-  render(
-    createElement(PlayingHost, {
-      levelId: 'level-01' as LevelId,
-      onMenu: () => {},
-    }),
-  );
+/**
+ * The settle-and-press sequence shared by the uncontrolled and controlled mounts
+ * (11-10). Extracted rather than duplicated so the two helpers cannot drift: the same
+ * wait on the entry button, the same wait on `host-best`, the same mock clears, the
+ * same `Start an endless run` press.
+ */
+async function settleAndStartEndless(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
     vi.runAllTimers();
@@ -435,6 +462,59 @@ async function mountAndStartEndless(): Promise<void> {
   advanceWave.mockClear();
   recordRunEnd.mockClear();
   await press('Start an endless run');
+}
+
+async function mountAndStartEndless(): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  // UNCONTROLLED on purpose, and it must stay that way: every pre-11-10 case in this
+  // file mounts through here, and supplying `onLevelIdChange` would silently change
+  // what `toggleDevLevel` does to them.
+  render(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: () => {},
+    }),
+  );
+  await settleAndStartEndless();
+}
+
+/**
+ * CONTROLLED `levelId` mount (11-10) — the only lever a test has to change `levelId`
+ * without pressing `Lv`. Returns the render result so a case can re-render with a
+ * different id and hold the readiness gate closed underneath a live endless run.
+ *
+ * `Lv` is deliberately NOT usable here: 11-10 Task 2 makes `toggleDevLevel` an
+ * explicit EXIT from endless, so pressing it would leave the mode and measure a
+ * different path entirely.
+ */
+async function mountControlledAndStartEndless(
+  levelId: LevelId = 'level-01' as LevelId,
+): Promise<{
+  rerenderWithLevel: (next: LevelId) => Promise<void>;
+}> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  const view = render(
+    createElement(PlayingHost, {
+      levelId,
+      onLevelIdChange: () => {},
+      onMenu: () => {},
+    }),
+  );
+  await settleAndStartEndless();
+  return {
+    rerenderWithLevel: async (next: LevelId) => {
+      await act(async () => {
+        view.rerender(
+          createElement(PlayingHost, {
+            levelId: next,
+            onLevelIdChange: () => {},
+            onMenu: () => {},
+          }),
+        );
+        await Promise.resolve();
+      });
+    },
+  };
 }
 
 /**
@@ -493,6 +573,7 @@ describe('PlayingHost endless record display (gap 2)', () => {
     seq = 0;
     compileCalls = 0;
     failCompileFrom = 0;
+    rejectLevelId = null;
     campaignBest = CAMPAIGN_BEST_DEFAULT;
     seededRecord = { bestScore: 900, bestWave: 1 };
     postMergeRecord = { bestScore: 2400, bestWave: 2 };
@@ -709,6 +790,7 @@ describe('PlayingHost endless — a failed start from a fresh mount (gap 3)', ()
     seq = 0;
     compileCalls = 0;
     failCompileFrom = 0;
+    rejectLevelId = null;
     campaignBest = CAMPAIGN_BEST_DEFAULT;
     seededRecord = { bestScore: 0, bestWave: 0 };
     postMergeRecord = { bestScore: 2400, bestWave: 2 };
@@ -828,6 +910,7 @@ describe('PlayingHost endless — Pause → Retry with a failing build (gap 2)',
     seq = 0;
     compileCalls = 0;
     failCompileFrom = 0;
+    rejectLevelId = null;
     campaignBest = CAMPAIGN_BEST_DEFAULT;
     seededRecord = { bestScore: 900, bestWave: 1 };
     postMergeRecord = { bestScore: 2400, bestWave: 2 };
@@ -913,5 +996,142 @@ describe('PlayingHost endless — Pause → Retry with a failing build (gap 2)',
     const args = recordRunEnd.mock.calls.at(-1)?.[0];
     expect(args?.mode).toBe('endless');
     expect(args?.mode === 'endless' ? args.wave : null).toBe(1);
+  });
+});
+
+/**
+ * 11-10 — the case that exercises the HOIST itself.
+ *
+ * Moving `if (modeRef.current === 'endless') { startEndlessRun(); return; }` above
+ * `onRetry`'s `!levelReady || levelError != null || !fxReady` gate deliberately
+ * changes one behaviour: an endless Retry pressed while readiness is CLOSED used to
+ * return silently and leave the run resumable; it now records the in-flight run
+ * `abandoned` at the wave it reached and puts the decided A-01 copy on the real
+ * overlay. That trade is the `silent-noop` the owner rejected on 2026-09-26, closed
+ * on a third path.
+ *
+ * It is driven here, in the file whose `GameScreen` mock renders the REAL
+ * `ResultOverlay` inside `result-slot`, and not in the sibling retry file whose mock
+ * renders a bare labelled button. The rendered copy is the whole point: the previous
+ * round's gap 3 escaped precisely because a source-contract test proved the WRITE and
+ * never the RENDER, and reasoning that a hoist is correct is exactly what shipped it.
+ *
+ * Nothing else in the suite reaches this path. Re-instating the pre-hoist order turns
+ * THIS block red while the sibling gap-1 cases stay green — which is what makes it
+ * evidence about the reorder rather than about the outcome.
+ */
+describe('PlayingHost endless — Retry with the readiness gate CLOSED (11-10, the hoist)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
+    rejectLevelId = null;
+    campaignBest = CAMPAIGN_BEST_DEFAULT;
+    seededRecord = { bestScore: 900, bestWave: 1 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+    getSnapshot.mockClear();
+  });
+
+  /**
+   * A live endless run at wave 2, with all three readiness terms genuinely false.
+   *
+   * The lever is a re-render with a `levelId` the harness rejects — `loadResult.ok`
+   * false makes `levelReady` false, `levelError` non-null and `fxReady` false at
+   * once, and it is the ONLY lever: `setBakedKey` runs synchronously before the bake
+   * effect's first `await`, so no mid-bake window exists to occupy.
+   *
+   * The endless run survives the rejection because an endless run's boards are
+   * written into `compiledSv` by `advanceToWave`, never by `loadResult`, and the
+   * compiled-push gate effect early-returns while `modeRef.current` is endless.
+   *
+   * The `levelId` change ALSO re-runs the `getBestForLevel` effect, which pushes the
+   * CAMPAIGN level best into `resultBest`. That is left in place on purpose: it is
+   * what makes `failEndlessStart`'s watermark republish observable, and the case
+   * asserts the campaign digits never reach `result-slot`.
+   */
+  async function liveRunThenCloseTheGate(): Promise<void> {
+    const { rerenderWithLevel } = await mountControlledAndStartEndless();
+    await advanceToWaveTwo();
+    // The dev-row readout, not `props.wave` — that prop is `resultWave`, which is
+    // written only at run END, so it reads 0 while a run is live.
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+    rejectLevelId = 'level-04' as LevelId;
+    await rerenderWithLevel('level-04' as LevelId);
+    expect(
+      hostProps.current?.levelError,
+      'the readiness gate is genuinely CLOSED — levelError is what onRetry used to return on',
+    ).not.toBeNull();
+  }
+
+  it('records the in-flight run exactly once, at the wave it REACHED (measured pre-hoist: 0 calls)', async () => {
+    await liveRunThenCloseTheGate();
+
+    await press('Pause game');
+    await press('Pause panel Retry');
+
+    expect(
+      recordRunEnd,
+      'pre-hoist onRetry returned at the readiness gate and the run stayed silently resumable — measured 0 calls',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls.at(-1)?.[0];
+    expect(args?.mode, 'filed under the endless arm').toBe('endless');
+    expect(
+      args?.mode === 'endless' ? args.wave : null,
+      'the wave the run reached, not the wave the failed restart attempted',
+    ).toBe(2);
+    expect(args?.outcome, 'the player did not lose it').toBe('abandoned');
+  });
+
+  it('puts the decided copy on the REAL overlay, not nothing at all (A-01, gap 3 on a third path)', async () => {
+    await liveRunThenCloseTheGate();
+
+    await press('Pause game');
+    await press('Pause panel Retry');
+
+    expect(
+      within(screen.getByTestId('result-slot')).getByText(
+        'Wave 1 could not be built — tap Retry',
+      ),
+      'measured pre-hoist: nothing in result-slot at all, because the overlay never mounted',
+    ).toBeTruthy();
+    expect(
+      hostProps.current?.result,
+      'GameScreen mounts the Results overlay only when result != null — measured pre-hoist: null',
+    ).toBe('lose');
+  });
+
+  it('shows the ENDLESS watermarks even though the level switch reloaded the campaign best', async () => {
+    await liveRunThenCloseTheGate();
+
+    await press('Pause game');
+    await press('Pause panel Retry');
+
+    // `failEndlessStart` republishes `endlessBestScoreRef` / `endlessBestWaveRef`
+    // over whatever `getBestForLevel` last wrote. Without that republish THIS overlay
+    // would render 7777 as the endless `Best` — the prohibition 11-08 shipped.
+    expect(
+      screen.getByTestId('result-slot').textContent ?? '',
+      'a campaign per-level best must never be presented as an endless record',
+    ).not.toContain(String(CAMPAIGN_BEST_DEFAULT));
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(
+      slot.getByText('Best · 2400'),
+      'the post-merge endless watermark returned by recordRunEnd',
+    ).toBeTruthy();
+    expect(slot.getByText('Best wave · 2')).toBeTruthy();
   });
 });
