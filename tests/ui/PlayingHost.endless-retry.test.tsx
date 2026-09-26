@@ -135,6 +135,38 @@ vi.mock('../../src/render/textures/bakeGlowSprites', () => ({
   bakeGlowSprites: () => ({ soft: null }),
 }));
 
+/**
+ * The forced wave-build failure (11-07 Task 4).
+ *
+ * `loadLevelById` stays REAL — the catalog level must still load, because the whole
+ * point of the contract is that a GENERATED board failing is not a catalog error and
+ * must never reach `LevelErrorOverlay`. Only `compileGeneratedLevel` is wrapped, and
+ * only from the call index a test opts into: `failCompileFrom = compileCalls + 1`
+ * makes the NEXT generated board, and every one after it, fail to compile. Failing
+ * persistently rather than once is deliberate — it is what lets the test tell a
+ * released guard (the branch is re-entered and fails again) apart from a latched one
+ * (the branch is never re-entered at all).
+ */
+let compileCalls = 0;
+let failCompileFrom = 0;
+vi.mock('../../src/runtime/loadLevel', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/runtime/loadLevel')>();
+  return {
+    ...actual,
+    compileGeneratedLevel: (raw: Parameters<typeof actual.compileGeneratedLevel>[0]) => {
+      compileCalls += 1;
+      if (failCompileFrom !== 0 && compileCalls >= failCompileFrom) {
+        return {
+          ok: false as const,
+          issues: [{ path: 'forced', message: 'forced compile failure' }],
+        };
+      }
+      return actual.compileGeneratedLevel(raw);
+    },
+  };
+});
+
 /** The host props this file reads back — HUD values the mock does not render. */
 type HostProps = {
   devLevelSwitch?: unknown;
@@ -386,6 +418,8 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
   });
 
   afterEach(() => {
@@ -580,5 +614,79 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(screen.getByLabelText('Wave 2')).toBeTruthy();
     expect(screen.getByText('W2')).toBeTruthy();
     expect(screen.queryByLabelText('Wave 1')).toBeNull();
+  });
+
+  it('a wave that cannot be built ENDS the run, records it, and releases the guard (WR-04)', async () => {
+    const devError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await mountAndStartEndless();
+    expect(compileCalls, 'wave 1 compiled for real').toBeGreaterThan(0);
+
+    // Every generated board from here on fails to compile.
+    failCompileFrom = compileCalls + 1;
+    await deliverPhase(SIM.WON, { score: 1500 });
+
+    expect(
+      advanceWave,
+      'the wave swap must not be requested when the board behind it does not exist',
+    ).not.toHaveBeenCalled();
+    expect(
+      recordRunEnd,
+      'a failed wave build ends the run — it must not be silently dropped',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode).toBe('endless');
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome).toBe('abandoned');
+    expect(
+      args.wave,
+      'recorded at the last SUCCESSFULLY built wave — advanceToWave assigns waveRef only after a good compile',
+    ).toBe(1);
+
+    expect(hostProps.current?.result, 'the run is over, not frozen mid-WON').toBe(
+      'lose',
+    );
+    expect(
+      setActive.mock.calls.at(-1)?.[0],
+      'the frame loop is stopped — otherwise a live sim runs behind the overlay with keepAwake mounted',
+    ).toBe(false);
+    expect(
+      screen.getByRole('button', { name: 'Retry' }),
+      'the Results controls are reachable, which is the whole reason LevelErrorOverlay is banned here',
+    ).toBeTruthy();
+    expect(
+      hostProps.current?.levelError,
+      'a GENERATED board failure must never reach levelError — GameScreen suppresses showResult on it and LevelErrorOverlay has no controls (11-UI-SPEC Error state (board))',
+    ).toBeNull();
+    expect(
+      devError,
+      'the failure still has to be loud on the __DEV__ diagnostic channel',
+    ).toHaveBeenCalled();
+
+    // The guard half of the SC-1 break: a latched `waveAdvanceInFlightRef` makes the
+    // endless WON branch a no-op forever, so the next WON is swallowed in silence.
+    //
+    // The next mirror below is a bare WON, with NO intervening DOCKED — that shape is
+    // load-bearing. `applyChrome` releases the guard on any phase that is neither WON
+    // nor LOST (Pitfall 5), so a DOCKED in between would release it by the ordinary
+    // path and this assertion would pass whether or not the failure branch cleared it.
+    // A repeat WON is also the realistic shape: Pitfall 5 is precisely that the WON
+    // mirror can arrive twice.
+    const compilesAfterFailure = compileCalls;
+    await deliverPhase(SIM.WON, { score: 1500 });
+
+    expect(
+      compileCalls,
+      'the failure branch RELEASED the guard: a repeat WON re-enters the branch and attempts the build again',
+    ).toBeGreaterThan(compilesAfterFailure);
+    expect(
+      advanceWave,
+      'and it fails again — same seed, same wave, same board, so no wave swap is ever requested',
+    ).not.toHaveBeenCalled();
+    expect(
+      recordRunEnd,
+      'runEndedRef still holds: the finished run is not recorded a second time',
+    ).toHaveBeenCalledTimes(1);
   });
 });

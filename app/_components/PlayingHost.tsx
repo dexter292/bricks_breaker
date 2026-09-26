@@ -25,7 +25,6 @@ import {
   loadLevelById,
   type CompiledLevel,
   type LevelId,
-  type ValidationIssue,
 } from '../../src/runtime/loadLevel';
 import { generate } from '../../src/levelgen';
 import {
@@ -188,6 +187,28 @@ export function PlayingHost({
   const [resultStars, setResultStars] = useState<1 | 2 | 3 | null>(null);
   const [nextGateId, setNextGateId] = useState<LevelId | null>(null);
   const [isNewRecord, setIsNewRecord] = useState(false);
+  /**
+   * The wave that could NOT be built, or `null`. 11-07 Task 4.
+   *
+   * Stores the FAILED wave, not the last good one, so the copy that consumes it
+   * (11-08) needs no arithmetic: mid-run that is `waveRef.current + 1`, and at
+   * Retry time it is always `1` — a Retry-time failure is by construction a
+   * wave-1 failure (11-07 A-01, decided `retry-in-place` 2026-09-26).
+   *
+   * This is what REPLACES the old `genIssues` route into `LevelErrorOverlay`.
+   * 11-UI-SPEC § Copywriting → `Error state (board)` forbids that overlay here: it
+   * has no controls, so it trapped the player in front of a live sim with two dead
+   * buttons (`onResume` and `onRetry` both returned early on `levelError != null`).
+   */
+  // WRITTEN here (11-07 Task 4), READ in 11-08, which renders the wave-build-failure
+  // body from it. The writer has to land first: the value is produced by the
+  // run-ending branch in `applyChrome`, and that branch is the SC-1 fix. Delete the
+  // disable below in 11-08 once the reader is wired — if it is still here after
+  // 11-08, the copy row never shipped.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reader lands in 11-08
+  const [waveBuildFailedWave, setWaveBuildFailedWave] = useState<number | null>(
+    null,
+  );
   const [simPhaseNum, setSimPhaseNum] = useState<number>(SIM.DOCKED);
   // Controlled when onLevelIdChange provided; else local fallback (prefer GameHost-controlled).
   const [uncontrolledLevelId, setUncontrolledLevelId] =
@@ -230,8 +251,6 @@ export function PlayingHost({
   const runSeedRef = useRef(0);
   /** Pitfall 5 idempotency guard: the WON mirror can arrive twice before the advance lands. */
   const waveAdvanceInFlightRef = useRef(false);
-  /** Issues from a generated board that failed to compile — routed to the level-error UI. */
-  const [genIssues, setGenIssues] = useState<ValidationIssue[] | null>(null);
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
@@ -315,12 +334,17 @@ export function PlayingHost({
   // Sync validate+compile on JS when levelId changes (D-12, D-14) — derive UI from Result.
   const loadResult = useMemo(() => loadLevelById(levelId), [levelId]);
   /**
-   * Pitfall 6: a generated board that fails to compile mid-run must surface the
-   * SAME `LevelErrorOverlay` a bad catalog level does. Folding `genIssues` in here
-   * is what makes that one UI serve both sources — the alternative, a silent
-   * fall-through, ends a forty-minute run with no explanation.
+   * CATALOG load failures only (11-07 Task 4). 11-RESEARCH's Pitfall 6 originally
+   * routed a failed GENERATED board here too, via `genIssues`, so one overlay could
+   * serve both sources. 11-UI-SPEC § Copywriting → `Error state (board)` supersedes
+   * that: `LevelErrorOverlay` has no controls, and `GameScreen` suppresses
+   * `showResult` whenever `levelError` is non-null, so the generated-board route
+   * left a live sim behind a modal the player could not dismiss — and, because
+   * `onResume` and `onRetry` both early-return on `levelError != null`, with two
+   * dead buttons as well. A generated board that fails to compile now ENDS the run
+   * (see `applyChrome`) and reports through `waveBuildFailedWave`.
    */
-  const levelError = genIssues ?? (loadResult.ok ? null : loadResult.issues);
+  const levelError = loadResult.ok ? null : loadResult.issues;
   const levelReady = loadResult.ok;
   /**
    * NH-5 / D-14: fx ready is derived — the bake key is the ATLAS identity, and the
@@ -734,8 +758,10 @@ export function PlayingHost({
    * frame callback at all. Pre-generating during wave N would buy nothing
    * measurable and would add a cache to invalidate.
    *
-   * Returns whether the swap happened. The failure path is loud and terminal for
-   * this transition (Pitfall 6): it never returns into a run-end branch.
+   * Returns whether the swap happened. The failure path is loud (a `__DEV__`
+   * `console.error`) and terminal for this transition: it never itself reaches a
+   * run-end branch — deciding what a failure MEANS belongs to the caller, which is
+   * why `applyChrome` ends the run and `startEndlessRun` keeps the overlay up.
    */
   const advanceToWave = useCallback(
     (nextWave: number): boolean => {
@@ -748,7 +774,6 @@ export function PlayingHost({
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.error('[endless] generated board failed to compile', compiled.issues);
         }
-        setGenIssues(compiled.issues);
         return false;
       }
       // 11-03's contract: the next compiled board must be in `compiled` BEFORE
@@ -759,7 +784,6 @@ export function PlayingHost({
       /* eslint-enable react-hooks/immutability */
       waveRef.current = nextWave;
       setWave(nextWave);
-      setGenIssues(null);
       return true;
     },
     [compiledSv],
@@ -781,6 +805,27 @@ export function PlayingHost({
           waveAdvanceInFlightRef.current = true;
           if (advanceToWave(waveRef.current + 1)) {
             advanceWave();
+          } else {
+            // WR-04 / 11-UI-SPEC § Run boundaries, the `advanceToWave(n) returns
+            // false` row. Releasing the guard is the SC-1 half: a latched
+            // `waveAdvanceInFlightRef` makes this branch a no-op forever, so every
+            // later WON is swallowed and the run can never advance or end again.
+            waveAdvanceInFlightRef.current = false;
+            // `waveRef.current` is still the last SUCCESSFUL wave — `advanceToWave`
+            // assigns it only after a successful compile — so the record below is
+            // wave n-1 with no adjustment, and the failed wave is n.
+            setWaveBuildFailedWave(waveRef.current + 1);
+            if (!runEndedRef.current) {
+              runEndedRef.current = true;
+              handleRunEnded(
+                mirror.score,
+                'abandoned',
+                mirror.lives,
+                snapshotRunStats(),
+              );
+            }
+            setResult('lose');
+            setActive(false);
           }
         }
         return;
@@ -931,7 +976,20 @@ export function PlayingHost({
    * not cosmetic.
    */
   const startEndlessRun = useCallback(() => {
+    // A-01, decided `retry-in-place` by the owner on 2026-09-26. Both early returns
+    // below leave the Results overlay exactly where it is, with `Retry` still live —
+    // the overlay's `setResult(null)` is further down and never runs. What they add is
+    // the body copy, contract-fixed as:
+    //
+    //     Wave 1 could not be built — tap Retry
+    //
+    // (11-UI-SPEC § Endless copy, rendered by 11-08). `Wave 1` is a LITERAL, never
+    // templated: a Retry-time failure is by construction a wave-1 failure. The mid-run
+    // body `Wave {n} could not be built — run saved` is deliberately NOT reused here —
+    // there is no in-flight run to save, so it would state something untrue. Leaving
+    // the old silent return was rejected too: it presents a dead-looking Retry button.
     if (!levelReady || levelError != null || !fxReady) {
+      setWaveBuildFailedWave(1);
       return;
     }
     // Pitfall 7: minted in the APP tier. `src/levelgen/**` bans `Date.now()` by
@@ -941,6 +999,9 @@ export function PlayingHost({
     runSeedRef.current = Date.now() >>> 0;
     waveRef.current = 1;
     if (!advanceToWave(1)) {
+      // Pressing Retry again re-mints a different seed (`Date.now()` above), which is
+      // why the live button is a real remedy and not just a nicer-looking dead end.
+      setWaveBuildFailedWave(1);
       return;
     }
     modeRef.current = 'endless';
@@ -948,6 +1009,7 @@ export function PlayingHost({
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
+    setWaveBuildFailedWave(null);
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);
@@ -1000,6 +1062,7 @@ export function PlayingHost({
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
+    setWaveBuildFailedWave(null);
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);
@@ -1045,6 +1108,7 @@ export function PlayingHost({
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
+    setWaveBuildFailedWave(null);
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);
@@ -1094,6 +1158,7 @@ export function PlayingHost({
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
+    setWaveBuildFailedWave(null);
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);
@@ -1136,6 +1201,7 @@ export function PlayingHost({
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
+    setWaveBuildFailedWave(null);
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);

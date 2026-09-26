@@ -137,15 +137,27 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toBeLessThan(starsAt);
   });
 
-  it('a generated-board compile failure is loud and never falls through to run end (Pitfall 6)', () => {
+  /**
+   * 11-07 Task 4 rewrote this contract, and deliberately kept its PROPERTY: a
+   * generated-board compile failure must be loud, and `advanceToWave` itself must
+   * never fall through into a run-end path — it reports `false` and the CALLER
+   * decides what that means. What changed is where "loud" lands. The original
+   * routed the failure into `LevelErrorOverlay` via `genIssues`; 11-UI-SPEC
+   * § Copywriting → `Error state (board)` forbids exactly that, because
+   * `GameScreen` suppresses `showResult` whenever `levelError` is non-null, so the
+   * player was left facing a control-less modal in front of a live sim. The
+   * replacement is the run-ending branch in `applyChrome`, pinned below.
+   *
+   * The BEHAVIOUR this shape produces is driven end to end in
+   * `PlayingHost.endless-retry.test.tsx` ("a wave that cannot be built ENDS the
+   * run"). These contracts pin statement placement and stand in for none of it.
+   */
+  it('a generated-board compile failure is loud and never falls through to run end (Pitfall 6, as superseded)', () => {
     const m = code.match(
       /const advanceToWave = useCallback\(([\s\S]*?)\n {4}\[/,
     );
     expect(m?.[1], 'advanceToWave must be extractable').toBeTruthy();
     const body = m![1];
-    expect(body, 'the failure path must surface the existing level-error UI').toMatch(
-      /setGenIssues\(/,
-    );
     expect(body, 'the failure path must log the issues under the full __DEV__ guard').toMatch(
       /typeof __DEV__ !== 'undefined' && __DEV__/,
     );
@@ -155,8 +167,53 @@ describe('PlayingHost endless host (source contract)', () => {
     ).not.toMatch(/handleRunEnded|setResult\(/);
     expect(
       code,
-      'genIssues must actually reach levelError, or the error UI never renders',
-    ).toMatch(/const levelError = genIssues \?\?/);
+      'levelError must derive from the CATALOG load alone — a generated board that fails to compile must never render LevelErrorOverlay (11-UI-SPEC Error state (board))',
+    ).toMatch(/const levelError = loadResult\.ok \? null : loadResult\.issues;/);
+    expect(
+      code,
+      'genIssues is removed, not merely bypassed — a surviving declaration, setter call or levelError fold is a live route back into the trap (codeOnly strips // only, so these patterns match code forms, never the prose that explains the removal)',
+    ).not.toMatch(/const \[genIssues|setGenIssues\(|genIssues \?\?/);
+  });
+
+  it('the failed wave build ends the run and releases the guard, inside the endless branch (WR-04 / SC-1)', () => {
+    expect(
+      endlessBranch,
+      'the endless WON branch must be extractable, or every ordering claim here is vacuous',
+    ).not.toBe('');
+    const failure = endlessBranch.match(
+      /if \(advanceToWave\(waveRef\.current \+ 1\)\) \{[\s\S]*?\} else \{([\s\S]*?)\n {10}\}/,
+    );
+    expect(
+      failure?.[1],
+      'the returned-false path must be an explicit else branch, not a fall-through',
+    ).toBeTruthy();
+    const body = failure![1];
+    expect(
+      body,
+      'a latched waveAdvanceInFlightRef swallows every later WON — the failure path must clear it (SC-1)',
+    ).toMatch(/waveAdvanceInFlightRef\.current = false/);
+    expect(
+      body,
+      'the wave that could NOT be built is recorded for the copy in 11-08',
+    ).toMatch(/setWaveBuildFailedWave\(waveRef\.current \+ 1\)/);
+    expect(
+      body,
+      'the in-flight run must be recorded, through the same runEndedRef funnel (T-09-10)',
+    ).toMatch(/runEndedRef\.current = true/);
+    expect(
+      body,
+      "and recorded as abandoned — the player did not lose it",
+    ).toMatch(/'abandoned'/);
+    expect(
+      body,
+      'the frame loop must stop, or a live sim runs behind the overlay with keepAwake mounted (T-11-07-04)',
+    ).toMatch(/setActive\(false\)/);
+    const clearAt = body.search(/waveAdvanceInFlightRef\.current = false/);
+    const recordAt = body.search(/handleRunEnded\(/);
+    expect(
+      clearAt,
+      'release the guard BEFORE the record — handleRunEnded is the cold path and must not sit between the failure and the release',
+    ).toBeLessThan(recordAt);
   });
 
   it('the compiled-push effect is a no-op during an endless run, gated by ref (SC-5)', () => {

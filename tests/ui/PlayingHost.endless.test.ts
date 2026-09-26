@@ -59,6 +59,25 @@ describe('PlayingHost endless entry and wave contracts (source contract)', () =>
     return m?.[1] ?? '';
   })();
 
+  /**
+   * The SUCCESS path only: the consequent of `if (advanceToWave(...))`, terminated at
+   * its `else`.
+   *
+   * 11-07 Task 4 gave the wave-advance branch an explicit failure `else`, and the two
+   * prohibitions below had to move here with it. They assert what a wave TRANSITION
+   * may not cost — no gate churn, no run end — and that claim is about a transition
+   * that actually happened. On the failure path `setActive(false)` and `handleRunEnded`
+   * are contract-MANDATED (11-UI-SPEC § Run boundaries, `advanceToWave(n) returns
+   * false`: end the run, record it, clear the guard), so asserting their absence over
+   * the whole branch would forbid the fix rather than protect SC-1/SC-5.
+   */
+  const waveSuccessPath = (() => {
+    const m = waveBranch.match(
+      /if \(advanceToWave\(waveRef\.current \+ 1\)\) \{([\s\S]*?)\n {10}\} else \{/,
+    );
+    return m?.[1] ?? '';
+  })();
+
   it('the endless entry lives inside the one __DEV__-guarded dev row (D-05)', () => {
     expect(devRow, 'the dev row must be extractable').not.toBe('');
     expect(
@@ -87,23 +106,35 @@ describe('PlayingHost endless entry and wave contracts (source contract)', () =>
   it('the endless wave advance never touches the gate or the campaign level id (SC-5)', () => {
     expect(waveBranch, 'the wave-advance branch must be extractable').not.toBe('');
     expect(
-      waveBranch,
+      waveSuccessPath,
+      'the SUCCESS path must be extractable and non-empty, or both prohibitions below are vacuous',
+    ).not.toBe('');
+    expect(
+      waveSuccessPath,
       'a wave transition must cost no gate churn — setActive here re-enters the cold path (SC-5)',
     ).not.toMatch(/setActive\s*\(/);
     expect(
-      waveBranch,
+      waveSuccessPath,
       'the wave path must never touch levelId — the generated board has no catalog id (SC-5)',
     ).not.toMatch(/setLevelId\s*\(/);
     expect(
-      waveBranch,
+      waveSuccessPath,
       'the branch must still do its job: request the advance on the loop handle',
     ).toMatch(/advanceWave\(\)/);
+    expect(
+      waveBranch,
+      'and the levelId prohibition holds across the whole branch, failure path included',
+    ).not.toMatch(/setLevelId\s*\(/);
   });
 
   it('a cleared board never ends an endless run (SC-1)', () => {
     expect(
-      waveBranch,
-      'handleRunEnded in the wave-advance branch would end the run on a WIN — SC-1 says the run ends only at zero lives',
+      waveSuccessPath,
+      'the SUCCESS path must be extractable and non-empty, or the prohibition below is vacuous',
+    ).not.toBe('');
+    expect(
+      waveSuccessPath,
+      'handleRunEnded on a SUCCESSFUL wave advance would end the run on a WIN — SC-1 says the run ends only at zero lives (a board that could not be BUILT is the separate, contracted failure path)',
     ).not.toMatch(/handleRunEnded\s*\(/);
     expect(
       waveBranch,
