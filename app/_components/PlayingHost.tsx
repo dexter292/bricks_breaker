@@ -463,13 +463,29 @@ export function PlayingHost({
       .getBestForLevel(levelId)
       .then((b) => {
         if (cancelled) return;
+        // The ASSIGNMENT is the campaign PB cache and is unconditional by design: it
+        // must stay warm while endless is live so the campaign Best is correct the
+        // moment the player exits, with no storage round trip.
         previousBestRef.current = b;
-        setResultBest(b);
+        // The PUBLICATION is the player-visible record and belongs to the mode the
+        // player is actually in. 11-VERIFICATION.md gap 1: unguarded, this line
+        // repainted a MOUNTED endless Results overlay's `Best ·` with a campaign
+        // per-level best (measured 4200 -> 7777) whenever the read landed late.
+        // The endless exit republishes the cached value synchronously — see
+        // `toggleDevLevel`.
+        if (modeRef.current !== 'endless') {
+          setResultBest(b);
+        }
       })
       .catch(() => {
         if (cancelled) return;
+        // Same split on the fail-soft arm: the cache zeroes unconditionally, the
+        // publication is mode-gated. An endless player must not have their `Best ·`
+        // reset to 0 by a CAMPAIGN read failing.
         previousBestRef.current = 0;
-        setResultBest(0);
+        if (modeRef.current !== 'endless') {
+          setResultBest(0);
+        }
       });
     return () => {
       cancelled = true;
