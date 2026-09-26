@@ -258,7 +258,7 @@ mode and the wave-advance guard — and every reset now routes to it:
 | `__DEV__` `Endless` button (`onPress={startEndlessRun}`) | It stays mounted and tappable for the **whole** run, so a second press mid-run is a boundary. The in-flight run is recorded `abandoned` at the wave reached, then a **new run starts at wave 1** — because the funnel is the first statement of `startEndlessRun()` itself, not a call sitting at some of its callers |
 | `Lv` (`toggleDevLevel`) | Records the in-flight run `abandoned` at the wave reached, then **exits endless**: `modeRef` / `mode` return to `'campaign'`, the `W{n}` readout disappears, `waveRef` and the wave-advance guard clear, and the next run is a **campaign** run recorded through the campaign arm (assumption **A-02**, owner decision of 2026-09-26) |
 | A wave that will not compile | **Ends the run.** The advance guard is released, the run is recorded `abandoned` at the last successfully built wave, and the frame loop stops |
-| `Cert WC` (`runCertWorstCase`) | A boundary **only through its tier half**, and only when the forced quality tier is not already `mid`: setting it fires the `__DEV__` tier-change row above, so the in-flight run is recorded `abandoned` at the wave it reached and a new run starts at wave 1 (measured 2026-09-26 from a live run at wave 2 — readout `W2` → `W1`, one `recordRunEnd` call carrying `{mode:'endless', wave:2, outcome:'abandoned'}`). **With the tier already `mid` it is no longer a run boundary at all.** Its other half used to force `level-03`; since `11-14` that half does not fire while the mode is endless, so the press leaves the run live — measured `W2` → `W2`, the level unchanged, `recordRunEnd` not called and no `setActive` call of any kind. It still injects the worst-case load onto the live board, which is a hazard during a measurement but not a run boundary |
+| `Cert WC` (`runCertWorstCase`) | A boundary **only through its tier half**, and only when the forced quality tier is not already `mid`: setting it fires the `__DEV__` tier-change row above, so the in-flight run is recorded `abandoned` at the wave it reached and a new run starts at wave 1 (measured 2026-09-26 from a live run at wave 2 — readout `W2` → `W1`, one `recordRunEnd` call carrying `{mode:'endless', wave:2, outcome:'abandoned'}`). On that branch the press **injects nothing** — the function returns at its `defer` branch before the injection — and, **Re-scoped 2026-09-26 (round 4)**, it now **arms nothing** either: before round 4 it deferred a worst-case injection that discharged either onto a later campaign `level-03` session that never pressed the button, or — when the run was already on `level-03` — onto the freshly restarted endless board. Both were measured, and both are now 0. **With the tier already `mid` it is no longer a run boundary at all.** Its other half used to force `level-03`; since `11-14` that half does not fire while the mode is endless, so the press leaves the run live — measured `W2` → `W2`, the level unchanged, `recordRunEnd` not called and no `setActive` call of any kind. On THAT branch it does still inject the worst-case load onto the live board (measured `injectCertWorstCase` 0 → 1), which is a hazard during a measurement but not a run boundary |
 
 **The record-first rule is enforced in exactly one place: the first statement of
 `startEndlessRun()`.** That placement is the point, not an implementation detail. Enforced at the
@@ -430,14 +430,36 @@ it, and the discharge procedure with it.
 >   its endless branch routes straight to `startEndlessRun()`, so the run you are measuring is
 >   recorded `abandoned` and **restarted at wave 1**. That is reason enough on its own: the run
 >   under measurement is gone and a fresh wave-1 run is in front of you.
-> - **`Cert WC`** (`runCertWorstCase`) still **injects the worst-case ball, particle and shake
->   load onto the board under measurement**, which alone disqualifies any frame time captured
->   across it — that is a deliberately pathological frame, not a wave transition. Beyond that its
->   two halves now behave differently from each other, and both were measured on 2026-09-26:
+> - **`Cert WC`** (`runCertWorstCase`) is hazardous on **both** of its branches, but the
+>   injection claim this bullet used to open with unconditionally is true of only ONE of them,
+>   and this is the branch it is true of: **when the forced tier is ALREADY `mid`** the press
+>   **injects the worst-case ball, particle and shake load onto the board under measurement** —
+>   measured `injectCertWorstCase` 0 → 1, with the run still live — and that injection alone
+>   disqualifies any frame time captured across it, because it is a deliberately pathological
+>   frame rather than a wave transition. **When the tier is NOT already `mid` the function
+>   returns at its `defer` branch before the injection and injects NOTHING** (measured
+>   `injectCertWorstCase` 0 → 0). The reading is disqualified on that branch too, but for the
+>   different reason the first sub-bullet below already gives — the run under measurement was
+>   recorded `abandoned` and restarted at wave 1, so there is no longer a run to measure. Its
+>   two halves behave differently from each other, and both were measured on 2026-09-26:
 >   - **the tier half**, when the tier is **not already `mid`**, sets it to `mid`, which is the
 >     tier button's path above: the run is recorded `abandoned` at the wave it had reached and
 >     **restarted at wave 1** (measured from a live run at wave 2: readout `W2` → `W1`,
 >     `recordRunEnd` called once with `{mode:'endless', wave:2, outcome:'abandoned'}`).
+>     - **Re-scoped 2026-09-26 (round 4).** Before this round that branch also left an **armed
+>       one-shot** behind it. The press injected nothing, as above — but it still deferred a
+>       worst-case injection, and where that injection eventually landed depended on where the
+>       session already was, which is why it had to be measured on both sub-branches rather than
+>       reasoned about. Starting **below `level-03`**: 0 injections at the press, and then
+>       **exactly one on a later campaign session that never pressed the button**, fired by
+>       walking the `Lv` control forward to `level-03`. Starting **already on `level-03`** — the
+>       shipped default level, so the common case, and a sub-branch no earlier round measured:
+>       the restarted endless run satisfied the deferral's own preconditions itself and took the
+>       injection, one, onto the fresh wave-1 board. Since this round **an endless press arms no
+>       deferral at all** — including on that second sub-branch, where one could have discharged —
+>       this branch now leaves nothing behind on either: measured **0 injections at the press and
+>       0 across the whole `Lv` walk**. The operator does not have to think about it. It is
+>       recorded here because the previous revision of this block would have had to warn about it.
 >   - **the tier half is a no-op when the tier is already `mid`**, and — new on 2026-09-26 — the
 >     **level half no longer fires at all while the mode is endless**. Measured from a live run
 >     at wave 2 on `level-01` with the tier already Mid: the readout stayed at `W2`, the dev
