@@ -1209,6 +1209,18 @@ export function PlayingHost({
     setResultStars(null);
     setNextGateId(null);
     runEndedRef.current = true;
+    // 11-13 Task 2 — the third ended-run state gets the same shape as the other two.
+    //
+    // DEFENCE IN DEPTH, not a live defect fix, and the distinction matters: as of
+    // 11-13 Task 1 the endless WON branch returns on `runEndedRef` regardless of what
+    // this guard holds, so nothing reads a stale value today. What this removes is the
+    // asymmetry itself — a failed START previously INHERITED whatever
+    // `waveAdvanceInFlightRef` the PREVIOUS run left behind (`11-REVIEW.md` IN-02),
+    // which made it the one ended-run state whose post-condition differed from LOST
+    // and from the mid-run wave-build failure for no stated reason. Every path that
+    // begins a run (`startEndlessRun`'s success tail) already clears both refs; this
+    // is the matching clear on the path that ENDS one.
+    waveAdvanceInFlightRef.current = false;
     setUiPhase('playing');
     setResult('lose');
     setActive(false);
