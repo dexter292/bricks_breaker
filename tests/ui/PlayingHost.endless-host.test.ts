@@ -1346,4 +1346,56 @@ describe('PlayingHost endless host (source contract)', () => {
       'toggleDevLevel is the ONLY writer returning modeRef to campaign — if a second appears, the A-02 note above needs rewriting',
     ).toBe(1);
   });
+
+  /**
+   * 11-16 Task 2 Step B — round-4 gap 2, the cert deferral's run-mode term.
+   *
+   * WHAT THIS DOES NOT PROVE. Counting an expression in source proves the WRITE and
+   * nothing else. It cannot show that the one-shot fails to discharge, because the
+   * discharge lives in a different function — the deferred-inject effect — whose
+   * preconditions are evaluated on a later render, on a session that may be in the
+   * other mode entirely. That is exactly the shape of the defect this term closes,
+   * so a source count alone would be blind to a regression of it.
+   *
+   * The behaviour is proved in `tests/ui/PlayingHost.endless-retry.test.tsx`, by the
+   * two endless cases in the `Cert WC` describe — "while endless below level-03, Cert
+   * WC arms nothing" (which walks the dev level control to the consumer effect's
+   * level and asserts zero injections) and "while endless already on level-03, Cert
+   * WC injects nothing either". The two campaign cases beside them prove the other
+   * side of the condition still fires. This contract is the SECONDARY instrument.
+   */
+  describe('runCertWorstCase — the deferral arm (round-4 gap 2)', () => {
+    const certBody = (() => {
+      const m = code.match(
+        /const runCertWorstCase = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+
+    it('runCertWorstCase parsed — the harness itself is honest', () => {
+      expect(
+        certBody,
+        'runCertWorstCase must be extractable, or both contracts below are vacuously green',
+      ).not.toBe('');
+    });
+
+    it('the pending-cert arm carries the run-mode term (gap 2)', () => {
+      expect(
+        certBody,
+        'a deferral armed while endless can only be discharged by a session this function has made unreachable — arm it conditionally or not at all',
+      ).toMatch(/certPendingRef\.current = modeRef\.current !== 'endless';/);
+      expect(
+        certBody,
+        'and unconditionally NOWHERE — a second bare arm would restore the hazard beside the guarded one',
+      ).not.toMatch(/certPendingRef\.current = true;/);
+    });
+
+    it('exactly one level-forcing call remains (11-14 count, unmoved)', () => {
+      expect(
+        (certBody.match(/setLevelId\('level-03'\)/g) ?? []).length,
+        '11-14 pinned this at one and measured the failure mode directly: an explanatory comment that named the call in prose made its own gate read 2. Line comments only in that function, and never restate this literal.',
+      ).toBe(1);
+    });
+  });
+
 });

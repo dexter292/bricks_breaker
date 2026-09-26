@@ -1570,6 +1570,16 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       setActive.mock.calls.filter((c) => c[0] === false),
       'measured pre-fix: the level switch re-entered the bake cold path and stopped the loop behind a live HUD',
     ).toHaveLength(0);
+    // 11-16 Task 2, case E3. BRANCH: endless with the tier ALREADY Mid — both halves
+    // no-op, `defer` stays false and the injection happens DIRECTLY, with no deferral
+    // to arm. It is the only branch of this control the ops document's injection
+    // claim was ever true of, which is why § Limits item 2 now scopes that claim to
+    // it. The mode term Task 1 added is on the deferral arm, so it cannot reach here —
+    // and this assertion is what proves the endless fix did not silence the control.
+    expect(
+      injectCertWorstCase,
+      'the worst-case load still lands on the live endless board — exactly once, undeferred',
+    ).toHaveBeenCalledTimes(1);
   });
 
   /**
@@ -1715,5 +1725,90 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       levelSwitchLabel(),
       'measured pre-fix: still level-03 — the level half no-ops because it is already there',
     ).toBe(LV_03);
+  });
+
+  /**
+   * 11-16 Task 2, case C1. BRANCH: CAMPAIGN, below `level-03`, tier not Mid — both
+   * halves fire, so the press defers, and this is the side of Task 1's new condition
+   * that Task 1 does NOT change. Without it the endless fix could have closed the
+   * hazard by breaking the cert harness outright — a deferral that never arms at all
+   * would make every endless case above pass and the control useless (T-11-39).
+   */
+  it('a CAMPAIGN press below level-03 still arms the deferral and discharges it exactly once', async () => {
+    await mountOnly();
+    expect(
+      screen.queryByText('W1'),
+      'mountOnly leaves the host in CAMPAIGN mode — no endless run, no wave readout',
+    ).toBeNull();
+    expect(levelSwitchLabel(), 'and below level-03, so the level half fires').toBe(
+      LV_01,
+    );
+    expect(
+      screen.getByRole('button', { name: TIER_AUTO }),
+      'and with the tier unset, so the tier half fires too — this press DEFERS',
+    ).toBeTruthy();
+
+    injectCertWorstCase.mockClear();
+    await press(CERT);
+    await settle();
+
+    // The rendered proof the deferral's own preconditions actually settled: if the
+    // level or the tier had not moved, the count below would be a vacuous zero.
+    expect(
+      levelSwitchLabel(),
+      'the level half moved the session to where the consumer effect wants it',
+    ).toBe(LV_03);
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'and the tier half moved the tier — both preconditions of the deferred inject',
+    ).toBeTruthy();
+    expect(
+      injectCertWorstCase,
+      'the campaign harness is untouched by the endless fix: the one-shot armed and discharged ONCE',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * 11-16 Task 2, case C2. BRANCH: CAMPAIGN, already at `level-03` with the tier
+   * already Mid — both halves no-op, `defer` stays false and the injection is DIRECT,
+   * never touching `certPendingRef` at all. Together with C1 this pins both campaign
+   * routes through the control, so the count Task 1 changed can be attributed.
+   *
+   * What this case cannot see: it asserts the COUNT, not the route. `settle()` runs
+   * the timers either way, so a direct call and a 50 ms deferred call are
+   * indistinguishable from here — the route is a property of `runCertWorstCase`'s
+   * `defer` flag and is pinned at source in `PlayingHost.endless-host.test.ts`.
+   */
+  it('a CAMPAIGN press already at level-03 with the tier Mid injects exactly once, with nothing deferred', async () => {
+    await mountOnly();
+    for (let i = 0; i < 4; i += 1) {
+      await pressLevelSwitch();
+      await settle();
+    }
+    expect(
+      levelSwitchLabel(),
+      'four Lv presses reach level-03 — the level half must have nothing left to do',
+    ).toBe(LV_03);
+    await press(TIER_AUTO); // null -> low
+    await settle();
+    await press(TIER_LOW); // low -> mid
+    await settle();
+    expect(
+      screen.getByRole('button', { name: TIER_MID }),
+      'and the tier is already Mid — the tier half must have nothing left to do either',
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('W1'),
+      'still CAMPAIGN — no endless run was ever started',
+    ).toBeNull();
+
+    injectCertWorstCase.mockClear();
+    await press(CERT);
+    await settle();
+
+    expect(
+      injectCertWorstCase,
+      'exactly one injection; this case asserts the COUNT, not that the call skipped the deferral',
+    ).toHaveBeenCalledTimes(1);
   });
 });
