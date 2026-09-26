@@ -86,6 +86,64 @@ describe('GameScreen', () => {
     expect(screen.getByText('Paused')).toBeTruthy();
   });
 
+  /**
+   * The two negatives of the case above, and the reason they exist.
+   *
+   * The phase-11 round-5 verifier applied `&&` -> `||` to `showPauseOverlay`
+   * (`src/runtime/GameScreen.tsx:110-111`), giving
+   * `!hasLevelError && uiPhase === 'paused' || result == null`, and ran the
+   * WHOLE of `tests/ui`: 16 files / 142 tests, ALL GREEN — this file's 6 cases
+   * included. The pause overlay renders during normal play under that mutation
+   * and nothing in the repository saw it.
+   *
+   * BOTH upstream explanations for why it would have been caught were measured
+   * false. The planner's premise was that a sibling structural gate greps the
+   * conjunction as one literal: ASSERTION 5 in
+   * `tests/ui/PlayingHost.endless-host.test.ts` matches `result == null` and
+   * `uiPhase === 'paused'` as two INDEPENDENT regexes, so both still match once
+   * the connecting operator flips. 11-REVIEW WR-03's correction was that "the
+   * kill comes from two pre-existing cases in tests/ui/GameScreen.test.tsx":
+   * before this pair there was no such case — the file asserted only the
+   * POSITIVE direction, and a positive case is green under `||` by definition.
+   *
+   * REJECTED ALTERNATIVE: extend the source gate to match the whole conjunction
+   * as one literal. Rejected because a prettier re-wrap of that assignment would
+   * red it with no behaviour changing, and because a source literal cannot
+   * distinguish "the operator is `&&`" from "the operator is spelled `&&` on
+   * this line" — a render case cannot be satisfied by formatting. ASSERTION 5
+   * stays exactly as 11-17 left it: it asserts the two TERMS are present, these
+   * cases assert the OPERATOR between them, and both are wanted.
+   *
+   * Case 2 carries a POSITIVE CONTROL (`Retry level`) on purpose. A case that
+   * only checks a `queryBy...` is null also passes when the component rendered
+   * nothing at all, which is how a blind harness produces a green that means
+   * nothing — this phase has now paid for that twice.
+   */
+  it('playing + no result: no pause overlay — no Resume, no Paused', () => {
+    render(createElement(GameScreen, baseProps()));
+
+    expect(
+      screen.queryByRole('button', { name: 'Resume game' }),
+    ).toBeNull();
+    expect(screen.queryByText('Paused')).toBeNull();
+  });
+
+  it('paused + a result: no pause overlay — the result overlay owns the screen', () => {
+    render(
+      createElement(
+        GameScreen,
+        baseProps({ uiPhase: 'paused', result: 'lose' }),
+      ),
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Resume game' }),
+    ).toBeNull();
+    // Positive control: the result overlay DID render, so the absence above is
+    // the pause gate refusing rather than the screen rendering nothing.
+    expect(screen.getByRole('button', { name: 'Retry level' })).toBeTruthy();
+  });
+
   it('result win: shows Win / Retry from ResultOverlay', () => {
     render(
       createElement(
