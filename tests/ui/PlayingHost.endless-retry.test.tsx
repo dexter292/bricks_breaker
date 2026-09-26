@@ -488,4 +488,97 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       'the endless arm has NO levelId — that absence is what makes the campaign write unreachable (D-11 / SC-3)',
     ).not.toHaveProperty('levelId');
   });
+
+  it('a DEV tier change during a live endless run records it before restarting (gap 1)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    const wave2 = boardFingerprint();
+    expect(screen.getByText('W2')).toBeTruthy();
+
+    // `remountDevSession` is reached exactly as a developer reaches it: the dev-row
+    // tier button runs `cycleDevTier`, and the `tierOverrideRef` effect calls the
+    // remount. The glow-bake effect does not depend on the tier (its array ends
+    // `loadResult, loadKey`), so the press cannot flip `fxReady` and make the restart
+    // return at its own guard.
+    await press('Force quality tier, current Auto mid');
+
+    expect(
+      recordRunEnd,
+      'the in-flight run must be recorded before the reset discards its wave',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode).toBe('endless');
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome).toBe('abandoned');
+    expect(args.wave, 'recorded at the wave reached BEFORE the reset').toBe(2);
+    expect(screen.getByText('W1'), 'and then it is a new run at wave 1').toBeTruthy();
+    expect(boardFingerprint(), 'on a freshly generated board').not.toBe(wave2);
+  });
+
+  it('Pause then Retry records the in-flight run, then restarts at wave 1 (UI-SPEC run boundaries)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+
+    await press('Pause game');
+    await press('Pause panel Retry');
+
+    expect(recordRunEnd, 'exactly one abandoned record').toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome).toBe('abandoned');
+    expect(args.wave, 'at the wave reached before the reset').toBe(2);
+    expect(screen.getByText('W1')).toBeTruthy();
+    expect(hostProps.current?.lives, 'lives reset').toBe(3);
+    expect(hostProps.current?.score, 'score reset').toBe(0);
+  });
+
+  it('Pause then Menu keeps its existing abandon funnel, unchanged (T-09-10)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+
+    await press('Pause game');
+    await press('Pause panel Menu');
+
+    expect(recordRunEnd).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.outcome).toBe('abandoned');
+    expect(args.wave).toBe(2);
+  });
+
+  it('Menu after the run already ended records nothing extra — the funnel cannot double-record', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(recordRunEnd, 'the loss recorded once').toHaveBeenCalledTimes(1);
+
+    await press('Menu');
+
+    expect(
+      recordRunEnd,
+      'runEndedRef is the single funnel — a finished run leaving to Menu records nothing extra',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('the dev-row wave readout carries a screen-reader label naming the wave (11-UI-SPEC)', async () => {
+    await mountAndStartEndless();
+
+    expect(
+      screen.getByLabelText('Wave 1'),
+      'a bare W1 reads as nonsense to a screen reader',
+    ).toBeTruthy();
+    expect(screen.getByText('W1'), 'the visible readout is unchanged').toBeTruthy();
+
+    await advanceToWaveTwo();
+
+    expect(screen.getByLabelText('Wave 2')).toBeTruthy();
+    expect(screen.getByText('W2')).toBeTruthy();
+    expect(screen.queryByLabelText('Wave 1')).toBeNull();
+  });
 });

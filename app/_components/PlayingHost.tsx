@@ -1124,6 +1124,15 @@ export function PlayingHost({
     if (!levelReady || levelError != null || !fxReady) {
       return;
     }
+    // 11-07 gap 1, second half. A DEV tier change during a live endless run used to
+    // reset lives/score/combo while leaving `waveRef`, `runSeedRef` and
+    // `waveAdvanceInFlightRef` untouched — silently discarding the in-flight run and
+    // carrying its wave into the next loss. Same funnel, same route as `onRetry`.
+    if (modeRef.current === 'endless') {
+      recordInFlightEndlessRun();
+      startEndlessRun();
+      return;
+    }
     clearCountdown();
     setCountdownNumeral(null);
     setResult(null);
@@ -1144,7 +1153,16 @@ export function PlayingHost({
     setUiPhase('playing');
     retry();
     setActive(true);
-  }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
+  }, [
+    clearCountdown,
+    retry,
+    setActive,
+    levelReady,
+    levelError,
+    fxReady,
+    recordInFlightEndlessRun,
+    startEndlessRun,
+  ]);
 
   // When DEV tier override changes, remount play session (pools reallocated via useGameLoop).
   const tierOverrideRef = useRef(tierOverride);
@@ -1295,8 +1313,16 @@ export function PlayingHost({
         >
           <Text style={styles.devSwitchLabel}>Endless</Text>
         </Pressable>
+        {/*
+          11-UI-SPEC § Copywriting → Accessibility labels: a bare `W17` reads as
+          nonsense to a screen reader. Visible text, style and the `mode` gate are
+          deliberately unchanged — only the label is added.
+        */}
         {mode === 'endless' ? (
-          <Text style={styles.devSwitchLabel}>{`W${wave}`}</Text>
+          <Text
+            accessibilityLabel={`Wave ${wave}`}
+            style={styles.devSwitchLabel}
+          >{`W${wave}`}</Text>
         ) : null}
         <Pressable
           accessibilityRole="button"

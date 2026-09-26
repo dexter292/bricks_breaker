@@ -197,4 +197,85 @@ describe('PlayingHost endless host (source contract)', () => {
       /compileGeneratedLevel/,
     );
   });
+
+  /**
+   * 11-07 gap 1 — WHERE the endless run-boundary branches sit.
+   *
+   * These two contracts pin statement PLACEMENT and nothing more. The five
+   * run-boundary BEHAVIOURS are driven through the real host in
+   * `PlayingHost.endless-retry.test.tsx`, because `11-VERIFICATION.md` § Gaps Summary
+   * is explicit that the existing suite could not see gap 1 and that a source-level
+   * shape is what let it ship — so nothing here stands in for a driven case.
+   */
+  const onRetryBody = (() => {
+    const m = code.match(
+      /const onRetry = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  const remountDevSessionBody = (() => {
+    const m = code.match(
+      /const remountDevSession = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  it('the run-boundary regions parse — the harness itself is honest', () => {
+    expect(
+      onRetryBody,
+      'onRetry must be extractable, or its ordering contract below is vacuous',
+    ).not.toBe('');
+    expect(
+      remountDevSessionBody,
+      'remountDevSession must be extractable, or its ordering contract below is vacuous',
+    ).not.toBe('');
+  });
+
+  it('onRetry routes an endless Retry to startEndlessRun before the campaign retry() (gap 1)', () => {
+    const endlessAt = onRetryBody.search(
+      /if \(modeRef\.current === 'endless'\) \{/,
+    );
+    const retryAt = onRetryBody.search(/\n\s*retry\(\);/);
+    expect(
+      endlessAt,
+      'onRetry must branch on the mode — the campaign reset is not a new endless run',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      retryAt,
+      'the campaign retry() must still exist — campaign behaviour is unchanged',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'behind retry() the branch would never run, and lives would refill on the wave-N board',
+    ).toBeLessThan(retryAt);
+    expect(
+      onRetryBody,
+      'the branch must record the in-flight run, route to startEndlessRun, and RETURN',
+    ).toMatch(
+      /if \(modeRef\.current === 'endless'\) \{\s*recordInFlightEndlessRun\(\);\s*startEndlessRun\(\);\s*return;\s*\}/,
+    );
+  });
+
+  it('remountDevSession routes the same way (gap 1, second half)', () => {
+    const endlessAt = remountDevSessionBody.search(
+      /if \(modeRef\.current === 'endless'\) \{/,
+    );
+    const retryAt = remountDevSessionBody.search(/\n\s*retry\(\);/);
+    expect(
+      endlessAt,
+      'a DEV tier change during an endless run must not silently discard it',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      retryAt,
+      'the campaign remount path must still exist',
+    ).toBeGreaterThanOrEqual(0);
+    expect(endlessAt).toBeLessThan(retryAt);
+    expect(
+      remountDevSessionBody,
+      'the branch must record the in-flight run, route to startEndlessRun, and RETURN',
+    ).toMatch(
+      /if \(modeRef\.current === 'endless'\) \{\s*recordInFlightEndlessRun\(\);\s*startEndlessRun\(\);\s*return;\s*\}/,
+    );
+  });
 });
