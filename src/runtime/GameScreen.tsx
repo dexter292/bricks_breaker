@@ -29,6 +29,16 @@ export type GameScreenProps = {
   lives: number;
   score: number;
   best: number;
+  /**
+   * Which record domain the Results overlay is reading (11-08 / gap 2).
+   * `src/runtime` receives plain numbers and a discriminant — it never imports the
+   * storage layer, so the boundaries matrix is unchanged (LC-05).
+   */
+  mode: 'campaign' | 'endless';
+  /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
+  wave: number;
+  /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
+  bestWave: number;
   isNewRecord: boolean;
   combo: number;
   stallTier: number;
@@ -64,6 +74,9 @@ export function GameScreen({
   lives,
   score,
   best,
+  mode,
+  wave,
+  bestWave,
   isNewRecord,
   combo,
   stallTier,
@@ -165,8 +178,11 @@ export function GameScreen({
         {showResult ? (
           <ResultOverlay
             kind={result!}
+            mode={mode}
             score={score}
             best={best}
+            wave={wave}
+            bestWave={bestWave}
             isNewRecord={isNewRecord}
             stars={stars}
             onRetry={onRetry}

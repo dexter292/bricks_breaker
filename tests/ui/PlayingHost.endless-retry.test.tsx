@@ -282,6 +282,14 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
     ...actual,
     createDefaultProgressStore: () => ({
       getBestForLevel: () => Promise.resolve(0),
+      // 11-08 seeds the endless watermark refs from this at mount. Zeros here, so
+      // this file's contracts are unchanged: the display half is not what it drives.
+      getSnapshot: () =>
+        Promise.resolve({
+          bestByLevel: {},
+          unlocked: [],
+          telemetry: { endless: { bestWave: 0, bestScore: 0 } },
+        }),
       recordRunEnd,
       flush: () => Promise.resolve(),
     }),

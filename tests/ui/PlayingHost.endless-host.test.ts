@@ -99,20 +99,102 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toMatch(/waveAdvanceInFlightRef\.current = false/);
   });
 
+  /**
+   * 11-08 REWROTE this contract rather than deleting it, and kept its property.
+   *
+   * It was written against a single `store.recordRunEnd(` call whose argument was a
+   * ternary selecting the union arm. 11-UI-SPEC § Record Display Contract makes the
+   * mode branch happen BEFORE the personal-best comparison — that ordering IS the
+   * gap-2 fix — so the one ternary call is now one call per branch. Asserting the
+   * old shape would have forbidden the fix instead of protecting D-11, so the three
+   * claims below are re-expressed against the branch structure: the arm is still
+   * chosen by `modeRef`, the endless arm still carries the wave reached, and the
+   * campaign arm still carries `levelId`.
+   */
   it('the endless run records through the endless arm of the union, with the wave (N-END-02)', () => {
-    const call = code.match(/store\.recordRunEnd\(([\s\S]*?)\n {6}\);/);
-    expect(call?.[1], 'recordRunEnd must still be called exactly once').toBeTruthy();
-    const args = call![1];
+    const runEnded = code.match(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+    );
+    expect(runEnded?.[1], 'handleRunEnded must be extractable').toBeTruthy();
+    const body = runEnded![1];
+
+    const gateAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
+    const elseAt = body.search(/\n {6}\} else \{\n/);
     expect(
-      args,
+      gateAt,
       "the endless arm must be selected by mode, not by a caller convention (D-11)",
-    ).toMatch(/modeRef\.current === 'endless'/);
-    expect(args, 'the endless arm carries the wave reached (N-END-02)').toMatch(
-      /mode: 'endless'[\s\S]*?wave: waveRef\.current/,
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      elseAt,
+      'the campaign arm must be the else of that same mode gate',
+    ).toBeGreaterThan(gateAt);
+
+    const endlessArm = body.slice(gateAt, elseAt);
+    const campaignArm = body.slice(elseAt);
+    expect(
+      endlessArm,
+      'the endless arm must be extractable and non-empty',
+    ).not.toBe('');
+
+    expect(
+      endlessArm,
+      'the endless arm carries the wave reached (N-END-02)',
+    ).toMatch(/store\.recordRunEnd\(\{\s*mode: 'endless',\s*wave: runWave,/);
+    expect(
+      endlessArm,
+      'the wave recorded is the live ref, never a stale state read (Pitfall 5)',
+    ).toMatch(/const runWave = waveRef\.current;/);
+    expect(
+      campaignArm,
+      'the campaign arm is still reachable and still carries levelId',
+    ).toMatch(/store\.recordRunEnd\(\{\s*levelId,\s*mode: 'campaign',/);
+    expect(
+      endlessArm,
+      'the endless arm must NOT record through the campaign arm',
+    ).not.toMatch(/mode: 'campaign'/);
+  });
+
+  /**
+   * The gap-2 regression fence (11-08). `evaluatePersonalBest` compares against
+   * `previousBestRef`, which holds `store.getBestForLevel(levelId)` — a CAMPAIGN
+   * level best. Calling it on the endless path is the whole defect: it produced the
+   * campaign PB as the endless `Best`, `New Record` against an unrelated score, and
+   * the write-back that poisoned the campaign ref for the life of the mount.
+   */
+  it('the campaign comparison is unreachable from the endless arm (gap 2)', () => {
+    const runEnded = code.match(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
     );
-    expect(args, 'the campaign arm is still reachable and still carries levelId').toMatch(
-      /levelId,\s*mode: 'campaign'/,
-    );
+    const body = runEnded![1];
+    const gateAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
+    const elseAt = body.search(/\n {6}\} else \{\n/);
+    const endlessArm = body.slice(gateAt, elseAt);
+    const campaignArm = body.slice(elseAt);
+
+    expect(
+      endlessArm,
+      'evaluatePersonalBest compares against a CAMPAIGN best — it must not run in endless',
+    ).not.toMatch(/evaluatePersonalBest\s*\(/);
+    expect(
+      endlessArm,
+      'previousBestRef must never be WRITTEN by an endless run (Record Display Contract)',
+    ).not.toMatch(/previousBestRef\.current\s*=/);
+    expect(
+      endlessArm,
+      'the endless record is read from its own watermark refs',
+    ).toMatch(/endlessBestScoreRef\.current/);
+    expect(
+      endlessArm,
+      'the endless record is read from its own watermark refs',
+    ).toMatch(/endlessBestWaveRef\.current/);
+    expect(
+      campaignArm,
+      'the campaign path keeps evaluatePersonalBest and its write-back, unchanged',
+    ).toMatch(/evaluatePersonalBest\(/);
+    expect(
+      campaignArm,
+      'the campaign path keeps evaluatePersonalBest and its write-back, unchanged',
+    ).toMatch(/previousBestRef\.current = best/);
   });
 
   it('an endless run skips the campaign star / next-gate follow-up (SC-3)', () => {

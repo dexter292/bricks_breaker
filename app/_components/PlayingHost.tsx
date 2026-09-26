@@ -94,6 +94,22 @@ function buildRunStatsInput(
   };
 }
 
+/**
+ * Degrade an endless watermark read back from storage to a non-negative integer.
+ *
+ * Mirrors the storage layer's own `safeCounter` (`parseBlob.ts` `sanitizeTelemetry`)
+ * rather than trusting it: this value is read from on-device AsyncStorage, crosses
+ * the persisted-blob → UI trust boundary, and is rendered straight to the player
+ * (T-11-08-03). A hand-edited `telemetry.endless` cannot make the overlay render
+ * `Best · NaN`, and cannot reach campaign state at all — nothing downstream of here
+ * writes `previousBestRef`.
+ */
+function safeWatermark(n: unknown): number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0
+    ? Math.floor(n)
+    : 0;
+}
+
 /** F-18 — release baked SkImages so remount / level change does not leak GPU memory. */
 function disposeGlowAtlas(atlas: GlowAtlas | null | undefined): void {
   if (atlas == null) {
@@ -184,6 +200,16 @@ export function PlayingHost({
   const [stallTier, setStallTier] = useState<number>(0);
   const [result, setResult] = useState<null | 'win' | 'lose'>(null);
   const [resultBest, setResultBest] = useState(0);
+  /**
+   * The two endless-only Results metric values (11-08, 11-UI-SPEC § Endless copy
+   * lines 1 and 4). `resultBest` above is shared — it carries the campaign level PB
+   * in campaign and `telemetry.endless.bestScore` in endless — because `Best · {n}`
+   * is one line whose SOURCE is per mode, which is exactly what the Record Display
+   * Contract table says. `resultBestWave` has no campaign counterpart and stays 0
+   * there; the overlay does not render the line outside endless.
+   */
+  const [resultWave, setResultWave] = useState(0);
+  const [resultBestWave, setResultBestWave] = useState(0);
   const [resultStars, setResultStars] = useState<1 | 2 | 3 | null>(null);
   const [nextGateId, setNextGateId] = useState<LevelId | null>(null);
   const [isNewRecord, setIsNewRecord] = useState(false);
@@ -294,6 +320,23 @@ export function PlayingHost({
     }
   }, []);
   const previousBestRef = useRef(0);
+  /**
+   * The ENDLESS watermarks — the display half of the mode firewall (11-08, gap 2).
+   *
+   * Deliberately a SEPARATE pair from `previousBestRef`, which holds
+   * `store.getBestForLevel(levelId)` — a campaign level best. Before 11-08,
+   * `handleRunEnded` compared an endless run against that campaign number and then
+   * branched on mode, so the endless Results overlay showed a campaign PB as `Best`
+   * and fired `New Record` against an unrelated score. 11-UI-SPEC § Record Display
+   * Contract makes the branch-before-compare the contract, and these refs are the
+   * endless side of the table.
+   *
+   * Refs, not state, for the same reason `waveRef` is: `handleRunEnded` is memoised
+   * and reached from the memoised chrome reaction, so a `useState` read inside it is
+   * whatever the value was when the callback was last built (11-RESEARCH § Pitfall 5).
+   */
+  const endlessBestScoreRef = useRef(0);
+  const endlessBestWaveRef = useRef(0);
   const runEndedRef = useRef(false);
   /**
    * D-09 wall clock — PLAY time, not elapsed time. `runStartedAtRef` marks the start
@@ -424,6 +467,39 @@ export function PlayingHost({
       cancelled = true;
     };
   }, [store, levelId]);
+
+  /**
+   * Seed the endless watermarks once at mount (11-UI-SPEC E1 `loading` / `error`).
+   *
+   * Depends on `store` ALONE, never on `levelId`: the endless record is a single
+   * global pair, not a per-level entry — that is the whole reason it lives in
+   * `telemetry.endless` rather than in `bestByLevel` (SC-3 / D-12). Adding `levelId`
+   * would re-read it on every campaign level switch for no gain.
+   *
+   * Fail-soft to 0 and never block: E1 `error` requires a storage failure to fall back
+   * to the last known values with the overlay still fully playable and NO error modal.
+   * The refs already hold 0 at mount, so the overlay renders `Best · 0` /
+   * `Best wave · 0` immediately (E1 `empty`) and simply improves when the read lands.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void store
+      .getSnapshot()
+      .then((blob) => {
+        if (cancelled) return;
+        const record = blob.telemetry?.endless;
+        endlessBestScoreRef.current = safeWatermark(record?.bestScore);
+        endlessBestWaveRef.current = safeWatermark(record?.bestWave);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        endlessBestScoreRef.current = 0;
+        endlessBestWaveRef.current = 0;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
 
   useEffect(() => {
     const mapped =
@@ -625,11 +701,16 @@ export function PlayingHost({
       livesRemaining: number,
       stats: RunStatsInput,
     ) => {
-      const previous = previousBestRef.current;
-      const { best, isNewRecord: record } = evaluatePersonalBest(
-        runScore,
-        previous,
-      );
+      // 11-UI-SPEC § Record Display Contract: **the mode branch happens FIRST**.
+      //
+      // Gap 2 was precisely the opposite order — `evaluatePersonalBest(runScore,
+      // previousBestRef.current)` ran above this line and the mode branch came after,
+      // so an endless run was compared against a CAMPAIGN level best. That single
+      // ordering produced all three symptoms at once: the campaign PB shown as the
+      // endless `Best`, `New Record` firing against an unrelated campaign score, and
+      // the endless score written back into `previousBestRef` for the rest of the
+      // mount. The two arms below never share a comparison basis again.
+      //
       // Sync memory merge score/stars/unlock; void persist inside store (D-10).
       // `mode`/`stats` are required by the v4 store contract (Phase 9 Plan 02).
       // BOTH modes land here (N-END-02): `RecordRunEndArgs` is a discriminated union
@@ -638,37 +719,74 @@ export function PlayingHost({
       // says so (SC-3). `stats` carries the real per-run reducer output (N-STAT-01),
       // snapshotted by the caller at the run boundary — win, lose and abandon all land
       // on this single call site (C2).
-      const blob = store.recordRunEnd(
-        modeRef.current === 'endless'
-          ? {
-              mode: 'endless',
-              wave: waveRef.current,
-              score: runScore,
-              outcome,
-              livesRemaining,
-              stats,
-            }
-          : {
-              levelId,
-              mode: 'campaign',
-              score: runScore,
-              outcome,
-              livesRemaining,
-              stats,
-            },
-      );
-      setResultBest(best);
-      setIsNewRecord(record);
-      if (record) {
-        previousBestRef.current = best;
-      }
+      let record: boolean;
       if (modeRef.current === 'endless') {
+        const runWave = waveRef.current;
+        // N-END-02 / D-11: strict in BOTH watermarks, and either one is enough. A
+        // deeper run at a lower score is unambiguously a new record; firing on only
+        // one of them would silently elect a primary record, which 11-UI-SPEC defers
+        // to Phase 14. Equality keeps the previous record.
+        record =
+          runScore > endlessBestScoreRef.current ||
+          runWave > endlessBestWaveRef.current;
+        const blob = store.recordRunEnd({
+          mode: 'endless',
+          wave: runWave,
+          score: runScore,
+          outcome,
+          livesRemaining,
+          stats,
+        });
+        // "Displayed values are post-merge" (11-UI-SPEC): `recordRunEnd` returns the
+        // blob SYNCHRONOUSLY and that blob already carries the merged
+        // `telemetry.endless` (`memoryStore.ts` `mergeEndlessRecord`), so this is a
+        // read of the value the merge just produced — not a second, racing
+        // `getSnapshot()`. Fail soft to the pre-run watermarks if the field is absent.
+        const merged = blob.telemetry?.endless;
+        const mergedScore =
+          merged == null
+            ? endlessBestScoreRef.current
+            : safeWatermark(merged.bestScore);
+        const mergedWave =
+          merged == null
+            ? endlessBestWaveRef.current
+            : safeWatermark(merged.bestWave);
+        endlessBestScoreRef.current = mergedScore;
+        endlessBestWaveRef.current = mergedWave;
+        setResultWave(runWave);
+        setResultBest(mergedScore);
+        setResultBestWave(mergedWave);
+        setIsNewRecord(record);
+        // `previousBestRef` is NOT assigned here, and that omission is the fix. It is
+        // the campaign personal best; an endless run may not move it (Record Display
+        // Contract, "Post-run write-back"). `startEndlessRun` and `onRetry` both
+        // republish `previousBestRef.current` into the host's `best` prop, so a write
+        // here would resurface as the campaign best for the life of the mount.
+        //
         // SC-3: an endless run has no catalog level, so there is no `bestByLevel`
         // entry to read stars from and no next level to unlock. Skipping the whole
         // campaign follow-up is what keeps campaign state untouched by endless play.
         setResultStars(null);
         setNextGateId(null);
       } else {
+        const { best, isNewRecord: campaignRecord } = evaluatePersonalBest(
+          runScore,
+          previousBestRef.current,
+        );
+        record = campaignRecord;
+        const blob = store.recordRunEnd({
+          levelId,
+          mode: 'campaign',
+          score: runScore,
+          outcome,
+          livesRemaining,
+          stats,
+        });
+        setResultBest(best);
+        setIsNewRecord(campaignRecord);
+        if (campaignRecord) {
+          previousBestRef.current = best;
+        }
         const entry = blob.bestByLevel[levelId];
         const stars = entry?.stars;
         if (outcome === 'win' && (stars === 1 || stars === 2 || stars === 3)) {
@@ -1420,6 +1538,11 @@ export function PlayingHost({
         lives={lives}
         score={score}
         best={resultBest}
+        // The `mode` STATE, not `modeRef` — the overlay has to re-render on the flip,
+        // and a ref read during render would hand it the pre-flip value.
+        mode={mode}
+        wave={resultWave}
+        bestWave={resultBestWave}
         isNewRecord={isNewRecord}
         combo={combo}
         stallTier={stallTier}

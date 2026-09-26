@@ -15,8 +15,13 @@ vi.mock('react-native-safe-area-context', () => ({
 afterEach(cleanup);
 
 const base = {
+  // 11-08 widened the props: `mode` selects the record domain, `wave`/`bestWave`
+  // are the two endless-only metric lines. Campaign renders neither.
+  mode: 'campaign' as const,
   score: 500,
   best: 500,
+  wave: 0,
+  bestWave: 0,
   isNewRecord: false,
   onRetry: () => {},
   onMenu: () => {},

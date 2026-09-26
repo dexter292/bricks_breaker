@@ -144,6 +144,10 @@ vi.mock('../../src/runtime/GameScreen', () => ({
 const recordRunEnd = vi.fn((_args: RecordRunEndArgs) => ({
   bestByLevel: {},
   unlocked: [],
+  // 11-08: the endless arm of `handleRunEnded` reads the POST-MERGE record off this
+  // synchronous return. Absent, it fails soft to the pre-run watermarks; present and
+  // zeroed, this file's run-loop contracts stay exactly what they were.
+  telemetry: { endless: { bestWave: 0, bestScore: 0 } },
 }));
 vi.mock('../../src/services/storage', async (importOriginal) => {
   const actual =
@@ -152,6 +156,14 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
     ...actual,
     createDefaultProgressStore: () => ({
       getBestForLevel: () => Promise.resolve(0),
+      // 11-08 seeds the endless watermark refs from this at mount. Zeros here, so
+      // this file's contracts are unchanged: the display half is not what it drives.
+      getSnapshot: () =>
+        Promise.resolve({
+          bestByLevel: {},
+          unlocked: [],
+          telemetry: { endless: { bestWave: 0, bestScore: 0 } },
+        }),
       recordRunEnd,
       flush: () => Promise.resolve(),
     }),

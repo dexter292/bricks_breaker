@@ -1,0 +1,542 @@
+/**
+ * Plan 11-08 — the endless RECORD DISPLAY, driven through the real host and the
+ * real `ResultOverlay`.
+ *
+ * `11-VERIFICATION.md` gap 2: the mode firewall stopped at the storage layer.
+ * `RecordRunEndArgs` made the campaign WRITE structurally unreachable for an endless
+ * run, but `handleRunEnded` still compared that run against `previousBestRef` — a
+ * CAMPAIGN level best — and only branched on mode afterwards. So the endless Results
+ * overlay showed a campaign PB as `Best`, fired `New Record` against an unrelated
+ * campaign score, and wrote the endless score back into `previousBestRef`, which
+ * `onRetry` and `remountDevSession` then re-published as the campaign best.
+ *
+ * Every assertion here is about WHAT THE PLAYER SEES, which is why the `GameScreen`
+ * mock renders the real `ResultOverlay` rather than a stub. The harness is otherwise
+ * the 11-07 one: a STABLE `useSharedValue` mock, a `useAnimatedReaction` capture
+ * list, and `deliverPhase` as the `chromeSeq` bump.
+ *
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { createElement } from 'react';
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import type { LevelId } from '../../src/core';
+import type { RecordRunEndArgs } from '../../src/services/storage';
+
+vi.stubGlobal('__DEV__', true);
+
+/** Mirror of the host's own SimPhase numerals (the app tier may not import core). */
+const SIM = { DOCKED: 0, PLAYING: 1, WON: 2, LOST: 3 } as const;
+
+type Sv = { value: unknown };
+type Reaction = { fn: (next: unknown, prev: unknown) => void };
+const sharedValues: Sv[] = [];
+const reactions: Reaction[] = [];
+
+vi.mock('expo-font', () => ({ useFonts: () => [true] }));
+vi.mock('expo-keep-awake', () => ({ useKeepAwake: () => {} }));
+vi.mock('@shopify/react-native-skia', () => ({ useFont: () => null }));
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
+}));
+
+vi.mock('react-native-reanimated', async () => {
+  const { useRef } = await import('react');
+  return {
+    useSharedValue: (init: unknown) => {
+      const ref = useRef<Sv | null>(null);
+      if (ref.current === null) {
+        ref.current = { value: init };
+        sharedValues.push(ref.current);
+      }
+      return ref.current;
+    },
+    useAnimatedReaction: (
+      _prepare: unknown,
+      react: (next: unknown, prev: unknown) => void,
+    ) => {
+      const ref = useRef<Reaction | null>(null);
+      if (ref.current === null) {
+        ref.current = { fn: react };
+        reactions.push(ref.current);
+      } else {
+        ref.current.fn = react;
+      }
+    },
+    runOnJS: (fn: (...args: unknown[]) => unknown) => fn,
+    runOnUI: (fn: () => void) => () => fn(),
+  };
+});
+
+vi.mock('../../src/input', () => ({
+  usePaddleGesture: () => ({
+    paddleTarget: { value: 0 },
+    launchFlag: { value: 0 },
+    gesture: {},
+  }),
+}));
+
+vi.mock('../../src/runtime/useVfxIntensity', () => ({
+  useVfxIntensity: () => ({ value: 1 }),
+}));
+
+vi.mock('../../src/runtime/resolveQualityTier', () => ({
+  readDeviceMemory: () => ({ totalMemory: 8, modelName: 'test' }),
+  resolveQualityTier: () => ({
+    tier: 'mid',
+    budget: { particles: 0, glow: false },
+  }),
+}));
+
+vi.mock('../../src/services/audio', () => ({
+  createDefaultAudioService: () => ({
+    preload: () => Promise.resolve(),
+    playBatch: () => {},
+    release: () => {},
+  }),
+  createMemoryAudioService: () => ({
+    preload: () => Promise.resolve(),
+    playBatch: () => {},
+    release: () => {},
+  }),
+}));
+
+vi.mock('../../src/services/platform', () => ({
+  defaultPlatformServices: () => ({
+    ads: { onRunEnded: () => {} },
+    purchases: { onRunEnded: () => {} },
+    accounts: { onRunEnded: () => {} },
+  }),
+}));
+
+vi.mock('../../src/devflags', () => ({
+  CERT_HARNESS: false,
+  PERF_OVERLAY: false,
+}));
+
+vi.mock('../../src/services/crashReporting', () => ({
+  triggerTestCrash: () => {},
+}));
+
+vi.mock('../../src/render/textures/bakeGlowSprites', () => ({
+  bakeGlowSprites: () => ({ soft: null }),
+}));
+
+/** The host props this file reads back, plus the three 11-08 added. */
+type HostProps = {
+  devLevelSwitch?: unknown;
+  result?: null | 'win' | 'lose';
+  mode?: 'campaign' | 'endless';
+  uiPhase?: string;
+  lives?: number;
+  score?: number;
+  best?: number;
+  wave?: number;
+  bestWave?: number;
+  isNewRecord?: boolean;
+  stars?: 1 | 2 | 3 | null;
+  onPause?: () => void;
+  onRetry?: () => void;
+  onMenu?: () => void;
+  onNext?: (() => void) | null;
+};
+const hostProps: { current: HostProps | null } = { current: null };
+
+/**
+ * `GameScreen` is mocked; `ResultOverlay` is NOT. Every record assertion below is
+ * therefore about rendered player-facing text, not about a prop value.
+ *
+ * Two structural obligations this mock carries:
+ *  - `result-slot` wraps ONLY the overlay, so "the campaign best appears nowhere in
+ *    the overlay" can be asserted against the overlay's own subtree rather than the
+ *    document (which also holds the probe below, by design).
+ *  - `host-best` renders `props.best` on EVERY render, overlay or not. That is the
+ *    campaign-poisoning probe: `startEndlessRun` republishes `previousBestRef.current`
+ *    through `setResultBest(...)` at every run start, so this node is how a write-back
+ *    to the campaign ref becomes observable. It has to be OUTSIDE `result-slot`.
+ */
+vi.mock('../../src/runtime/GameScreen', async () => {
+  const react = await import('react');
+  const { Pressable, Text, View } = await import('react-native');
+  const { ResultOverlay } = await import(
+    '../../src/runtime/overlays/ResultOverlay'
+  );
+  return {
+    GameScreen: (props: HostProps) => {
+      hostProps.current = props;
+      const children: ReturnType<typeof react.createElement>[] = [
+        react.createElement(
+          react.Fragment,
+          { key: 'dev' },
+          (props.devLevelSwitch ?? null) as never,
+        ),
+        react.createElement(
+          Text,
+          { key: 'best-probe', testID: 'host-best' },
+          `host-best=${String(props.best)}`,
+        ),
+        react.createElement(
+          Pressable,
+          {
+            key: 'pause',
+            accessibilityRole: 'button',
+            accessibilityLabel: 'Pause game',
+            onPress: props.onPause,
+          },
+          react.createElement(Text, null, 'Pause'),
+        ),
+      ];
+      if (props.result != null) {
+        children.push(
+          react.createElement(
+            View,
+            { key: 'result-slot', testID: 'result-slot' },
+            react.createElement(ResultOverlay, {
+              kind: props.result,
+              mode: props.mode ?? 'campaign',
+              score: props.score ?? 0,
+              best: props.best ?? 0,
+              wave: props.wave ?? 0,
+              bestWave: props.bestWave ?? 0,
+              isNewRecord: props.isNewRecord ?? false,
+              stars: props.stars ?? null,
+              onRetry: props.onRetry ?? (() => {}),
+              onMenu: props.onMenu ?? (() => {}),
+              onNext: props.onNext ?? null,
+            }),
+          ),
+        );
+      }
+      return react.createElement(react.Fragment, null, ...children) as never;
+    },
+  };
+});
+
+/**
+ * The campaign level best. Deliberately a DISTINCT, larger value than every endless
+ * number in the default fixture, so a leak onto the endless overlay is unmistakable
+ * rather than a coincidence of equal integers. Two cases override it — see each.
+ */
+const CAMPAIGN_BEST_DEFAULT = 7777;
+let campaignBest = CAMPAIGN_BEST_DEFAULT;
+
+/** `telemetry.endless` as it stands BEFORE this run — the mount-time seed. */
+let seededRecord = { bestScore: 900, bestWave: 1 };
+/** `telemetry.endless` as `recordRunEnd` returns it — the POST-MERGE record. */
+let postMergeRecord = { bestScore: 2400, bestWave: 2 };
+
+const recordRunEnd = vi.fn((_args: RecordRunEndArgs) => ({
+  bestByLevel: {},
+  unlocked: [],
+  telemetry: { endless: { ...postMergeRecord } },
+}));
+const getSnapshot = vi.fn(() =>
+  Promise.resolve({
+    bestByLevel: {},
+    unlocked: [],
+    telemetry: { endless: { ...seededRecord } },
+  }),
+);
+vi.mock('../../src/services/storage', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/services/storage')>();
+  return {
+    ...actual,
+    createDefaultProgressStore: () => ({
+      getBestForLevel: () => Promise.resolve(campaignBest),
+      getSnapshot,
+      recordRunEnd,
+      flush: () => Promise.resolve(),
+    }),
+  };
+});
+
+const setActive = vi.fn();
+const retry = vi.fn();
+const advanceWave = vi.fn();
+
+vi.mock('../../src/runtime/useGameLoop', () => ({
+  UiPhaseNum: { PLAYING: 0, PAUSED: 1, COUNTDOWN: 2 },
+  useGameLoop: () => ({
+    picture: { value: null },
+    surfaceSize: { value: { width: 360, height: 640 } },
+    setActive,
+    retry,
+    advanceWave,
+    injectCertWorstCase: () => {},
+    certOut: { value: { p50: 0, p95: 0, mean: 0, fps: 60, n: 0, over: 0 } },
+    certSeq: { value: 0 },
+    runStatsOut: {
+      value: {
+        bricksBroken: 0,
+        bestCombo: 1,
+        pickupMultiball: 0,
+        pickupExpand: 0,
+        pickupExtraLife: 0,
+        pickupSlow: 0,
+        pickupFireball: 0,
+        livesLost: 0,
+        longestRally: 0,
+        largestCascade: 0,
+        ticksPlayed: 0,
+      },
+    },
+    runStatsSeq: { value: 0 },
+  }),
+}));
+
+/** The host's chrome SharedValue — the only one seeded with a `phase` field. */
+function chromeSv(): Sv {
+  const sv = sharedValues.find(
+    (s) =>
+      typeof s.value === 'object' &&
+      s.value !== null &&
+      'phase' in (s.value as Record<string, unknown>),
+  );
+  if (!sv) throw new Error('chrome SharedValue not found');
+  return sv;
+}
+
+/** Deliver one chrome mirror exactly as the UI runtime's `chromeSeq` bump does. */
+let seq = 0;
+async function deliverPhase(
+  phase: number,
+  fields: { lives?: number; score?: number } = {},
+): Promise<void> {
+  const prev = seq;
+  seq += 1;
+  chromeSv().value = {
+    phase,
+    lives: fields.lives ?? 3,
+    score: fields.score ?? 0,
+    combo: 1,
+    stallTier: 0,
+  };
+  await act(async () => {
+    for (const reaction of reactions) {
+      reaction.fn(seq, prev);
+    }
+    await Promise.resolve();
+  });
+}
+
+async function press(name: string | RegExp): Promise<void> {
+  const el = screen.getByRole('button', { name });
+  await act(async () => {
+    fireEvent.click(el);
+    await Promise.resolve();
+  });
+}
+
+/**
+ * `Retry` by PREFIX, not exact label. The endless accessibility label is
+ * `Retry endless run from wave 1` (11-UI-SPEC § Accessibility labels) and the
+ * campaign one is `Retry level`; this file is about the record block, not the label,
+ * so it must not break when the label case lands.
+ */
+const RETRY = /^Retry/;
+
+async function mountAndStartEndless(): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  render(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: () => {},
+    }),
+  );
+  await act(async () => {
+    await Promise.resolve();
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
+  await waitFor(() => {
+    expect(
+      screen.getByRole('button', { name: 'Start an endless run' }),
+    ).toBeTruthy();
+  });
+  // The watermark seed must LAND before the run ends, or every strictness assertion
+  // below silently compares against 0. The campaign preload is observable (it lands
+  // in `best`), so waiting on that also proves the sibling snapshot chain flushed.
+  await waitFor(() => {
+    expect(screen.getByTestId('host-best').textContent).toBe(
+      `host-best=${campaignBest}`,
+    );
+  });
+  expect(getSnapshot).toHaveBeenCalled();
+  setActive.mockClear();
+  retry.mockClear();
+  advanceWave.mockClear();
+  recordRunEnd.mockClear();
+  await press('Start an endless run');
+}
+
+/** Run to wave 2 and stop there, leaving the guard released and the run live. */
+async function advanceToWaveTwo(): Promise<void> {
+  await deliverPhase(SIM.WON, { score: 1200 });
+  await deliverPhase(SIM.DOCKED, { score: 1200 });
+}
+
+function overlayText(): string {
+  return screen.getByTestId('result-slot').textContent ?? '';
+}
+
+describe('PlayingHost endless record display (gap 2)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    campaignBest = CAMPAIGN_BEST_DEFAULT;
+    seededRecord = { bestScore: 900, bestWave: 1 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+    getSnapshot.mockClear();
+  });
+
+  it('an endless loss renders the four endless metric lines in contract order (11-UI-SPEC § Endless copy)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(slot.getByText('Wave · 2')).toBeTruthy();
+    expect(slot.getByText('Score · 2400')).toBeTruthy();
+    expect(slot.getByText('Best · 2400')).toBeTruthy();
+    expect(slot.getByText('Best wave · 2')).toBeTruthy();
+
+    // SC-1: an endless run never ends on a cleared board, so the heading is Lose.
+    expect(slot.getByText('Lose')).toBeTruthy();
+
+    // Line order is contract: heading → body → Wave → Score → Best → Best wave.
+    const text = overlayText();
+    const order = ['Lose', 'Out of lives', 'Wave · 2', 'Score · 2400', 'Best · 2400', 'Best wave · 2'];
+    let cursor = -1;
+    for (const line of order) {
+      const at = text.indexOf(line, cursor + 1);
+      expect(at, `"${line}" must appear after the line before it`).toBeGreaterThan(cursor);
+      cursor = at;
+    }
+  });
+
+  it('the campaign level best appears NOWHERE on the endless overlay (gap 2 / T-11-08-01)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    // The probe OUTSIDE the overlay still holds a campaign number at mount time, so
+    // this has to be scoped to the overlay subtree to mean anything.
+    expect(
+      overlayText(),
+      'a campaign per-level best must never be presented as an endless record',
+    ).not.toContain(String(CAMPAIGN_BEST_DEFAULT));
+    expect(screen.queryByText(`Best · ${CAMPAIGN_BEST_DEFAULT}`)).toBeNull();
+
+    // And the run was recorded through the endless arm, with no levelId in sight.
+    const args = recordRunEnd.mock.calls.at(-1)?.[0];
+    expect(args?.mode).toBe('endless');
+    expect(args && 'levelId' in args).toBe(false);
+  });
+
+  it('the displayed record is the POST-MERGE value from recordRunEnd, not the pre-run watermark and not the run', async () => {
+    // Deliberately unrelated to both the seed and this run's own numbers, so the only
+    // way the overlay can show them is by reading the blob the merge just returned.
+    postMergeRecord = { bestScore: 9001, bestWave: 42 };
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(slot.getByText('Best · 9001')).toBeTruthy();
+    expect(slot.getByText('Best wave · 42')).toBeTruthy();
+    // The run's own lines are unaffected — the merge feeds the BEST pair only.
+    expect(slot.getByText('Score · 2400')).toBeTruthy();
+    expect(slot.getByText('Wave · 2')).toBeTruthy();
+    // Exact text-node match, not `toContain`: `Best · 9001` has `Best · 900` as a
+    // prefix, so a substring check here would be green for the wrong reason.
+    expect(screen.queryByText('Best · 900')).toBeNull();
+    expect(screen.queryByText('Best wave · 1')).toBeNull();
+  });
+
+  it('New Record is strict in BOTH watermarks — equality keeps the previous record (D-11 / N-END-02)', async () => {
+    // Equal on score AND equal on wave → no badge.
+    //
+    // `campaignBest = 0` is load-bearing, not tidiness. Falsified against the pre-fix
+    // host, this case was the ONE that stayed green: with the default campaign best of
+    // 7777, `evaluatePersonalBest(2400, 7777)` reports no record either, so the
+    // assertion passed for entirely the wrong reason. At 0 the defective host WOULD
+    // fire the badge (2400 > 0) while the fixed one must not (2400 is not > 2400).
+    campaignBest = 0;
+    seededRecord = { bestScore: 2400, bestWave: 2 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(
+      overlayText(),
+      'a run that only MATCHES both watermarks is not a new record',
+    ).not.toContain('New Record');
+  });
+
+  it('New Record fires on score alone, one point above the watermark', async () => {
+    seededRecord = { bestScore: 2400, bestWave: 5 };
+    postMergeRecord = { bestScore: 2401, bestWave: 5 };
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2401 });
+    expect(screen.getAllByText('New Record')).toHaveLength(1);
+  });
+
+  it('New Record fires on wave alone, with the score exactly at the watermark', async () => {
+    // wave 2 > bestWave 1, score exactly equal — a deeper run at no extra score is
+    // unambiguously a record, and firing on score alone would elect a primary record.
+    seededRecord = { bestScore: 2400, bestWave: 1 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(screen.getAllByText('New Record')).toHaveLength(1);
+  });
+
+  it('an endless run does not write the campaign personal best (T-11-08-02 / WR-02)', async () => {
+    // The endless run score must EXCEED the campaign best, or the pre-fix host would
+    // not have written it back either and this probe would prove nothing.
+    campaignBest = 100;
+    seededRecord = { bestScore: 0, bestWave: 0 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    // While the overlay is up, `best` is the ENDLESS record — that is the fix.
+    expect(screen.getByTestId('host-best').textContent).toBe('host-best=2400');
+
+    // `modeRef` latches to endless for the life of the mount (WR-02), so no campaign
+    // Results overlay is reachable to read a `Best` line from. The host's own
+    // read-back is the available probe: `startEndlessRun` republishes
+    // `previousBestRef.current` into `best` at every run start. Pre-fix,
+    // `handleRunEnded` wrote 2400 into that ref and this press would republish it.
+    await press(RETRY);
+    expect(
+      screen.getByTestId('host-best').textContent,
+      'previousBestRef still holds the campaign best — the endless run did not poison it',
+    ).toBe('host-best=100');
+  });
+});

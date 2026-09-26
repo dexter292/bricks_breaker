@@ -3,8 +3,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = {
   kind: 'win' | 'lose';
+  /**
+   * Which record domain this overlay is showing (11-08 / gap 2). The two modes share
+   * one component precisely so neither can read the other's numbers: everything mode
+   * specific is a prop selected by the host, and nothing in here reaches storage.
+   */
+  mode: 'campaign' | 'endless';
   score: number;
+  /** Campaign: the level PB. Endless: `telemetry.endless.bestScore`, post-merge. */
   best: number;
+  /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
+  wave: number;
+  /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
+  bestWave: number;
   isNewRecord: boolean;
   /** Win only — merged best stars after handleRunEnded (D-10). */
   stars?: 1 | 2 | 3 | null;
@@ -45,8 +56,11 @@ function StarRow({ filled }: { filled: 1 | 2 | 3 }) {
  */
 export function ResultOverlay({
   kind,
+  mode,
   score,
   best,
+  wave,
+  bestWave,
   isNewRecord,
   stars,
   onRetry,
@@ -54,6 +68,7 @@ export function ResultOverlay({
   onNext,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const isEndless = mode === 'endless';
   const isWin = kind === 'win';
   const showNext = isWin && typeof onNext === 'function';
   const showStars =
@@ -77,8 +92,23 @@ export function ResultOverlay({
           {isWin ? 'Win' : 'Lose'}
         </Text>
         <Text style={styles.body}>{isWin ? 'All clear' : 'Out of lives'}</Text>
+        {/*
+          11-UI-SPEC § Endless copy, "Line order is contract": heading → body →
+          `Wave ·` → `Score ·` → `Best ·` → `Best wave ·` → badge → Retry → Menu.
+          Wave precedes score because depth is what an endless run is about, and the
+          two `Best` lines sit adjacent so the pair reads as ONE record block. Both
+          endless lines reuse `styles.metric` verbatim — no new size, weight or color,
+          and deliberately no tint distinguishing the two records: electing a primary
+          record is the Phase 14 decision this contract refuses to make (A-08).
+        */}
+        {isEndless ? (
+          <Text style={styles.metric}>Wave · {wave}</Text>
+        ) : null}
         <Text style={styles.metric}>Score · {score}</Text>
         <Text style={styles.metric}>Best · {best}</Text>
+        {isEndless ? (
+          <Text style={styles.metric}>Best wave · {bestWave}</Text>
+        ) : null}
         {showStars ? <StarRow filled={stars} /> : null}
         {isNewRecord ? (
           <View style={styles.badge}>
