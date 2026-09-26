@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 3
+current_plan: 4
 status: in_progress
-stopped_at: "Completed 11-20-PLAN.md (round-6 gap 2 closed: cert load proven QUEUED at source; five corrected statements across four artifacts; MEASURED label struck)"
-last_updated: "2026-09-26T15:20:47.988Z"
-state_head: a7683677221bd338cb88fce89e2c1ffaf5bbd823
+stopped_at: "Completed 11-21-PLAN.md (round 6 closed: showPauseOverlay operator now observable; REQUIREMENTS.md coherent — N-END-01/02 re-ticked on an evidence gate, N-END-03 still open on the SC-5 device half)"
+last_updated: "2026-09-26T15:34:27.726Z"
+state_head: 661af8687eb69445c5a42a8f67b26eac7f075308
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 32
-  completed_plans: 31
+  completed_plans: 32
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,11 +52,11 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 21
 
-**Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
-**Next:** `/gsd-verify-work 11` (harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
+**Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
+**Next:** `/gsd-verify-work 11` (round 7 — and harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
 **Open from Phase 11:** the SC-5 device half — see Pending Todos.  
 **Owner-gated, carried from v1.1:** §5d Instruments on a ramp build (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, human playtest cohort.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
@@ -127,6 +127,7 @@ Total Plans in Phase: 21
 | Phase 11 P18 | 7 min | 3 tasks | 3 files |
 | Phase 11 P19 | 10 min | 3 tasks | 5 files |
 | Phase 11 P20 | 13 min | 3 tasks | 5 files |
+| Phase 11 P21 | 11 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -244,6 +245,11 @@ Total Plans in Phase: 21
 - [Phase 11]: Round-6 gap 2: the Cert WC load is QUEUED on certRequest and applies on the FIRST FRAME OF THE NEXT RUN, below the retry-reset block, onto the freshly reset world — proven link by link at source in tests/runtime.cert-request.test.ts, which states in its own header that it cannot produce a frame. The MEASURED label round 5 attached to a vi.fn() count is struck
 - [Phase 11]: 11-20 ticks NO requirement. N-END-03 device half stays unmeasured by plan prohibition; N-END-01 gets no new closing evidence from a plan that repairs an instruction rather than taking a reading. REQUIREMENTS.md untouched
 - [Phase 11]: The 1,400-word Cert WC table cell in ENDLESS-MODE.md is corrected in content and deliberately NOT restructured (advisory IN-03) — a compression would relocate five dated corrections away from where the SC-5 operator reads them. Owner rewrite option stays open
+- [Phase 11]: [Phase 11]: The round-5 showPauseOverlay advisory is closed with a NEGATIVE RENDER CASE, not a single-literal source gate — a prettier re-wrap of that assignment would red a source literal with no behaviour changing, and a literal cannot tell 'the operator is &&' from 'the operator is spelled && on this line'. ASSERTION 5 is untouched: it asserts the two TERMS, the new cases assert the OPERATOR between them
+- [Phase 11]: [Phase 11]: An absence assertion carries a POSITIVE CONTROL in the same case — case 2 asserts the result overlay's Retry level button IS present, so 'the component rendered nothing' cannot pass as 'the pause gate refused'
+- [Phase 11]: [Phase 11]: N-END-01 and N-END-02 re-ticked on a round-6 evidence gate that ran BEFORE the file was opened (npm test 99 files / 663 tests, typecheck, lint — all green, transcripts dated in the commit body); the incoherent box/note pairs go 3 to 0; N-END-03 stays [ ] because round 6 repaired the INSTRUCTIONS for the SC-5 reading without taking it
+- [Phase 11]: [Phase 11]: N-END-01's superseded clause is DESCRIBED, not quoted — the first draft re-introduced the false literal while retiring it and moved the plan's own premature-clause gate from 0 back to 1. Caught by running the gate, not by reading it
+- [Phase 11]: [Phase 11]: Four plan-stated bases had moved under this plan by execution time (false-clause enumeration 6 at 6bb18bf vs 5 at da1c356; nine declared falsifications vs twelve recorded; roadmap ticks 2/1 not 0/3, making one gate counter vacuous; the :108 line already half-edited by update-plan-progress). All four reported in the SUMMARY rather than edited to fit
 
 ### Decisions (Post-MVP close)
 
@@ -280,6 +286,6 @@ Total Plans in Phase: 21
 
 ## Session Continuity
 
-Last session: 2026-09-26T15:20:26.112Z
-Stopped at: Completed 11-20-PLAN.md (round-6 gap 2 closed: cert load proven QUEUED at source; five corrected statements across four artifacts; MEASURED label struck)
+Last session: 2026-09-26T15:34:27.696Z
+Stopped at: Completed 11-21-PLAN.md (round 6 closed: showPauseOverlay operator now observable; REQUIREMENTS.md coherent — N-END-01/02 re-ticked on an evidence gate, N-END-03 still open on the SC-5 device half)
 Resume file: None
