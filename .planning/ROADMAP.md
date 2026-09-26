@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 15/16 plans executed — 14 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2; 3 gap-closure round 3); 2 gap-closure round-4 plans pending (waves 5-6)
+**Plans:** 16/16 plans executed — 14 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2; 3 gap-closure round 3); 2 gap-closure round-4 plans pending (waves 5-6)
 
 Plans:
 **Wave 1**
@@ -143,7 +143,7 @@ Plans:
 **Gap closure round 4** *(each of three rounds closed the half that was specified and left its neighbour open — round 4 is planned against that pattern: every branch enumerated, both sides of every new condition driven)*
 
 - [x] 11-15-PLAN.md — Gap 1: the `runEndedRef` latch is hoisted to the FIRST statement of `applyChrome`, above the five chrome writes it was meant to own; the three gap-3 drives get a distinguishable straggler payload, the campaign panel gets its own driven case, and the source contract covers the function preamble (wave 5)
-- [ ] 11-16-PLAN.md — Gap 2: `runCertWorstCase` stops arming a deferral it cannot discharge (both endless sub-branches measured), the campaign cert harness keeps firing, and `ENDLESS-MODE.md` scopes the `Cert WC` injection claim to the branch it is true of in both operator-facing locations (wave 6)
+- [x] 11-16-PLAN.md — Gap 2: `runCertWorstCase` stops arming a deferral it cannot discharge (both endless sub-branches measured), the campaign cert harness keeps firing, and `ENDLESS-MODE.md` scopes the `Cert WC` injection claim to the branch it is true of in both operator-facing locations (wave 6)
 
 **UI hint**: yes
 

@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: Completed 11-15-PLAN.md (round-4 gap 1 closed — the ended-run latch now owns applyChrome's five chrome writes, in both modes)
-last_updated: "2026-09-26T11:14:47.632Z"
-state_head: 0cd5c2a45f568ef30617b7cee1cd59d7ebc02476
+stopped_at: Completed 11-16-PLAN.md (round-4 gap 2 closed — the cert deferral carries a run-mode term and the ops doc's injection claim is scoped by branch)
+last_updated: "2026-09-26T11:29:16.754Z"
+state_head: f81c6b399ded3fadb5437bee2c184d26ec35e558
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 16
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -122,6 +122,7 @@ Total Plans in Phase: 16
 | Phase 11 P13 | 9 min | 3 tasks | 4 files |
 | Phase 11 P14 | 9 min | 3 tasks | 4 files |
 | Phase 11 P15 | 11 min | 3 tasks | 4 files |
+| Phase 11 P16 | 10 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -223,6 +224,10 @@ Total Plans in Phase: 16
 - [Phase 11]: Cert WC stays in the SC-5 do-not-press set even though its level half is now gated — It still injects the worst-case ball, particle and shake load onto the board under measurement, which disqualifies any frame time captured across it in BOTH tier branches. The warning was narrowed by reason, not by control.
 - [Phase 11]: Hoist the run-ended latch to the FIRST statement of applyChrome rather than snapshotting resultScore/resultLives at the boundary — one statement, and it closes the campaign Results panel by the same edit because the same five chrome writes precede both campaign branches — The snapshot shape would add two pieces of state every reset path must maintain and would leave the HUD behind the overlay still repainting from a finished run
 - [Phase 11]: Remove the endless WON branch inner runEndedRef guard and re-point 11-13 three branch ordering assertions to the applyChrome function preamble, disclosing the tier change in the test own comment — With the latch at the top the inner copy is unreachable, so no mutation could kill it; mutation evidence measured strictly stronger after the move (7 cases RED vs 11-13 M2 set)
+- [Phase 11]: [Phase 11]: The review's Cert WC one-liner was adopted but only after BOTH endless sub-branches were measured — pressing Cert WC while already on level-03 (the shipped default) discharged a real injection into the freshly restarted endless run pre-fix (1 call), so the term suppresses a genuine behaviour there rather than clearing a stranded flag; recorded at the assignment, in the ops doc and in the SUMMARY rather than shipped silently
+- [Phase 11]: [Phase 11]: Latch hygiene stated as a general rule at the assignment site — do not arm a latch whose discharge preconditions the same change has made unreachable. 11-14 gated runCertWorstCase's level half and left the deferral bookkeeping, so an endless press armed a one-shot only a campaign level-03 session could discharge
+- [Phase 11]: [Phase 11]: Case C1 (the campaign deferral) DOES fire in jsdom, so the plan's permitted downgrade to a flagged unprovable assumption was NOT taken — both preconditions are asserted as rendered labels before the injection count, so the pass cannot be vacuous
+- [Phase 11]: [Phase 11]: gsd check tdd-red-evidence requires the FULL TAP test name including the tests/… file prefix in targetTest — the bare 'describe > it' name is classified no_target_test_failure even when that exact test appears in the parsed failing_tests list
 
 ### Decisions (Post-MVP close)
 
@@ -259,6 +264,6 @@ Total Plans in Phase: 16
 
 ## Session Continuity
 
-Last session: 2026-09-26T11:14:34.280Z
-Stopped at: Completed 11-15-PLAN.md (round-4 gap 1 closed — the ended-run latch now owns applyChrome's five chrome writes, in both modes)
+Last session: 2026-09-26T11:29:07.271Z
+Stopped at: Completed 11-16-PLAN.md (round-4 gap 2 closed — the cert deferral carries a run-mode term and the ops doc's injection claim is scoped by branch)
 Resume file: None
