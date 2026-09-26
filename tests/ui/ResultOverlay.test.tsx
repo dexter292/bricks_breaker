@@ -6,7 +6,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createElement } from 'react';
 import { cleanup, render, screen, fireEvent } from '@testing-library/react';
-import { ResultOverlay } from '../../src/runtime/overlays/ResultOverlay';
+import {
+  ResultOverlay,
+  waveBuildFailureKind,
+} from '../../src/runtime/overlays/ResultOverlay';
 
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, left: 0, right: 0, bottom: 0 }),
@@ -149,6 +152,50 @@ function lineOrder(lines: string[]): number[] {
   const text = document.body.textContent ?? '';
   return lines.map((line) => text.indexOf(line));
 }
+
+/**
+ * 11-09 Task 3 (IN-01) — the Retry-time / mid-run boundary, NAMED and boundary-tested.
+ *
+ * Before this, the distinction was an unfenced `failedWave <= 1` sitting in the body
+ * ternary, with the run-scoped metric lines not consulting it at all. Two readers
+ * deriving the same boundary independently is how they come to disagree. These five
+ * cases are the reader's end of the invariant; the two WRITERS are pinned in
+ * `tests/ui/PlayingHost.endless-host.test.ts`, because a reader fenced alone leaves a
+ * resume-at-wave-N change free to invert which copy the player sees with nothing red.
+ */
+describe('waveBuildFailureKind (11-09, IN-01)', () => {
+  it('null is no failure at all', () => {
+    expect(
+      waveBuildFailureKind(null),
+      'a null failure wave is the ordinary Out of lives / All clear path',
+    ).toBe('none');
+  });
+
+  it('2 is mid-run — a run existed and reached wave 1', () => {
+    expect(
+      waveBuildFailureKind(2),
+      'the mid-run writer reports waveRef.current + 1, and waveRef is >= 1 from the first successful build',
+    ).toBe('mid');
+  });
+
+  it('1 is Retry time — the boundary itself', () => {
+    expect(
+      waveBuildFailureKind(1),
+      'startEndlessRun attempts advanceToWave(1), so a start that cannot build is by construction a wave-1 failure',
+    ).toBe('start');
+  });
+
+  it('0 is Retry time — one step below the boundary', () => {
+    expect(
+      waveBuildFailureKind(0),
+      'unproducible today, and it must classify WITH 1 rather than falling into a fourth, unhandled shape',
+    ).toBe('start');
+  });
+
+  it('-1 is Retry time — negatives do not invent a fourth case', () => {
+    expect(waveBuildFailureKind(-1)).toBe('start');
+  });
+});
 
 describe('ResultOverlay endless (11-08)', () => {
   it('renders the four metric lines in contract order: wave, score, best, best wave', () => {
@@ -311,8 +358,42 @@ describe('ResultOverlay endless (11-08)', () => {
     expect(
       screen.getByRole('button', { name: 'Retry endless run from wave 1' }),
     ).toBeTruthy();
-    expect(screen.getByText('Wave · 7')).toBeTruthy();
+
+    // 11-09 Task 3 CORRECTED this case in place (IN-05). It previously asserted
+    // `Wave · 7` — the PREVIOUS run's wave — as EXPECTED beside `waveBuildFailedWave:
+    // 1`, which pinned the defect: at Retry time there is no in-flight run, so
+    // `Wave ·` and `Score ·` were the last run's numbers rendered under failure copy
+    // with nothing marking them stale. They are now suppressed. The two `Best` lines
+    // remain, because they are watermarks read from `telemetry.endless` rather than
+    // values belonging to a run — they are exactly the lines that stay meaningful
+    // when no run exists.
+    expect(
+      screen.queryByText('Wave · 7'),
+      'the previous run\'s wave must not describe a run that does not exist (IN-05)',
+    ).toBeNull();
+    expect(
+      screen.queryByText('Score · 2400'),
+      'nor its score (IN-05)',
+    ).toBeNull();
+    expect(screen.getByText('Best · 5000')).toBeTruthy();
     expect(screen.getByText('Best wave · 12')).toBeTruthy();
+  });
+
+  it('the campaign overlay is unaffected by any waveBuildFailedWave value — the suppression is endless-only', () => {
+    render(
+      createElement(ResultOverlay, {
+        ...base,
+        kind: 'lose',
+        waveBuildFailedWave: 1,
+      }),
+    );
+    // `failedWave` is nulled outside endless, so the kind is `'none'` and the
+    // campaign chrome is byte-identical to a normal loss. A suppression that leaked
+    // into campaign would blank the only two lines a campaign Results overlay has.
+    expect(screen.getByText('Out of lives')).toBeTruthy();
+    expect(screen.getByText('Score · 500')).toBeTruthy();
+    expect(screen.getByText('Best · 500')).toBeTruthy();
+    expect(screen.queryByText(/could not be built/)).toBeNull();
   });
 
   it('campaign never shows a wave-build-failure body, even if one is passed', () => {

@@ -20,12 +20,12 @@ type Props = {
   /**
    * Endless only — the wave that could NOT be built, or null (11-07 Task 4).
    *
-   * The FAILED wave, not the last good one, which is what lets one number pick the
-   * body copy with no arithmetic and no second flag. A mid-run failure is always
-   * `waveRef.current + 1`, and `waveRef` is 1 from the first successful build, so a
-   * mid-run value is always >= 2. A Retry-time failure is always exactly 1 — a Retry
-   * that cannot build wave 1 is by construction a wave-1 failure. The two cases are
-   * therefore distinguishable from the value alone.
+   * The FAILED wave, not the last good one. Deliberately still a plain
+   * `number | null` and NOT reshaped into a discriminated object: that would cascade
+   * through `GameScreen.tsx`, `PlayingHost.tsx` and three test harnesses for an
+   * Info-severity finding. `waveBuildFailureKind` below fences the same boundary at a
+   * fraction of the blast radius — read the KIND, never the number, and see that
+   * function's JSDoc for what the boundary means and what it rests on.
    */
   waveBuildFailedWave?: number | null;
   /** Win only — merged best stars after handleRunEnded (D-10). */
@@ -35,6 +35,37 @@ type Props = {
   /** Omit Next when null/undefined (D-11); do not show a gated-off control. */
   onNext?: (() => void) | null;
 };
+
+/**
+ * Classify a wave-build failure: not one, a Retry-time one, or a mid-run one
+ * (11-09 Task 3; `11-VERIFICATION.md` Anti-Patterns IN-01).
+ *
+ * The two cases are distinguishable from the value alone because of how the two
+ * WRITERS produce it. A mid-run failure is `waveRef.current + 1` and `waveRef` is at
+ * or above 1 from the first successful build, so mid-run is always `>= 2`. A
+ * Retry-time failure is always exactly `1` — `startEndlessRun` calls
+ * `advanceToWave(1)`, so a start that cannot build is by construction a wave-1
+ * failure. Values at or below `1` therefore all mean "Retry time": `0` and negatives
+ * are unproducible today and classify with `1` rather than falling into a fourth,
+ * unhandled shape.
+ *
+ * The missing sentence, and the reason this is a named function rather than a `<= 1`
+ * comparison inlined at each reader: that mid-run invariant holds ONLY because
+ * `startEndlessRun` restarts at wave 1, and `11-UI-SPEC` § Run boundaries explicitly
+ * contemplates a resume-at-wave-N alternative that would break it. Naming the
+ * boundary in one tested function makes that future change a one-site edit with a red
+ * test instead of a silent copy regression — the reader's own unit cases fence one
+ * end, and the source contracts over the two `setWaveBuildFailedWave` writers in
+ * `tests/ui/PlayingHost.endless-host.test.ts` fence the other.
+ */
+export function waveBuildFailureKind(
+  failedWave: number | null | undefined,
+): 'none' | 'start' | 'mid' {
+  if (failedWave == null) {
+    return 'none';
+  }
+  return failedWave >= 2 ? 'mid' : 'start';
+}
 
 function StarRow({ filled }: { filled: 1 | 2 | 3 }) {
   const glyphs = [0, 1, 2].map((i) => ({
@@ -95,22 +126,28 @@ export function ResultOverlay({
   const showStars =
     isWin && (stars === 1 || stars === 2 || stars === 3);
   /**
-   * 11-UI-SPEC § Endless copy, the two `Wave-build failure body` rows. `1` is the
-   * Retry-time case and says `tap Retry`; anything above is mid-run and says
-   * `run saved`. The mid-run wording is deliberately NOT reused at Retry time —
-   * there is no in-flight run to save, so it would state something untrue
-   * (11-07 Task 3, decided `retry-in-place` by the owner on 2026-09-26). `Wave 1` in
-   * the Retry-time string is contract copy and is NOT templated.
+   * 11-UI-SPEC § Endless copy, the two `Wave-build failure body` rows. The mid-run
+   * wording is deliberately NOT reused at Retry time — there is no in-flight run to
+   * save, so it would state something untrue (11-07 Task 3, decided `retry-in-place`
+   * by the owner on 2026-09-26). `Wave 1` in the Retry-time string is contract copy
+   * and is NOT templated.
+   *
+   * Both consumers below read `failureKind`, never the number. One named boundary,
+   * two consumers, so the body copy and the run-scoped line suppression can never
+   * disagree about which case they are in (IN-01).
    */
   const failedWave = isEndless ? waveBuildFailedWave : null;
+  const failureKind = waveBuildFailureKind(failedWave);
   const body =
-    failedWave == null
+    failureKind === 'none'
       ? isWin
         ? 'All clear'
         : 'Out of lives'
-      : failedWave <= 1
+      : failureKind === 'start'
         ? 'Wave 1 could not be built — tap Retry'
         : `Wave ${failedWave} could not be built — run saved`;
+  /** The `Wave ·` / `Score ·` pair describes a RUN — at Retry time there is none. */
+  const showRunLines = failureKind !== 'start';
 
   return (
     <View
@@ -139,10 +176,22 @@ export function ResultOverlay({
           and deliberately no tint distinguishing the two records: electing a primary
           record is the Phase 14 decision this contract refuses to make (A-08).
         */}
-        {isEndless ? (
+        {/*
+          11-09 Task 3 (IN-05): at RETRY time there is no in-flight run, so the two
+          run-scoped lines are suppressed rather than showing the PREVIOUS run's wave
+          and score under failure copy with nothing marking them stale. `Best ·` and
+          `Best wave ·` still render — they are watermarks read from
+          `telemetry.endless`, not values belonging to a run, so they stay meaningful
+          when no run exists. The suppression is endless-only: `showRunLines` is true
+          in campaign for every `waveBuildFailedWave` value, because `failedWave` is
+          already nulled outside endless.
+        */}
+        {isEndless && showRunLines ? (
           <Text style={styles.metric}>Wave · {wave}</Text>
         ) : null}
-        <Text style={styles.metric}>Score · {score}</Text>
+        {showRunLines ? (
+          <Text style={styles.metric}>Score · {score}</Text>
+        ) : null}
         <Text style={styles.metric}>Best · {best}</Text>
         {isEndless ? (
           <Text style={styles.metric}>Best wave · {bestWave}</Text>

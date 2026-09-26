@@ -516,6 +516,108 @@ describe('PlayingHost endless host (source contract)', () => {
     );
   });
 
+  /**
+   * 11-09 Task 3 (IN-01) — the boundary asserted where it is PRODUCED.
+   *
+   * `waveBuildFailureKind` in `ResultOverlay.tsx` fences the READER: `>= 2` is
+   * mid-run, everything below is Retry-time. Its own unit cases prove the function.
+   * What they cannot prove is that the two sites which WRITE the number still agree
+   * with it — and until this block, neither writer carried any assertion at all, so a
+   * Phase-14 resume-at-wave-N change would have left the reader confidently wrong
+   * with nothing going red.
+   *
+   * What these two cases do NOT prove: they prove the two producers and the reader
+   * still agree about a NUMBER. They prove nothing about whether any copy reaches a
+   * screen. The reader's unit cases in `tests/ui/ResultOverlay.test.tsx` and the
+   * behaviour cases in `tests/ui/PlayingHost.endless-record.test.tsx` are what prove
+   * that — do not let this block stand in for either.
+   */
+  const failEndlessStartBody = (() => {
+    const m = code.match(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  const midRunFailureElse = (() => {
+    const m = endlessBranch.match(
+      /if \(advanceToWave\(waveRef\.current \+ 1\)\) \{[\s\S]*?\} else \{([\s\S]*?)\n {10}\}/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  it('the two wave-build-failure writers still agree with the reader (IN-01)', () => {
+    const startEndlessRunBody = (() => {
+      const m = code.match(
+        /const startEndlessRun = useCallback\(([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+
+    // Non-empty FIRST — a region that failed to extract makes every pin below it
+    // vacuously green, which is the failure mode this round exists to stop.
+    expect(
+      startEndlessRunBody,
+      'startEndlessRun must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+    expect(
+      failEndlessStartBody,
+      'failEndlessStart must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+    expect(
+      midRunFailureElse,
+      "applyChrome's advanceToWave failure else must be extractable, or every pin below is vacuous",
+    ).not.toBe('');
+
+    // The START-TIME producer: one attempt, at the literal wave 1.
+    const attempts = startEndlessRunBody.match(/advanceToWave\([^)]*\)/g) ?? [];
+    expect(
+      attempts.length,
+      'startEndlessRun makes exactly one wave-build attempt',
+    ).toBe(1);
+    expect(
+      attempts[0],
+      'and it attempts wave 1 — this literal and the one in failEndlessStart are ONE invariant spread across two functions',
+    ).toBe('advanceToWave(1)');
+
+    // The value reported for that attempt, written in the OTHER function.
+    const reports =
+      failEndlessStartBody.match(/setWaveBuildFailedWave\([^)]*\)/g) ?? [];
+    expect(
+      reports.length,
+      'failEndlessStart reports the failed wave exactly once',
+    ).toBe(1);
+    expect(
+      reports[0],
+      'and it reports wave 1 — a resume-at-wave-N change cannot satisfy this and the advanceToWave argument above at once, so it goes RED at the producer instead of silently inverting the body copy the reader selects',
+    ).toBe('setWaveBuildFailedWave(1)');
+
+    // The MID-RUN producer, unchanged: the failed wave is one past the last good one.
+    expect(
+      midRunFailureElse,
+      'the mid-run writer reports waveRef.current + 1, which is what keeps mid-run at or above 2 and therefore classifiable as mid',
+    ).toMatch(/setWaveBuildFailedWave\(waveRef\.current \+ 1\)/);
+  });
+
+  it('the mid-run writer carries a __DEV__ wave-floor tripwire (IN-01)', () => {
+    expect(
+      midRunFailureElse,
+      "applyChrome's advanceToWave failure else must be extractable, or both pins below are vacuous",
+    ).not.toBe('');
+    expect(
+      midRunFailureElse,
+      'the mid classification holds only while waveRef.current is at or above the wave floor — a violation must surface at THIS writer, not as inverted copy on the overlay',
+    ).toMatch(/waveRef\.current < ENDLESS_WAVE_FLOOR/);
+    expect(
+      midRunFailureElse,
+      'the full typeof idiom, never a bare flag — a bare __DEV__ throws on a runtime that does not define it',
+    ).toMatch(/typeof __DEV__ !== 'undefined' && __DEV__/);
+    expect(
+      code,
+      'the floor must be a named constant, so the tripwire states what it is checking',
+    ).toMatch(/const ENDLESS_WAVE_FLOOR = 1;/);
+  });
+
   it('remountDevSession routes the same way (gap 1, second half)', () => {
     const endlessAt = remountDevSessionBody.search(
       /if \(modeRef\.current === 'endless'\) \{/,

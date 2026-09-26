@@ -154,6 +154,16 @@ const SIM = {
   LOST: 3,
 } as const;
 
+/**
+ * The lowest wave an endless run can be at (D-01/D-02 numbering is 1-based).
+ *
+ * 11-09 Task 3: named only so the `__DEV__` tripwire at the mid-run
+ * `setWaveBuildFailedWave` writer can state what it is checking. It is NOT a resolved
+ * boundary contract — the N-END-01 boundary probe row stays flagged and unresolved,
+ * because no source artifact states it (11-09 `must_haves.assumptions`).
+ */
+const ENDLESS_WAVE_FLOOR = 1;
+
 type Props = {
   onMenu: () => void;
   /** Required — GameHost owns Select / Next / CERT levelId (D-14 / D-15). */
@@ -927,6 +937,24 @@ export function PlayingHost({
             // `waveAdvanceInFlightRef` makes this branch a no-op forever, so every
             // later WON is swallowed and the run can never advance or end again.
             waveAdvanceInFlightRef.current = false;
+            // 11-09 Task 3 (IN-01) — the MID-RUN writer's floor tripwire.
+            //
+            // `waveBuildFailureKind` in `ResultOverlay.tsx` classifies `>= 2` as
+            // mid-run and everything below as Retry-time. That holds only while
+            // `waveRef.current` is at or above the wave floor of 1. Nothing in the
+            // shipped code writes `waveRef` below it, so NO test in this repo can
+            // drive this red — it is a runtime tripwire aimed at a future writer (a
+            // Phase-14 resume-at-wave-N change), not coverage, and it does NOT
+            // resolve the flagged N-END-01 boundary assumption: no source artifact
+            // states the contract it is guessing at. The full `typeof` idiom is
+            // required — a bare `__DEV__` throws on a runtime that does not define it.
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              if (waveRef.current < ENDLESS_WAVE_FLOOR) {
+                console.error(
+                  `[endless] mid-run wave-build failure reported below the wave floor (waveRef=${waveRef.current}, floor=${ENDLESS_WAVE_FLOOR}): the Results overlay will classify it as Retry-time and suppress the Wave and Score lines for a run that exists`,
+                );
+              }
+            }
             // `waveRef.current` is still the last SUCCESSFUL wave — `advanceToWave`
             // assigns it only after a successful compile — so the record below is
             // wave n-1 with no adjustment, and the failed wave is n.
