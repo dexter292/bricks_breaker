@@ -602,6 +602,54 @@ describe('PlayingHost endless host (source contract)', () => {
    * the source tier by the sibling case above, `'the failed wave build ends the run
    * and releases the guard, inside the endless branch (WR-04 / SC-1)'`, and the WR-04
    * behaviour case was RE-POINTED at the ENDED post-condition rather than deleted.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 11-15 — THE ROUND-4 EXTENSION, and the failure it is written against.
+   *
+   * THE ROUND-3 VERSION OF THIS CASE PASSED WHILE THE DEFECT SAT ABOVE ALL FOUR
+   * BRANCHES IT COUNTED. It enumerated the four run-boundary branches, proved each
+   * one consulted `runEndedRef`, pinned the branch count and the `setActive(false)`
+   * count — and every one of those assertions was true of a function whose FIRST five
+   * statements took sim phase, lives, score, combo and stall tier straight from the
+   * mirror, unguarded, above every branch and every mode test. A straggler mirror
+   * arriving after the run boundary repainted a finished run's Results panel from
+   * `Score · 2400` to `Score · 9999` and this contract had nothing to say about it.
+   * That is the reusable lesson, and it is the THIRD consecutive occurrence of the
+   * same shape — an instrument pointed one symbol away from the defect (round 2's
+   * `previousBestRef` assignment count, round 3's branch enumeration, this).
+   *
+   * So the contract now covers the function PREAMBLE as well as the four branches,
+   * and it does so with TWO independent instruments, because an enumeration cannot
+   * detect a write nobody enumerated:
+   *   - an ORDERING assertion: the first guard on `runEndedRef.current` precedes the
+   *     first mirror-sourced write, both indices asserted found before comparison;
+   *   - a COUNT: exactly five mirror-sourced writes exist in `applyChrome`. A sixth
+   *     moves this number and sends its author here to prove it sits below the latch.
+   *
+   * WHAT THE EXTENSION STILL DOES NOT PROVE, stated as plainly as the paragraph
+   * above. An ordering assertion over source text proves the WRITE RULE — which
+   * statement comes first — and never the RENDER. It cannot tell you what the player
+   * sees. The render is proved by `'an ENDED endless run keeps its own numbers on the
+   * mounted overlay — one straggler WON at 9999 repaints nothing (gap 1)'` in
+   * `tests/ui/PlayingHost.endless-record.test.tsx`, which mounts the REAL
+   * `ResultOverlay` and reads the `Score ·` line out of `result-slot`; and the WRITE
+   * is proved end-to-end by the `hostProps` assertions in
+   * `tests/ui/PlayingHost.endless-retry.test.tsx` — the three retrofitted gap-3
+   * drives, the campaign straggler case and the failed-START case. If those are
+   * deleted, what remains here is a statement order, not coverage of gap 1.
+   *
+   * TIER CHANGE, disclosed rather than folded in quietly. The three ordering
+   * assertions below used to target the endless WON BRANCH (`latchAt >= 0`,
+   * `inFlightAt > 0`, `latchAt < inFlightAt`, plus the bare-return regex). 11-15
+   * Task 1 hoisted that guard to the first statement of the FUNCTION and DELETED the
+   * branch-level copy, which made those three assertions unsatisfiable at the branch
+   * — not because coverage was weakened but because the guard moved UP. They are
+   * re-pointed at the preamble in this same case rather than deleted, and the
+   * concurrency guard assertion stays on the branch because it is a different
+   * obligation (run lifetime vs. re-entrancy) and 11-13's own comment says so. The
+   * mutation evidence is strictly STRONGER after the move: deleting the hoisted guard
+   * turns RED every case 11-13's mutation M2 killed PLUS the new chrome and render
+   * cases — measured at 7 failing cases across the three files.
    */
   it('every run-boundary branch in applyChrome consults the shared runEndedRef latch (gap 3)', () => {
     expect(
@@ -662,32 +710,54 @@ describe('PlayingHost endless host (source contract)', () => {
       'THREE setActive(false) sites in applyChrome — the wave-build failure, campaign WON and campaign LOST. A fourth means a new run-boundary branch exists: add it to the enumeration above and prove it consults the latch',
     ).toBe(3);
 
-    // The ORDERING is the property, not the mere presence. A latch term that sat
-    // BELOW the in-flight test would still be a reference and would still let an
-    // ended run claim the guard and build a board before anything looked at it.
-    const latchAt = endlessWon.search(/if \(runEndedRef\.current\)/);
-    const inFlightAt = endlessWon.search(/if \(!waveAdvanceInFlightRef\.current\)/);
+    // 11-15 — THE ORDERING, re-pointed from the BRANCH to the FUNCTION. The property
+    // is where the guard sits relative to the writes it is meant to own, and the
+    // round-3 placement owned none of them: all five ran above it.
+    const latchAt = applyChrome.search(/if \(runEndedRef\.current\)/);
+    const firstMirrorWriteAt = applyChrome.search(
+      /set[A-Za-z]+\(mirror\.[A-Za-z]+\)/,
+    );
+    // Non-empty FIRST, the same 11-09 Pattern 2 the branch extractors above use: a
+    // drifted anchor must be RED, never vacuously green. Two `-1`s compare as equal,
+    // not as "in order".
     expect(
       latchAt,
-      'the endless WON branch must open with a guard ON the latch, not merely mention it',
+      'applyChrome must open with a guard ON the latch — `if (runEndedRef.current)`, not a mention and not a negated gate inside a branch',
     ).toBeGreaterThanOrEqual(0);
     expect(
-      inFlightAt,
-      'and the concurrency guard must still be there — it is a different obligation',
-    ).toBeGreaterThan(0);
+      firstMirrorWriteAt,
+      'and the mirror-sourced writes must still be findable, or the ordering below is vacuous',
+    ).toBeGreaterThanOrEqual(0);
     expect(
       latchAt,
-      'the latch guard must PRECEDE the in-flight test: run lifetime is decided before concurrency is',
-    ).toBeLessThan(inFlightAt);
+      'THE gap-1 property: the latch guard must PRECEDE the first mirror-sourced write. Measured pre-fix, the guard was at source line 976 and the first write at 936 — the latch owned the wave and owned no number the player was reading',
+    ).toBeLessThan(firstMirrorWriteAt);
 
-    // And it must RETURN. A fall-through would hand an endless WON to the campaign WON
-    // branch, which calls handleRunEnded with a `win` outcome on a cleared board — the
-    // SC-1 violation this branch exists to prevent. The sibling precedence contract
-    // above pins the branch ORDER; this pins what the latch guard itself does.
+    // And it must RETURN. A guard whose body did anything else would let control fall
+    // into the five writes it was hoisted above. The sibling precedence contract above
+    // pins the branch ORDER; this pins what the latch guard itself does.
     expect(
-      endlessWon,
-      'the latch guard\'s body must be a bare return — an ended endless run leaves applyChrome here',
+      applyChrome,
+      'the latch guard\'s body must be a bare return — an ended run leaves applyChrome at the top, before any chrome is written',
     ).toMatch(/if \(runEndedRef\.current\) \{\s*\n\s*return;\s*\n\s*\}/);
+
+    // The concurrency guard is a DIFFERENT obligation — re-entrancy, not run lifetime
+    // — and 11-13's own comment says so. It stays on the branch, where it belongs, and
+    // it must survive the hoist.
+    expect(
+      endlessWon.search(/if \(!waveAdvanceInFlightRef\.current\)/),
+      'the in-flight concurrency guard must still be inside the endless WON branch — the hoist moved run lifetime up, not re-entrancy',
+    ).toBeGreaterThanOrEqual(0);
+
+    // The COUNT, deliberately independent of the ordering above. An ordering assertion
+    // finds the FIRST write; it is structurally blind to a sixth one added anywhere.
+    const mirrorWrites = (
+      applyChrome.match(/set[A-Za-z]+\(mirror\.[A-Za-z]+\)/g) ?? []
+    ).length;
+    expect(
+      mirrorWrites,
+      'FIVE mirror-sourced writes in applyChrome — sim phase, lives, score, combo and stall tier. A sixth means a new piece of run state is being taken from the mirror: come here, add it to this sentence, and prove it sits BELOW the latch. Counting them is the instrument the round-3 branch enumeration could not be',
+    ).toBe(5);
   });
 
   /**
