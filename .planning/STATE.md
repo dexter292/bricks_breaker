@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 3
+current_plan: 4
 status: in_progress
-stopped_at: Completed 11-13-PLAN.md (gap 3 closed — an ended endless run stays ended)
-last_updated: "2026-09-26T09:40:17.667Z"
-state_head: 5e1be80affb25a2d8fd5ca47bab9676926a063f1
+stopped_at: Completed 11-14-PLAN.md (gap 2 closed — the ops doc states only mechanisms the code implements)
+last_updated: "2026-09-26T09:53:47.899Z"
+state_head: 1f46480d2cc12495d71fcc8f79654d7932468f8b
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 14
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -120,6 +120,7 @@ Total Plans in Phase: 14
 | Phase 11 P11 | 10 min | 3 tasks | 4 files |
 | Phase 11 P12 | 9 min | 3 tasks | 4 files |
 | Phase 11 P13 | 9 min | 3 tasks | 4 files |
+| Phase 11 P14 | 9 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -215,6 +216,10 @@ Total Plans in Phase: 14
 - [Phase 11]: gap 3 severity recorded as the verifier settled it (incoherent ENDED state + copy defect), not as 11-REVIEW CR-01 opened it (CRITICAL/false record)
 - [Phase 11]: Task 3 pins an INDEPENDENT structural count (three setActive(false) run-end sites) beside the four-branch enumeration — an enumeration cannot detect a branch nobody enumerated
 - [Phase 11]: The WR-04 guard-release claim dropped to the source tier, disclosed in the test's own comment; the case was re-pointed and renamed, never deleted
+- [Phase 11]: The mode term gates runCertWorstCase's LEVEL half only; the tier half stays a real, funnel-covered run boundary — Gating the tier half would be the 'disable Cert WC while endless' option the owner rejected on 2026-09-26 as inconsistent with A-02's explicit-exit resolution for Lv. The level half was the last deterministic, race-free trigger for a cross-mode record publication, and while endless it could not take effect anyway — its only product was a stopped frame loop behind a live HUD.
+- [Phase 11]: Task 1 Test 1 (tier UNSET) was RED pre-fix, not the passing regression pin the plan assumed: the funnel DID fire (verifier P3 holds) but the restart could not reach W1 because the level half had flipped levelId and fxReady was false at the readiness gate — Recorded as measured rather than reconciled against the verifier's pre-fix numbers — the gate did not merely preserve branch A, it repaired it.
+- [Phase 11]: An explanatory comment must not restate a literal that a structural gate counts — naming the level-forcing call in prose made the plan's own gate read 2 where it requires 1 — Caught by running the gate, not by reading it. Line comments only inside runCertWorstCase, because codeOnly() in PlayingHost.endless-host.test.ts strips // but not block comments.
+- [Phase 11]: Cert WC stays in the SC-5 do-not-press set even though its level half is now gated — It still injects the worst-case ball, particle and shake load onto the board under measurement, which disqualifies any frame time captured across it in BOTH tier branches. The warning was narrowed by reason, not by control.
 
 ### Decisions (Post-MVP close)
 
@@ -251,6 +256,6 @@ Total Plans in Phase: 14
 
 ## Session Continuity
 
-Last session: 2026-09-26T09:40:11.202Z
-Stopped at: Completed 11-13-PLAN.md (gap 3 closed — an ended endless run stays ended)
+Last session: 2026-09-26T09:53:27.518Z
+Stopped at: Completed 11-14-PLAN.md (gap 2 closed — the ops doc states only mechanisms the code implements)
 Resume file: None

@@ -25,7 +25,7 @@ affects: [phase-14-endless-production-entry, sc5-device-reading, endless-mode-op
 actuals:
   tokens: 5682
   tasks: 3
-  commits: 4
+  commits: 6
 plan_head_before: 6cea0ef6f7944af75f0aa29b8ade5e313a015dc3
 
 tech-stack:
@@ -280,3 +280,7 @@ None - no external service configuration required.
 ---
 *Phase: 11-endless-mode*
 *Completed: 2026-09-26*
+
+## Self-Check: PASSED
+
+All four modified files present on disk; all five commits (`837e67b`, `f139295`, `17f80f6`, `2210465`, `1f46480`) present in `git log`.
