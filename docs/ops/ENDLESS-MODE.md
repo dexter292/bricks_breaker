@@ -238,6 +238,99 @@ This supersedes `docs/ops/BOARD-GENERATOR.md` § Limits item 2's second paragrap
 is preserved there, marked superseded, with a dated note pointing back at this document — see
 the amendment under that item.
 
+## The run boundary and the record display (gap closure, 2026-09-26)
+
+Phase 11 verification (`11-VERIFICATION.md`) recorded two gaps against the plans above. Both
+are closed, and the behaviour that now ships is written here rather than left in the planning
+artifacts, because this is where the next person picks the mode up.
+
+### Every endless run boundary is a new run at wave 1
+
+`startEndlessRun()` is the **only** site that owns a run's identity — the seed, the wave, the
+mode and the wave-advance guard — and every reset now routes to it:
+
+| Boundary | What happens |
+|----------|--------------|
+| Results `Retry` | The in-flight run is recorded first (a no-op when the run already ended), then a **new run**: `runSeedRef` re-minted, `waveRef := 1`, guard cleared, lives 3 / score 0 / combo 1 |
+| Pause `Retry` during a live run | Same, and the in-flight run **is** recorded `abandoned` at the wave reached |
+| Pause `Menu` | Records `abandoned`, then Title |
+| `__DEV__` tier change (`remountDevSession`) | Records `abandoned`, then routes to `startEndlessRun()` |
+| A wave that will not compile | **Ends the run.** The advance guard is released, the run is recorded `abandoned` at the last successfully built wave, and the frame loop stops |
+
+The campaign `retry()` is unreachable from an endless Retry. It refills lives against whatever
+board is sitting in `compiledSv`, which mid-run is the **wave-N generated board** — so before
+this change a Retry chain from wave K would let the next loss record wave K+1.
+
+**Why the record is trustworthy now, in one sentence:** `telemetry.endless.bestWave` can only be
+raised by a wave that some single continuous run actually reached, because every path that
+discards a run records it first and every path that starts one returns to wave 1. That sentence
+is the phase goal, and it was false until this round.
+
+A generated board that fails to compile deliberately does **not** route to `LevelErrorOverlay`.
+That overlay has no controls, and `GameScreen` suppresses `showResult` while `levelError` is
+non-null, so the old route left a live simulation behind a modal with two dead buttons. The
+failure is reported as Results body copy instead, and `Retry` stays live.
+
+### The Results overlay reads the record the player just set
+
+`telemetry.endless` previously had **no reader anywhere** in `app/` or `src/` — the record an
+endless player set was the one number never shown to them. The endless Results overlay is now
+that reader, and the only one this phase ships.
+
+| Field | Campaign source | Endless source |
+|-------|-----------------|----------------|
+| `Best · {n}` | `previousBestRef` ← `getBestForLevel(levelId)` | a **separate** watermark ref ← `getSnapshot().telemetry.endless.bestScore` |
+| `Best wave · {n}` | not rendered | a **separate** watermark ref ← `getSnapshot().telemetry.endless.bestWave` |
+| `New Record` | `score > campaignPB`, strict | `score > bestScore` **or** `wave > bestWave`, both strict |
+| Post-run write-back | `previousBestRef := best` on a record | the endless refs only — `previousBestRef` is **never** written by an endless run |
+| Stars / `Next` | rendered when earned | never rendered (SC-1: an endless run never ends on a cleared board) |
+
+**The mode branch happens before the comparison, not after.** That ordering is the fix, not an
+implementation detail: `handleRunEnded` used to compute `evaluatePersonalBest(runScore,
+previousBestRef.current)` first and branch on mode second, and that single ordering produced all
+three symptoms at once — the campaign per-level best displayed as the endless `Best`, `New
+Record` firing against an unrelated campaign score, and the endless score written back into
+`previousBestRef`, which the next run start then re-published as the campaign best.
+
+Displayed values are **post-merge**, read from the blob `recordRunEnd` returns synchronously —
+not from a second, racing `getSnapshot()`. Both record lines render in the same weight and
+colour under one shared badge: **which of the two is *the* record is deliberately not decided
+here** (see § Limits item 4).
+
+### Flagged assumptions from this round
+
+Recorded here rather than left only in the planning artifacts, so an open question is visible
+where work gets picked up.
+
+- **A-01 — a Retry that cannot build wave 1. DECIDED 2026-09-26 (owner):** `retry-in-place`. The
+  Results overlay stays on screen, the body becomes `Wave 1 could not be built — tap Retry`, and
+  `Retry` stays live so a second press re-mints a different seed. `Wave 1` is contract copy and
+  is **not** templated — a Retry-time failure is always at wave 1. The mid-run body
+  `Wave {n} could not be built — run saved` is deliberately not reused there: at Retry time
+  there is no in-flight run to save, so it would state something untrue.
+- **A-02 — the other `__DEV__` row controls after endless is entered. OPEN; an owner decision is
+  owed.** `modeRef` is written only to `'endless'` and never back, so once endless is entered the
+  compiled-push gate effect early-returns for the rest of the mount: `Lv`, the tier button and
+  `Cert WC` bake, flip `fxReady`, and never reach `setActive(true)` — a stopped frame loop behind
+  a live HUD. Nothing in this round changes those controls, and the UI-SPEC declines to say what
+  they should do. **The decision owed:** whether entering endless should disable those controls,
+  whether they should exit endless back to campaign, or whether the `__DEV__` row should simply
+  be documented as one-way. Until it is taken, the SC-5 discharge procedure in item 2 carries a
+  do-not-press note so the reading is not lost to it.
+- **A-03 — the per-run seed can collide inside one millisecond. RECORDED, not fixed.**
+  `runSeedRef.current = Date.now() >>> 0` is re-minted by the same expression at every run start,
+  so two run starts inside one millisecond draw the same board sequence. A new seed policy would
+  be a Phase-10-adjacent determinism decision, and the property is unchanged from the shipped
+  behaviour. It cannot inflate `bestWave` — each run still records its own wave.
+- **A-04 — the brick-dimension mismatch (WR-01). DECIDED 2026-09-26 (owner): accepted debt.**
+  Recorded in full as § Limits item **7**; the `ENDLESS_BRICK_DIMS` fix lands in Phase 14. No
+  code in this round touches the bake path.
+- **A-05 — SC-5 remains the standing human-verification item.** No automated step in this repo
+  measures a frame on hardware, and none of this round's work claims to. § Limits item 2 stays
+  **OPEN**.
+
+---
+
 ## Limits
 
 This section is why this document exists rather than a code comment. Everything above is real;
@@ -279,12 +372,29 @@ it, and the discharge procedure with it.
 > in the `__DEV__` dev row on the playing HUD (alongside Lv / tier / Cert WC / Crash); play
 > **waves 1 through 5**; watch each transition specifically — the moment the last brick of a
 > board breaks and the next board appears.
+> **Do not press `Lv`, the tier button or `Cert WC` during the reading.** Once endless has been
+> entered, `modeRef` latches to `'endless'` for the lifetime of the mount (`11-VERIFICATION.md`
+> WR-02) and never returns to `'campaign'`, so the compiled-push gate effect early-returns: those
+> three controls bake, flip `fxReady`, and never reach `setActive(true)`, leaving a **stopped
+> frame loop behind a live HUD**. That is a known consequence of the latch, not a transition
+> defect — but a reading taken after pressing one of them is measuring a dead loop. If it
+> happens, restart the app and take the reading again. (Amended 2026-09-26, per the verification
+> report's own recommended correction; the control behaviour itself is assumption **A-02**, still
+> an open owner decision.)
 > **Failure signatures — what the reader is looking for:**
 > (a) a **visible black playfield** at a transition;
 > (b) an **audio hiccup** at a transition;
 > (c) an **`[audio] preload soft-fail`** line in the log mid-run;
 > (d) a **frame-time spike outside the Mid budget** at a transition (p50 above 16.7 ms, or p95
 > above 20 ms).
+> **Expected and ACCEPTED — not a fifth failure signature.** Every brick on every endless wave
+> draws a **stretched glow halo** (§ Limits item 7): the atlas is baked from the campaign level's
+> brick dimensions while generated boards use a smaller lattice, so each halo is squashed by
+> 0.77x horizontally and 0.85x vertically. It is visible, it is known, and the owner accepted it
+> on 2026-09-26 with the fix scheduled for Phase 14. **Do not write it up as a new defect, and do
+> not discard, postpone or fail the reading over it.** Expect to see it, recognise it, and carry
+> on to the frame-time numbers — which are what this reading is for. The failure signatures above
+> remain exactly four.
 > Any one of those means the bake or preload cold path is still re-firing per wave and plan
 > 11-05's re-key did not hold in practice. That is a **gap-closure signal — a code fix, not a
 > documentation edit.**
@@ -316,6 +426,10 @@ in this phase weakens that and nothing here may be reused for a token, nonce, ke
 Endless does not need seed secrecy; a player who reads their own run seed learns which boards
 they are about to play, which is not a property this mode protects.
 
+*The paragraph immediately below is **SUPERSEDED as of 2026-09-26** as to its scope. It is kept
+verbatim, because this section exists so a later phase can see both what was believed and what
+corrected it. Read it together with the supersession note that follows it.*
+
 **6. Endless records are firewalled from campaign progress, and that is a type property now.**
 `recordRunEnd` takes a discriminated union whose endless arm has **no** `levelId`, so TypeScript
 narrowing forces the runtime mode gate to exist (**D-11**); the endless record lives inside
@@ -325,3 +439,49 @@ narrowing forces the runtime mode gate to exist (**D-11**); the endless record l
 reference to the mode — an endless win would have written a campaign best and unlocked a
 campaign level. What is *not* established is anything about cross-device or cloud sync of those
 records; there is none, and nothing here designs for one.
+
+> **SUPERSEDED 2026-09-26 — the firewall claim was true of the STORAGE layer only.**
+> Corrected by: § *The run boundary and the record display* above, and `11-VERIFICATION.md` gap 2.
+> **What was wrong.** Everything the paragraph above claims is still true, and the type property
+> genuinely holds — but it was written as though it covered "endless records" generally, and it
+> covered the write path alone. The **display** path breached the same firewall in both
+> directions: `handleRunEnded` compared an endless run against `previousBestRef`
+> (`store.getBestForLevel(levelId)`, a campaign per-level best) *before* branching on mode, so an
+> endless run showed a campaign number as its `Best`, fired `New Record` against an unrelated
+> campaign score, and wrote its own score back into that campaign ref, where the next run start
+> re-published it. Nothing persisted, so the narrowest reading of SC-3 survived; its plain
+> meaning did not.
+> **What holds now.** The firewall covers the display path too: per-mode watermark refs
+> (`endlessBestScoreRef` / `endlessBestWaveRef`, seeded from `telemetry.endless`) selected
+> **before** the personal-best comparison, and **no** endless write-back to `previousBestRef` at
+> all. Pinned by `tests/ui/PlayingHost.endless-record.test.tsx`, including a probe that seeds a
+> distinct campaign best and requires it to be absent from the rendered overlay.
+> **Still not established,** unchanged: anything about cross-device or cloud sync of these
+> records. There is none, and nothing here designs for one.
+
+**7. The endless glow atlas is baked at the wrong brick size — accepted debt, fix in Phase 14.**
+Recorded, not fixed, by owner decision of **2026-09-26** (`11-VERIFICATION.md` § Anti-Patterns
+Found, **WR-01**; § Human Verification Required item 2 is the scope question it was routed as).
+
+**The mismatch, as measured rather than as an impression.** The atlas is baked from the active
+*campaign* level's compiled brick dimensions — `bakeGlowSprites(brickW, brickH)` reads
+`loadResult.compiled.w[0]` / `.h[0]` (`app/_components/PlayingHost.tsx`, the bake effect), which
+for `level-01` is **44x18**. Every *generated* board draws on the fixed **32x14** lattice
+(`src/levelgen/grid.ts:32-41`). A 44x18 brick bakes a **52x26** halo; drawn onto a 32x14 brick
+that halo is squashed into **40x22** — a non-uniform **0.77x horizontal / 0.85x vertical** stretch
+on every brick of every wave.
+
+**Why it is being carried rather than fixed.** It breaks no success criterion. SC-5 is about the
+bake firing **once per run** rather than per wave, and it still does: plan 11-05 re-keyed
+`loadKey` onto brick dimensions alone, and every generated board sits on the one fixed lattice, so
+the atlas identity never changes mid-run. The defect is purely cosmetic and it is visible only on
+the `__DEV__` path endless is reachable from today, which Phase 14 deletes anyway.
+
+**Where the fix lands.** Phase 14, alongside the production endless chrome — an `ENDLESS_BRICK_DIMS`
+constant that the bake keys off in endless mode instead of the campaign level's compiled
+dimensions. **Nothing in this round changes the bake path**, deliberately: the 11-08 plan carries a
+`grep` fence on the `bakeGlowSprites(brickW, brickH)` call precisely so this stays a recording.
+
+**Consequence for the SC-5 reading.** Whoever takes the device reading in item 2 will see the
+stretched halo. Item 2's discharge procedure says so explicitly, so that it is neither written up
+as a fresh defect nor treated as a reason to discard the reading.
