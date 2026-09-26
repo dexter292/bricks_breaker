@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: Completed 11-07-PLAN.md
-last_updated: "2026-09-26T04:55:34.020Z"
-state_head: 319fc1e264b901c41b226ca55a1ac8be3349940a
+stopped_at: Completed 11-08-PLAN.md
+last_updated: "2026-09-26T05:17:30.701Z"
+state_head: 578fe5f780349a1e993262fd3d89fd2008bfd0f6
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 8
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -114,6 +114,7 @@ Total Plans in Phase: 8
 | Phase 11 P05 | 20 min | 3 tasks | 5 files |
 | Phase 11 P06 | 8min | 3 tasks | 3 files |
 | Phase 11 P07 | 1h 16m | 4 tasks | 6 files |
+| Phase 11 P08 | 25 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,9 @@ Total Plans in Phase: 8
 - [Phase 11]: SCHEDULE was deliberately NOT re-tuned — the clear-time tail is a trajectory property (18x spread on one lattice across paddle offsets) and per-difficulty maxima are non-monotone (d=17 at 2735.3 s beats d=20), so a re-tune buys ~34% off the median while re-rolling the tail and invalidating Phase 10's digests, sweep, proof and the A1 device record
 - [Phase 11]: A-01 decided retry-in-place: a Retry that cannot build wave 1 keeps the endless Results overlay up with Retry live, body copy `Wave 1 could not be built — tap Retry` (literal wave 1, never templated) — The mid-run body says run saved, which is false at Retry time — there is no in-flight run to save. A silent no-op was rejected too: it presents a dead-looking Retry button. Owner decision 2026-09-26.
 - [Phase 11]: genIssues removed: a generated board that fails to compile ends the run instead of rendering LevelErrorOverlay — LevelErrorOverlay has no controls and GameScreen suppresses showResult while levelError is non-null, so the old route left a live sim behind a modal with two dead buttons (11-UI-SPEC Error state (board)).
+- [Phase 11]: The mode branch in handleRunEnded moved ahead of evaluatePersonalBest, and each arm now owns its own recordRunEnd call — a single ternary call site cannot express branch-before-compare, because the ternary IS the branch and it sits after the compare — Gap 2's three symptoms — the campaign PB shown as the endless Best, New Record firing against an unrelated campaign score, and the endless score written into previousBestRef where the next run start re-published it — all came from that one ordering. 11-UI-SPEC Record Display Contract makes branch-before-compare the contract.
+- [Phase 11]: waveBuildFailedWave alone discriminates the two wave-build-failure bodies: 1 is always Retry-time (tap Retry), >= 2 is always mid-run (run saved) — no second flag was added — Structural, not a convention: a mid-run failure sets waveRef.current + 1 and waveRef is >= 1 from the first successful build, so mid-run can never produce 1. 11-07 stored the FAILED wave rather than the last good one precisely so this needs no arithmetic.
+- [Phase 11]: mode/wave/bestWave are REQUIRED props on GameScreenProps and ResultOverlay, and the overlay FORCES the lose variant in endless rather than trusting the caller's kind — A defaulted mode would silently render campaign chrome for an endless run if a call site forgot it — the exact class of defect this plan closes. Gating only on kind would make the SC-1 unreachability of Win/All clear/stars/Next a caller promise; isWin = kind === 'win' && !isEndless makes it a component property.
 
 ### Decisions (Post-MVP close)
 
@@ -218,6 +222,7 @@ Total Plans in Phase: 8
 ### Blockers/Concerns
 
 - [MVP] Hardware performance gates still open (waived only for Phase 1 close)
+- N-END-03 is deliberately left UNCHECKED in REQUIREMENTS.md by plan 11-08. Its reproducibility half is verified (tests/endless.determinism.test.ts); its second clause — "wave transitions cause no frame spike outside the Mid budget" — is the unmeasured SC-5 device half. Checking it would be the untaken-reading failure the phase's own prohibitions forbid. Discharge it together with the SC-5 device reading.
 
 ## Deferred Items
 
@@ -230,6 +235,6 @@ Total Plans in Phase: 8
 
 ## Session Continuity
 
-Last session: 2026-09-26T04:55:33.998Z
-Stopped at: Completed 11-07-PLAN.md
+Last session: 2026-09-26T05:16:32.591Z
+Stopped at: Completed 11-08-PLAN.md
 Resume file: None

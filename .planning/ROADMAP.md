@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 7/8 plans executed — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
+**Plans:** 8/8 plans executed — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
 
 Plans:
 **Wave 1**
@@ -118,7 +118,7 @@ Plans:
 
 - [x] 11-03-PLAN.md — `useGameLoop` wave request/apply pair, `advanceWave`, and the cumulative tick bank (wave 2)
 - [x] 11-04-PLAN.md — Multi-wave SC-1 integration and the SC-4 determinism suite (wave 2)
-- [ ] 11-08-PLAN.md — Gap 2: the endless record display contract — per-mode watermark refs, the endless Results variant, and the ops-record amendment (gap closure, wave 2)
+- [x] 11-08-PLAN.md — Gap 2: the endless record display contract — per-mode watermark refs, the endless Results variant, and the ops-record amendment (gap closure, wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

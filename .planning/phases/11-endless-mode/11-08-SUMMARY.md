@@ -366,3 +366,19 @@ None. No new network endpoint, auth path, file access pattern or schema change. 
 - `docs/ops/ENDLESS-MODE.md` — present on disk
 - `.planning/phases/11-endless-mode/11-08-SUMMARY.md` — present on disk
 - All three task commits found in `git log`: `3aa9b45`, `2cfcbbc`, `38cb42c`
+
+---
+
+## Post-SUMMARY note: N-END-03 left unchecked, deliberately
+
+`requirements-completed` above copies the plan frontmatter verbatim, as the contract requires.
+At the `update_requirements` step only **N-END-02** was actually checked off in
+`.planning/REQUIREMENTS.md`. **N-END-03 was deliberately left unchecked.**
+
+Its text is two clauses with opposite evidentiary standing: *"A seeded endless run is
+reproducible end to end"* is verified (`tests/endless.determinism.test.ts`, correctly scoped to
+the headless fixed-policy claim — see § Limits item 1), while *"wave transitions cause no frame
+spike outside the Mid budget"* is the **unmeasured SC-5 device half**. Ticking the box would
+assert a device reading nobody took, which is the exact failure this plan's own prohibition
+list forbids (`MUST NOT write a passing device reading that was not taken`). Recorded as a
+blocker in `.planning/STATE.md` § Blockers/Concerns; discharge it with the SC-5 reading.
