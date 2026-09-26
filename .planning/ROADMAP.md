@@ -108,15 +108,25 @@ Plans:
 **Plans:** 8 plans — 6 executed (waves 1-4); 2 gap-closure plans pending (gap waves 1-2)
 
 Plans:
+**Wave 1**
 
 - [x] 11-01-PLAN.md — Wave ramp, per-wave seed, the mode-agnostic board-swap seam, and an end-to-end tracer transition (wave 1)
 - [x] 11-02-PLAN.md — Endless record inside the telemetry blob, and the campaign-write firewall in both stores (wave 1)
+- [ ] 11-07-PLAN.md — Gap 1: mode-aware run boundaries — Retry and the dev-session remount restart at wave 1, the in-flight abandon funnel, and a terminal wave-build failure (gap closure, wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [x] 11-03-PLAN.md — `useGameLoop` wave request/apply pair, `advanceWave`, and the cumulative tick bank (wave 2)
 - [x] 11-04-PLAN.md — Multi-wave SC-1 integration and the SC-4 determinism suite (wave 2)
-- [x] 11-05-PLAN.md — Bake-key re-key, `PlayingHost` endless wiring, and the temporary `__DEV__` entry (wave 3)
-- [x] 11-06-PLAN.md — `ENDLESS-MODE.md`, the `BOARD-GENERATOR.md` §Limits amendment, and the device SC-5 assumption (wave 4)
-- [ ] 11-07-PLAN.md — Gap 1: mode-aware run boundaries — Retry and the dev-session remount restart at wave 1, the in-flight abandon funnel, and a terminal wave-build failure (gap closure, wave 1)
 - [ ] 11-08-PLAN.md — Gap 2: the endless record display contract — per-mode watermark refs, the endless Results variant, and the ops-record amendment (gap closure, wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 11-05-PLAN.md — Bake-key re-key, `PlayingHost` endless wiring, and the temporary `__DEV__` entry (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 11-06-PLAN.md — `ENDLESS-MODE.md`, the `BOARD-GENERATOR.md` §Limits amendment, and the device SC-5 assumption (wave 4)
 
 **UI hint**: yes
 
