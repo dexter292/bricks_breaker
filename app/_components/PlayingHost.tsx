@@ -1646,7 +1646,34 @@ export function PlayingHost({
       return;
     }
     let defer = false;
-    if (levelId !== 'level-03') {
+    // 11-14 / 11-VERIFICATION gap 1 bullet 5 + gap 2 bullet 4. The LEVEL half is
+    // gated on the run mode; the tier half below is deliberately NOT.
+    //
+    // Line comments only in this function — `codeOnly()` in
+    // `tests/ui/PlayingHost.endless-host.test.ts` strips `//` but not `/** */`, so a
+    // block comment here could satisfy or falsify a source contract with prose.
+    //
+    // Why the gate: the level-forcing call below was the last deterministic,
+    // race-free trigger for a CAMPAIGN per-level best being published into the
+    // endless `best` prop — it drives the `getBestForLevel` preload effect, which
+    // 11-12 guarded at the publication end. Gating here shuts the same defect at the
+    // trigger end. (The call is written once and only once in this function, so the
+    // plan's structural gate can count it — do not restate it in prose.)
+    //
+    // Why it cost nothing: while endless the level switch could not take effect
+    // anyway. The compiled-push gate effect early-returns on
+    // `modeRef.current === 'endless'`, and the deferred-cert effect below requires
+    // `levelId === 'level-03'` AND `tierOverride === 'mid'`. So with the tier already
+    // Mid the only product of this half was the bake effect's
+    // `setActiveRef.current(false)` — a stopped frame loop behind a live HUD, with
+    // nothing recorded because `runEndedRef` was never latched.
+    //
+    // Owner decision 2026-09-26, in preference to a documentation-only change and to
+    // disabling `Cert WC` while endless — the latter is inconsistent with how A-02
+    // was resolved for `Lv` next door, via an explicit exit rather than a dead button.
+    //
+    // `modeRef` is a ref and is deliberately absent from the dependency array.
+    if (modeRef.current !== 'endless' && levelId !== 'level-03') {
       setLevelId('level-03');
       defer = true;
     }
