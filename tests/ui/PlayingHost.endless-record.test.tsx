@@ -665,6 +665,134 @@ describe('PlayingHost endless record display (gap 2)', () => {
   });
 
   /**
+   * 11-15 Task 1 — `11-VERIFICATION.md` round-3 gap 1. THE case, and it is a RENDER.
+   *
+   * 11-13 closed the WAVE half of "an ended run stays ended" with a latch inside the
+   * endless WON branch. The five chrome writes that OPEN `applyChrome` — sim phase,
+   * lives, score, combo, stall tier, all taken from the mirror — sit ABOVE that latch
+   * and above every mode test, so a straggler mirror that arrives after the boundary
+   * still repaints the run's own numbers into the Results panel the player is reading.
+   *
+   * Measured pre-fix on this harness, with the REAL `ResultOverlay` mounted inside
+   * `result-slot`: a run banked `{mode:'endless', wave:2, score:2400, outcome:'lose'}`
+   * opens at `Score · 2400 / Best · 2400 / New Record`, and ONE straggler `WON` mirror
+   * at `{lives:3, score:9999}` repaints the slot to `Score · 9999` above the SAME
+   * `Best · 2400` and the SAME `New Record`, under an `Out of lives` heading, with
+   * host props back at `{score: 9999, lives: 3}`. The record was always right; the
+   * run's own score above it was not.
+   *
+   * The straggler's payload is DELIBERATELY distinguishable from the boundary
+   * mirror's. The three gap-3 drives in `PlayingHost.endless-retry.test.tsx` re-sent
+   * the boundary's own `score: 2400`, which is exactly why they proved the wave half
+   * and were structurally blind to this one — the same shape as round 2's
+   * `previousBestRef` blind spot, an instrument pointed one symbol away from the
+   * defect.
+   *
+   * BOTH channels are wanted, for the reason 11-12's own contract gives: the
+   * `hostProps` prop channel proves the WRITE, the `result-slot` query proves the
+   * RENDER. A source contract proves neither, which is why
+   * `tests/ui/PlayingHost.endless-host.test.ts` names this case rather than standing
+   * in for it.
+   */
+  it('an ENDED endless run keeps its own numbers on the mounted overlay — one straggler WON at 9999 repaints nothing (gap 1)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    // The boundary mirror ITSELF must be allowed through — this opening state is the
+    // third proof that the fix is a latch and not a blanket freeze.
+    const opened = within(screen.getByTestId('result-slot'));
+    expect(
+      opened.getByText('Wave · 2'),
+      'the boundary mirror wrote the run final state before the latch closed',
+    ).toBeTruthy();
+    expect(
+      opened.getByText('Score · 2400'),
+      'the panel opens at the run own final score, written BY the LOST mirror',
+    ).toBeTruthy();
+    expect(opened.getByText('Best · 2400')).toBeTruthy();
+    expect(opened.getByText('Best wave · 2')).toBeTruthy();
+    expect(
+      opened.getByText('New Record'),
+      'the record block is correct before the straggler and must stay correct after it',
+    ).toBeTruthy();
+    expect(
+      recordRunEnd,
+      'the loss is the run boundary — it records exactly once',
+    ).toHaveBeenCalledTimes(1);
+
+    // ONE straggler WON, carrying a payload the boundary mirror never had.
+    await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
+
+    const after = within(screen.getByTestId('result-slot'));
+    expect(
+      after.getByText('Score · 2400'),
+      'measured pre-fix: the mounted slot repainted to `Score · 9999` on a run banked at 2400',
+    ).toBeTruthy();
+    expect(
+      after.queryByText('Score · 9999'),
+      'measured pre-fix: `Score · 9999` was rendered inside result-slot, above the run own `Best · 2400`',
+    ).toBeNull();
+    expect(
+      after.getByText('Best · 2400'),
+      'the record beside it is untouched — `best` is written at handleRunEnded, never by applyChrome',
+    ).toBeTruthy();
+    expect(
+      after.getByText('New Record'),
+      'and the badge is unchanged: measured pre-fix it sat above a score that was not the recorded one',
+    ).toBeTruthy();
+    expect(
+      after.getByText('Lose'),
+      'SC-1: an endless run never ends on a cleared board — a straggler WON cannot flip the heading',
+    ).toBeTruthy();
+    expect(
+      after.getByText('Out of lives'),
+      'and the body stays the zero-lives copy the run actually ended on',
+    ).toBeTruthy();
+    expect(
+      hostProps.current?.score,
+      'measured pre-fix: host score became 9999 — the WRITE half of the same defect',
+    ).toBe(2400);
+    expect(
+      hostProps.current?.lives,
+      'measured pre-fix: host lives went back to 3 on a run that ended at zero (D-04: never a refill)',
+    ).toBe(0);
+    expect(
+      recordRunEnd,
+      'nothing false reaches telemetry across the straggler — still exactly one record',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * 11-15 Task 1 — the OTHER side of the same condition, so the fix cannot be a
+   * blanket freeze.
+   *
+   * A guard written as an unconditional early return, or one hoisted without the
+   * `runEndedRef` test, would make this case RED. That is deliberate: the plan's own
+   * T-11-32 row is "a hoisted guard that locks a NEW run out of its own chrome".
+   */
+  it('a LIVE endless run still takes every mirror chrome — the latch freezes only an ENDED run (gap 1)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+
+    expect(
+      hostProps.current?.result,
+      'no boundary has fired — this run is live',
+    ).toBeNull();
+
+    await deliverPhase(SIM.PLAYING, { lives: 2, score: 1234 });
+
+    expect(
+      hostProps.current?.score,
+      'a run that has NOT ended takes score from every mirror — a blanket freeze would strand it at 1200',
+    ).toBe(1234);
+    expect(
+      hostProps.current?.lives,
+      'and lives too — this is the side of the condition the hoist must not touch',
+    ).toBe(2);
+  });
+
+  /**
    * 11-12 gap 1 — THE case. A BEHAVIOUR test, not a source contract, because a source
    * contract is what let this through twice.
    *
