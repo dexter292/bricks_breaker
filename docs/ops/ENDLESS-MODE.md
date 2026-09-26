@@ -258,7 +258,7 @@ mode and the wave-advance guard — and every reset now routes to it:
 | `__DEV__` `Endless` button (`onPress={startEndlessRun}`) | It stays mounted and tappable for the **whole** run, so a second press mid-run is a boundary. The in-flight run is recorded `abandoned` at the wave reached, then a **new run starts at wave 1** — because the funnel is the first statement of `startEndlessRun()` itself, not a call sitting at some of its callers |
 | `Lv` (`toggleDevLevel`) | Records the in-flight run `abandoned` at the wave reached, then **exits endless**: `modeRef` / `mode` return to `'campaign'`, the `W{n}` readout disappears, `waveRef` and the wave-advance guard clear, and the next run is a **campaign** run recorded through the campaign arm (assumption **A-02**, owner decision of 2026-09-26) |
 | A wave that will not compile | **Ends the run.** The advance guard is released, the run is recorded `abandoned` at the last successfully built wave, and the frame loop stops |
-| `Cert WC` (`runCertWorstCase`) | A boundary **only through its tier half**, and only when the forced quality tier is not already `mid`: setting it fires the `__DEV__` tier-change row above, so the in-flight run is recorded `abandoned` at the wave it reached and a new run starts at wave 1 (measured 2026-09-26 from a live run at wave 2 — readout `W2` → `W1`, one `recordRunEnd` call carrying `{mode:'endless', wave:2, outcome:'abandoned'}`). On that branch the press **injects nothing** — the function returns at its `defer` branch before the injection — and, **Re-scoped 2026-09-26 (round 4)**, it now **arms nothing** either: before round 4 it deferred a worst-case injection that discharged either onto a later campaign `level-03` session that never pressed the button, or — when the run was already on `level-03` — onto the freshly restarted endless board. Both were measured, and both are now 0. **With the tier already `mid` it is no longer a run boundary at all.** Its other half used to force `level-03`; since `11-14` that half does not fire while the mode is endless, so the press leaves the run live — measured `W2` → `W2`, the level unchanged, `recordRunEnd` not called and no `setActive` call of any kind. On THAT branch it does still inject the worst-case load onto the live board (measured `injectCertWorstCase` 0 → 1), which is a hazard during a measurement but not a run boundary |
+| `Cert WC` (`runCertWorstCase`) | A boundary **only through its tier half**, and only when the forced quality tier is not already `mid`: setting it fires the `__DEV__` tier-change row above, so the in-flight run is recorded `abandoned` at the wave it reached and a new run starts at wave 1 (measured 2026-09-26 from a live run at wave 2 — readout `W2` → `W1`, one `recordRunEnd` call carrying `{mode:'endless', wave:2, outcome:'abandoned'}`). On that branch the press **injects nothing** — the function returns at its `defer` branch before the injection — and, **Re-scoped 2026-09-26 (round 4)**, it now **arms nothing** either: before round 4 it deferred a worst-case injection that discharged either onto a later campaign `level-03` session that never pressed the button, or — when the run was already on `level-03` — onto the freshly restarted endless board. Both were measured, and both are now 0. **With the tier already `mid` it is no longer a run boundary at all.** Its other half used to force `level-03`; since `11-14` that half does not fire while the mode is endless, so the press leaves the run live — measured `W2` → `W2`, the level unchanged, `recordRunEnd` not called and no `setActive` call of any kind. On THAT branch it does still inject the worst-case load onto the live board (measured `injectCertWorstCase` 0 → 1), which is a hazard during a measurement but not a run boundary. **Extended 2026-09-26 (round 5):** the mode term is one of THREE — as shipped the level half fires only when the run has **not ended**, the mode is **campaign**, and the level is **not already `level-03`** (`!runEndedRef.current && modeRef.current !== 'endless' && levelId !== 'level-03'` in `runCertWorstCase`). So a press from a **mounted Results overlay** moves no level and starts no loop in campaign either. Measured in round 5 from a mounted campaign lose panel at `{score: 2400, lives: 0}` with the tier already Mid: the level-switch control still named `level-01`, `retry()` was not called, there were zero `setActive(true)` calls (and no trailing `setActive(false)`, because nothing was re-armed to stop), the panel stayed up still reading its own `2400`, and `injectCertWorstCase` was called once — the press injects directly into a world whose loop is already stopped. Case: `an ENDED campaign run is not re-armed: a press from the mounted lose panel with the tier already Mid moves no level and starts no loop`, in `tests/ui/PlayingHost.endless-retry.test.tsx` |
 
 **The record-first rule is enforced in exactly one place: the first statement of
 `startEndlessRun()`.** That placement is the point, not an implementation detail. Enforced at the
@@ -452,8 +452,18 @@ it, and the discharge procedure with it.
 >       session already was, which is why it had to be measured on both sub-branches rather than
 >       reasoned about. Starting **below `level-03`**: 0 injections at the press, and then
 >       **exactly one on a later campaign session that never pressed the button**, fired by
->       walking the `Lv` control forward to `level-03`. Starting **already on `level-03`** — the
->       shipped default level, so the common case, and a sub-branch no earlier round measured:
+>       walking the `Lv` control forward to `level-03`. Starting **already on `level-03`** —
+>       **corrected 2026-09-26 (round 5):** `level-03` is the `CERT_HARNESS` mount level
+>       (`app/_components/GameHost.tsx:196`,
+>       `levelId={CERT_HARNESS ? 'level-03' : activeLevelId}`) and the **last** of the five
+>       entries in `PLAYABLE_LEVEL_ORDER` (`src/services/storage/catalog.ts:14-19`). What ships
+>       as the default is `level-01` (`app/_components/GameHost.tsx:68`,
+>       `const [activeLevelId, setActiveLevelId] = useState<LevelId>('level-01')`), so an
+>       operator following the discharge procedure above — a dev build, explicitly **not** a
+>       `CERT_HARNESS` build — starts on `level-01` and is **four `Lv` presses** away from
+>       `level-03`. That makes this the RARE sub-branch, not the common one; the round-4
+>       revision of this clause claimed the opposite, and reading the shipped source
+>       contradicts it. It remains a sub-branch no earlier round measured:
 >       the restarted endless run satisfied the deferral's own preconditions itself and took the
 >       injection, one, onto the fresh wave-1 board. Since this round **an endless press arms no
 >       deferral at all** — including on that second sub-branch, where one could have discharged —
@@ -468,6 +478,23 @@ it, and the discharge procedure with it.
 >     **not** stopped (no `setActive` call of any kind). The run survives the press — but it
 >     survives it carrying the injected worst-case load, which is why the control stays in this
 >     warning.
+>     - **Extended 2026-09-26 (round 5).** The mode term above is only ONE of the level half's
+>       terms; `11-17` added a second. As shipped, the level half fires **only when all three of
+>       these hold: the run has NOT ended, the mode is campaign, and the level is not already
+>       `level-03`** — `runCertWorstCase` in `app/_components/PlayingHost.tsx` opens that branch
+>       on `!runEndedRef.current && modeRef.current !== 'endless' && levelId !== 'level-03'`.
+>       What that adds for an operator: **a `Cert WC` press from a MOUNTED Results overlay moves
+>       no level and starts no loop** — in campaign as well as in endless. Measured in round 5
+>       from a mounted campaign **lose** panel at `{score: 2400, lives: 0}` with the tier already
+>       Mid: the dev row's level-switch control still named `level-01`, `retry()` was **not**
+>       called, there were **zero** `setActive(true)` calls (and no trailing `setActive(false)`
+>       either, because nothing was re-armed to stop), the Results panel stayed up still reading
+>       the run's own `2400`, and `injectCertWorstCase` was called **once** — with `defer` false
+>       the press injects directly into a world whose loop is already stopped. The case that took
+>       that measurement is `an ENDED campaign run is not re-armed: a press from the mounted lose
+>       panel with the tier already Mid moves no level and starts no loop`, in
+>       `tests/ui/PlayingHost.endless-retry.test.tsx`. The round-4 sentence above stands as
+>       written: it is NARROWER than the shipped condition, not wrong about it.
 >
 > **Why the level half was gated** (background, not an instruction): while the mode is endless
 > the compiled-push gate effect early-returns, so a forced `level-03` board could never be
