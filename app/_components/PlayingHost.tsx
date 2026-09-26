@@ -1491,6 +1491,16 @@ export function PlayingHost({
     // latched in-flight advance cannot swallow the next campaign WON.
     modeRef.current = 'campaign';
     setMode('campaign');
+    // 11-REVIEW.md IN-03, and 11-12 Task 1's guard is what makes it necessary. The
+    // preload effect no longer publishes while endless, and its re-run on the
+    // `levelId` change THIS function triggers is asynchronous — so without this line
+    // the stale endless watermark stands as the campaign `Best` for the whole gap
+    // between the exit and the next storage read. The cache is warm because the guard
+    // left `previousBestRef.current` unconditional, so this costs no round trip.
+    //
+    // The SCORE watermark only: `resultBestWave` is endless-only and `ResultOverlay`
+    // renders it only in endless, so republishing it here would be noise.
+    setResultBest(previousBestRef.current);
     waveRef.current = 1;
     setWave(1);
     waveAdvanceInFlightRef.current = false;
