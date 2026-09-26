@@ -214,6 +214,7 @@ Exact strings. `·` is U+00B7 MIDDLE DOT, matching every shipped metric line.
 | Endless primary CTA | `Retry` |
 | Endless secondary CTA | `Menu` |
 | Wave-build failure body | `Wave {n} could not be built — run saved` (replaces `Out of lives`; the four metric lines still render) |
+| Wave-build failure body — **Retry-time** | `Wave 1 could not be built — tap Retry` (replaces `Out of lives` when `startEndlessRun()` cannot build wave 1 from a `Retry` press; the overlay stays on screen and `Retry` stays live). `Wave 1` is a literal, not a template — a Retry-time failure is always at wave 1, and `run saved` would be false here because no in-flight run exists. Decided 2026-09-26, 11-07 Task 3 (`retry-in-place`) |
 | `__DEV__` entry button | `Endless` |
 | `__DEV__` wave readout | `W{n}` |
 | Empty state heading | N/A — no lists or collections in this phase |
@@ -336,7 +337,9 @@ Produced by the `ui-consideration-probe` engine over 5 described surfaces (36 ap
 considerations), resolved at `/gsd-ui-phase` step 9.5. Element kinds were probe-detected and
 user-confirmed (no kind added).
 
-Resolved: **20 specify · 2 backstop · 12 dismiss · 2 unresolved.**
+Resolved: **21 specify · 2 backstop · 12 dismiss · 1 unresolved.**
+(E2 `error` moved `unresolved` → `specify` on 2026-09-26 when 11-07 Task 3's `checkpoint:decision`
+was answered `retry-in-place`; the applicable total is unchanged at 36.)
 
 ### E1 — Endless Results record block *(list-collection, static-content)*
 
@@ -359,7 +362,7 @@ Resolved: **20 specify · 2 backstop · 12 dismiss · 2 unresolved.**
 | populated | ✅ covered | Exactly two controls in fixed order — `Retry` (accent-white filled, primary) then `Menu`; the campaign `Next` control and the star row never render in endless |
 | overflow | ✅ covered | Both labels are fixed single words at Body 16px SpaceMono inside the 320px panel — no reflow path exists |
 | long-text | ✅ covered | Labels are fixed English literals, never user input or i18n; the a11y label `Retry endless run from wave 1` is not rendered visually and so has no layout path |
-| **error** | ⚠ unresolved — planner must treat as assumption | The contract states what happens when `advanceToWave(n)` returns false **mid-run**, but not when `startEndlessRun()` fails to build wave 1 from `Retry`. The wave-build-failure body `Wave {n} could not be built — run saved` does not fit that case: there is no in-flight run to save |
+| **error** | ✅ covered | **Resolved 2026-09-26** by the `checkpoint:decision` in 11-07 Task 3 (`retry-in-place`). The contract already stated what happens when `advanceToWave(n)` returns false **mid-run**; the mid-run body `Wave {n} could not be built — run saved` does not fit a Retry-time failure because there is no in-flight run to save. When `startEndlessRun()` cannot build wave 1 from `Retry`: keep the Results overlay on screen, replace the body with `Wave 1 could not be built — tap Retry`, and leave `Retry` live so a second press re-mints a different seed. `Wave 1` is a literal, never templated — a Retry-time failure is always at wave 1 |
 | empty | ✗ dismissed | A fixed pair of literal controls, not a data-driven collection; the unreachability of `Next` and the star row in endless is a contracted fixed absence, not an empty state |
 | partial | ✗ dismissed | All-or-nothing — both controls render with the overlay or neither does; no partial-data path reaches a fixed literal button row |
 | zero-one-many | ✗ dismissed | A fixed pair, not a variable-count collection; the `list-collection` kind here is a prose-cue artifact of the phrase "results panel" |
