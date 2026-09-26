@@ -1738,8 +1738,41 @@ export function PlayingHost({
     // disabling `Cert WC` while endless — the latter is inconsistent with how A-02
     // was resolved for `Lv` next door, via an explicit exit rather than a dead button.
     //
-    // `modeRef` is a ref and is deliberately absent from the dependency array.
-    if (modeRef.current !== 'endless' && levelId !== 'level-03') {
+    // 11-17 / 11-VERIFICATION round-4 gap. The leading conjunct below is the
+    // run-ended latch, negated: this half now refuses to fire from a MOUNTED Results
+    // overlay. It was the one caller of the compiled-push gate effect that neither
+    // reset that latch nor was guarded by it, so the seam armed the frame loop on its
+    // behalf for a run that was already over.
+    //
+    // WHY GUARD RATHER THAN RESET. A reset here would have to clear the latch AND
+    // write the five chrome values on the same synchronous path — a sixth copy of the
+    // five near-identical run-boundary reset blocks the verifier's WR-06 advisory
+    // names as the structural cause of this phase's whole "fix one half, leave the
+    // neighbour" pattern. Clearing without those writes is worse still: it leaves a
+    // dead run's score and lives standing on the HUD of a fresh board.
+    //
+    // WHY THIS HALF ONLY. Gating the tier half below would be the "disable
+    // `Cert WC` while endless" option the owner rejected on 2026-09-26; it is a real,
+    // funnel-covered run boundary that routes through `remountDevSession`.
+    //
+    // WHAT IT COSTS. On a LIVE run the new conjunct is true, so the condition
+    // evaluates exactly as it did before and the campaign harness is unchanged. On an
+    // ENDED run with the tier already Mid nothing defers, and the press injects the
+    // worst-case load directly into a world whose loop is already stopped.
+    //
+    // MEASURED PRE-FIX, one press from a mounted campaign lose panel at
+    // `{score: 2400, lives: 0}` with the tier already Mid: the `Lv` label moved to the
+    // cert level, `retry()` 1, `setActive` `[[false],[false],[false],[true]]` — a
+    // fresh board simulating behind the overlay of a run that is over. Its own later
+    // loss was swallowed by the latch, so the loop was never stopped.
+    //
+    // `modeRef` is a ref and is deliberately absent from the dependency array; so is
+    // the run-ended latch read below, for the same reason.
+    if (
+      !runEndedRef.current &&
+      modeRef.current !== 'endless' &&
+      levelId !== 'level-03'
+    ) {
       setLevelId('level-03');
       defer = true;
     }
