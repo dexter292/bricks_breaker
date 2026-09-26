@@ -407,19 +407,49 @@ it, and the discharge procedure with it.
 > **waves 1 through 5**; watch each transition specifically — the moment the last brick of a
 > board breaks and the next board appears.
 > **Do not press the tier button or `Cert WC` during the reading.** Both are still hazardous,
-> for reasons verified against the shipped source rather than inherited from the earlier note:
+> for reasons **re-measured against the shipped source on 2026-09-26**, after the code change
+> described in the `Cert WC` bullet below:
 > - **the tier button** (`cycleDevTier`) changes `tierOverride`, which fires `remountDevSession`;
 >   its endless branch routes straight to `startEndlessRun()`, so the run you are measuring is
->   recorded `abandoned` and **restarted at wave 1**, and the new quality budget **re-bakes the
->   glow atlas** — forcing the very bake cold path this reading exists to prove is *not* entered
->   at a transition. Any frame time captured across it is measuring the re-bake, not a wave
->   transition.
-> - **`Cert WC`** (`runCertWorstCase`) sets `levelId` to `level-03` **and** the tier to `mid`
->   while `modeRef` is still `'endless'`. The tier half restarts the run and re-bakes exactly as
->   above; the level half is swallowed, because the compiled-push gate effect early-returns while
->   the mode is endless, so the `level-03` board is never pushed and `setActive(true)` is never
->   reached from it. The cert inject itself is left deferred behind `certPendingRef`, waiting on
->   a campaign-shaped remount that the endless branch does not perform.
+>   recorded `abandoned` and **restarted at wave 1**. That is reason enough on its own: the run
+>   under measurement is gone and a fresh wave-1 run is in front of you.
+> - **`Cert WC`** (`runCertWorstCase`) still **injects the worst-case ball, particle and shake
+>   load onto the board under measurement**, which alone disqualifies any frame time captured
+>   across it — that is a deliberately pathological frame, not a wave transition. Beyond that its
+>   two halves now behave differently from each other, and both were measured on 2026-09-26:
+>   - **the tier half**, when the tier is **not already `mid`**, sets it to `mid`, which is the
+>     tier button's path above: the run is recorded `abandoned` at the wave it had reached and
+>     **restarted at wave 1** (measured from a live run at wave 2: readout `W2` → `W1`,
+>     `recordRunEnd` called once with `{mode:'endless', wave:2, outcome:'abandoned'}`).
+>   - **the tier half is a no-op when the tier is already `mid`**, and — new on 2026-09-26 — the
+>     **level half no longer fires at all while the mode is endless**. Measured from a live run
+>     at wave 2 on `level-01` with the tier already Mid: the readout stayed at `W2`, the dev
+>     row's level-switch control still named `level-01`, `recordRunEnd` was **not** called (the
+>     run did not end), and the frame loop was
+>     **not** stopped (no `setActive` call of any kind). The run survives the press — but it
+>     survives it carrying the injected worst-case load, which is why the control stays in this
+>     warning.
+>
+> **Why the level half was gated** (background, not an instruction): while the mode is endless
+> the compiled-push gate effect early-returns, so a forced `level-03` board could never be
+> pushed and `setActive(true)` was never reached from it. The only thing the level half produced
+> was a **stopped frame loop behind a live HUD**, with nothing recorded. `11-14` gated it on the
+> run mode (owner decision, 2026-09-26).
+>
+> **Amendment, 2026-09-26 — a glow-atlas mechanism claim in this block is WITHDRAWN.** An
+> earlier revision of these two bullets told the reader that forcing a new quality budget causes
+> the glow sprite atlas to be created again, and that a frame time captured across the press was
+> therefore measuring that work rather than a wave transition. Both halves of that claim are
+> false and the reader must **not** discard a reading for that reason. As measured this round,
+> the `bakeGlowSprites(brickW, brickH)` call count across a tier press is **one before the press
+> and one after** — unchanged. The atlas is keyed on `loadKey`, which is the compiled brick
+> **width and height alone**, and the bake effect's dependency array
+> (`[audio, haptics, glowAtlasSv, loadResult, loadKey]`) **carries no tier term at all**. Only a
+> level whose bricks are a *different size* can cause the atlas to be built again; **no quality
+> tier ever does.** That keying is plan **11-05's D-14 re-key**, and this is precisely the point
+> of it — see § Limits item 7, which states the same fact about the stretched halo. The tier
+> button and `Cert WC` remain in the do-not-press set for the reasons given above, which are
+> real; the glow-atlas reason never was.
 >
 > If either is pressed, **restart the app and take the reading again** — the numbers from that
 > point on are not a wave-transition measurement.
