@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: "Completed 11-17-PLAN.md (round-5: the re-arm enumeration is derived, Cert WC's level half is guarded, and the A2-vacuous latch contract is repaired)"
-last_updated: "2026-09-26T13:14:45.737Z"
-state_head: 2b4d0800048c7cb933ce1c78fbbe508c4cd718c0
+stopped_at: "Completed 11-18-PLAN.md (round-5 records: A1 corrected, both Cert WC locations carry all three terms, 11-15-SUMMARY's claim corrected beside its table, N-END-01/02 re-ticked on gate)"
+last_updated: "2026-09-26T13:28:37.418Z"
+state_head: b3f1397d92dfbffaf99593541f216b94f6edd61d
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 29
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 18
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -124,6 +124,7 @@ Total Plans in Phase: 18
 | Phase 11 P15 | 11 min | 3 tasks | 4 files |
 | Phase 11 P16 | 10 min | 3 tasks | 4 files |
 | Phase 11 P17 | 12 min | 3 tasks | 3 files |
+| Phase 11 P18 | 7 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -229,6 +230,11 @@ Total Plans in Phase: 18
 - [Phase 11]: [Phase 11]: Latch hygiene stated as a general rule at the assignment site — do not arm a latch whose discharge preconditions the same change has made unreachable. 11-14 gated runCertWorstCase's level half and left the deferral bookkeeping, so an endless press armed a one-shot only a campaign level-03 session could discharge
 - [Phase 11]: [Phase 11]: Case C1 (the campaign deferral) DOES fire in jsdom, so the plan's permitted downgrade to a flagged unprovable assumption was NOT taken — both preconditions are asserted as rendered labels before the injection count, so the pass cannot be vacuous
 - [Phase 11]: [Phase 11]: gsd check tdd-red-evidence requires the FULL TAP test name including the tests/… file prefix in targetTest — the bare 'describe > it' name is classified no_target_test_failure even when that exact test appears in the parsed failing_tests list
+- [Phase 11]: A1 closed: the ops doc no longer calls level-03 the shipped default — it is the CERT_HARNESS mount level (GameHost.tsx:196) and LAST in PLAYABLE_LEVEL_ORDER, four Lv presses from the shipped level-01 default (GameHost.tsx:68), so the SC-5 operator's sub-branch is the RARE one
+- [Phase 11]: The Cert WC level half is documented with THREE terms, not the plan's 'both' — 11-17 added !runEndedRef.current to an EXISTING two-term condition; writing 'both terms' would have dropped levelId !== 'level-03', this phase's signature failure inside the edit correcting it
+- [Phase 11]: Under a gate that pins a false literal at 0, a superseded claim is DESCRIBED rather than quoted — the beside-not-erase rule and the discriminating-gate rule conflict, and the record lives in git rather than in the file
+- [Phase 11]: N-END-01 and N-END-02 re-ticked on an evidence gate that ran BEFORE the file was opened; each closure note states the claim rests on the round-4 verifier's judgement plus round-5 instruments, NOT a fresh first-principles audit, so a future round can overrule without archaeology
+- [Phase 11]: requirements.mark-complete was NOT run and the metadata commit excludes REQUIREMENTS.md — both would produce a second commit on that file and break Task 3's requirements-commits=1 gate (threat T-11-22)
 
 ### Decisions (Post-MVP close)
 
@@ -265,6 +271,6 @@ Total Plans in Phase: 18
 
 ## Session Continuity
 
-Last session: 2026-09-26T13:14:45.710Z
-Stopped at: Completed 11-17-PLAN.md (round-5: the re-arm enumeration is derived, Cert WC's level half is guarded, and the A2-vacuous latch contract is repaired)
+Last session: 2026-09-26T13:28:27.782Z
+Stopped at: Completed 11-18-PLAN.md (round-5 records: A1 corrected, both Cert WC locations carry all three terms, 11-15-SUMMARY's claim corrected beside its table, N-END-01/02 re-ticked on gate)
 Resume file: None
