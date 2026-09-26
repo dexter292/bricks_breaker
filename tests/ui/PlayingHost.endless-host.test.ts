@@ -566,6 +566,163 @@ describe('PlayingHost endless host (source contract)', () => {
   });
 
   /**
+   * 11-13 Task 3 — `11-VERIFICATION.md` gap 3 `missing[]` bullet 4: "a count-based
+   * contract is what catches the next one".
+   *
+   * `applyChrome`'s entire design is ONE latch, EVERY run boundary. Three of its four
+   * run-boundary branches consulted `runEndedRef` from the day they were written; the
+   * endless WON branch did not, and the asymmetry survived a code review, a verifier
+   * pass and two rounds of plans because nothing in the repo was watching for it. This
+   * enumerates the branches and pins the count, modelled on the existing
+   * `'exactly one writer returns modeRef to campaign'` contract.
+   *
+   * WHAT THIS DOES NOT PROVE, first, because that is the whole reason it is written
+   * this way. Counting a reference proves the TERM IS WRITTEN. It proves NOTHING
+   * about whether the branch behaves. The behaviour is proven by three cases that
+   * drive the real host:
+   *   - `'an endless run that LOST stays ended — one further WON mirror builds no
+   *     board (gap 3)'` and its WALK sibling, in
+   *     `tests/ui/PlayingHost.endless-retry.test.tsx`
+   *   - `'a mid-run wave-build failure ENDS the run — a later WON that WOULD have
+   *     succeeded moves nothing (gap 3, case b)'`, same file
+   *   - `'a failed START stays ended — one WON mirror cannot rewrite the decided
+   *     tap-Retry copy (gap 3, case c)'`, in
+   *     `tests/ui/PlayingHost.endless-record.test.tsx`, asserted on RENDERED text
+   * Nothing here may stand in for those. If they are deleted, this case is not
+   * coverage of gap 3 — it is a statement count.
+   *
+   * THE ONE CLAIM THAT DROPPED TIER IN 11-13, recorded here so a later reader finds
+   * the reasoning beside the contract instead of reconstructing it. The
+   * wave-build-failure branch's `waveAdvanceInFlightRef.current = false` release used
+   * to be observed BEHAVIOURALLY, by delivering a repeat WON and watching the branch
+   * be re-entered (`tests/ui/PlayingHost.endless-retry.test.tsx`, the WR-04 case).
+   * Task 1's latch makes that re-entry impossible by design — a wave-build failure
+   * always ends the run, and every path that starts a new run clears the guard itself
+   * — so the release is now behaviourally UNOBSERVABLE in this repo. It is pinned at
+   * the source tier by the sibling case above, `'the failed wave build ends the run
+   * and releases the guard, inside the endless branch (WR-04 / SC-1)'`, and the WR-04
+   * behaviour case was RE-POINTED at the ENDED post-condition rather than deleted.
+   */
+  it('every run-boundary branch in applyChrome consults the shared runEndedRef latch (gap 3)', () => {
+    expect(
+      applyChrome,
+      'applyChrome must be extractable, or every count below is vacuous',
+    ).not.toBe('');
+
+    const region = (src: string, re: RegExp): string => src.match(re)?.[1] ?? '';
+
+    const endlessWon = region(
+      applyChrome,
+      /if \(modeRef\.current === 'endless' && mirror\.phase === SIM\.WON\) \{([\s\S]*?)\n {6}\}/,
+    );
+    const waveBuildFailure = region(
+      endlessWon,
+      /\} else \{([\s\S]*?)\n {10}\}/,
+    );
+    const campaignWon = region(
+      applyChrome,
+      /\n {6}if \(mirror\.phase === SIM\.WON\) \{([\s\S]*?)\n {6}\} else if \(mirror\.phase === SIM\.LOST\) \{/,
+    );
+    const campaignLost = region(
+      applyChrome,
+      /\n {6}\} else if \(mirror\.phase === SIM\.LOST\) \{([\s\S]*?)\n {6}\}/,
+    );
+
+    const branches = [
+      ['the endless WON branch', endlessWon],
+      ['the mid-run wave-build failure branch', waveBuildFailure],
+      ['the campaign WON branch', campaignWon],
+      ['the campaign LOST branch', campaignLost],
+    ] as const;
+
+    // Non-empty FIRST — a drifted anchor must be RED, never vacuously green
+    // (11-09 Pattern 2).
+    for (const [name, body] of branches) {
+      expect(body, `${name} must be extractable`).not.toBe('');
+    }
+    expect(
+      branches.length,
+      'FOUR run-boundary branches, enumerated by name — the count is pinned so a fifth cannot be added without an author coming here',
+    ).toBe(4);
+
+    for (const [name, body] of branches) {
+      expect(
+        body,
+        `${name} must consult runEndedRef — applyChrome is ONE latch, EVERY boundary, and the endless WON branch was the single asymmetry gap 3 measured`,
+      ).toMatch(/runEndedRef\.current/);
+    }
+
+    // The independent structural count that actually catches a FIFTH branch. Every
+    // run-END site in applyChrome stops the frame loop; the enumeration above cannot
+    // notice a branch nobody added to it, but this can — a new run-boundary branch
+    // moves this number and sends its author here.
+    const endSites = (applyChrome.match(/setActive\(false\)/g) ?? []).length;
+    expect(
+      endSites,
+      'THREE setActive(false) sites in applyChrome — the wave-build failure, campaign WON and campaign LOST. A fourth means a new run-boundary branch exists: add it to the enumeration above and prove it consults the latch',
+    ).toBe(3);
+
+    // The ORDERING is the property, not the mere presence. A latch term that sat
+    // BELOW the in-flight test would still be a reference and would still let an
+    // ended run claim the guard and build a board before anything looked at it.
+    const latchAt = endlessWon.search(/if \(runEndedRef\.current\)/);
+    const inFlightAt = endlessWon.search(/if \(!waveAdvanceInFlightRef\.current\)/);
+    expect(
+      latchAt,
+      'the endless WON branch must open with a guard ON the latch, not merely mention it',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      inFlightAt,
+      'and the concurrency guard must still be there — it is a different obligation',
+    ).toBeGreaterThan(0);
+    expect(
+      latchAt,
+      'the latch guard must PRECEDE the in-flight test: run lifetime is decided before concurrency is',
+    ).toBeLessThan(inFlightAt);
+
+    // And it must RETURN. A fall-through would hand an endless WON to the campaign WON
+    // branch, which calls handleRunEnded with a `win` outcome on a cleared board — the
+    // SC-1 violation this branch exists to prevent. The sibling precedence contract
+    // above pins the branch ORDER; this pins what the latch guard itself does.
+    expect(
+      endlessWon,
+      'the latch guard\'s body must be a bare return — an ended endless run leaves applyChrome here',
+    ).toMatch(/if \(runEndedRef\.current\) \{\s*\n\s*return;\s*\n\s*\}/);
+  });
+
+  /**
+   * 11-13 Task 3, second contract — the ended-run POST-CONDITION is uniform.
+   *
+   * Three states end an endless run: a LOST mirror, a mid-run wave-build failure, and
+   * a failed START. The first two clear or latch both refs on their own path; a failed
+   * START inherited whatever `waveAdvanceInFlightRef` the PREVIOUS run left behind
+   * (`11-REVIEW.md` IN-02), which made it the one ended state with a different shape.
+   *
+   * What this does NOT prove: it proves the two assignments EXIST in the function.
+   * It cannot prove the post-condition is observed, and — stated plainly — as of
+   * Task 1's latch the guard value is no longer READ after a failed start at all, so
+   * there is no behaviour left to observe. This is a source contract over
+   * defence-in-depth, and that is the honest description of it.
+   */
+  it('failEndlessStart leaves the same post-condition as the other two ended-run states (gap 3)', () => {
+    const body = code.match(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[clearCountdown, setActive\]\);/,
+    )?.[1];
+    expect(
+      body,
+      'failEndlessStart must be extractable, or both pins below are vacuous',
+    ).toBeTruthy();
+    expect(
+      body,
+      'a failed START is an ENDED run — the latch is what stops a later Retry manufacturing a phantom record (11-09)',
+    ).toMatch(/runEndedRef\.current = true/);
+    expect(
+      body,
+      'and it must leave the wave-advance guard in the same state the other two ended-run boundaries do, rather than inheriting the previous run\'s (11-REVIEW.md IN-02)',
+    ).toMatch(/waveAdvanceInFlightRef\.current = false/);
+  });
+
+  /**
    * A-01, decided `retry-in-place` by the owner on 2026-09-26.
    *
    * 11-09 Task 2 CORRECTED this case in place; it kept its property — both failure
