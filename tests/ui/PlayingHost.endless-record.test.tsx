@@ -755,6 +755,58 @@ describe('PlayingHost endless record display (gap 2)', () => {
     ).toBe('host-best=2400');
   });
 
+  /**
+   * 11-12, the OTHER half of the gap-1 fix (`11-REVIEW.md` IN-03).
+   *
+   * Task 1's guard stops the preload effect publishing while endless is live. That
+   * alone would leave a stale ENDLESS watermark standing as the campaign `Best` from
+   * the moment the player exits until the next storage read lands — the preload
+   * effect re-runs on the `levelId` change `toggleDevLevel` triggers, but that re-run
+   * is ASYNCHRONOUS. `toggleDevLevel` therefore republishes the cached campaign value
+   * synchronously, and this case holds the storage read PENDING for the whole press so
+   * the assertion can only be satisfied by the synchronous path.
+   *
+   * It is also what proves the guard is not a dropped write: `previousBestRef.current`
+   * stayed unconditional through the endless run, so the number read back here is the
+   * campaign best the cache kept warm.
+   */
+  it('leaving endless through `Lv` republishes the campaign best synchronously, with the storage read still pending (11-12 / IN-03)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+
+    // Mid-run the prop carries the ENDLESS watermark that `startEndlessRun` published.
+    expect(
+      screen.getByTestId('host-best').textContent,
+      'an endless run publishes the endless watermark, never the campaign best (WR-04)',
+    ).toBe(`host-best=${seededRecord.bestScore}`);
+
+    // Hold the NEXT campaign read — the one the levelId change is about to trigger —
+    // so nothing but the synchronous republication can satisfy the assertion below.
+    deferCampaignRead();
+    const labelBefore = screen
+      .getByRole('button', { name: /^Switch level/ })
+      .getAttribute('aria-label');
+    await press(/^Switch level/);
+
+    expect(
+      screen.getByTestId('host-best').textContent,
+      `measured pre-fix: host-best=${postMergeRecord.bestScore} — the funnel records the in-flight run first, so the POST-MERGE endless watermark is what stands as the campaign best for the whole gap between the exit and the next storage read; with that read held, the gap never ended`,
+    ).toBe(`host-best=${CAMPAIGN_BEST_DEFAULT}`);
+
+    // And the press did something: a case that passes against a dead `Lv` control
+    // would be measuring the mount, not the exit.
+    expect(
+      screen
+        .getByRole('button', { name: /^Switch level/ })
+        .getAttribute('aria-label'),
+      'the Lv control must actually have switched the level',
+    ).not.toBe(labelBefore);
+    expect(
+      hostProps.current?.mode,
+      'and the exit must have left endless (A-02)',
+    ).toBe('campaign');
+  });
+
   it('the campaign level best appears NOWHERE on the endless overlay (gap 2 / T-11-08-01)', async () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
@@ -1015,16 +1067,43 @@ describe('PlayingHost endless — a failed start from a fresh mount (gap 3)', ()
       retryButton,
       'retry-in-place: the remedy the copy points at must be present and pressable',
     ).toBeTruthy();
-    // Pressable, not merely rendered: a second press re-mints a different seed.
+
+    // 11-12, repairing an assertion that could not fail. The old form pressed Retry
+    // and then asserted the tap-Retry body was on screen — but that body was ALREADY
+    // on screen before the press (`failFirstStart` is what puts it there), so
+    // asserting its presence afterwards distinguishes nothing. `11-VERIFICATION.md`
+    // advisory finding 1 confirmed it by mutation: with the overlay Retry's
+    // `onPress` set to `undefined` the case stayed GREEN.
+    //
+    // The repair asserts something the PRESS CAUSES. `compileGeneratedLevel` is
+    // wrapped by this file's harness and `compileCalls` increments on EVERY call
+    // including a forced failure, so a live Retry routing through
+    // `startEndlessRun` -> `advanceToWave(1)` strictly increases it and a dead
+    // handler cannot.
+    //
+    // This is a repair of ONE assertion, NOT a rebuild of liveness coverage. The
+    // verifier measured that two sibling cases in this file already kill the
+    // dead-handler mutant — 'a Retry that cannot build wave 1 renders the decided
+    // tap-Retry body (A-01, D8)' and 'the run that FOLLOWS a failed start is a real,
+    // recordable run' — which is why `11-REVIEW.md` WR-02's "coverage hole" reading
+    // is not the one acted on here.
+    const compilesBefore = compileCalls;
     await act(async () => {
       fireEvent.click(retryButton);
       await Promise.resolve();
     });
     expect(
+      compileCalls,
+      'the press must CAUSE a further wave-1 build attempt — measured against the mutant `onPress={undefined}`, the previous copy-presence assertion stayed green',
+    ).toBeGreaterThan(compilesBefore);
+
+    // Secondary, kept: compilation is still forced to fail, so the live Retry
+    // re-attempts and reports the same failure rather than a different screen.
+    expect(
       within(screen.getByTestId('result-slot')).getByText(
         'Wave 1 could not be built — tap Retry',
       ),
-      'compilation is still forced to fail, so a live Retry re-attempts and reports the same failure — a dead control would throw or change nothing',
+      'and the failure it hits must still be reported where the player reads it',
     ).toBeTruthy();
   });
 
