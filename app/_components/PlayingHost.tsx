@@ -1078,6 +1078,66 @@ export function PlayingHost({
   }, [clearCountdown, setActive, levelReady, levelError, fxReady]);
 
   /**
+   * End a start that could not BEGIN, and put it on screen (11-09 Task 1;
+   * `11-VERIFICATION.md` gap 3, and the half of gap 2 that asks what "the run ended
+   * but did not restart" means).
+   *
+   * Before this helper, both `startEndlessRun` failure returns set the failure copy
+   * while `modeRef` / `mode` were still `'campaign'` and `result` was still `null`.
+   * `ResultOverlay.tsx` nulls `waveBuildFailedWave` outside endless and `GameScreen`
+   * mounts the overlay only when `result != null`, so the owner-decided A-01 copy was
+   * unreachable from two of the three call sites: pressing the ONLY control that
+   * enters endless did nothing and said nothing — verbatim the `silent-noop` the owner
+   * REJECTED on 2026-09-26. Flipping the mode and raising the surface here, above the
+   * readiness and build gates, gives the failure somewhere to render regardless of
+   * entry point.
+   *
+   * Four of the statements below are load-bearing and must not be trimmed as
+   * redundant:
+   *  - `modeRef.current = 'endless'` WITH `setMode('endless')`, first: the overlay
+   *    re-renders on the `mode` STATE, and the ref is what `applyChrome` and the
+   *    compiled-push gate read.
+   *  - `setResult('lose')`: `GameScreen` mounts the Results overlay on `result != null`
+   *    and on nothing else.
+   *  - `setResultBest` / `setResultBestWave` from the ENDLESS watermark refs: on a
+   *    fresh mount `resultBest` still holds the CAMPAIGN level best written by the
+   *    `getBestForLevel` effect above. Raising the endless overlay without
+   *    republishing would render a campaign number as the endless `Best` — the exact
+   *    prohibition 11-08 shipped (11-UI-SPEC § Record Display Contract).
+   *  - `runEndedRef.current = true`: 11-10 moves `recordInFlightEndlessRun()` INSIDE
+   *    `startEndlessRun`. Without this latch a `Retry` press after a failed first
+   *    entry would find `modeRef.current === 'endless'` and `runEndedRef.current ===
+   *    false` and record a phantom `{ mode: 'endless', wave: 1, score: 0, outcome:
+   *    'abandoned' }` for a run that never began. Do not delete the line.
+   *
+   * A-02, disclosed and accepted: a READINESS-gate failure now latches `modeRef` to
+   * endless for a run that never started, so the compiled-push gate effect
+   * early-returns from then on. That is the verifier's prescribed shape, and the exit
+   * route lands in 11-10. A second, mode-preserving failure path is deliberately NOT
+   * added — two failure shapes is how this copy became unreachable from two thirds of
+   * its call sites in the first place.
+   *
+   * Declared ABOVE `startEndlessRun` for the same temporal-dead-zone reason its own
+   * note gives: a `useCallback` dependency array is evaluated during render.
+   */
+  const failEndlessStart = useCallback(() => {
+    modeRef.current = 'endless';
+    setMode('endless');
+    clearCountdown();
+    setCountdownNumeral(null);
+    setWaveBuildFailedWave(1);
+    setResultBest(endlessBestScoreRef.current);
+    setResultBestWave(endlessBestWaveRef.current);
+    setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
+    runEndedRef.current = true;
+    setUiPhase('playing');
+    setResult('lose');
+    setActive(false);
+  }, [clearCountdown, setActive]);
+
+  /**
    * Start an endless run (N-END-01 / D-05 / D-10).
    *
    * `retry()` is correct HERE and only here: it resets lives, score and combo onto
@@ -1093,9 +1153,9 @@ export function PlayingHost({
    */
   const startEndlessRun = useCallback(() => {
     // A-01, decided `retry-in-place` by the owner on 2026-09-26. Both early returns
-    // below leave the Results overlay exactly where it is, with `Retry` still live —
-    // the overlay's `setResult(null)` is further down and never runs. What they add is
-    // the body copy, contract-fixed as:
+    // below route through `failEndlessStart`, which OWNS the failure post-condition:
+    // the mode flip, the Results overlay, the endless watermarks and the body copy,
+    // contract-fixed as:
     //
     //     Wave 1 could not be built — tap Retry
     //
@@ -1104,8 +1164,11 @@ export function PlayingHost({
     // body `Wave {n} could not be built — run saved` is deliberately NOT reused here —
     // there is no in-flight run to save, so it would state something untrue. Leaving
     // the old silent return was rejected too: it presents a dead-looking Retry button.
+    // 11-09 gap 3: the copy alone was not enough — from a fresh campaign mount neither
+    // gate the overlay needs was satisfied, so the decided remedy never reached a
+    // screen. `failEndlessStart` is what makes it reachable from EVERY entry path.
     if (!levelReady || levelError != null || !fxReady) {
-      setWaveBuildFailedWave(1);
+      failEndlessStart();
       return;
     }
     // Pitfall 7: minted in the APP tier. `src/levelgen/**` bans `Date.now()` by
@@ -1117,7 +1180,7 @@ export function PlayingHost({
     if (!advanceToWave(1)) {
       // Pressing Retry again re-mints a different seed (`Date.now()` above), which is
       // why the live button is a real remedy and not just a nicer-looking dead end.
-      setWaveBuildFailedWave(1);
+      failEndlessStart();
       return;
     }
     modeRef.current = 'endless';
@@ -1147,6 +1210,7 @@ export function PlayingHost({
   }, [
     advanceToWave,
     clearCountdown,
+    failEndlessStart,
     retry,
     setActive,
     levelReady,

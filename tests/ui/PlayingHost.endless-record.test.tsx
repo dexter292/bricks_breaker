@@ -223,6 +223,35 @@ vi.mock('../../src/runtime/GameScreen', async () => {
           react.createElement(Text, null, 'Pause'),
         ),
       ];
+      // The pause panel, mirroring the sibling `PlayingHost.endless-retry.test.tsx`
+      // harness. `onRetry` is passed ONCE by the host and serves both panels, so the
+      // labels say which panel was pressed even though the handler is the same
+      // function. Added by 11-09 Task 1 so Task 2 can drive Pause → Retry with the
+      // REAL overlay mounted, changing only test bodies.
+      if (props.uiPhase === 'paused') {
+        children.push(
+          react.createElement(
+            Pressable,
+            {
+              key: 'pause-retry',
+              accessibilityRole: 'button',
+              accessibilityLabel: 'Pause panel Retry',
+              onPress: props.onRetry,
+            },
+            react.createElement(Text, null, 'Pause panel Retry'),
+          ),
+          react.createElement(
+            Pressable,
+            {
+              key: 'pause-menu',
+              accessibilityRole: 'button',
+              accessibilityLabel: 'Pause panel Menu',
+              onPress: props.onMenu,
+            },
+            react.createElement(Text, null, 'Pause panel Menu'),
+          ),
+        );
+      }
       if (props.result != null) {
         children.push(
           react.createElement(
@@ -406,6 +435,46 @@ async function mountAndStartEndless(): Promise<void> {
   advanceWave.mockClear();
   recordRunEnd.mockClear();
   await press('Start an endless run');
+}
+
+/**
+ * Mount the host and stop — mode is still `'campaign'` and no endless run has been
+ * started (11-09 Task 1). This is the FRESH-MOUNT entry path the verifier measured as
+ * `silent-noop`: pressing `Start an endless run` from here left `result = null`,
+ * `mode = 'campaign'` and nothing on screen.
+ *
+ * The same two waits as `mountAndStartEndless`: the campaign preload is observable
+ * (it lands in `best`), so waiting on it also proves the sibling `getSnapshot` chain
+ * flushed and the endless watermark refs are seeded rather than merely defaulted.
+ */
+async function mountOnly(): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  render(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: () => {},
+    }),
+  );
+  await act(async () => {
+    await Promise.resolve();
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
+  await waitFor(() => {
+    expect(
+      screen.getByRole('button', { name: 'Start an endless run' }),
+    ).toBeTruthy();
+  });
+  await waitFor(() => {
+    expect(screen.getByTestId('host-best').textContent).toBe(
+      `host-best=${campaignBest}`,
+    );
+  });
+  expect(getSnapshot).toHaveBeenCalled();
+  setActive.mockClear();
+  retry.mockClear();
+  advanceWave.mockClear();
+  recordRunEnd.mockClear();
 }
 
 /** Run to wave 2 and stop there, leaving the guard released and the run live. */
@@ -616,5 +685,128 @@ describe('PlayingHost endless record display (gap 2)', () => {
     expect(
       screen.getByRole('button', { name: RETRY }),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * 11-09 Task 1 — `11-VERIFICATION.md` gap 3, the FRESH-MOUNT entry path.
+ *
+ * The A-01 copy shipped in 11-07/11-08 and was unit-tested, yet it was unreachable
+ * from two of the three `startEndlessRun` call sites: the failure returns set it while
+ * `modeRef`/`mode` were still `'campaign'` and `result` was still `null`, so
+ * `ResultOverlay` nulled the prop and `GameScreen` never mounted the overlay. The
+ * shipped first-entry behaviour WAS the `silent-noop` the owner explicitly rejected.
+ *
+ * What makes these cases different from the source contract in
+ * `PlayingHost.endless-host.test.ts` is the thing that let gap 3 ship: those prove a
+ * value was WRITTEN, these prove a player can SEE it. Every assertion below is scoped
+ * to the `result-slot` subtree — the real `ResultOverlay`, mounted by the real
+ * `GameScreen` prop contract, from a mount whose mode is still campaign.
+ */
+describe('PlayingHost endless — a failed start from a fresh mount (gap 3)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
+    campaignBest = CAMPAIGN_BEST_DEFAULT;
+    seededRecord = { bestScore: 0, bestWave: 0 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+    getSnapshot.mockClear();
+  });
+
+  /** Fresh mount, first generated board forced to fail, press the only endless entry. */
+  async function failFirstStart(): Promise<void> {
+    await mountOnly();
+    // The very FIRST `compileGeneratedLevel` call fails. `compileCalls` is 0 here —
+    // the campaign catalog load goes through the real `loadLevelById`, never this
+    // wrapper — so this targets `advanceToWave(1)` and nothing else.
+    failCompileFrom = compileCalls + 1;
+    await press('Start an endless run');
+  }
+
+  it('renders the owner-decided tap-Retry copy on the REAL overlay (A-01, gap 3)', async () => {
+    await failFirstStart();
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(
+      slot.getByText('Wave 1 could not be built — tap Retry'),
+      'the only control that enters endless must never be met with nothing — this is the path the owner rejected as silent-noop',
+    ).toBeTruthy();
+  });
+
+  it('leaves a LIVE Retry control on screen, not a decorative one (A-01 retry-in-place)', async () => {
+    await failFirstStart();
+    const retryButton = within(screen.getByTestId('result-slot')).getByRole(
+      'button',
+      { name: 'Retry endless run from wave 1' },
+    );
+    expect(
+      retryButton,
+      'retry-in-place: the remedy the copy points at must be present and pressable',
+    ).toBeTruthy();
+    // Pressable, not merely rendered: a second press re-mints a different seed.
+    await act(async () => {
+      fireEvent.click(retryButton);
+      await Promise.resolve();
+    });
+    expect(
+      within(screen.getByTestId('result-slot')).getByText(
+        'Wave 1 could not be built — tap Retry',
+      ),
+      'compilation is still forced to fail, so a live Retry re-attempts and reports the same failure — a dead control would throw or change nothing',
+    ).toBeTruthy();
+  });
+
+  it('satisfies BOTH overlay gates — mode is endless and result is lose (the two the verifier measured unsatisfied)', async () => {
+    await failFirstStart();
+    expect(
+      hostProps.current?.mode,
+      'ResultOverlay nulls waveBuildFailedWave outside endless — measured pre-fix: campaign',
+    ).toBe('endless');
+    expect(
+      hostProps.current?.result,
+      'GameScreen mounts the Results overlay only when result != null — measured pre-fix: null',
+    ).toBe('lose');
+  });
+
+  it('shows the ENDLESS watermarks, never the campaign level best the mount effect loaded', async () => {
+    await failFirstStart();
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(
+      slot.getByText('Best · 0'),
+      'the endless overlay reads telemetry.endless.bestScore, seeded at 0 for a first run',
+    ).toBeTruthy();
+    expect(
+      slot.getByText('Best wave · 0'),
+      'the endless overlay reads telemetry.endless.bestWave, seeded at 0 for a first run',
+    ).toBeTruthy();
+    // On a fresh mount `resultBest` still holds the campaign level best written by the
+    // getBestForLevel effect. Without the republish in failEndlessStart, THIS overlay
+    // would render 7777 as the endless `Best` — the exact prohibition 11-08 declared.
+    expect(
+      screen.getByTestId('result-slot').textContent ?? '',
+      'a campaign per-level best must never be presented as an endless record',
+    ).not.toContain(String(CAMPAIGN_BEST_DEFAULT));
+  });
+
+  it('writes NO run — a start that never began must not reach telemetry (T-11-02)', async () => {
+    await failFirstStart();
+    expect(
+      recordRunEnd,
+      'an abandoned record at wave 1 with score 0 is a fabricated run in the data Phase 13 achievements read',
+    ).toHaveBeenCalledTimes(0);
   });
 });
