@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 4
+current_plan: 2
 status: in_progress
-stopped_at: Phase 11 re-verified after gap-closure round 2 — gaps_found (3 gaps)
-last_updated: "2026-09-26T09:05:53.039Z"
-state_head: 503070342967fbfc6aea07b30ff927e9ed4f4cd9
+stopped_at: Completed 11-12-PLAN.md (gap 1 closed — N-END-02 re-ticked on rendered evidence)
+last_updated: "2026-09-26T09:23:51.744Z"
+state_head: a9bc04d2369c4823bf783c219e89e4781d9004d9
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
-current_phase_name: endless-mode
 current_phase: 11
+current_phase_name: Endless Mode
 ---
 
 # Project State
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 4
+Current Plan: 2
 Total Plans in Phase: 14
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -118,6 +118,7 @@ Total Plans in Phase: 14
 | Phase 11 P09 | 10 min | 3 tasks | 5 files |
 | Phase 11 P10 | 9 min | 2 tasks | 4 files |
 | Phase 11 P11 | 10 min | 3 tasks | 4 files |
+| Phase 11 P12 | 9 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -206,6 +207,9 @@ Total Plans in Phase: 14
 - [Phase 11]: WR-04 folded in: startEndlessRun publishes endlessBestScoreRef/endlessBestWaveRef, never previousBestRef — the host `best` prop belongs to the player's mode for the whole lifetime of a run, not only while ResultOverlay is mounted — Latent today (`best` reaches only ResultOverlay, unmounted mid-run, and handleRunEnded always overwrites first) but rendered the moment Phase 14 adds a mid-run endless record surface. Owner folded the fix in 2026-09-26 rather than record it as debt. Both halves published: resultBestWave is the endless-only counterpart on the same Record Display Contract row.
 - [Phase 11]: The campaign-ref claim moved to the source-contract tier because the WR-04 fix REMOVES the only behavioural probe of it — previousBestRef's remaining readers are campaign resets unreachable while modeRef is latched to endless, and the getBestForLevel effect heals the ref on every levelId change — The contract states in its own comment what it does NOT prove: counting assignment sites proves the WRITE, never the RENDER. Asserted as two campaign-only REGIONS (the mount effect's success + fail-soft pair is one place), not a literal statement count of two, which would have been unsatisfiable without deleting the load-bearing fail-soft branch.
 - [Phase 11]: docs/ops/ENDLESS-MODE.md keeps its bolded `every path that discards a run records it first` sentence STANDING with a dated correction beneath, rather than rewriting it as though it had always held; A-02 retires to DECIDED 2026-09-26 and the SC-5 do-not-press note NARROWS to the tier button and Cert WC — Same superseded-claim-beside-its-correction treatment BOARD-GENERATOR.md § Limits item 2 received. `Lv` came out of the warning because A-02 made it an explicit exit; the tier button stays because cycleDevTier fires remountDevSession, whose endless branch restarts the run at wave 1 and re-bakes the glow atlas — the exact cold path SC-5 exists to prove is not entered.
+- [Phase 11]: Guard the PUBLICATION, never the cache: previousBestRef.current stays unconditional in both preload arms so the campaign best is warm the instant the player exits endless — A guarded cache write would make the campaign Best stale after every endless run, which toggleDevLevel's synchronous republication would then faithfully propagate. The new setResultBest contract pins cache-writes === publications.
+- [Phase 11]: Keep the previousBestRef WR-04 contract and ADD a setResultBest one rather than replacing it — The cache and the publication are different obligations and need different instruments. The round-2 contract counted assignments and whitelisted the region the gap-1 defect lived in; it was not wrong, only blind.
+- [Phase 11]: N-END-02 moved twice in one plan, as two separate commits — unticked while the rendered leak was open, re-ticked only after npm test went green — The requirement is about what the player SEES, and a campaign number was provably rendered as the endless Best. Two commits keep the record of what was believed when recoverable from git (threat T-11-22).
 
 ### Decisions (Post-MVP close)
 
@@ -242,6 +246,6 @@ Total Plans in Phase: 14
 
 ## Session Continuity
 
-Last session: 2026-09-26T08:33:02.627Z
-Stopped at: Phase 11 re-verified after gap-closure round 2 — gaps_found (3 gaps)
-Resume file: /Users/admin/SideProject/game/bricks_breaker/.planning/phases/11-endless-mode/11-VERIFICATION.md
+Last session: 2026-09-26T09:23:32.128Z
+Stopped at: Completed 11-12-PLAN.md (gap 1 closed — N-END-02 re-ticked on rendered evidence)
+Resume file: None

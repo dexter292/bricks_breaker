@@ -24,7 +24,7 @@ affects: [11-13, 11-14, endless mid-run record surface, daily challenge records]
 actuals:
   tokens: 49087
   tasks: 3
-  commits: 7
+  commits: 9
   plan_head_before: 098ecebca0151fc4897cb6d327a933b4a0c56e7c
 
 tech-stack:
@@ -265,7 +265,7 @@ None — no external service configuration required.
 
 - Files claimed modified, all present on disk: `app/_components/PlayingHost.tsx`, `tests/ui/PlayingHost.endless-record.test.tsx`, `tests/ui/PlayingHost.endless-host.test.ts`, `.planning/REQUIREMENTS.md`. (`key-files.created` is empty — this plan created no files.)
 - All seven task commits found in `git log`: `55d29a4`, `3b1055f`, `e680726`, `b1d55fd`, `41a6411`, `d0082c9`, `aeafc45`.
-- `commits: 7` is MEASURED — `git rev-list --count 098ecebca0151fc4897cb6d327a933b4a0c56e7c..HEAD` at SUMMARY time, against the ledger base recorded at plan start.
+- `commits: 9` is MEASURED — `git rev-list --count 098ecebca0151fc4897cb6d327a933b4a0c56e7c..HEAD` against the ledger base recorded at plan start, taken at plan close so a re-measure reads the same number. The breakdown is 7 task commits (listed under *Task Commits*) + the SUMMARY commit + the STATE/ROADMAP commit. At the instant the SUMMARY body was first written the instrument read 7; it is recorded here at 9 rather than 7 so the figure and the ledger agree.
 - `actuals.tokens: 49087` is `estimateTokens` (chars/4) over the four files actually changed (196,348 chars). For a later calibration pass that prefers the narrower basis, the realized diff alone is 27,268 chars → 6,817 tokens. Neither figure has been rounded toward the plan's `estimate.tokens: 65000`.
 - All task `<acceptance_criteria>` re-run and passing; all plan-level `<verification>` items re-run and passing (tables above).
 
