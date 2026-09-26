@@ -39,6 +39,15 @@ export type GameScreenProps = {
   wave: number;
   /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
   bestWave: number;
+  /**
+   * Endless only — the wave that could not be built, or null. Replaces the lose body
+   * with the wave-build-failure copy; the four metric lines still render.
+   * Deliberately NOT routed to `LevelErrorOverlay`: that overlay has no controls and
+   * `showResult` is suppressed while `levelError` is set, which would leave the
+   * player facing a live sim behind a modal with no exit (11-UI-SPEC `Error state
+   * (board)`).
+   */
+  waveBuildFailedWave?: number | null;
   isNewRecord: boolean;
   combo: number;
   stallTier: number;
@@ -77,6 +86,7 @@ export function GameScreen({
   mode,
   wave,
   bestWave,
+  waveBuildFailedWave = null,
   isNewRecord,
   combo,
   stallTier,
@@ -183,6 +193,7 @@ export function GameScreen({
             best={best}
             wave={wave}
             bestWave={bestWave}
+            waveBuildFailedWave={waveBuildFailedWave}
             isNewRecord={isNewRecord}
             stars={stars}
             onRetry={onRetry}

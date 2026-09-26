@@ -17,6 +17,17 @@ type Props = {
   /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
   bestWave: number;
   isNewRecord: boolean;
+  /**
+   * Endless only — the wave that could NOT be built, or null (11-07 Task 4).
+   *
+   * The FAILED wave, not the last good one, which is what lets one number pick the
+   * body copy with no arithmetic and no second flag. A mid-run failure is always
+   * `waveRef.current + 1`, and `waveRef` is 1 from the first successful build, so a
+   * mid-run value is always >= 2. A Retry-time failure is always exactly 1 — a Retry
+   * that cannot build wave 1 is by construction a wave-1 failure. The two cases are
+   * therefore distinguishable from the value alone.
+   */
+  waveBuildFailedWave?: number | null;
   /** Win only — merged best stars after handleRunEnded (D-10). */
   stars?: 1 | 2 | 3 | null;
   onRetry: () => void;
@@ -62,6 +73,7 @@ export function ResultOverlay({
   wave,
   bestWave,
   isNewRecord,
+  waveBuildFailedWave = null,
   stars,
   onRetry,
   onMenu,
@@ -69,10 +81,36 @@ export function ResultOverlay({
 }: Props) {
   const insets = useSafeAreaInsets();
   const isEndless = mode === 'endless';
-  const isWin = kind === 'win';
+  /**
+   * SC-1: an endless run never ends on a cleared wave — a cleared board is a WAVE
+   * boundary, intercepted in `applyChrome` before any run-end branch. So `kind` is
+   * always the lose variant in endless, and 11-UI-SPEC § Endless copy says the `Win`
+   * heading, the `All clear` body, the star row and the `Next` control are
+   * "unreachable and must not render". Forcing it here rather than trusting the
+   * caller means a future caller that passes `stars` or `onNext` in endless — the
+   * campaign-shaped mistake — cannot put campaign chrome on an endless overlay.
+   */
+  const isWin = kind === 'win' && !isEndless;
   const showNext = isWin && typeof onNext === 'function';
   const showStars =
     isWin && (stars === 1 || stars === 2 || stars === 3);
+  /**
+   * 11-UI-SPEC § Endless copy, the two `Wave-build failure body` rows. `1` is the
+   * Retry-time case and says `tap Retry`; anything above is mid-run and says
+   * `run saved`. The mid-run wording is deliberately NOT reused at Retry time —
+   * there is no in-flight run to save, so it would state something untrue
+   * (11-07 Task 3, decided `retry-in-place` by the owner on 2026-09-26). `Wave 1` in
+   * the Retry-time string is contract copy and is NOT templated.
+   */
+  const failedWave = isEndless ? waveBuildFailedWave : null;
+  const body =
+    failedWave == null
+      ? isWin
+        ? 'All clear'
+        : 'Out of lives'
+      : failedWave <= 1
+        ? 'Wave 1 could not be built — tap Retry'
+        : `Wave ${failedWave} could not be built — run saved`;
 
   return (
     <View
@@ -91,7 +129,7 @@ export function ResultOverlay({
         <Text style={[styles.heading, !isWin && styles.loseHeading]}>
           {isWin ? 'Win' : 'Lose'}
         </Text>
-        <Text style={styles.body}>{isWin ? 'All clear' : 'Out of lives'}</Text>
+        <Text style={styles.body}>{body}</Text>
         {/*
           11-UI-SPEC § Endless copy, "Line order is contract": heading → body →
           `Wave ·` → `Score ·` → `Best ·` → `Best wave ·` → badge → Retry → Menu.
@@ -117,7 +155,13 @@ export function ResultOverlay({
         ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Retry level"
+          // 11-UI-SPEC § Accessibility labels, the endless `Retry` row. `Retry level`
+          // is FALSE in endless: there is no level, and after 11-07 the control
+          // restarts a new run at wave 1 rather than refilling the current board. The
+          // VISIBLE label is unchanged — only what a screen reader announces differs.
+          accessibilityLabel={
+            isEndless ? 'Retry endless run from wave 1' : 'Retry level'
+          }
           onPress={onRetry}
           style={[styles.button, styles.retrySpaced]}
         >

@@ -130,6 +130,34 @@ vi.mock('../../src/render/textures/bakeGlowSprites', () => ({
   bakeGlowSprites: () => ({ soft: null }),
 }));
 
+/**
+ * The forced wave-build failure, same shape as the 11-07 harness. `loadLevelById`
+ * stays REAL: a generated board failing to compile is not a catalog error and must
+ * never reach `LevelErrorOverlay`. Only `compileGeneratedLevel` is wrapped, and only
+ * from the call index a test opts into.
+ */
+let compileCalls = 0;
+let failCompileFrom = 0;
+vi.mock('../../src/runtime/loadLevel', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/runtime/loadLevel')>();
+  return {
+    ...actual,
+    compileGeneratedLevel: (
+      raw: Parameters<typeof actual.compileGeneratedLevel>[0],
+    ) => {
+      compileCalls += 1;
+      if (failCompileFrom !== 0 && compileCalls >= failCompileFrom) {
+        return {
+          ok: false as const,
+          issues: [{ path: 'forced', message: 'forced compile failure' }],
+        };
+      }
+      return actual.compileGeneratedLevel(raw);
+    },
+  };
+});
+
 /** The host props this file reads back, plus the three 11-08 added. */
 type HostProps = {
   devLevelSwitch?: unknown;
@@ -142,6 +170,7 @@ type HostProps = {
   wave?: number;
   bestWave?: number;
   isNewRecord?: boolean;
+  waveBuildFailedWave?: number | null;
   stars?: 1 | 2 | 3 | null;
   onPause?: () => void;
   onRetry?: () => void;
@@ -207,6 +236,7 @@ vi.mock('../../src/runtime/GameScreen', async () => {
               wave: props.wave ?? 0,
               bestWave: props.bestWave ?? 0,
               isNewRecord: props.isNewRecord ?? false,
+              waveBuildFailedWave: props.waveBuildFailedWave ?? null,
               stars: props.stars ?? null,
               onRetry: props.onRetry ?? (() => {}),
               onMenu: props.onMenu ?? (() => {}),
@@ -392,6 +422,8 @@ describe('PlayingHost endless record display (gap 2)', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
     campaignBest = CAMPAIGN_BEST_DEFAULT;
     seededRecord = { bestScore: 900, bestWave: 1 };
     postMergeRecord = { bestScore: 2400, bestWave: 2 };
@@ -538,5 +570,51 @@ describe('PlayingHost endless record display (gap 2)', () => {
       screen.getByTestId('host-best').textContent,
       'previousBestRef still holds the campaign best — the endless run did not poison it',
     ).toBe('host-best=100');
+  });
+
+  /**
+   * 11-07 shipped `waveBuildFailedWave` as a WRITE-ONLY value: the run-ending branch
+   * produced it and nothing rendered from it, so its coverage entry (D8) was recorded
+   * `human_judgment: true` with the note "11-08 owes the rendering test". These two
+   * cases are that debt, paid through the real host and the real overlay — the string
+   * the owner decided is asserted where a player would read it.
+   */
+  it('a mid-run wave-build failure renders the run-saved body on the real overlay', async () => {
+    await mountAndStartEndless();
+    // Every generated board from the next one on fails to compile.
+    failCompileFrom = compileCalls + 1;
+    await deliverPhase(SIM.WON, { score: 1200 });
+
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(slot.getByText('Wave 2 could not be built — run saved')).toBeTruthy();
+    expect(screen.queryByText('Out of lives')).toBeNull();
+    // The four metric lines still render — the failure replaces the BODY only.
+    expect(slot.getByText('Wave · 1')).toBeTruthy();
+    expect(slot.getByText('Score · 1200')).toBeTruthy();
+    expect(slot.getByText('Best · 2400')).toBeTruthy();
+    expect(slot.getByText('Best wave · 2')).toBeTruthy();
+  });
+
+  it('a Retry that cannot build wave 1 renders the decided tap-Retry body (A-01, D8)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(screen.getByText('Out of lives')).toBeTruthy();
+
+    failCompileFrom = compileCalls + 1;
+    await press(RETRY);
+
+    const slot = within(screen.getByTestId('result-slot'));
+    expect(
+      slot.getByText('Wave 1 could not be built — tap Retry'),
+      'the Retry-time body is the owner-decided literal, never the mid-run run-saved copy',
+    ).toBeTruthy();
+    expect(screen.queryByText(/run saved/)).toBeNull();
+    expect(screen.queryByText('Out of lives')).toBeNull();
+    // retry-in-place: the overlay stays and Retry stays live, so a second press can
+    // re-mint a seed and recover.
+    expect(
+      screen.getByRole('button', { name: RETRY }),
+    ).toBeTruthy();
   });
 });

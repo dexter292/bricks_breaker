@@ -226,12 +226,10 @@ export function PlayingHost({
    * has no controls, so it trapped the player in front of a live sim with two dead
    * buttons (`onResume` and `onRetry` both returned early on `levelError != null`).
    */
-  // WRITTEN here (11-07 Task 4), READ in 11-08, which renders the wave-build-failure
-  // body from it. The writer has to land first: the value is produced by the
-  // run-ending branch in `applyChrome`, and that branch is the SC-1 fix. Delete the
-  // disable below in 11-08 once the reader is wired — if it is still here after
-  // 11-08, the copy row never shipped.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- reader lands in 11-08
+  // 11-08 wired the READER: this value is passed to `GameScreen` below and becomes
+  // the Results body copy. 11-07's scoped `eslint-disable` for
+  // `@typescript-eslint/no-unused-vars` is deleted with this change — it existed only
+  // for the one-plan window in which the value was written and never read.
   const [waveBuildFailedWave, setWaveBuildFailedWave] = useState<number | null>(
     null,
   );
@@ -1543,6 +1541,7 @@ export function PlayingHost({
         mode={mode}
         wave={resultWave}
         bestWave={resultBestWave}
+        waveBuildFailedWave={waveBuildFailedWave}
         isNewRecord={isNewRecord}
         combo={combo}
         stallTier={stallTier}

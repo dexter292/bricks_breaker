@@ -158,4 +158,44 @@ describe('GameScreen', () => {
       screen.queryByRole('button', { name: 'Play next level' }),
     ).toBeNull();
   });
+
+  /**
+   * 11-08 widened `GameScreenProps` with `mode`, `wave`, `bestWave` and
+   * `waveBuildFailedWave`. GameScreen's only job with them is to FORWARD them —
+   * the contract itself is proven in `ResultOverlay.test.tsx`. This case exists so
+   * a dropped forward cannot pass unnoticed.
+   */
+  it('result lose in endless: forwards mode, wave, bestWave and the failure body', () => {
+    render(
+      createElement(
+        GameScreen,
+        baseProps({
+          uiPhase: 'playing',
+          result: 'lose',
+          mode: 'endless',
+          score: 2400,
+          best: 5000,
+          wave: 7,
+          bestWave: 12,
+          waveBuildFailedWave: 8,
+          // Campaign chrome handed to an endless overlay must stay unreachable.
+          stars: 3,
+          onNext: () => {},
+        }),
+      ),
+    );
+
+    expect(screen.getByText('Wave · 7')).toBeTruthy();
+    expect(screen.getByText('Best wave · 12')).toBeTruthy();
+    expect(
+      screen.getByText('Wave 8 could not be built — run saved'),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Retry endless run from wave 1' }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText('3 of 3 stars')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Play next level' }),
+    ).toBeNull();
+  });
 });
