@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: Completed 11-12-PLAN.md (gap 1 closed — N-END-02 re-ticked on rendered evidence)
-last_updated: "2026-09-26T09:23:51.744Z"
-state_head: a9bc04d2369c4823bf783c219e89e4781d9004d9
+stopped_at: Completed 11-13-PLAN.md (gap 3 closed — an ended endless run stays ended)
+last_updated: "2026-09-26T09:40:17.667Z"
+state_head: 5e1be80affb25a2d8fd5ca47bab9676926a063f1
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 14
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -119,6 +119,7 @@ Total Plans in Phase: 14
 | Phase 11 P10 | 9 min | 2 tasks | 4 files |
 | Phase 11 P11 | 10 min | 3 tasks | 4 files |
 | Phase 11 P12 | 9 min | 3 tasks | 4 files |
+| Phase 11 P13 | 9 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -210,6 +211,10 @@ Total Plans in Phase: 14
 - [Phase 11]: Guard the PUBLICATION, never the cache: previousBestRef.current stays unconditional in both preload arms so the campaign best is warm the instant the player exits endless — A guarded cache write would make the campaign Best stale after every endless run, which toggleDevLevel's synchronous republication would then faithfully propagate. The new setResultBest contract pins cache-writes === publications.
 - [Phase 11]: Keep the previousBestRef WR-04 contract and ADD a setResultBest one rather than replacing it — The cache and the publication are different obligations and need different instruments. The round-2 contract counted assignments and whitelisted the region the gap-1 defect lived in; it was not wrong, only blind.
 - [Phase 11]: N-END-02 moved twice in one plan, as two separate commits — unticked while the rendered leak was open, re-ticked only after npm test went green — The requirement is about what the player SEES, and a campaign number was provably rendered as the endless Best. Two commits keep the record of what was believed when recoverable from git (threat T-11-22).
+- [Phase 11]: The endless WON branch RETURNS on runEndedRef rather than falling through — a fall-through would end an endless run on a cleared board (SC-1)
+- [Phase 11]: gap 3 severity recorded as the verifier settled it (incoherent ENDED state + copy defect), not as 11-REVIEW CR-01 opened it (CRITICAL/false record)
+- [Phase 11]: Task 3 pins an INDEPENDENT structural count (three setActive(false) run-end sites) beside the four-branch enumeration — an enumeration cannot detect a branch nobody enumerated
+- [Phase 11]: The WR-04 guard-release claim dropped to the source tier, disclosed in the test's own comment; the case was re-pointed and renamed, never deleted
 
 ### Decisions (Post-MVP close)
 
@@ -246,6 +251,6 @@ Total Plans in Phase: 14
 
 ## Session Continuity
 
-Last session: 2026-09-26T09:23:32.128Z
-Stopped at: Completed 11-12-PLAN.md (gap 1 closed — N-END-02 re-ticked on rendered evidence)
+Last session: 2026-09-26T09:40:11.202Z
+Stopped at: Completed 11-13-PLAN.md (gap 3 closed — an ended endless run stays ended)
 Resume file: None
