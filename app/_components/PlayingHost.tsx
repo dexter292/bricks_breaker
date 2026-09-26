@@ -1396,7 +1396,39 @@ export function PlayingHost({
     return () => sub.remove();
   }, [uiPhase, result, handleMenuPress, onPause]);
 
+  /**
+   * Cycle the `__DEV__` level, and — since 11-10 — EXIT endless while doing it.
+   *
+   * A-02, owner decision of 2026-09-26: `Lv` during an endless run is an explicit
+   * exit. Record the in-flight run, then return to campaign. The two alternatives
+   * the owner considered — disabling the control while endless, and deferring the
+   * whole question to Phase 14 — were REJECTED; do not re-open them.
+   *
+   * Before this, `toggleDevLevel` was the third un-mode-aware copy of the run-boundary
+   * reset, with the same omission list as the two already fixed. The verifier measured
+   * it: pressing `Lv` at wave 2 left `mode = 'endless'` with the readout at `W2`,
+   * `recordRunEnd` called ZERO times, and the NEXT loss filed under
+   * `{mode:'endless', wave:2}` for what is nominally a campaign level — a campaign run
+   * recorded through the endless arm. It also cleared `runEndedRef` for an
+   * already-recorded run, un-latching the double-record guard.
+   *
+   * This is also the FIRST and ONLY writer that returns `modeRef` to `'campaign'`.
+   * That matters beyond this control: the compiled-push gate effect early-returns
+   * while `modeRef.current === 'endless'`, so until now a single endless entry left
+   * that effect dead for the remainder of the mount — `Lv` switched the level and left
+   * a stopped frame loop behind a live HUD. With a writer back to campaign the effect
+   * is live again.
+   *
+   * Phase 14 DELETES this control along with the rest of the dev row. Nothing should
+   * grow a dependency on it.
+   */
   const toggleDevLevel = useCallback(() => {
+    // FIRST, before `setLevelId` and before every reset below, for the same reason it
+    // is first in `startEndlessRun`: it reads `waveRef.current` to decide the wave it
+    // records, and it latches `runEndedRef` so the `runEndedRef.current = false` below
+    // cannot un-latch a run that was just recorded. In campaign it no-ops, so campaign
+    // behaviour is unchanged byte for byte.
+    recordInFlightEndlessRun();
     const order = PLAYABLE_LEVEL_ORDER;
     setLevelId((prev) => {
       const i = order.indexOf(prev);
@@ -1417,6 +1449,20 @@ export function PlayingHost({
     setIsNewRecord(false);
     setResultStars(null);
     setNextGateId(null);
+    // The EXIT (A-02). `modeRef.current` is written directly AS WELL AS calling
+    // `setMode`: the mirroring effect runs after render, and the compiled-push gate
+    // effect reads the REF in this same commit — without the direct write the level
+    // being switched to never arms the loop. `waveRef` / `setWave` return the run
+    // identity to 1 in step with each other, and the advance guard is cleared so a
+    // latched in-flight advance cannot swallow the next campaign WON.
+    modeRef.current = 'campaign';
+    setMode('campaign');
+    waveRef.current = 1;
+    setWave(1);
+    waveAdvanceInFlightRef.current = false;
+    // Correct where it sits: the endless run above has already been recorded AND
+    // latched by the funnel, so this begins a new CAMPAIGN run rather than un-latching
+    // a recorded one.
     runEndedRef.current = false;
     // D-01: every retry is a NEW run — counters and wall clock both start at zero.
     runStartedAtRef.current = Date.now();
@@ -1428,7 +1474,7 @@ export function PlayingHost({
     setStallTier(0);
     setSimPhaseNum(SIM.DOCKED);
     setUiPhase('playing');
-  }, [clearCountdown, setLevelId]);
+  }, [clearCountdown, setLevelId, recordInFlightEndlessRun]);
 
   /** DEV force Low→Mid→High→auto; session remount via budget change + retry (Pitfall 5). */
   const cycleDevTier = useCallback(() => {

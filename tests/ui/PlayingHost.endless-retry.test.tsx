@@ -416,6 +416,35 @@ async function mountAndStartEndless(): Promise<void> {
   await press('Start an endless run');
 }
 
+/**
+ * Mount and stop at the dev row — mode is still `'campaign'` and no endless run has
+ * been started (11-10 Task 2). `mountAndStartEndless` presses the entry button, so a
+ * case about CAMPAIGN behaviour cannot use it.
+ */
+async function mountOnly(): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  render(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: () => {},
+    }),
+  );
+  await act(async () => {
+    await Promise.resolve();
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
+  await waitFor(() => {
+    expect(
+      screen.getByRole('button', { name: 'Start an endless run' }),
+    ).toBeTruthy();
+  });
+  setActive.mockClear();
+  retry.mockClear();
+  advanceWave.mockClear();
+  recordRunEnd.mockClear();
+}
+
 /** Run to wave 2 and stop there, leaving the guard released and the run live. */
 async function advanceToWaveTwo(): Promise<void> {
   await deliverPhase(SIM.WON, { score: 1200 });
@@ -845,5 +874,131 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(screen.getByText('W1'), 'a new run at wave 1').toBeTruthy();
     expect(hostProps.current?.lives).toBe(3);
     expect(hostProps.current?.score).toBe(0);
+  });
+});
+
+/**
+ * 11-10 Task 2 — `Lv` is an explicit EXIT from endless (A-02, owner 2026-09-26).
+ *
+ * `toggleDevLevel` was the third un-mode-aware copy of the run-boundary reset. The
+ * verifier measured, against this same host: pressing `Lv` at wave 2 left
+ * `mode = 'endless'` with the readout at `W2`, `recordRunEnd` called ZERO times, and
+ * the NEXT loss recorded `{mode:'endless', wave:2}` for what is nominally a campaign
+ * level — a campaign run filed through the endless arm.
+ *
+ * The owner rejected both alternatives: disabling the control while endless, and
+ * deferring to Phase 14. Record first, then exit.
+ */
+describe('PlayingHost — Lv exits endless (A-02)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+  });
+
+  const LV = 'Switch level, current level-01';
+
+  it('records the in-flight run before discarding it (measured pre-fix: 0 calls)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
+
+    await press(LV);
+
+    expect(
+      recordRunEnd,
+      'a control that changes the level ends the endless run — it must not be silently dropped',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls[0]![0];
+    expect(args.mode, 'the run that ended was an ENDLESS run').toBe('endless');
+    if (args.mode !== 'endless') {
+      throw new Error('expected the endless arm of RecordRunEndArgs');
+    }
+    expect(args.wave, 'at the wave it reached, recorded before any reset').toBe(2);
+    expect(args.outcome).toBe('abandoned');
+  });
+
+  it('leaves the mode — no W{n} readout survives the press', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    expect(screen.getByText('W2')).toBeTruthy();
+
+    await press(LV);
+
+    // The readout is gated on `mode === 'endless'`, so its absence is the RENDERED
+    // proof that the mode actually changed — not a prop read or a source shape.
+    expect(
+      screen.queryByText('W2'),
+      'measured pre-fix: the readout stayed at W2 because nothing wrote modeRef back',
+    ).toBeNull();
+    expect(
+      screen.queryByText(/^W\d+$/),
+      'and no other wave readout takes its place — the run is over, not rewound',
+    ).toBeNull();
+    expect(screen.queryByLabelText(/^Wave \d+$/)).toBeNull();
+  });
+
+  it('hands the NEXT loss to the CAMPAIGN arm, not the endless one (T-11-08)', async () => {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await press(LV);
+    expect(recordRunEnd, 'the endless run recorded on the way out').toHaveBeenCalledTimes(1);
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 500 });
+
+    expect(
+      recordRunEnd,
+      'the campaign run that followed records on its own loss',
+    ).toHaveBeenCalledTimes(2);
+    const args = recordRunEnd.mock.calls[1]![0];
+    // `RecordRunEndArgs` is a discriminated union whose endless arm has no `levelId`.
+    // Narrowing by throwing makes a wrong-arm record fail LOUDLY rather than read as
+    // undefined — and this is the assertion that actually discriminates the fix.
+    // Test 2 above is weaker: a missing readout could be argued from `setMode` alone.
+    if (args.mode !== 'campaign') {
+      throw new Error(
+        `expected the CAMPAIGN arm — measured pre-fix: {mode:'endless', wave:2} for a campaign level`,
+      );
+    }
+    expect(args.levelId, 'the campaign arm carries the level it was played on').toBe(
+      'level-04',
+    );
+    expect(
+      args,
+      'and it carries no wave — a campaign run has none, which is what the union enforces (D-11 / SC-3)',
+    ).not.toHaveProperty('wave');
+  });
+
+  it('pressing Lv in CAMPAIGN mode records nothing — campaign behaviour is unchanged', async () => {
+    await mountOnly();
+    expect(
+      screen.queryByText(/^W\d+$/),
+      'no endless run was started, so there is no readout',
+    ).toBeNull();
+
+    await press(LV);
+
+    expect(
+      recordRunEnd,
+      "the funnel's campaign no-op is intact — a campaign level switch is not a run boundary that records",
+    ).toHaveBeenCalledTimes(0);
+    expect(
+      screen.queryByText(/^W\d+$/),
+      'and the press does not enter endless either',
+    ).toBeNull();
   });
 });

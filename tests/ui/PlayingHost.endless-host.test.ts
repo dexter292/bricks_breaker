@@ -752,4 +752,104 @@ describe('PlayingHost endless host (source contract)', () => {
       ).not.toMatch(/\brecordInFlightEndlessRun\b/);
     }
   });
+
+  /**
+   * 11-10 Task 2 — `Lv` is an explicit EXIT from endless (A-02, owner 2026-09-26).
+   *
+   * BE PRECISE ABOUT WHAT THIS DOES AND DOES NOT PROVE, because one half of it is a
+   * source contract for a measured reason, not for convenience.
+   *
+   * The BEHAVIOUR — record first, then leave the mode, then hand the next loss to the
+   * campaign arm — is driven through the real host in
+   * `tests/ui/PlayingHost.endless-retry.test.tsx` (`Lv exits endless (A-02)`), which
+   * asserts on the argument `recordRunEnd` actually received. Deleting BOTH mode
+   * writers below turns two of those cases red, the arm case with the verifier's own
+   * measured message. Nothing here stands in for that.
+   *
+   * What is NOT behaviourally observable in this repo is the DIRECT `modeRef.current`
+   * write, as distinct from `setMode` alone. Measured, not assumed: deleting
+   * `modeRef.current = 'campaign'` and keeping `setMode('campaign')` leaves all 17
+   * behaviour cases GREEN. The mirroring effect (`useEffect(() => { modeRef.current =
+   * mode }, [mode])`) flushes inside the `act()` wrapper around every press, so by the
+   * time a jsdom test can deliver the next frame the ref already reads campaign — the
+   * test drives every frame itself, so the window the direct write exists to cover
+   * never opens.
+   *
+   * That window is real on device: `applyChrome` and the compiled-push gate effect
+   * read `modeRef.current`, and `applyChrome` arrives over a `useAnimatedReaction` →
+   * `runOnJS` hop that can land between the synchronous `toggleDevLevel` call and
+   * React's post-render effect flush. A frame in that window would read `'endless'`
+   * and take the endless branch for a run that has already exited. So the write is
+   * pinned HERE, as a source contract, and this comment says why rather than dressing
+   * it up as behaviour (11-09 Pattern 1).
+   */
+  it('toggleDevLevel exits endless: records first, writes BOTH mode writers, arms nothing (A-02)', () => {
+    const body = (() => {
+      const m = code.match(
+        /const toggleDevLevel = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+    expect(
+      body,
+      'toggleDevLevel must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+
+    const firstStatement = body
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('//'))[0];
+    expect(
+      firstStatement,
+      'the funnel must come FIRST — it reads waveRef.current, and it latches runEndedRef so the reset below cannot un-latch a run it just recorded',
+    ).toBe('recordInFlightEndlessRun();');
+
+    const recordAt = body.search(/recordInFlightEndlessRun\(\);/);
+    const modeRefAt = body.search(/modeRef\.current = 'campaign';/);
+    const setModeAt = body.search(/setMode\('campaign'\);/);
+    expect(
+      modeRefAt,
+      'the REF write — not observable in jsdom (see this block’s note), load-bearing for any frame that lands before the mirroring effect',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      setModeAt,
+      'and the STATE write — the W{n} readout is gated on it, so this is what makes the exit visible',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      recordAt,
+      'record BEFORE the mode leaves, or the funnel finds campaign and no-ops on a live endless run',
+    ).toBeLessThan(modeRefAt);
+
+    // The rest of the exit: the run identity returns to 1 in step, and the advance
+    // guard is released so a latched in-flight advance cannot swallow the next WON.
+    expect(body, 'waveRef and setWave move together or the ref and the HUD diverge').toMatch(
+      /waveRef\.current = 1;/,
+    );
+    expect(body).toMatch(/setWave\(1\);/);
+    expect(body).toMatch(/waveAdvanceInFlightRef\.current = false;/);
+
+    // R-24 / R-26, unchanged: the compiled-push gate effect owns arming the loop.
+    // `tests/ui/PlayingHost.bake-gate.test.ts:39-46` asserts this too; it is repeated
+    // here because THIS task is the one that could plausibly have broken it.
+    expect(
+      body,
+      'the gate effect arms the loop — toggleDevLevel must not (R-26)',
+    ).not.toMatch(/setActive\s*\(\s*true\s*\)/);
+    expect(body, 'and it must not call retry() either (R-24)').not.toMatch(
+      /\n\s*retry\(\);/,
+    );
+
+    expect(
+      depsOf('toggleDevLevel'),
+      'the funnel must be a declared dependency, or the memoised callback closes over a stale one',
+    ).toMatch(/\brecordInFlightEndlessRun\b/);
+
+    // The claim that makes A-02 worth closing beyond this control: before it, nothing
+    // in the file ever wrote modeRef back to campaign, so the compiled-push gate effect
+    // was dead for the life of the mount after the first endless entry.
+    expect(
+      (code.match(/modeRef\.current = 'campaign';/g) ?? []).length,
+      'toggleDevLevel is the ONLY writer returning modeRef to campaign — if a second appears, the A-02 note above needs rewriting',
+    ).toBe(1);
+  });
 });
