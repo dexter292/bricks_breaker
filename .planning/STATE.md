@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 4
+current_plan: 2
 status: in_progress
-stopped_at: Completed 11-14-PLAN.md (gap 2 closed — the ops doc states only mechanisms the code implements)
-last_updated: "2026-09-26T09:53:47.899Z"
-state_head: 1f46480d2cc12495d71fcc8f79654d7932468f8b
+stopped_at: Completed 11-15-PLAN.md (round-4 gap 1 closed — the ended-run latch now owns applyChrome's five chrome writes, in both modes)
+last_updated: "2026-09-26T11:14:47.632Z"
+state_head: 0cd5c2a45f568ef30617b7cee1cd59d7ebc02476
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 27
+  completed_plans: 26
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,8 +52,8 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 4
-Total Plans in Phase: 14
+Current Plan: 2
+Total Plans in Phase: 16
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
 **Next:** `/gsd-verify-work 11` (harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
@@ -121,6 +121,7 @@ Total Plans in Phase: 14
 | Phase 11 P12 | 9 min | 3 tasks | 4 files |
 | Phase 11 P13 | 9 min | 3 tasks | 4 files |
 | Phase 11 P14 | 9 min | 3 tasks | 4 files |
+| Phase 11 P15 | 11 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,8 @@ Total Plans in Phase: 14
 - [Phase 11]: Task 1 Test 1 (tier UNSET) was RED pre-fix, not the passing regression pin the plan assumed: the funnel DID fire (verifier P3 holds) but the restart could not reach W1 because the level half had flipped levelId and fxReady was false at the readiness gate — Recorded as measured rather than reconciled against the verifier's pre-fix numbers — the gate did not merely preserve branch A, it repaired it.
 - [Phase 11]: An explanatory comment must not restate a literal that a structural gate counts — naming the level-forcing call in prose made the plan's own gate read 2 where it requires 1 — Caught by running the gate, not by reading it. Line comments only inside runCertWorstCase, because codeOnly() in PlayingHost.endless-host.test.ts strips // but not block comments.
 - [Phase 11]: Cert WC stays in the SC-5 do-not-press set even though its level half is now gated — It still injects the worst-case ball, particle and shake load onto the board under measurement, which disqualifies any frame time captured across it in BOTH tier branches. The warning was narrowed by reason, not by control.
+- [Phase 11]: Hoist the run-ended latch to the FIRST statement of applyChrome rather than snapshotting resultScore/resultLives at the boundary — one statement, and it closes the campaign Results panel by the same edit because the same five chrome writes precede both campaign branches — The snapshot shape would add two pieces of state every reset path must maintain and would leave the HUD behind the overlay still repainting from a finished run
+- [Phase 11]: Remove the endless WON branch inner runEndedRef guard and re-point 11-13 three branch ordering assertions to the applyChrome function preamble, disclosing the tier change in the test own comment — With the latch at the top the inner copy is unreachable, so no mutation could kill it; mutation evidence measured strictly stronger after the move (7 cases RED vs 11-13 M2 set)
 
 ### Decisions (Post-MVP close)
 
@@ -256,6 +259,6 @@ Total Plans in Phase: 14
 
 ## Session Continuity
 
-Last session: 2026-09-26T09:53:27.518Z
-Stopped at: Completed 11-14-PLAN.md (gap 2 closed — the ops doc states only mechanisms the code implements)
+Last session: 2026-09-26T11:14:34.280Z
+Stopped at: Completed 11-15-PLAN.md (round-4 gap 1 closed — the ended-run latch now owns applyChrome's five chrome writes, in both modes)
 Resume file: None
