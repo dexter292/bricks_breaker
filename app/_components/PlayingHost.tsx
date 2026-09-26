@@ -1175,9 +1175,29 @@ export function PlayingHost({
     // eslint rule — a board must depend on (seed, difficulty) alone — so the wall
     // clock is read here and passed in. A fixed seed would make every endless run
     // the identical board sequence.
+    //
+    // 11-09 Task 2, `11-VERIFICATION.md` gap 2 — the build attempt is ATOMIC. The
+    // seed is snapshotted before the mint and restored on the failure path, and the
+    // old `waveRef.current = 1` below the mint is DELETED: `advanceToWave` already
+    // assigns `waveRef.current = nextWave` on success and pairs it with
+    // `setWave(nextWave)`, which is the only assignment that keeps the ref and the
+    // HUD state in step. A second, unpaired assignment above a failure return is
+    // exactly what let them diverge — `waveRef` silently 1 while the wave-N board was
+    // still in play, so the next WON restarted the difficulty ramp and a run at wave
+    // 30 quietly became a run at wave 2. Nothing else in here may write `waveRef`.
+    //
+    // Be clear about what these two are and are NOT. They are NOT behaviourally
+    // observable today: once `failEndlessStart` ends the run, nothing reads
+    // `runSeedRef` or `waveRef` again before the next `startEndlessRun` re-mints
+    // them. They exist so that the resume-in-place alternative 11-UI-SPEC § Run
+    // boundaries explicitly contemplates cannot silently inherit a re-minted seed or
+    // a rewound wave. Because they are unobservable they are asserted as SOURCE
+    // contracts in `tests/ui/PlayingHost.endless-host.test.ts`, and that file says so
+    // rather than dressing them up as behaviour.
+    const prevSeed = runSeedRef.current;
     runSeedRef.current = Date.now() >>> 0;
-    waveRef.current = 1;
     if (!advanceToWave(1)) {
+      runSeedRef.current = prevSeed;
       // Pressing Retry again re-mints a different seed (`Date.now()` above), which is
       // why the live button is a real remedy and not just a nicer-looking dead end.
       failEndlessStart();

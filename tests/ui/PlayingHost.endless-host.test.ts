@@ -299,15 +299,26 @@ describe('PlayingHost endless host (source contract)', () => {
   });
 
   /**
-   * A-01, decided `retry-in-place` by the owner on 2026-09-26. The behaviour half —
-   * the overlay stays up, Retry stays live, a second press recovers — is driven in
-   * `PlayingHost.endless-retry.test.tsx`. What CANNOT be driven from here is the body
-   * copy: `waveBuildFailedWave` is written in this plan and read in 11-08, so until
-   * that reader ships, statement placement is the only evidence available that the
-   * decision was implemented rather than described. That is what this contract pins,
-   * and it is explicitly a stopgap, not a substitute for 11-08's own rendering test.
+   * A-01, decided `retry-in-place` by the owner on 2026-09-26.
+   *
+   * 11-09 Task 2 CORRECTED this case in place; it kept its property — both failure
+   * returns must report the wave-1 build failure and the remedy must stay live — and
+   * rewrote the assertions to the contract that now ships. The old shape pinned the
+   * DEFECT: it required `setWaveBuildFailedWave(1)` twice in the preamble and
+   * required the preamble NOT to call `setResult`, which is precisely the state
+   * `11-VERIFICATION.md` gap 3 measured as unreachable — `result` null and `mode`
+   * still campaign meant `GameScreen` never mounted the overlay and the copy could
+   * not be read by anybody. Both failure returns now route through
+   * `failEndlessStart`, which owns the write and raises the surface.
+   *
+   * What this case does NOT prove: it proves the statements exist and are ordered,
+   * and proves NOTHING about whether the copy reaches a screen. A source contract
+   * that proved the WRITE and never the RENDER is the exact mechanism that let gap 3
+   * ship green while two thirds of the contract was unreachable. The rendered
+   * evidence lives in `tests/ui/PlayingHost.endless-record.test.tsx` § "a failed
+   * start from a fresh mount"; do not mistake this for render coverage.
    */
-  it('both startEndlessRun failure returns record the wave-1 build failure and leave the overlay alone (A-01)', () => {
+  it('both startEndlessRun failure returns route through failEndlessStart, which raises the surface (A-01)', () => {
     const m = code.match(
       /const startEndlessRun = useCallback\(([\s\S]*?)\n {2}\}, \[/,
     );
@@ -321,14 +332,90 @@ describe('PlayingHost endless host (source contract)', () => {
       'startEndlessRun must still commit to endless mode, or the anchor below is meaningless',
     ).toBeGreaterThan(0);
     const preamble = body.slice(0, commitAt);
+
+    // (a) both failure returns route through the one helper.
     expect(
-      preamble.match(/setWaveBuildFailedWave\(1\)/g)?.length,
-      'BOTH early returns — the readiness guard and the advanceToWave(1) false return — must report the wave-1 build failure (A-01, option A)',
+      body.match(/failEndlessStart\(\);/g)?.length,
+      'BOTH early returns — the readiness guard and the advanceToWave(1) false return — must route through failEndlessStart. Two failure shapes is how the copy became unreachable from two thirds of its call sites',
     ).toBe(2);
     expect(
+      preamble.match(/failEndlessStart\(\);/g)?.length,
+      'and both must sit in the preamble, above the commit point',
+    ).toBe(2);
+
+    // (b) the helper OWNS the failure write, and no wave number is written here.
+    expect(
+      body.match(/setWaveBuildFailedWave\(/g)?.length,
+      'startEndlessRun writes the failure wave exactly once, and it is the success-path CLEAR below — the failure write belongs to failEndlessStart alone',
+    ).toBe(1);
+    expect(
       preamble,
-      'and neither may clear the Results chrome: retry-in-place means the overlay STAYS on screen with Retry live (option C, the silent no-op, was rejected for presenting a dead-looking button)',
-    ).not.toMatch(/setResult\s*\(/);
+      'no failure return may write the failure wave itself — a duplicated write is a second failure shape waiting to diverge from the helper',
+    ).not.toMatch(/setWaveBuildFailedWave\(/);
+    expect(
+      body.slice(commitAt),
+      'the committed path must CLEAR the failure copy, or a successful Retry after a failed start runs a real run whose eventual loss still reads "could not be built"',
+    ).toMatch(/setWaveBuildFailedWave\(null\)/);
+    expect(
+      body,
+      'advanceToWave(1) assigns waveRef on success and pairs it with setWave — a second, unpaired assignment above a failure return is what let the ref and the HUD diverge (gap 2)',
+    ).not.toMatch(/waveRef\.current = 1/);
+
+    // (c) the build attempt is atomic: the seed is snapshotted, and the
+    //     advanceToWave(1) failure branch restores it BEFORE it ends the run.
+    expect(
+      preamble,
+      'the seed must be snapshotted before the mint, or there is nothing to restore',
+    ).toMatch(/const prevSeed = runSeedRef\.current;/);
+    const failureBranch = preamble.match(
+      /if \(!advanceToWave\(1\)\) \{([\s\S]*?)\n {4}\}/,
+    );
+    expect(
+      failureBranch?.[1],
+      'the advanceToWave(1) failure branch must be extractable, or the two pins below are vacuous',
+    ).toBeTruthy();
+    const restoreAt = failureBranch![1].search(
+      /runSeedRef\.current = prevSeed;/,
+    );
+    const failAt = failureBranch![1].search(/failEndlessStart\(\);/);
+    expect(
+      restoreAt,
+      'a failed start must leave NOTHING of the run identity changed — the seed goes back (gap 2)',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      restoreAt,
+      'and it must be restored before the run is ended, not after',
+    ).toBeLessThan(failAt);
+
+    // (d) the helper itself: endless mode first, the lose result after, and the
+    //     record latch that stops a phantom run being written for a start that
+    //     never began.
+    const helper = code.match(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    expect(
+      helper?.[1],
+      'failEndlessStart must be extractable, or every pin below it is vacuous',
+    ).toBeTruthy();
+    const helperBody = helper![1];
+    const modeAt = helperBody.search(/modeRef\.current = 'endless';/);
+    const resultAt = helperBody.search(/setResult\('lose'\);/);
+    expect(
+      modeAt,
+      "ResultOverlay nulls waveBuildFailedWave outside endless — the helper must flip the mode",
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      resultAt,
+      'GameScreen mounts the Results overlay only when result != null — the helper must set it',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      modeAt,
+      'the mode flip comes first: the overlay re-renders on the mode STATE and reads the failure wave through it',
+    ).toBeLessThan(resultAt);
+    expect(
+      helperBody,
+      'a start that never began must not be recordable — 11-10 moves recordInFlightEndlessRun inside startEndlessRun, and without this latch a later Retry writes a phantom {wave:1, score:0, abandoned} run (T-11-02)',
+    ).toMatch(/runEndedRef\.current = true;/);
   });
 
   it('the compiled-push effect is a no-op during an endless run, gated by ref (SC-5)', () => {

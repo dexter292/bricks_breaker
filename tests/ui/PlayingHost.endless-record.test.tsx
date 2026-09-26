@@ -810,3 +810,108 @@ describe('PlayingHost endless — a failed start from a fresh mount (gap 3)', ()
     ).toHaveBeenCalledTimes(0);
   });
 });
+
+/**
+ * 11-09 Task 2 — `11-VERIFICATION.md` gap 2: a failed start is ATOMIC.
+ *
+ * The verifier's measured pre-fix post-condition for Pause → Retry at wave 2 with a
+ * forced compile failure: `result = null`, `uiPhase = 'paused'`, the wave-N board
+ * still in play, `runEndedRef` latched, `waveRef` silently 1, and `recordRunEnd`
+ * called ZERO times — the deep run the record exists to capture, silently discarded,
+ * and the run that followed unrecordable. All three cases below drive the real host
+ * and the real overlay, because the post-condition is what a player is left looking
+ * at, not a value.
+ */
+describe('PlayingHost endless — Pause → Retry with a failing build (gap 2)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
+    campaignBest = CAMPAIGN_BEST_DEFAULT;
+    seededRecord = { bestScore: 900, bestWave: 1 };
+    postMergeRecord = { bestScore: 2400, bestWave: 2 };
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+    getSnapshot.mockClear();
+  });
+
+  /** Live run at wave 2, paused, with the NEXT generated board forced to fail. */
+  async function pauseThenFailingRetry(): Promise<void> {
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await press('Pause game');
+    failCompileFrom = compileCalls + 1;
+    await press('Pause panel Retry');
+  }
+
+  it('records the in-flight run at the wave it REACHED, exactly once (measured pre-fix: 0 calls)', async () => {
+    await pauseThenFailingRetry();
+    expect(
+      recordRunEnd,
+      'a run that cannot restart is a run that ENDED — it must be recorded, not silently dropped',
+    ).toHaveBeenCalledTimes(1);
+    const args = recordRunEnd.mock.calls.at(-1)?.[0];
+    expect(args?.mode).toBe('endless');
+    expect(
+      args?.mode === 'endless' ? args.wave : null,
+      'the wave the run reached, not the wave the failed restart attempted — a run at wave 30 must not become a run at wave 2',
+    ).toBe(2);
+    expect(args?.outcome, 'the player did not lose it').toBe('abandoned');
+  });
+
+  it('leaves ONE coherent state: the run is over, the overlay is up, Retry is the only live control', async () => {
+    await pauseThenFailingRetry();
+    expect(
+      hostProps.current?.result,
+      'measured pre-fix: null — no overlay, nothing on screen',
+    ).toBe('lose');
+    expect(
+      hostProps.current?.uiPhase,
+      'measured pre-fix: paused — the half-applied state, still on the wave-N board',
+    ).not.toBe('paused');
+    expect(
+      screen.queryByRole('button', { name: 'Pause panel Retry' }),
+      'the pause panel must be gone — two live panels is not one coherent state',
+    ).toBeNull();
+    expect(
+      within(screen.getByTestId('result-slot')).getByText(
+        'Wave 1 could not be built — tap Retry',
+      ),
+      'and the failure must say so where the player reads it',
+    ).toBeTruthy();
+  });
+
+  it('the run that FOLLOWS a failed start is a real, recordable run (pre-fix: runEndedRef latched with no way to clear it)', async () => {
+    await pauseThenFailingRetry();
+    // Compilation is allowed to succeed again — this Retry starts a genuine run.
+    failCompileFrom = 0;
+    await press(RETRY);
+
+    expect(
+      screen.getByText('W1'),
+      'a new endless run starts at wave 1, with the ref and the HUD in step',
+    ).toBeTruthy();
+    expect(hostProps.current?.result, 'the overlay is cleared for the new run').toBeNull();
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 300 });
+    expect(
+      recordRunEnd,
+      'the abandoned run at wave 2, then this one — the run after a failed start is NOT lost',
+    ).toHaveBeenCalledTimes(2);
+    const args = recordRunEnd.mock.calls.at(-1)?.[0];
+    expect(args?.mode).toBe('endless');
+    expect(args?.mode === 'endless' ? args.wave : null).toBe(1);
+  });
+});
