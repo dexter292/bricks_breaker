@@ -320,6 +320,41 @@ let seededRecord = { bestScore: 900, bestWave: 1 };
 /** `telemetry.endless` as `recordRunEnd` returns it — the POST-MERGE record. */
 let postMergeRecord = { bestScore: 2400, bestWave: 2 };
 
+/**
+ * The campaign per-level read, indirected behind a mutable implementation (11-12).
+ *
+ * `11-VERIFICATION.md` gap 1 is a RACE: the mount-time `getBestForLevel` preload
+ * published its campaign result into `resultBest` with no mode term, so a read that
+ * landed while the endless Results overlay was mounted repainted the player's
+ * endless `Best ·` with a campaign number. Reproducing it needs the read to be
+ * HELD, which the previous inline `() => Promise.resolve(campaignBest)` could never
+ * do.
+ *
+ * The DEFAULT is byte-for-byte the old behaviour — an immediate resolve reading
+ * `campaignBest` at call time, so the two cases that override that fixture still
+ * work. This matters more than it looks: both mount helpers below wait on
+ * `host-best=${campaignBest}`, so a deferral that were on by default would hang
+ * every pre-existing case in this file.
+ */
+const immediateCampaignRead = (): Promise<number> =>
+  Promise.resolve(campaignBest);
+let getBestForLevelImpl: (id: LevelId) => Promise<number> =
+  immediateCampaignRead;
+
+/**
+ * Arm the deferral: the NEXT `getBestForLevel` call (and every one after it) returns
+ * a promise that never settles until the returned resolver is called. Returns that
+ * resolver so a case can land the campaign read at an exact, chosen moment.
+ */
+function deferCampaignRead(): (value: number) => void {
+  let settle!: (value: number) => void;
+  const pending = new Promise<number>((resolve) => {
+    settle = resolve;
+  });
+  getBestForLevelImpl = () => pending;
+  return settle;
+}
+
 const recordRunEnd = vi.fn((_args: RecordRunEndArgs) => ({
   bestByLevel: {},
   unlocked: [],
@@ -338,7 +373,7 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
   return {
     ...actual,
     createDefaultProgressStore: () => ({
-      getBestForLevel: () => Promise.resolve(campaignBest),
+      getBestForLevel: (id: LevelId) => getBestForLevelImpl(id),
       getSnapshot,
       recordRunEnd,
       flush: () => Promise.resolve(),
@@ -567,6 +602,17 @@ function overlayText(): string {
   return screen.getByTestId('result-slot').textContent ?? '';
 }
 
+/**
+ * FILE-level reset, deliberately outside every `describe`. Vitest runs a top-level
+ * `beforeEach` ahead of the suite-scoped ones, so this restores the campaign read to
+ * its immediate-resolve default for all four blocks from one place — a per-describe
+ * copy would be four places for one invariant and the fifth block added later would
+ * silently inherit a deferral armed by the previous case.
+ */
+beforeEach(() => {
+  getBestForLevelImpl = immediateCampaignRead;
+});
+
 describe('PlayingHost endless record display (gap 2)', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -616,6 +662,97 @@ describe('PlayingHost endless record display (gap 2)', () => {
       expect(at, `"${line}" must appear after the line before it`).toBeGreaterThan(cursor);
       cursor = at;
     }
+  });
+
+  /**
+   * 11-12 gap 1 — THE case. A BEHAVIOUR test, not a source contract, because a source
+   * contract is what let this through twice.
+   *
+   * `resultBest` had a SECOND writer: the mount-time `getBestForLevel` preload effect,
+   * which published its campaign result unconditionally with `[store, levelId]` deps
+   * and no mode term. The verifier measured the consequence on a MOUNTED endless
+   * Results overlay — `Best ·` flipped from the endless watermark to a campaign level
+   * best (spot-checks P8/P9/P10, `4200` -> `7777`). A player cannot chase a number
+   * that is not theirs.
+   *
+   * It survived the WR-04 contract because that contract counts `previousBestRef`
+   * ASSIGNMENTS and explicitly whitelists this very effect as campaign-only, so it is
+   * structurally blind to a campaign value being PUBLISHED out of the region into the
+   * prop the endless overlay reads.
+   *
+   * THE OTHER HALF, observed elsewhere on purpose: the fix guards only the
+   * PUBLICATION. `previousBestRef.current = b` stays unconditional, so the campaign PB
+   * cache still warms while endless is live — the guard is not a dropped write. That
+   * half is observed in the sibling case `'leaving endless through Lv republishes the
+   * campaign best synchronously'` below, which presses `Lv` with the next read still
+   * pending and reads `7777` straight back out of the cache. Do not read the guard
+   * here as the campaign best being lost.
+   */
+  it('a campaign per-level best that resolves LATE never reaches the rendered endless `Best ·` (11-12 gap 1)', async () => {
+    // Armed BEFORE the mount, so the preload effect's own promise is the held one.
+    const landCampaignRead = deferCampaignRead();
+    const { PlayingHost } = await import('../../app/_components/PlayingHost');
+    render(
+      createElement(PlayingHost, {
+        levelId: 'level-01' as LevelId,
+        onMenu: () => {},
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+      vi.runAllTimers();
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Start an endless run' }),
+      ).toBeTruthy();
+    });
+    // NOT the `host-best` wait the shared helpers use: `best` cannot land while the
+    // campaign read is held, so waiting on it would hang. `getSnapshot` is the sibling
+    // chain and IS observable, which is what proves the endless watermarks are seeded
+    // rather than merely defaulted.
+    await waitFor(() => {
+      expect(getSnapshot).toHaveBeenCalled();
+    });
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+    await press('Start an endless run');
+
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    // The overlay is MOUNTED and reading the post-merge endless watermark. This is the
+    // state the verifier was in when the campaign read landed on top of it.
+    expect(
+      within(screen.getByTestId('result-slot')).getByText('Best · 2400'),
+      'the endless overlay must open on the post-merge endless watermark',
+    ).toBeTruthy();
+
+    // Land the campaign read WITH THE OVERLAY ON SCREEN.
+    await act(async () => {
+      landCampaignRead(CAMPAIGN_BEST_DEFAULT);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      overlayText(),
+      `measured pre-fix the slot goes Best · 2400 -> Best · ${CAMPAIGN_BEST_DEFAULT}: a campaign per-level best must never be presented as an endless record, at ANY moment of the run's lifetime`,
+    ).not.toContain(String(CAMPAIGN_BEST_DEFAULT));
+    expect(
+      within(screen.getByTestId('result-slot')).getByText('Best · 2400'),
+      'and the endless watermark must still be the line the player reads',
+    ).toBeTruthy();
+    // The prop tier as well as the render: the truth says "at any moment", and
+    // `host-best` sits OUTSIDE `result-slot` precisely so the channel can be asserted
+    // independently of what the overlay happens to render.
+    expect(
+      screen.getByTestId('host-best').textContent,
+      `measured pre-fix: host-best=${CAMPAIGN_BEST_DEFAULT} — the campaign value reached the prop, not merely the pixels`,
+    ).toBe('host-best=2400');
   });
 
   it('the campaign level best appears NOWHERE on the endless overlay (gap 2 / T-11-08-01)', async () => {
