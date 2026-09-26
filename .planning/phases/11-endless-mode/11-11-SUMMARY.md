@@ -50,6 +50,7 @@ key-decisions:
   - "`Exactly two places` is asserted as two REGIONS, not two statements: the getBestForLevel mount effect carries both a success and a fail-soft assignment, which is one place. The contract is that every assignment in the file falls inside one of the two named campaign-only regions and none outside — stated that way because the literal statement count (3) would have made the criterion look unmet while the property held"
   - "The bolded `every path that discards a run records it first` sentence was LEFT STANDING with a dated correction beneath it, not rewritten. The document's § Limits exists to keep a superseded claim visible next to its correction; silently repairing the sentence would have erased the evidence that a reader was once entitled to trust it over the code"
   - "The SC-5 do-not-press note keeps the tier button as well as `Cert WC`. Verified against source: `cycleDevTier` fires `remountDevSession`, whose endless branch routes to `startEndlessRun()` — so the run being measured is recorded abandoned and restarted at wave 1, and the new budget re-bakes the glow atlas, forcing the exact cold path the reading exists to prove is not entered"
+  - "CORRECTION 2026-09-26 (plan 11-14, gap 2 of 11-VERIFICATION.md). The decision entry directly above is left standing and is WRONG in its second half. The glow-atlas clause was NOT verified against source; claiming that it was is what let a false mechanism reach an operator-facing procedure. Measured this round: the `bakeGlowSprites(brickW, brickH)` call count across a tier press is 1 before and 1 after, `loadKey` is the compiled brick width and height alone, and the bake effect's dependency array `[audio, haptics, glowAtlasSv, loadResult, loadKey]` carries no tier term — so no quality tier can cause the atlas to be built again. The tier button is still hazardous, for the FIRST half of the reason above (it restarts the run under measurement) and for that half only. The reusable failure is not the document text: it is a SUMMARY asserting a verification that did not happen, which is trusted downstream precisely because it claims to have been checked. Corrected in `docs/ops/ENDLESS-MODE.md` § Limits item 2 by plan 11-14 Task 2"
   - "The plan's freeze command (`git diff origin/main...HEAD -- src/core src/levelgen`) is REPORTED as an instrument defect, not satisfied by editing anything. origin/main predates Phase 10, which CREATED src/levelgen, so the command measures the whole branch. Against the actual phase base the freeze holds at 0 lines"
 
 requirements-completed: []
@@ -267,6 +268,27 @@ See `key-decisions` in the frontmatter — six.
 - **Files modified:** `docs/ops/ENDLESS-MODE.md`
 - **Verification:** `grep -c "Cert WC"` → 6; both `<verify>` chains green; `npm run lint` exit 0.
 - **Committed in:** `4e2023e`
+
+> **CORRECTION 2026-09-26** (plan `11-14`, closing gap 2 of `11-VERIFICATION.md`). The deviation
+> entry above is left visible and unedited, and its **Issue** paragraph is wrong where it says the
+> new quality budget causes the glow sprite atlas to be created again. That clause was never
+> checked against the source; the words "Checked against the shipped source" in that paragraph
+> cover only the `cycleDevTier` → `remountDevSession` → `startEndlessRun()` restart, which is
+> true and measured. **What was actually measured this round:** the
+> `bakeGlowSprites(brickW, brickH)` call count across a tier press is **1 before the press and 1
+> after**; `loadKey` is the compiled brick **width and height alone**; and the bake effect's
+> dependency array `[audio, haptics, glowAtlasSv, loadResult, loadKey]` **carries no tier term**.
+> No quality tier can re-enter the bake cold path. The same false clause was carried into
+> `docs/ops/ENDLESS-MODE.md` § Limits item 2 — the one block a human reads immediately before
+> taking the SC-5 device reading — where it would have told an operator to **discard a valid
+> reading for a cause that does not exist**. `11-14` Task 2 withdrew it there.
+>
+> **The reusable failure named, because it is independent of the document text:** a SUMMARY that
+> asserts a verification which did not happen is worse than a SUMMARY that asserts nothing. The
+> next planner and the next verifier read "verified against source" as evidence already
+> collected, and the claim propagates unchallenged into operator-facing procedure. The original
+> text stays here rather than being repaired in place, exactly as `docs/ops/BOARD-GENERATOR.md`
+> § Limits item 2 and this phase's bolded record-first sentence were treated.
 
 **3. [Rule 1 - Bug] Task 3's freeze command measures the whole branch, not the phase**
 

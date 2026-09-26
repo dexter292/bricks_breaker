@@ -258,6 +258,7 @@ mode and the wave-advance guard — and every reset now routes to it:
 | `__DEV__` `Endless` button (`onPress={startEndlessRun}`) | It stays mounted and tappable for the **whole** run, so a second press mid-run is a boundary. The in-flight run is recorded `abandoned` at the wave reached, then a **new run starts at wave 1** — because the funnel is the first statement of `startEndlessRun()` itself, not a call sitting at some of its callers |
 | `Lv` (`toggleDevLevel`) | Records the in-flight run `abandoned` at the wave reached, then **exits endless**: `modeRef` / `mode` return to `'campaign'`, the `W{n}` readout disappears, `waveRef` and the wave-advance guard clear, and the next run is a **campaign** run recorded through the campaign arm (assumption **A-02**, owner decision of 2026-09-26) |
 | A wave that will not compile | **Ends the run.** The advance guard is released, the run is recorded `abandoned` at the last successfully built wave, and the frame loop stops |
+| `Cert WC` (`runCertWorstCase`) | A boundary **only through its tier half**, and only when the forced quality tier is not already `mid`: setting it fires the `__DEV__` tier-change row above, so the in-flight run is recorded `abandoned` at the wave it reached and a new run starts at wave 1 (measured 2026-09-26 from a live run at wave 2 — readout `W2` → `W1`, one `recordRunEnd` call carrying `{mode:'endless', wave:2, outcome:'abandoned'}`). **With the tier already `mid` it is no longer a run boundary at all.** Its other half used to force `level-03`; since `11-14` that half does not fire while the mode is endless, so the press leaves the run live — measured `W2` → `W2`, the level unchanged, `recordRunEnd` not called and no `setActive` call of any kind. It still injects the worst-case load onto the live board, which is a hazard during a measurement but not a run boundary |
 
 **The record-first rule is enforced in exactly one place: the first statement of
 `startEndlessRun()`.** That placement is the point, not an implementation detail. Enforced at the
@@ -286,6 +287,22 @@ is the phase goal, and it was false until this round.
 > a campaign level. A reader picking the mode up would have trusted the bold sentence over the
 > code. It became true on **2026-09-26**, when the funnel moved inside `startEndlessRun` and
 > `toggleDevLevel` became an explicit exit — the two boundary rows added to the table above.
+
+> **The `Cert WC` counterexample, considered and answered (2026-09-26).** The bolded sentence
+> above is **not** superseded by the `Cert WC` row, and the reasoning is written down here so
+> that the next reader finds it already worked through rather than rediscovering it. `11-REVIEW.md`
+> **WR-07** read the control as a path that discards an endless run *without* recording it — a
+> flat counterexample to the invariant. The verifier measured it instead of reasoning about it,
+> and the honest version is narrower. With the forced tier **unset**, the control's tier half
+> reaches the funnel and the run **is** recorded (one call, at the wave reached). With the tier
+> already `mid`, the tier half no-ops and — before `11-14` — the level half ran alone: that
+> branch did not *discard* a run, it **froze** one. `runEndedRef` stayed `false`, the wave, seed
+> and score all stayed intact, and Pause → `Menu` still recorded the run `abandoned` at the wave
+> it had reached. A frozen run is still a recordable run, so the invariant held even in the
+> branch that looked like a counterexample. **After `11-14` the branch no longer exists to
+> answer:** with the level half gated on the run mode the press leaves the run live and running
+> (measured `W2` → `W2`, no `recordRunEnd`, no `setActive`), so there is nothing for this
+> invariant to cover there at all. The sentence stands on its own terms in both branches.
 
 A generated board that fails to compile deliberately does **not** route to `LevelErrorOverlay`.
 That overlay has no controls, and `GameScreen` suppresses `showResult` while `levelError` is
