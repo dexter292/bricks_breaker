@@ -291,6 +291,179 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toMatch(/setResultBestWave\(endlessBestWaveRef\.current\)/);
   });
 
+  /**
+   * 11-12 gap 1 — the publication rule for `setResultBest`, the symbol that actually
+   * reaches the screen.
+   *
+   * WHAT THIS DOES NOT PROVE, stated first because it is the whole reason this case
+   * exists in the shape it does. Enumerating call sites proves the WRITE RULE. It
+   * proves NOTHING about the RENDER. The render is proven by the behaviour case
+   * `'a campaign per-level best that resolves LATE never reaches the rendered endless
+   * `Best ·` (11-12 gap 1)'` in `tests/ui/PlayingHost.endless-record.test.tsx`, which
+   * mounts the REAL `ResultOverlay`, drives the real host to an endless loss and lands
+   * a held campaign read with the overlay on screen. Nothing here may stand in for it.
+   * If that case is ever deleted, this one is not coverage of the display — it is a
+   * statement count.
+   *
+   * WHY THIS TARGETS `setResultBest` AND NOT `previousBestRef`, which is the correction
+   * this round makes. The sibling WR-04 case above counts assignments to the CAMPAIGN
+   * CACHE and explicitly whitelists the `getBestForLevel` preload effect as one of
+   * "the two campaign-only regions". The gap-1 defect lived inside that whitelisted
+   * region: the effect assigned the cache (legitimately) and then PUBLISHED the same
+   * campaign value into `resultBest` (illegitimately) with no mode term, so it was
+   * structurally incapable of seeing a campaign number reach the prop the endless
+   * overlay reads. The verifier measured it twice before it was caught. The cache and
+   * the publication are different obligations and need different instruments, which
+   * is why the WR-04 case above is KEPT rather than replaced.
+   *
+   * The rule, in one sentence: every `setResultBest` call site in the file sits inside
+   * a named region that is either endless-only (and publishes an endless source) or
+   * campaign-only (and publishes a campaign source), and the one region reachable in
+   * BOTH modes — the preload effect — gates every publication on the mode.
+   */
+  it('every setResultBest publication is mode-correct, and the preload effect gates its own (11-12 gap 1)', () => {
+    const one = (re: RegExp): string => code.match(re)?.[1] ?? '';
+
+    const preload = one(
+      /void store\s*\.getBestForLevel\(levelId\)([\s\S]*?)\n {2}\}, \[store, levelId\]\);/,
+    );
+    const runEnded = one(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+    );
+    const elseAt = runEnded.search(/\n {6}\} else \{\n/);
+    const endlessAt = runEnded.search(
+      /\n {6}if \(modeRef\.current === 'endless'\) \{\n/,
+    );
+    const runEndedEndless =
+      endlessAt < 0 || elseAt < 0 ? '' : runEnded.slice(endlessAt, elseAt);
+    const runEndedCampaign = elseAt < 0 ? '' : runEnded.slice(elseAt);
+    const failStart = one(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    const startEndless = one(
+      /const startEndlessRun = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    /** The part of a reset callback BELOW its `if (endless) { startEndlessRun(); return; }` hoist. */
+    const campaignBranchOf = (body: string): string => {
+      const m = body.match(
+        /\n {4}if \(modeRef\.current === 'endless'\) \{\n {6}startEndlessRun\(\);\n {6}return;\n {4}\}\n/,
+      );
+      return m?.index == null ? '' : body.slice(m.index + m[0].length);
+    };
+    const onRetryCampaign = campaignBranchOf(
+      one(/const onRetry = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/),
+    );
+    const remountCampaign = campaignBranchOf(
+      one(
+        /const remountDevSession = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      ),
+    );
+    const toggleBody = one(
+      /const toggleDevLevel = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    const exitAt = toggleBody.search(/modeRef\.current = 'campaign';/);
+    const toggleExit = exitAt < 0 ? '' : toggleBody.slice(exitAt);
+
+    const endlessOnly: ReadonlyArray<readonly [string, string]> = [
+      ["handleRunEnded's endless arm", runEndedEndless],
+      ['failEndlessStart', failStart],
+      ['startEndlessRun', startEndless],
+    ];
+    const campaignOnly: ReadonlyArray<readonly [string, string]> = [
+      ['the getBestForLevel preload effect', preload],
+      ["handleRunEnded's campaign arm", runEndedCampaign],
+      ["onRetry's campaign branch", onRetryCampaign],
+      ["remountDevSession's campaign branch", remountCampaign],
+      ["toggleDevLevel's exit block", toggleExit],
+    ];
+    const named = [...endlessOnly, ...campaignOnly];
+
+    // NON-EMPTY FIRST (11-09 Pattern 2). An anchor that drifts must make this case
+    // RED, never vacuously green — a silently-empty region would zero its own counts
+    // and every assertion below would pass while measuring nothing.
+    for (const [label, region] of named) {
+      expect(
+        region,
+        `${label} must be extractable, or every count below it is vacuous`,
+      ).not.toBe('');
+    }
+
+    const PUB = /setResultBest\(/g;
+    const total = (code.match(PUB) ?? []).length;
+    const inRegions = named.reduce(
+      (n, [, region]) => n + (region.match(PUB) ?? []).length,
+      0,
+    );
+    expect(
+      total,
+      'setResultBest must be published somewhere, or this contract is vacuous',
+    ).toBeGreaterThan(0);
+    expect(
+      inRegions,
+      'EVERY setResultBest call site in PlayingHost.tsx must fall inside one of the eight named mode-scoped regions — a publication in none of them is a record reaching the player from code that never decided which mode it belongs to, which is exactly the gap-1 defect',
+    ).toBe(total);
+
+    /** The argument of each publication in a region — the SOURCE being published. */
+    const sourcesOf = (region: string): string[] =>
+      [...region.matchAll(/setResultBest\(([^)]*)\)/g)].map((m) =>
+        (m[1] ?? '').trim(),
+      );
+
+    // An ENDLESS-only region may publish only an endless watermark or the merged
+    // endless score. `previousBestRef.current` here is WR-04, the 11-11 defect.
+    const ENDLESS_SOURCE = /^(endlessBestScoreRef\.current|mergedScore)$/;
+    for (const [label, region] of endlessOnly) {
+      for (const source of sourcesOf(region)) {
+        expect(
+          source,
+          `${label} is endless-only, so it may publish only an ENDLESS source — publishing a campaign value here renders a campaign record as the player's endless Best`,
+        ).toMatch(ENDLESS_SOURCE);
+      }
+    }
+
+    // A CAMPAIGN-only region may publish only the campaign cache, the resolved
+    // preload value `b`, the fail-soft `0`, or the campaign personal best.
+    const CAMPAIGN_SOURCE = /^(previousBestRef\.current|b|0|best)$/;
+    for (const [label, region] of campaignOnly) {
+      for (const source of sourcesOf(region)) {
+        expect(
+          source,
+          `${label} is campaign-only, so it may publish only a CAMPAIGN source`,
+        ).toMatch(CAMPAIGN_SOURCE);
+      }
+    }
+
+    // THE TERM WHOSE ABSENCE WAS THE GAP. The preload effect is the one region
+    // reachable in both modes — it re-runs on every `levelId` change, including ones
+    // that happen while an endless run is live — so each of its publications must be
+    // wrapped in the mode test, and the wrap must PRECEDE the publication it guards.
+    const guardIdx = [
+      ...preload.matchAll(/modeRef\.current !== 'endless'/g),
+    ].map((m) => m.index ?? -1);
+    const pubIdx = [...preload.matchAll(/setResultBest\(/g)].map(
+      (m) => m.index ?? -1,
+    );
+    expect(
+      guardIdx.length,
+      "the preload effect must gate EVERY setResultBest it makes on modeRef.current !== 'endless' — the success arm and the fail-soft arm are both publications, and an unguarded one repaints a live endless overlay",
+    ).toBe(pubIdx.length);
+    for (let i = 0; i < pubIdx.length; i += 1) {
+      expect(
+        guardIdx[i],
+        'each guard must precede the publication it wraps — a mode test written after the publication does not gate it',
+      ).toBeLessThan(pubIdx[i] as number);
+    }
+
+    // And the cache itself stays UNCONDITIONAL: the guard is on the publication only,
+    // so the campaign best is warm the moment the player exits endless. The sibling
+    // WR-04 case counts these assignments; this one pins that guarding the publication
+    // did not accidentally guard the cache too.
+    expect(
+      (preload.match(/previousBestRef\.current =/g) ?? []).length,
+      'both preload arms must still assign the campaign cache unconditionally — a guarded cache write would make the campaign Best stale after every endless run, which toggleDevLevel republishing previousBestRef.current would then propagate',
+    ).toBe(pubIdx.length);
+  });
+
   it('an endless run skips the campaign star / next-gate follow-up (SC-3)', () => {
     const runEnded = code.match(
       /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
