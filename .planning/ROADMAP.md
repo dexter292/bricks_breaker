@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 18 plans — 16 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2; 3 gap-closure round 3; 2 gap-closure round 4); 2 gap-closure round-5 plans pending (waves 7-8)
+**Plans:** 16/18 plans executed — 16 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2; 3 gap-closure round 3; 2 gap-closure round 4); 2 gap-closure round-5 plans pending (waves 7-8)
 
 Plans:
 **Wave 1**

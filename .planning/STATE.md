@@ -2,15 +2,15 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 3
+current_plan: 2
 status: in_progress
-stopped_at: Completed 11-16-PLAN.md (round-4 gap 2 closed — the cert deferral carries a run-mode term and the ops doc's injection claim is scoped by branch)
-last_updated: "2026-09-26T11:29:16.754Z"
-state_head: f81c6b399ded3fadb5437bee2c184d26ec35e558
+stopped_at: "Completed 11-17-PLAN.md (round-5: the re-arm enumeration is derived, Cert WC's level half is guarded, and the A2-vacuous latch contract is repaired)"
+last_updated: "2026-09-26T13:14:45.737Z"
+state_head: 2b4d0800048c7cb933ce1c78fbbe508c4cd718c0
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 27
+  total_plans: 29
   completed_plans: 27
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
@@ -52,8 +52,8 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 3
-Total Plans in Phase: 16
+Current Plan: 2
+Total Plans in Phase: 18
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
 **Next:** `/gsd-verify-work 11` (harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
@@ -123,6 +123,7 @@ Total Plans in Phase: 16
 | Phase 11 P14 | 9 min | 3 tasks | 4 files |
 | Phase 11 P15 | 11 min | 3 tasks | 4 files |
 | Phase 11 P16 | 10 min | 3 tasks | 4 files |
+| Phase 11 P17 | 12 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -264,6 +265,6 @@ Total Plans in Phase: 16
 
 ## Session Continuity
 
-Last session: 2026-09-26T11:29:07.271Z
-Stopped at: Completed 11-16-PLAN.md (round-4 gap 2 closed — the cert deferral carries a run-mode term and the ops doc's injection claim is scoped by branch)
+Last session: 2026-09-26T13:14:45.710Z
+Stopped at: Completed 11-17-PLAN.md (round-5: the re-arm enumeration is derived, Cert WC's level half is guarded, and the A2-vacuous latch contract is repaired)
 Resume file: None
