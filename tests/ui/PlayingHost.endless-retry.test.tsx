@@ -895,7 +895,15 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     advanceWave.mockClear();
 
     // ONE straggler WON. This is the whole defect in a single mirror.
-    await deliverPhase(SIM.WON, { score: 2400 });
+    //
+    // 11-15 Task 2 — the PAYLOAD is the retrofit and it is the whole point. This
+    // straggler used to re-send the boundary mirror's own `score: 2400`, which is
+    // exactly why this drive proved the WAVE half of "an ended run stays ended" and
+    // was structurally blind to the CHROME half: a mirror that repaints 2400 over
+    // 2400 is indistinguishable from one that is correctly ignored. The same shape as
+    // round 2's `previousBestRef` blind spot — an instrument pointed one symbol away
+    // from the defect, now at its third occurrence.
+    await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
 
     expect(
       screen.queryByText('W3'),
@@ -917,6 +925,15 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       recordRunEnd,
       'and the ended run is still recorded exactly once',
     ).toHaveBeenCalledTimes(1);
+    // 11-15 Task 2 — the CHROME half, on the same drive that already proved the wave.
+    expect(
+      hostProps.current?.score,
+      'measured pre-fix: the host score became 9999 on a run banked at 2400, and the mounted Results panel repainted with it',
+    ).toBe(2400);
+    expect(
+      hostProps.current?.lives,
+      'measured pre-fix: lives went back to 3 on a run that ended at zero — D-04 says the frozen value is the run real final one, never a refill',
+    ).toBe(0);
   });
 
   it('and it stays ended through a WALK — four more WON/DOCKED pairs do not move the wave (gap 3)', async () => {
@@ -929,9 +946,15 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     // The DOCKED half of each pair is what made the walk unbounded pre-fix:
     // `applyChrome` releases `waveAdvanceInFlightRef` on any phase that is neither WON
     // nor LOST, so every pair handed the branch a fresh, unlatched guard.
+    //
+    // 11-15 Task 2 — BOTH halves of every pair carry the distinguishable payload, not
+    // just the WON. The DOCKED mirror is non-terminal, so pre-fix it fell straight
+    // through the five writes at the top of `applyChrome` and repainted the panel
+    // exactly as the WON did; a drive that only distinguished the WON half would
+    // leave the non-terminal producer unproven.
     for (let i = 0; i < 4; i += 1) {
-      await deliverPhase(SIM.WON, { score: 2400 });
-      await deliverPhase(SIM.DOCKED, { score: 2400 });
+      await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
+      await deliverPhase(SIM.DOCKED, { lives: 3, score: 9999 });
     }
 
     expect(
@@ -954,6 +977,16 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       recordRunEnd,
       'and still exactly one record, for the one run that happened',
     ).toHaveBeenCalledTimes(1);
+    // 11-15 Task 2 — the CHROME half. Eight post-boundary mirrors, four of them
+    // non-terminal, and not one of them may move the finished run's numbers.
+    expect(
+      hostProps.current?.score,
+      'measured pre-fix: eight post-boundary mirrors each repainted the host score, leaving 9999 above the run own Best · 2400',
+    ).toBe(2400);
+    expect(
+      hostProps.current?.lives,
+      'measured pre-fix: lives back at 3 on a run that ended at zero',
+    ).toBe(0);
   });
 
   /**
@@ -974,8 +1007,16 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(screen.queryByText('W2'), 'the run reached wave 2').not.toBeNull();
 
     // Fail exactly the wave-3 build.
+    //
+    // 11-15 Task 2 — this WON is the BOUNDARY mirror, not a straggler, so it keeps
+    // the run's real numbers and must be allowed through. `lives: 2` is explicit
+    // rather than the helper default of 3 for one reason: this drive's ended state is
+    // a mid-run BUILD failure, not a zero-lives loss, so "the frozen lives" here is
+    // whatever the run was actually on — and a boundary at 3 could not be told apart
+    // from the straggler's 3 below, which would make the frozen-lives assertion an
+    // assertion that already held.
     failCompileFrom = compileCalls + 1;
-    await deliverPhase(SIM.WON, { score: 2400 });
+    await deliverPhase(SIM.WON, { lives: 2, score: 2400 });
 
     expect(hostProps.current?.result, 'the failed build ENDED the run').toBe('lose');
     expect(
@@ -989,8 +1030,11 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     advanceWave.mockClear();
 
     // DISARM, then deliver a WON that would build a real board.
+    //
+    // 11-15 Task 2 — and it carries a payload the boundary mirror never had, so this
+    // drive can now see the chrome half as well as the wave half.
     failCompileFrom = 0;
-    await deliverPhase(SIM.WON, { score: 2400 });
+    await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
 
     expect(
       screen.queryByText('W3'),
@@ -1019,6 +1063,15 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       recordRunEnd,
       'and the finished run is still recorded exactly once',
     ).toHaveBeenCalledTimes(1);
+    // 11-15 Task 2 — the CHROME half on the third ended-run state.
+    expect(
+      hostProps.current?.score,
+      'measured pre-fix: 9999 painted over the run own 2400 while the overlay beside it still read the wave-3 failure copy',
+    ).toBe(2400);
+    expect(
+      hostProps.current?.lives,
+      'and the lives the run actually ended on — measured pre-fix, the straggler put them back to 3',
+    ).toBe(2);
   });
 
   it('a Retry that cannot build wave 1 keeps the overlay up with Retry live, and a second press recovers (A-01, retry-in-place)', async () => {
@@ -1062,6 +1115,157 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     expect(screen.getByText('W1'), 'a new run at wave 1').toBeTruthy();
     expect(hostProps.current?.lives).toBe(3);
     expect(hostProps.current?.score).toBe(0);
+  });
+});
+
+/**
+ * 11-15 Task 2 — the OTHER producers and the OTHER side of the same condition.
+ *
+ * WHY THIS BLOCK EXISTS, stated plainly because the omission it repairs is the
+ * pattern this whole round is written against. The five chrome writes at the top of
+ * `applyChrome` are SHARED PREAMBLE: they run before the endless WON branch, before
+ * the mid-run wave-build failure, and before the campaign WON and campaign LOST
+ * branches alike. An endless-only proof of the hoisted latch would therefore leave
+ * the CAMPAIGN panel resting on an inference from shared source — and "verified at
+ * one producer, left open at its neighbour" is exactly what round 2 and round 3 each
+ * shipped. The campaign half is DRIVEN here instead.
+ *
+ * The campaign exposure is also strictly WORSE than the endless one, which is the
+ * second reason it cannot be inferred: `setResult(...)` and `setActive(false)` sit
+ * OUTSIDE each campaign branch's own `if (!runEndedRef.current)` gate, so pre-fix a
+ * straggler `WON` after a campaign `LOST` called `setResult('win')` on an already
+ * lost run. The panel flipped its KIND as well as its score — a win heading over a
+ * run the player lost.
+ *
+ * Entry is `mountOnly()` throughout: it stops at the dev row with `mode` still
+ * `'campaign'` and no endless run started, which `mountAndStartEndless` cannot do.
+ */
+describe('PlayingHost — the ended-run chrome latch covers CAMPAIGN too (11-15, gap 1)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    compileCalls = 0;
+    failCompileFrom = 0;
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    hostProps.current = null;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+  });
+
+  it('a CAMPAIGN run that LOST keeps its kind and its numbers — a straggler WON flips neither (gap 1)', async () => {
+    await mountOnly();
+
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+
+    expect(
+      hostProps.current?.result,
+      'the campaign LOST branch is the run boundary',
+    ).toBe('lose');
+    expect(
+      recordRunEnd,
+      'recorded once, through the campaign arm',
+    ).toHaveBeenCalledTimes(1);
+    expect(hostProps.current?.score, 'the boundary mirror wrote the run final score').toBe(2400);
+
+    // ONE straggler WON, distinguishable from the boundary mirror.
+    await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
+
+    expect(
+      hostProps.current?.result,
+      'measured pre-fix: the kind flipped from lose to WIN — setResult sits outside the campaign branch own latch gate, so the panel showed a win heading over a run that was lost',
+    ).toBe('lose');
+    expect(
+      hostProps.current?.score,
+      'measured pre-fix: 9999 — the same five shared writes that repainted the endless panel repaint the campaign one',
+    ).toBe(2400);
+    expect(
+      hostProps.current?.lives,
+      'measured pre-fix: lives back at 3 on a run that ended at zero',
+    ).toBe(0);
+    expect(
+      recordRunEnd,
+      'and the straggler still reaches no telemetry — handleRunEnded stays behind its own gate',
+    ).toHaveBeenCalledTimes(1);
+  });
+
+  it('a LIVE campaign run still takes every mirror chrome (gap 1, the side the latch must not touch)', async () => {
+    await mountOnly();
+
+    expect(
+      hostProps.current?.result,
+      'no boundary has fired — this run is live',
+    ).toBeNull();
+
+    await deliverPhase(SIM.PLAYING, { lives: 2, score: 777 });
+
+    // What this case FORBIDS, deliberately: a guard written as an unconditional early
+    // return — or one hoisted without the `runEndedRef` test — makes this RED. That is
+    // the T-11-32 row, "a hoisted guard that locks a NEW run out of its own chrome",
+    // and it is why the fix is a latch rather than a freeze.
+    expect(
+      hostProps.current?.score,
+      'a run that has NOT ended takes score from every mirror, in campaign exactly as in endless',
+    ).toBe(777);
+    expect(
+      hostProps.current?.lives,
+      'and lives too — a blanket freeze would strand a live campaign run on its mount defaults',
+    ).toBe(2);
+  });
+
+  it('a FAILED START stays ended — the one ended state that writes no chrome of its own (gap 1)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await mountOnly();
+
+    // The mechanism the sibling A-01 / failed-START cases already use: the very first
+    // `compileGeneratedLevel` call fails, so `startEndlessRun` cannot build wave 1 and
+    // routes into `failEndlessStart`.
+    failCompileFrom = compileCalls + 1;
+    await press('Start an endless run');
+
+    expect(
+      hostProps.current?.result,
+      'a start that never began still ENDS — the overlay is up with the tap-Retry copy',
+    ).toBe('lose');
+    expect(
+      hostProps.current?.waveBuildFailedWave,
+      'wave 1 is the Retry-time classification ResultOverlay keys the decided copy off',
+    ).toBe(1);
+    const openedScore = hostProps.current?.score;
+    const openedLives = hostProps.current?.lives;
+
+    // `failEndlessStart` latches `runEndedRef` and writes NO chrome, which makes this
+    // the ended state with the least protection of its own: without the hoisted guard
+    // there is nothing else between a straggler and the panel. The straggler carries
+    // `lives: 1` rather than the plan's 3 for the reason the prohibition names — the
+    // host opens this state at the mount default of 3, so a straggler at 3 would make
+    // the frozen-lives assertion one that already held before the action it follows.
+    await deliverPhase(SIM.WON, { lives: 1, score: 9999 });
+
+    expect(
+      hostProps.current?.score,
+      'measured pre-fix: 9999 — a run that never started displaying a four-digit score',
+    ).toBe(openedScore);
+    expect(
+      hostProps.current?.lives,
+      'measured pre-fix: 1 — chrome from a run that does not exist',
+    ).toBe(openedLives);
+    expect(
+      hostProps.current?.result,
+      'and the kind is unchanged: SC-1 forbids an endless WON from ending a run, straggler or not',
+    ).toBe('lose');
+    expect(
+      hostProps.current?.waveBuildFailedWave,
+      '11-13 decided tap-Retry copy must not be rewritten by a mirror that arrived after the run ended',
+    ).toBe(1);
   });
 });
 
