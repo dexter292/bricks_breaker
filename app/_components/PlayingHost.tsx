@@ -943,6 +943,39 @@ export function PlayingHost({
       // ahead of the campaign WON branch and returns in every path, which is what
       // keeps `handleRunEnded` and `setActive(false)` below unreachable on a win.
       if (modeRef.current === 'endless' && mirror.phase === SIM.WON) {
+        // 11-13 — `11-VERIFICATION.md` gap 3. THE missing term, and it is first.
+        //
+        // `applyChrome`'s whole design is ONE latch, EVERY boundary: the campaign
+        // WON, the campaign LOST and the mid-run wave-build failure below all gate
+        // on `runEndedRef`. This branch was the single asymmetry — it gated on
+        // `modeRef` and `waveAdvanceInFlightRef` only, and the inner
+        // `if (!waveAdvanceInFlightRef.current)` guards CONCURRENCY, not run
+        // lifetime. So once the run had ended, a further WON mirror still generated,
+        // compiled and swapped in a board and still bumped the wave. Measured: LOST
+        // at W2, then ONE WON mirror gave W3 with `advanceWave` called once and the
+        // compiled board changed; four more WON/DOCKED pairs reached W6 with the
+        // lose overlay still on screen.
+        //
+        // It RETURNS, and the return is not interchangeable with a fall-through. An
+        // endless WON that fell through would reach the campaign WON branch below,
+        // which calls `handleRunEnded` with a `win` outcome and `setResult('win')` on
+        // a cleared board — ending an endless run on a wave boundary, which is the
+        // SC-1 violation this branch exists to prevent.
+        //
+        // Gating here is SAFE because a new run un-latches before its first mirror:
+        // `startEndlessRun`'s success path clears both `runEndedRef.current` and
+        // `waveAdvanceInFlightRef.current`.
+        //
+        // Severity, honestly, because `11-REVIEW.md` CR-01 called this CRITICAL and
+        // the verifier downgraded it on proof: no walked wave can reach
+        // `telemetry.endless.bestWave`. Every path that clears `runEndedRef` either
+        // routes through a wave-1 restart or exits to campaign, and from an ended run
+        // `Menu` records nothing because the latch already holds. This was an
+        // incoherent ENDED state, a burned seed walk and a self-contradicting
+        // overlay — not a false record.
+        if (runEndedRef.current) {
+          return;
+        }
         if (!waveAdvanceInFlightRef.current) {
           waveAdvanceInFlightRef.current = true;
           if (advanceToWave(waveRef.current + 1)) {
