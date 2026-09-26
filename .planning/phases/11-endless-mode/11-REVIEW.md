@@ -1,326 +1,413 @@
 ---
 phase: 11-endless-mode
-reviewed: 2026-09-25T15:35:41Z
+reviewed: 2026-09-26T13:30:00Z
 depth: standard
-files_reviewed: 25
+files_reviewed: 11
 files_reviewed_list:
   - app/_components/PlayingHost.tsx
-  - src/runtime/loadLevel.ts
-  - src/runtime/useGameLoop.ts
-  - src/runtime/worldRequests.ts
-  - src/services/endless/index.ts
-  - src/services/endless/ramp.ts
-  - src/services/storage/asyncStorageStore.ts
-  - src/services/storage/index.ts
-  - src/services/storage/memoryStore.ts
-  - src/services/storage/parseBlob.ts
-  - src/services/storage/telemetry.ts
-  - src/services/storage/types.ts
-  - tests/endless.determinism.test.ts
-  - tests/endless.ramp.test.ts
-  - tests/endless.wave-loop.test.ts
-  - tests/helpers/balanceBot.ts
-  - tests/runtime.wave-advance.test.ts
-  - tests/storage.endless-firewall.test.ts
-  - tests/storage.progress-v4.test.ts
+  - src/runtime/GameScreen.tsx
+  - src/runtime/overlays/ResultOverlay.tsx
+  - tests/ui/PlayingHost.endless-retry.test.tsx
+  - tests/ui/PlayingHost.endless-record.test.tsx
   - tests/ui/PlayingHost.endless-host.test.ts
   - tests/ui/PlayingHost.endless-run.test.tsx
   - tests/ui/PlayingHost.endless.test.ts
-  - tests/ui/PlayingHost.next-bake.test.ts
+  - tests/ui/ResultOverlay.test.tsx
+  - tests/ui/GameScreen.test.tsx
   - docs/ops/ENDLESS-MODE.md
-  - docs/ops/BOARD-GENERATOR.md
 findings:
   critical: 1
   warning: 5
-  info: 3
-  total: 9
+  info: 6
+  total: 12
 status: issues_found
 ---
 
-# Phase 11: Code Review Report
+# Phase 11 (plans 11-07 / 11-08): Code Review Report
 
-**Reviewed:** 2026-09-25T15:35:41Z
-**Depth:** standard
-**Files Reviewed:** 25
+**Reviewed:** 2026-09-26T13:30:00Z
+**Depth:** standard (incremental — `b29ccf9..HEAD`, +2562/−113)
+**Files Reviewed:** 11
 **Status:** issues_found
 
 ## Summary
 
-The four contracts the phase brief singled out all hold, and I verified each against
-source rather than against the prose:
+The two recorded gaps are genuinely closed on the paths the plans name. Gap 2 in particular is
+clean: the mode branch is first, `evaluatePersonalBest` is syntactically unreachable from the
+endless arm, the watermark refs are separate, the post-merge read comes off the synchronous
+`recordRunEnd` return, and `previousBestRef` is never written by an endless run. `npx tsc
+--noEmit` is clean and all 87 UI tests pass.
 
-- `applyWaveAdvance` (`src/runtime/worldRequests.ts:61-96`) clears `effectType` /
-  `effectUntilTick` / `effectCount` at lines 64-69, well above `world.tick = 0` at line 94.
-  I grepped every absolute-tick consumer in `src/core` — `effects.ts:114,144,171,195` are
-  the only ones, and they all read the SoA that was just cleared. The ordering is correct
-  and complete.
-- The host writes `compiledSv.value` (PlayingHost.tsx:758) before `advanceWave()`
-  (PlayingHost.tsx:783), and both are shared-value writes issued from the same JS-thread
-  callback, so the UI runtime observes them in that order.
-- Nothing in either store's `recordRunEnd` reaches `bestByLevel`, `unlocked` or `bestScore`
-  from the endless arm (`memoryStore.ts:100-135`, `asyncStorageStore.ts:380-424`), and
-  `sanitizeTelemetry` / `sanitizeEndlessRecord` (`parseBlob.ts:337-346, 415-446`) degrade a
-  corrupt `telemetry.endless` to `defaultEndlessRecord()` without touching a sibling.
-  The persistence-layer firewall is sound.
-- `bakeGlowSprites` really does read only `(brickW, brickH)` (its whole body is
-  `bakeGlowSprites.ts:95-108`, colors are module constants), so `loadKey` does not
-  under-key the *atlas*. But the value it is keyed on comes from the wrong place during an
-  endless run — see WR-01.
+Two things this review establishes against the areas flagged in the brief:
 
-The defects that remain cluster in the host, not in the policy or the storage layer. One of
-them writes a wrong number into persistent storage (CR-01); the rest are host state-machine
-gaps that the mocked jsdom behaviour test cannot see because it replaces `useGameLoop`
-wholesale and never exercises the Retry / level-switch / compile-failure paths.
+1. **The `waveBuildFailedWave` value-discrimination invariant holds.** Traced every writer.
+   `waveRef` is initialised to `1`, assigned `1` in `startEndlessRun` before `advanceToWave(1)`,
+   and otherwise assigned only inside `advanceToWave` *after* a successful compile, always to
+   `waveRef.current + 1`. It can therefore never be `< 1`, so the mid-run value
+   `waveRef.current + 1` is always `>= 2` and the Retry-time literal `1` never collides. The
+   executor's reasoning is correct. See IN-01 for the fragility that remains.
+2. **The remaining test assertions are not vacuous in the ways the brief worried about** — the
+   region-extraction harnesses are guarded by "the harness itself is honest" cases, the
+   falsification notes (e.g. `campaignBest = 0` at `endless-record.test.tsx:518`) are load-bearing,
+   and the negative assertions sit beside positive ones on the same extracted region. Four
+   lower-value soft spots are recorded as IN-02…IN-04 and IN-06.
+
+What the round did **not** close is the class of defect it set out to fix. Gap 1 was "the
+run-boundary resets were never made mode-aware". `onRetry` and `remountDevSession` were fixed;
+`toggleDevLevel` and the `__DEV__` `Endless` button itself — both live controls on the same dev
+row, both reachable mid-run — were not. And `startEndlessRun`'s own failure return mutates run
+identity before it bails, which produces a resumable run that can never be recorded. Those are
+CR-01, WR-01, WR-02 and WR-03 below, each confirmed by driving the real host rather than by
+reading.
+
+Out of scope as instructed and **not** reported: `ENDLESS_BRICK_DIMS` / the stretched halo (§
+Limits item 7), SC-5's unmeasured device half, the `__DEV__`-only entry point, `N-END-03`
+staying unchecked.
 
 ## Critical Issues
 
-### CR-01: Endless "Retry" resumes at the reached wave with free lives, inflating the persisted `telemetry.endless.bestWave`
+### CR-01: `startEndlessRun` mutates run identity before its failure return, leaving a resumable run that can never be recorded
 
-**File:** `app/_components/PlayingHost.tsx:895-920` (with `617-635`, `740-766`)
-**Issue:**
-`onRetry` is wired to the Result overlay unconditionally
-(`GameScreen.tsx:165-175` → `onRetry={onRetry}`), and it is reachable after an endless
-loss: its guard is `!levelReady || levelError != null || !fxReady`, all of which are
-satisfied by the *campaign* level that is still loaded behind the endless run.
+**File:** `app/_components/PlayingHost.tsx:1115-1122` (with `1157-1176`, `1063-1078`)
 
-`onRetry` resets `runEndedRef`, lives, score, combo and calls `retry()` — which applies
-`applyRetryWorldReset(w, compiled.value)` against whatever generated board is currently in
-`compiledSv`. It does **not** touch `runSeedRef`, `waveRef`, `setWave`,
-`waveAdvanceInFlightRef` or `mode`.
-
-Concrete failure:
-
-1. Player starts an endless run, dies on wave 18. `recordRunEnd({mode:'endless', wave:18, …})`
-   writes `bestWave = 18`.
-2. Player taps Retry. The world resets to 3 lives on the **wave-18 board**; the HUD still
-   reads `W18`; `waveRef.current` is still 18.
-3. Player clears it → `advanceToWave(19)` → dies. `recordRunEnd({wave:19})` writes
-   `bestWave = 19`.
-4. Repeat indefinitely. `telemetry.endless.bestWave` climbs one wave per Retry while
-   waves 1..18 are never replayed and lives are refilled on every attempt.
-
-`EndlessRecord.bestWave` is documented as "deepest wave index ever reached in an endless
-run" (`types.ts:125-137`) — this makes it the deepest wave reached across a chain of
-free resumes, a number no single run produced. It is written through `mergeEndlessRecord`
-into AsyncStorage, so the corruption is durable. `bestScore` is not affected (the sim score
-does zero on `resetWorld`), which is exactly why the inconsistency is easy to miss.
-
-Secondary symptom of the same omission: `waveAdvanceInFlightRef` is also not reset, so if
-the retry follows a failed `advanceToWave` the guard stays latched `true` and the very next
-WON is silently swallowed.
-
-**Fix:** make Retry mode-aware — an endless retry is a new run, not a resumed one:
+**Issue:** The failure return inside `startEndlessRun` runs *after* two irreversible writes:
 
 ```ts
-const onRetry = useCallback(() => {
-  if (!levelReady || levelError != null || !fxReady) {
-    return;
-  }
-  if (modeRef.current === 'endless') {
-    // A new run means a new seed and wave 1 — resuming at wave N with fresh
-    // lives would record a bestWave no single run reached (N-END-02).
-    startEndlessRun();
-    return;
-  }
-  // …existing campaign body unchanged…
-}, [/* + startEndlessRun */]);
+runSeedRef.current = Date.now() >>> 0;
+waveRef.current = 1;
+if (!advanceToWave(1)) {
+  setWaveBuildFailedWave(1);
+  return;              // <- everything below never runs
+}
 ```
 
-If resuming is genuinely wanted later, it must not feed `recordRunEnd` — carry a separate
-`runStartWaveRef` and record `wave - (runStartWave - 1)`, or refuse to raise `bestWave`
-from a resumed run at all.
+Everything that would make those writes coherent — `setWave`, `setResult(null)`,
+`runEndedRef.current = false`, `retry()`, `setActive(true)` — is below the return.
+`advanceToWave` writes `compiledSv` only on success, so the board actually in play is still the
+wave-N board.
+
+Reached from `onRetry`'s endless branch during a **paused live run**, the post-condition is:
+
+| state | value |
+|---|---|
+| `runEndedRef.current` | `true` (set by `recordInFlightEndlessRun`, line 1008) |
+| `waveRef.current` | `1` |
+| `wave` (HUD state) | still `N` |
+| `compiledSv.value` | still the wave-N board |
+| `result` | `null` — no Results overlay, so the A-01 copy cannot render |
+| `uiPhase` | `'paused'` — the Pause overlay is still up, `Resume` is live |
+
+Verified empirically by driving the real host through the 11-07 harness (Pause → Retry at wave 2
+with `compileGeneratedLevel` forced to fail): `result prop = null`, `uiPhase = paused`,
+`wave readout = W2`, `board unchanged from wave2 = true`.
+
+Three consequences follow, all silent:
+
+1. **The run is unrecordable.** `runEndedRef.current` is latched `true`, so when the player
+   resumes and eventually loses, `applyChrome`'s LOST branch skips `handleRunEnded` entirely and
+   just calls `setResult('lose')` — the resumed run vanishes from telemetry, and the Results
+   overlay it raises shows the *previous* run's metrics.
+2. **The run rewinds.** `waveRef.current` is `1` while the wave-N board is in play, so the next
+   `WON` calls `advanceToWave(2)` and `setWave(2)`: a run at wave 30 silently restarts its
+   difficulty ramp and seed walk at wave 2.
+3. **`waveRef` and `wave` diverge** (ref says 1, HUD says `W2`) because `waveRef` is assigned in
+   two places — line 1116 and inside `advanceToWave` — and only the second keeps them in step.
+
+**Fix:** make the run-identity writes atomic with the successful swap, and make the failure
+return leave *nothing* changed. Move `waveRef.current = 1` out of `startEndlessRun` (it is
+redundant — `advanceToWave` already assigns `waveRef.current = nextWave` on success), and snapshot
+/ restore the seed:
+
+```ts
+const prevSeed = runSeedRef.current;
+runSeedRef.current = Date.now() >>> 0;
+if (!advanceToWave(1)) {
+  runSeedRef.current = prevSeed;   // no half-applied run identity
+  setWaveBuildFailedWave(1);
+  return;
+}
+// advanceToWave already did waveRef.current = 1 + setWave(1)
+```
+
+and give the failure a reachable surface so a paused/mid-run caller is not left in a Pause
+overlay with no signal — see WR-01. If `recordInFlightEndlessRun` has already latched
+`runEndedRef`, the failure return must also decide what "the run already ended but did not
+restart" means; the least surprising answer is to force the Results overlay up
+(`setResult('lose'); setActive(false);`) so the only live control is the `Retry` the copy points
+at.
 
 ## Warnings
 
-### WR-01: The glow atlas is baked at the campaign level's brick size, never the generated board's
+### WR-01: the owner-decided `Wave 1 could not be built — tap Retry` copy is unreachable from two of the three `startEndlessRun` call sites
 
-**File:** `app/_components/PlayingHost.tsx:344-346, 480-490`
-**Issue:**
-`loadKey` and the bake inputs both derive from `loadResult`, i.e. `loadLevelById(levelId)` —
-the *campaign* level. During an endless run the board actually in `compiledSv` comes from
-`compileGeneratedLevel(generate(...))` and always uses the frozen lattice
-`brickW: 32, brickH: 14` (`src/levelgen/grid.ts:32-41`). Level-01 — the default `levelId`
-and the one the `__DEV__` entry is pressed from in practice — is `brickW: 44, brickH: 18`.
+**File:** `app/_components/PlayingHost.tsx:1107-1110`, `1117-1122`; `src/runtime/overlays/ResultOverlay.tsx:105`; `src/runtime/GameScreen.tsx:117`
 
-So every endless run entered from level-01 renders 52×26 halo sprites (44+2·4 by 18+2·4)
-stretched by `drawImageRect` into a 40×22 destination (`recordSprites.ts:324-333`), i.e. a
-non-uniform 0.77×/0.85× squash of the baked pad ring on every brick of every wave. The same
-mismatch applies entering from level-04 (36×16) and level-05 (36×15); only level-03 and
-level-06 happen to match the lattice.
-
-This is a *consequence* of the D-14 re-key being correct, not a reason to revert it: the key
-is right for the atlas, but the source of the dimensions is wrong for the mode. The bake
-firing once per run (the SC-5 property) is preserved by the fix below, because every
-generated board shares one lattice.
-
-**Fix:** derive the bake dimensions and the key from the board that will actually be drawn:
+**Issue:** `setWaveBuildFailedWave(1)` fires **before** `modeRef.current = 'endless'` /
+`setMode('endless')` (line 1123-1124), and the overlay nulls the value outside endless:
 
 ```ts
-// The atlas must follow the board in `compiledSv`, not the catalog level behind it.
-const activeDims = modeRef.current === 'endless'
-  ? ENDLESS_BRICK_DIMS            // one fixed lattice — bake still fires once per run
-  : loadResult.ok
-    ? { w: loadResult.compiled.w[0], h: loadResult.compiled.h[0] }
-    : null;
-const loadKey = activeDims ? `${activeDims.w}x${activeDims.h}` : `err:${levelId}`;
+const failedWave = isEndless ? waveBuildFailedWave : null;   // ResultOverlay.tsx:105
 ```
 
-`ENDLESS_BRICK_DIMS` should be exported from the `src/levelgen` barrel (derived from
-`GRID`) rather than restated, for the same reason `ramp.ts` refuses to restate `D_MAX`.
+`GameScreen` additionally mounts `ResultOverlay` only when `result != null`. So the copy renders
+only when the caller was *already* in endless mode **and** a Results overlay was *already* on
+screen — i.e. only the Results-`Retry` path. The other two callers get nothing:
 
-### WR-02: `mode` latches to `endless` for the lifetime of the mount, killing the campaign gate effect
+- **First entry** (the `Endless` dev button, the only way into the mode): driven through the real
+  host with a forced compile failure, the host ends with `result = null`, `mode = 'campaign'`,
+  `waveBuildFailedWave = 1` and no wave readout. The button does nothing and says nothing — the
+  "silent no-op" option the owner explicitly rejected on 2026-09-26.
+- **`remountDevSession` / Pause → `Retry`** mid-run: `result` is `null`, so same silence (see
+  CR-01).
 
-**File:** `app/_components/PlayingHost.tsx:552-579` (with `971-1002`, `1108-1132`)
-**Issue:**
-`modeRef.current` / `mode` are set to `'endless'` in `startEndlessRun` and are never set
-back. The compiled-push gate effect returns early forever after
-(`if (modeRef.current === 'endless') return;`), which means it can no longer push a board
-into `compiledSv`, call `retry()`, or call `setActive(true)`.
+The source-contract test at `PlayingHost.endless-host.test.ts:310-332` asserts that *both* early
+returns call `setWaveBuildFailedWave(1)`, and `endless-record.test.tsx:598` renders the copy —
+but only from the one path where it can reach the screen. The contract reads as proven; two
+thirds of it is unreachable.
 
-Every remaining path that relies on the gate effect to re-arm the loop is therefore dead
-once endless has been entered. The clearest one:
-
-- Press `Endless`, then press the `Lv` dev button. `toggleDevLevel` changes `levelId` →
-  `loadKey` flips (e.g. `32x14` → `36x16`) → `fxReady` false → the bake effect runs
-  `setActiveRef.current(false)` → bake → `setBakedKey` → `fxReady` true → **the gate effect
-  early-returns**, so `setActive(true)` never fires.
-
-Result: a permanently stopped frame callback with a live HUD (lives/score/uiPhase were all
-reset to a fresh-run state by `toggleDevLevel`) — precisely the R-24 failure mode the
-surrounding comments warn about. `runCertWorstCase` reaches the same state, because it sets
-`levelId` to `'level-03'`.
-
-Both entry points are `__DEV__`-gated this phase, which is why this is a warning and not a
-blocker, but the dev harness is the only way to reach endless at all right now, so this is
-the configuration the SC-5 device discharge procedure in `docs/ops/ENDLESS-MODE.md` will be
-run in.
-
-**Fix:** leave endless whenever the campaign level identity changes. Add an explicit
-`exitEndless()` that sets `modeRef.current = 'campaign'` / `setMode('campaign')` and clears
-`genIssues`, and call it at the top of `toggleDevLevel`, `goNext` and `runCertWorstCase`.
-Leaving the *dependency array* of the gate effect alone (the ref read is deliberate) is
-still correct — the effect will re-run on the `loadResult` change that follows.
-
-### WR-03: An endless run reads and writes the campaign per-level personal best on the Results screen
-
-**File:** `app/_components/PlayingHost.tsx:597-645`
-**Issue:**
-`handleRunEnded` computes `evaluatePersonalBest(runScore, previousBestRef.current)` before
-it branches on mode. `previousBestRef` is loaded by the effect at lines 385-402 from
-`store.getBestForLevel(levelId)` — a **campaign** level best. For an endless run that means:
-
-- `setResultBest(best)` shows the campaign level's PB (or the endless score) as "BEST" on
-  the endless Results overlay;
-- `setIsNewRecord(record)` fires "NEW RECORD" when the endless score beats a *campaign
-  level's* score — two unrelated quantities;
-- line 638-640 then writes the endless score into `previousBestRef.current`, poisoning the
-  in-memory campaign best for the rest of the mount. `onRetry` (line 906) and
-  `remountDevSession` (line 1024) both re-display it via `setResultBest(previousBestRef.current)`.
-
-The storage-side firewall holds — nothing is persisted — but the UI half of SC-3 leaks in
-both directions. Compounding it, the record that *is* written, `telemetry.endless`, is never
-read anywhere in `app/` or `src/` (I grepped: only the stores and tests touch it), so the
-number the player just set is the one number they are not shown.
-
-**Fix:** keep a separate endless watermark and branch before the comparison:
+**Fix:** flip the mode and raise the overlay before the readiness/build gate, so the failure has a
+surface regardless of entry point:
 
 ```ts
-const endlessBestRef = useRef(0);   // seeded from getSnapshot().telemetry.endless.bestScore
-const previous = modeRef.current === 'endless'
-  ? endlessBestRef.current
-  : previousBestRef.current;
-const { best, isNewRecord: record } = evaluatePersonalBest(runScore, previous);
-…
-if (record) {
-  if (modeRef.current === 'endless') endlessBestRef.current = best;
-  else previousBestRef.current = best;
-}
-```
-
-### WR-04: A mid-run board compile failure leaves the loop running and every recovery button inert
-
-**File:** `app/_components/PlayingHost.tsx:740-766, 779-787` (with `552-562`, `878-893`)
-**Issue:**
-When `advanceToWave` fails it calls `setGenIssues(compiled.issues)` and returns `false`;
-`applyChrome` then returns without calling `handleRunEnded` or `setActive(false)`. Because
-the gate effect early-returns in endless mode (WR-02), **nothing** in the file can call
-`setActive(false)` for this state. The frame callback keeps running, `keepAwake` stays
-mounted (`uiPhase === 'playing' && result == null`), and the world sits frozen in `WON`.
-
-The player's exits are also degraded: `levelError != null` makes `onResume` (line 879) and
-`onRetry` (line 896) return immediately, so the Pause overlay renders a Resume and a Retry
-button that silently do nothing. The only working exit is Menu (Android back twice, or
-pause → Menu), which at least records the run as `abandoned` through `handleMenuPress`.
-
-The header comment calls this path "loud and terminal", which is the intent — but terminal
-should mean stopped, not "still burning the frame loop and the screen-wake lock behind a
-modal with two dead buttons".
-
-**Fix:** make the failure path terminal in fact:
-
-```ts
-if (advanceToWave(waveRef.current + 1)) {
-  advanceWave();
-} else {
-  // Terminal for this run: stop the loop, bank the run, and let the error UI
-  // stand in front of a stopped sim rather than a live one.
+const failEndlessStart = () => {
+  modeRef.current = 'endless';
+  setMode('endless');
+  setWaveBuildFailedWave(1);
+  setResult('lose');     // the only overlay with a live Retry
   setActive(false);
-  if (!runEndedRef.current) {
-    runEndedRef.current = true;
-    handleRunEnded(mirror.score, 'lose', mirror.lives, snapshotRunStats());
-  }
-  setResult('lose');
-}
-return;
+};
+if (!levelReady || levelError != null || !fxReady) { failEndlessStart(); return; }
 ```
 
-### WR-05: `wave`/`mode`/seed state is not reset by the DEV tier remount, silently discarding a run
+### WR-02: the `__DEV__` `Endless` button discards a live endless run without recording it
 
-**File:** `app/_components/PlayingHost.tsx:1014-1038, 1094-1102`
-**Issue:**
-`remountDevSession` (fired whenever `tierOverride` changes) clears `runEndedRef`, resets
-lives/score and calls `retry()`. In endless that restarts the sim on the current generated
-board with three lives while `waveRef`, `runSeedRef`, `mode` and `waveAdvanceInFlightRef` all
-carry over, and the run in progress is never recorded — the same two-headed problem as
-CR-01 (inflated `bestWave` on the eventual loss) plus a silently dropped run.
+**File:** `app/_components/PlayingHost.tsx:1094` (`startEndlessRun`), `1489-1497` (the Pressable)
 
-**Fix:** route it through the same mode-aware reset as CR-01 — if
-`modeRef.current === 'endless'`, record the in-flight run as `abandoned` and call
-`startEndlessRun()` instead of `retry()`.
+**Issue:** `startEndlessRun` does not call `recordInFlightEndlessRun`. The `Endless` Pressable
+stays mounted and tappable for the whole run (`devLevelSwitch` is rendered above the overlays at
+`GameScreen.tsx:208-222`), so a second press mid-run re-mints the seed, resets `waveRef` to 1 and
+clears `runEndedRef` — dropping the in-flight run on the floor.
+
+Confirmed by driving the real host: from wave 2, pressing `Start an endless run` leaves the wave
+readout at `W1` with `recordRunEnd` called **zero** times.
+
+This is verbatim the defect gap 1 raised against `remountDevSession` ("it never calls
+`handleRunEnded`, so an in-flight endless run is silently discarded"), left open on a sibling
+path — and `docs/ops/ENDLESS-MODE.md` now asserts the opposite in bold: *"every path that
+discards a run records it first"*. It does not inflate `bestWave` (the wave resets to 1), so it
+is data loss rather than corruption.
+
+**Fix:** put the funnel inside `startEndlessRun`, which is where the doc's invariant actually
+belongs, and drop the now-redundant call from `onRetry` / `remountDevSession`:
+
+```ts
+const startEndlessRun = useCallback(() => {
+  recordInFlightEndlessRun();   // no-op in campaign and for an already-ended run
+  ...
+```
+
+Then add `recordInFlightEndlessRun` to the dependency array and declare it above
+`startEndlessRun` (the TDZ note at line 1088-1092 applies to it too).
+
+### WR-03: `toggleDevLevel` is the run-boundary reset gap 1 did not reach, and 11-08 raised the cost of the `modeRef` latch
+
+**File:** `app/_components/PlayingHost.tsx:1260-1292` (with `1214-1242` `goNext`, `270-280`)
+
+**Issue:** `toggleDevLevel` performs the same reset the other four boundaries do — `result` null,
+`runEndedRef.current = false`, lives/score/combo/`simPhaseNum` reset, `uiPhase = 'playing'`,
+wall-clock rebased — and is mode-blind: it neither records the in-flight endless run nor resets
+`waveRef` / `runSeedRef` / `waveAdvanceInFlightRef` / `modeRef`. Same omission list as the two
+functions 11-07 fixed. It is reachable mid-endless-run from the same dev row.
+
+Its most damaging combination with a *pre-existing* condition is new this round. `setMode` /
+`modeRef` are only ever written to `'endless'`, never back (recorded as A-02, still open), and
+11-08 made `mode` drive overlay copy for the first time. So after `Lv` is pressed during an
+endless run the host is a campaign level with `mode === 'endless'`: any Results overlay it raises
+renders `Wave · {stale}` and `Best wave · {endless}`, suppresses the star row and `Next`, and
+announces `Retry endless run from wave 1` on a campaign level. Clearing `runEndedRef` on top of
+that also un-latches the double-record guard for a run already written.
+
+Today the A-02 dead frame loop mostly masks this (the compiled-push gate early-returns, so
+`setActive(true)` is never reached) — but `onResume`'s countdown *does* call `setActive(true)`
+unconditionally at `line 1075`, which is a live route back into the stale board.
+
+**Fix:** route `toggleDevLevel` (and `goNext`, for symmetry) through the same mode branch the
+other two use, and make it an explicit *exit* from endless rather than an undefined state:
+
+```ts
+if (modeRef.current === 'endless') {
+  recordInFlightEndlessRun();
+  modeRef.current = 'campaign';
+  setMode('campaign');
+  waveRef.current = 1;
+  setWave(1);
+  waveAdvanceInFlightRef.current = false;
+}
+```
+Writing `modeRef` back to `'campaign'` here is also the minimal discharge of A-02.
+
+### WR-04: `startEndlessRun` republishes the campaign per-level best into the endless display state
+
+**File:** `app/_components/PlayingHost.tsx:1132`
+
+**Issue:** `setResultBest(previousBestRef.current)` sits in the endless run-start path.
+`previousBestRef` is `store.getBestForLevel(levelId)` — a campaign level best — so for the whole
+duration of an endless run the host's `best` prop *is* a campaign number. The write half of the
+firewall is genuinely closed (`previousBestRef` is never assigned from endless, and the source
+contract at `endless-host.test.ts:178-181` fences it); the **read** half is not, and this line is
+the one `handleRunEnded`'s own comment at line 760-762 points at.
+
+It is latent only because the Results overlay is unmounted while a run is live and
+`handleRunEnded` always overwrites `resultBest` before `setResult` raises it. The new test
+`an endless run does not write the campaign personal best`
+(`endless-record.test.tsx:550-573`) pins the leak as intended behaviour —
+`expect(...).toBe('host-best=100')` where `100` is `campaignBest`. Phase 14's production endless
+chrome (any mid-run `Best` surface) turns this latent leak into a rendered campaign number.
+
+**Fix:** publish the endless watermark, not the campaign one, and delete the coupling:
+
+```ts
+setResultBest(endlessBestScoreRef.current);
+setResultBestWave(endlessBestWaveRef.current);
+setResultWave(0);
+```
+and update the test probe to assert that `host-best` is the *endless* watermark after a Retry —
+which is a strictly stronger statement of "the endless run did not poison the campaign ref" than
+asserting the campaign number is displayed.
+
+### WR-05: five near-identical run-boundary reset blocks, and the duplication is the root cause of gap 1
+
+**File:** `app/_components/PlayingHost.tsx:1128-1146`, `1181-1198`, `1226-1241`, `1275-1291`,
+`1319-1337`
+
+**Issue:** `startEndlessRun`, `onRetry`, `goNext`, `toggleDevLevel` and `remountDevSession` each
+carry a hand-copied ~14-line block (`clearCountdown` → `setCountdownNumeral(null)` →
+`setResult(null)` → `setWaveBuildFailedWave(null)` → `setIsNewRecord(false)` →
+`setResultStars(null)` → `setNextGateId(null)` → `runEndedRef` → three wall-clock refs → five
+chrome setters → `setUiPhase('playing')`), differing only in whether they call
+`setResultBest(previousBestRef.current)` and whether they end with `retry(); setActive(true);`.
+
+This is not a style complaint: the verification report's root-cause sentence for gap 1 is "these
+resets were never made mode-aware", and 11-07 fixed two of the five copies by hand. WR-03 is the
+third copy, still unfixed, and any future field added to a run boundary has five sites to reach.
+
+**Fix:** extract one helper and let each caller layer its differences on top:
+
+```ts
+const resetRunChrome = useCallback((opts: { best?: number } = {}) => {
+  clearCountdown();
+  setCountdownNumeral(null);
+  setResult(null);
+  setWaveBuildFailedWave(null);
+  setIsNewRecord(false);
+  setResultStars(null);
+  setNextGateId(null);
+  if (opts.best != null) setResultBest(opts.best);
+  runEndedRef.current = false;
+  runStartedAtRef.current = Date.now();
+  runWallClockMsRef.current = 0;
+  wallClockActiveRef.current = true;
+  setLives(3); setScore(0); setCombo(1); setStallTier(0);
+  setSimPhaseNum(SIM.DOCKED);
+  setUiPhase('playing');
+}, [clearCountdown]);
+```
 
 ## Info
 
-### IN-01: `difficultyForWave` folds a `|0`-overflowing wave to the easy end, contradicting its own contract
+### IN-01: the `waveBuildFailedWave` value-only discrimination is sound but unfenced
 
-**File:** `src/services/endless/ramp.ts:57-66`
-**Issue:** `(wave | 0) - 1` wraps for `wave >= 2**31`: `difficultyForWave(2147483648)`
-returns `0`, not `D_MAX`. The doc block and `docs/ops/ENDLESS-MODE.md` both claim degenerate
-input "folds to the nearest end of the range", and the property suite only covers wave 10 000.
-Unreachable in play (2³¹ waves), so this is a documentation-accuracy item, not a bug.
-**Fix:** clamp before coercing — `const step = wave >= D_MAX + 1 ? D_MAX : (wave | 0) - 1;`
-— or narrow the doc claim to "within the representable wave range".
+**File:** `src/runtime/overlays/ResultOverlay.tsx:106-113`; `app/_components/PlayingHost.tsx:933`
 
-### IN-02: Stale file header in `tests/storage.progress-v4.test.ts`
+**Issue:** The invariant (`1` ⇒ Retry-time, `>= 2` ⇒ mid-run) holds on every path today — traced
+and confirmed above. But the only thing keeping it true is that `startEndlessRun` restarts at
+wave 1, and `11-UI-SPEC.md` § Run boundaries explicitly contemplates the alternative ("If resuming
+at wave N is ever wanted instead..."). The day that changes, a Retry-time failure becomes a
+wave-N failure and the overlay starts telling the player `run saved` about a run that was never
+saved — with no test failing, because the copy tests pass the prop directly.
 
-**File:** `tests/storage.progress-v4.test.ts:1-16`
-**Issue:** The header states "Every case is an `it.todo` on purpose: this file is created
-BEFORE the v4 schema… exists". Zero `it.todo` cases remain; the file is now a live suite that
-this phase extended with endless-record coverage. A reader trusting the header would skip it.
-**Fix:** rewrite the header to describe what the file now asserts (v4 parse/migrate/store,
-including the N-END-02 endless record).
+**Fix:** make the discriminant explicit rather than inferred — `waveBuildFailedAt: { at: 'start' } |
+{ at: 'mid'; wave: number } | null` — or, minimally, add a `__DEV__` invariant at the writer:
+`if (__DEV__ && waveRef.current < 1) console.error('[endless] waveRef below 1 breaks the wave-build-failure copy')`.
 
-### IN-03: `ENDLESS_TELEMETRY_KEY` is re-exported from the storage barrel but has no non-test consumer
+### IN-02: the compiled-push-effect contract extracts a ~225-line region, not the effect it names
 
-**File:** `src/services/storage/index.ts:29`
-**Issue:** Both stores import the constant from `./types` directly; the barrel re-export is
-consumed only by `tests/storage.endless-firewall.test.ts` and
-`tests/storage.progress-v4.test.ts`. Harmless and arguably intentional (Phase 14 will read
-`byMode.endless`), but worth noting alongside WR-03 — `telemetry.endless` itself is currently
-write-only across the whole of `app/` and `src/`.
-**Fix:** none required this phase; drop or keep deliberately when Phase 14 wires the display.
+**File:** `tests/ui/PlayingHost.endless-host.test.ts:335-337`
+
+**Issue:** `/useEffect\(\(\) => \{\n([\s\S]*?)\n {2}\}, \[loadResult, fxReady, compiledSv, setActive, retry\]\);/`
+is lazy in the capture but the match *starts* at the earliest position — the first
+`useEffect(() => {` in the file (`PlayingHost.tsx:450`, the campaign-best preload). The captured
+`body` therefore spans lines 451-676: the preload effect, the watermark seed effect, the uiPhase
+effect, the bake effect and the compiled-push effect. It passes for the right reason today only
+because no earlier effect contains either search string.
+
+**Fix:** anchor the start on the effect's own first statement, or assert the region's size:
+```ts
+const m = code.match(/\/\/ Push compiled[\s\S]*?useEffect\(\(\) => \{\n([\s\S]*?)\n {2}\}, \[loadResult, fxReady, compiledSv, setActive, retry\]\);/);
+```
+
+### IN-03: the badge-style equality assertion is satisfied by construction
+
+**File:** `tests/ui/ResultOverlay.test.tsx:232-268`
+
+**Issue:** `waveBadges[0].getAttribute('class')).toBe(scoreStyle)` compares the class of the one
+`styles.badge` node across two renders. `ResultOverlay` has no branch on *which* record fired —
+`isNewRecord` is a single boolean and the badge has one static style — so the two classes cannot
+differ for any input. The test reads as protection against "electing a primary record" (A-08) but
+the only thing it can actually catch is the badge count.
+
+**Fix:** either drop the style half (the `toHaveLength(1)` assertions carry the real content), or
+make it a real guard by asserting the component receives no record-kind discriminant at all —
+e.g. a source contract that `ResultOverlay`'s props contain no `recordKind` / `isWaveRecord`.
+
+### IN-04: two ordering helpers, contradictory comments
+
+**File:** `tests/ui/PlayingHost.endless-record.test.tsx:463-468` vs
+`tests/ui/ResultOverlay.test.tsx:140-151`
+
+**Issue:** `ResultOverlay.test.tsx` documents the advancing-cursor `indexOf` pattern as the
+vacuity bug it removed ("made the returned array monotonic by construction... green no matter what
+order the component rendered") and replaces it with independent `indexOf` calls.
+`endless-record.test.tsx` then implements the ordering check with exactly the cursor pattern.
+
+Both are in fact adequate for these unique line strings (a cursor search that overshoots returns
+`-1` and fails), so neither test is broken — but one of the two comments is wrong, and a reader
+following the `ResultOverlay` comment will conclude `endless-record.test.tsx`'s check is fake.
+
+**Fix:** hoist one helper into a shared test util and delete the incorrect half of the comment.
+
+### IN-05: a Retry-time build failure renders the previous run's metrics beside the failure copy
+
+**File:** `app/_components/PlayingHost.tsx:1107-1122`; `src/runtime/overlays/ResultOverlay.tsx:142-149`
+
+**Issue:** The two failure returns clear neither `resultWave` nor `resultBestWave` nor
+`resultBest`, so on the one path where the copy is reachable (Results → `Retry`) the player sees
+`Wave 1 could not be built — tap Retry` above `Wave · {previous run's wave}` / `Score · {previous
+run's score}`, with nothing marking those numbers as belonging to a run that already ended. The
+unit test `a Retry-time wave-build failure says tap Retry` bakes this in by asserting
+`Wave · 7` alongside `waveBuildFailedWave: 1`.
+
+**Fix:** either zero the run-scoped lines on the Retry-time failure, or (better) suppress `Wave ·`
+and `Score ·` entirely when `failedWave <= 1`, since there is no run for them to describe.
+
+### IN-06: planning narrative embedded in production source
+
+**File:** `app/_components/PlayingHost.tsx` (throughout; e.g. `203-235`, `320-338`, `702-719`,
+`988-1010`, `1080-1106`, `1161-1176`)
+
+**Issue:** `PlayingHost.tsx` is now 1595 lines, a large fraction of which is prose narrating the
+planning history — "Gap 2 was precisely the opposite order", "11-07 gap 1, second half", "decided
+`retry-in-place` by the owner on 2026-09-26", "11-08 wired the READER", "11-07's scoped
+`eslint-disable` ... is deleted with this change". These describe the *diff*, not the code, and
+will be wrong the first time either changes; the `11-VERIFICATION.md` / `11-UI-SPEC.md` /
+`docs/ops/ENDLESS-MODE.md` copies are already the durable record.
+
+**Fix:** keep the invariant statements ("the mode branch happens before the comparison", the TDZ
+note at 1088-1092, the `runWave`-is-a-ref note) and cut the before/after archaeology to a one-line
+pointer at `docs/ops/ENDLESS-MODE.md § The run boundary and the record display`.
 
 ---
 
-_Reviewed: 2026-09-25T15:35:41Z_
+_Reviewed: 2026-09-26T13:30:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
