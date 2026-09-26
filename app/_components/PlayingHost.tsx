@@ -824,6 +824,30 @@ export function PlayingHost({
     onMenu();
   }, [score, lives, handleRunEnded, snapshotRunStats, onMenu]);
 
+  /**
+   * The single IN-FLIGHT endless abandon funnel (11-07 gap 1), modelled on
+   * `handleMenuPress` above and sharing the very same `runEndedRef` gate.
+   *
+   * Every endless run-boundary RESET — the Results `Retry`, the Pause `Retry`, a
+   * `__DEV__` tier change — calls this before resetting. 11-UI-SPEC § Run boundaries
+   * is explicit that the safeguard against silently dropping a run is not a
+   * confirmation dialog but this record-first rule.
+   *
+   * Two no-ops, both deliberate: campaign mode (the campaign resets keep their
+   * existing behaviour byte for byte) and a run that already ended (reached from the
+   * lose overlay, `runEndedRef.current` is true, so a Retry cannot double-record).
+   */
+  const recordInFlightEndlessRun = useCallback(() => {
+    if (modeRef.current !== 'endless') {
+      return;
+    }
+    if (runEndedRef.current) {
+      return;
+    }
+    runEndedRef.current = true;
+    handleRunEnded(score, 'abandoned', lives, snapshotRunStats());
+  }, [score, lives, handleRunEnded, snapshotRunStats]);
+
   // Single chrome bridge (F-25 / NF-8): react to chromeSeq scalar only — no per-frame tuple alloc.
   useAnimatedReaction(
     () => chromeSeq.value,
@@ -892,8 +916,84 @@ export function PlayingHost({
     countdownTimers.current = [t1, t2, t3];
   }, [clearCountdown, setActive, levelReady, levelError, fxReady]);
 
+  /**
+   * Start an endless run (N-END-01 / D-05 / D-10).
+   *
+   * `retry()` is correct HERE and only here: it resets lives, score and combo onto
+   * the already-pushed generated board, which is exactly what a new run is. Every
+   * SUBSEQUENT transition uses `advanceWave()` instead — calling `retry()` at a wave
+   * boundary would destroy the three fields SC-1 exists to carry.
+   *
+   * 11-07 gap 1: declared HERE, above `onRetry` and `remountDevSession`, because both
+   * now list it in their dependency arrays. A `useCallback` dependency array is
+   * evaluated during render, so a later `const` would sit in the temporal dead zone
+   * and throw `ReferenceError` on the first render — the position is load-bearing,
+   * not cosmetic.
+   */
+  const startEndlessRun = useCallback(() => {
+    if (!levelReady || levelError != null || !fxReady) {
+      return;
+    }
+    // Pitfall 7: minted in the APP tier. `src/levelgen/**` bans `Date.now()` by
+    // eslint rule — a board must depend on (seed, difficulty) alone — so the wall
+    // clock is read here and passed in. A fixed seed would make every endless run
+    // the identical board sequence.
+    runSeedRef.current = Date.now() >>> 0;
+    waveRef.current = 1;
+    if (!advanceToWave(1)) {
+      return;
+    }
+    modeRef.current = 'endless';
+    setMode('endless');
+    clearCountdown();
+    setCountdownNumeral(null);
+    setResult(null);
+    setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
+    setResultBest(previousBestRef.current);
+    runEndedRef.current = false;
+    waveAdvanceInFlightRef.current = false;
+    // D-01: every run start is a NEW run — counters and wall clock both start at zero.
+    runStartedAtRef.current = Date.now();
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
+    setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
+    setSimPhaseNum(SIM.DOCKED);
+    setUiPhase('playing');
+    retry();
+    setActive(true);
+  }, [
+    advanceToWave,
+    clearCountdown,
+    retry,
+    setActive,
+    levelReady,
+    levelError,
+    fxReady,
+  ]);
+
   const onRetry = useCallback(() => {
     if (!levelReady || levelError != null || !fxReady) {
+      return;
+    }
+    // 11-07 gap 1 — the run boundary is MODE-AWARE. In endless a run owns a seed, a
+    // wave number, a mode and an in-flight advance guard; the campaign reset below
+    // touches none of them, so falling through would refill lives against the wave-N
+    // generated board still sitting in `compiledSv` and let the next loss record
+    // wave N+1. `startEndlessRun` is the only site that resets all four, which is why
+    // routing here beats duplicating a reset.
+    //
+    // The funnel placement makes ONE branch satisfy TWO contract rows: reached from
+    // the lose overlay `runEndedRef.current` is already true (the LOST branch set it)
+    // so the funnel no-ops; reached from Pause mid-run it is false, so the in-flight
+    // wave is recorded `abandoned` before the reset discards it.
+    if (modeRef.current === 'endless') {
+      recordInFlightEndlessRun();
+      startEndlessRun();
       return;
     }
     // Keep current levelId — never cycle 01↔02 (D-11).
@@ -917,7 +1017,16 @@ export function PlayingHost({
     setUiPhase('playing');
     retry();
     setActive(true);
-  }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
+  }, [
+    clearCountdown,
+    retry,
+    setActive,
+    levelReady,
+    levelError,
+    fxReady,
+    recordInFlightEndlessRun,
+    startEndlessRun,
+  ]);
 
   /**
    * Next = exact toggleDevLevel checklist (D-13). Change levelId only —
@@ -1036,60 +1145,6 @@ export function PlayingHost({
     retry();
     setActive(true);
   }, [clearCountdown, retry, setActive, levelReady, levelError, fxReady]);
-
-  /**
-   * Start an endless run (N-END-01 / D-05 / D-10).
-   *
-   * `retry()` is correct HERE and only here: it resets lives, score and combo onto
-   * the already-pushed generated board, which is exactly what a new run is. Every
-   * SUBSEQUENT transition uses `advanceWave()` instead — calling `retry()` at a wave
-   * boundary would destroy the three fields SC-1 exists to carry.
-   */
-  const startEndlessRun = useCallback(() => {
-    if (!levelReady || levelError != null || !fxReady) {
-      return;
-    }
-    // Pitfall 7: minted in the APP tier. `src/levelgen/**` bans `Date.now()` by
-    // eslint rule — a board must depend on (seed, difficulty) alone — so the wall
-    // clock is read here and passed in. A fixed seed would make every endless run
-    // the identical board sequence.
-    runSeedRef.current = Date.now() >>> 0;
-    waveRef.current = 1;
-    if (!advanceToWave(1)) {
-      return;
-    }
-    modeRef.current = 'endless';
-    setMode('endless');
-    clearCountdown();
-    setCountdownNumeral(null);
-    setResult(null);
-    setIsNewRecord(false);
-    setResultStars(null);
-    setNextGateId(null);
-    setResultBest(previousBestRef.current);
-    runEndedRef.current = false;
-    waveAdvanceInFlightRef.current = false;
-    // D-01: every run start is a NEW run — counters and wall clock both start at zero.
-    runStartedAtRef.current = Date.now();
-    runWallClockMsRef.current = 0;
-    wallClockActiveRef.current = true;
-    setLives(3);
-    setScore(0);
-    setCombo(1);
-    setStallTier(0);
-    setSimPhaseNum(SIM.DOCKED);
-    setUiPhase('playing');
-    retry();
-    setActive(true);
-  }, [
-    advanceToWave,
-    clearCountdown,
-    retry,
-    setActive,
-    levelReady,
-    levelError,
-    fxReady,
-  ]);
 
   // When DEV tier override changes, remount play session (pools reallocated via useGameLoop).
   const tierOverrideRef = useRef(tierOverride);
