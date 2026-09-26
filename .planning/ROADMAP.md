@@ -105,7 +105,7 @@ Plans:
   4. A seeded endless run is reproducible end to end — the same seed and inputs replay to the same wave
   5. Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget
 
-**Plans:** 16/16 plans executed — 14 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2; 3 gap-closure round 3); 2 gap-closure round-4 plans pending (waves 5-6)
+**Plans:** 18 plans — 16 executed (6 original waves 1-4; 2 gap-closure round 1; 3 gap-closure round 2; 3 gap-closure round 3; 2 gap-closure round 4); 2 gap-closure round-5 plans pending (waves 7-8)
 
 Plans:
 **Wave 1**
@@ -144,6 +144,11 @@ Plans:
 
 - [x] 11-15-PLAN.md — Gap 1: the `runEndedRef` latch is hoisted to the FIRST statement of `applyChrome`, above the five chrome writes it was meant to own; the three gap-3 drives get a distinguishable straggler payload, the campaign panel gets its own driven case, and the source contract covers the function preamble (wave 5)
 - [x] 11-16-PLAN.md — Gap 2: `runCertWorstCase` stops arming a deferral it cannot discharge (both endless sub-branches measured), the campaign cert harness keeps firing, and `ENDLESS-MODE.md` scopes the `Cert WC` injection claim to the branch it is true of in both operator-facing locations (wave 6)
+
+**Gap closure round 5** *(round 4's fix was right and its own safety property was false on a path its enumeration did not cover — round 5 replaces assertion with derivation: two re-runnable greps, eight classified members, and counts that red when a ninth appears)*
+
+- [ ] 11-17-PLAN.md — The one remaining gap: `runCertWorstCase`'s level half is guarded on the run-ended latch so an ENDED run cannot be re-armed behind its own Results overlay; the WR-02 `Best ·` twin closes with it and its blind harness mock is repaired; the re-arm enumeration becomes two greps and a contract, and the vacuous `applyChrome` latch assertion (A2) is repaired to the guard shape (wave 7)
+- [ ] 11-18-PLAN.md — A1: `ENDLESS-MODE.md` stops calling `level-03` the shipped default and both operator-facing statements of the `Cert WC` level half carry both terms of its condition; `11-15-SUMMARY.md`'s over-stated safety claim is corrected beside the table that is right; N-END-01 and N-END-02 are re-ticked on their own evidence gate while N-END-03 stays unchecked (wave 8)
 
 **UI hint**: yes
 
