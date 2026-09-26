@@ -186,6 +186,80 @@ The hoist is only safe if every path that begins or resumes a run clears the lat
 
 (Line numbers are pre-hoist, i.e. as read during Task 1; the hoist adds ~60 comment lines above them.)
 
+> **CORRECTION 2026-09-26 (round 5)** — plan `11-18`, closing `11-VERIFICATION.md`
+> `gaps[0].artifacts[4]`. Nothing above is withdrawn and nothing above is edited. The heading and
+> the opening sentence of this section stay standing, with this beneath them.
+>
+> **1. What the table proves, and still proves.** The five rows are correct for the set they
+> enumerate. Those five are the non-mirror **chrome writers** — the paths that write
+> `setLives` / `setScore` / `setCombo` / `setStallTier` / `setSimPhaseNum` for a run they are
+> (re)starting — and the round-4 verifier re-derived them independently by grep and confirmed
+> that all five clear the latch before their own chrome writes. The table is the evidence of
+> what was actually read this task, and it is why it is kept rather than replaced.
+>
+> **2. What the sentence above the table overstated.** That sentence quantifies over *every path
+> that begins or resumes a run*. That is a **larger set** than the chrome writers: a path can
+> re-arm the frame loop without writing a single piece of chrome. The round-4 verifier put it
+> exactly: *"The five it checked are the chrome writers, which is a different set. The claim is
+> honest about what was read and wrong about what it covers."* (`11-VERIFICATION.md`,
+> `gaps[0].artifacts[4]`, on this file's line 177.) That gap is what sent round 4's author past
+> the sixth path.
+>
+> **3. The derivation the original lacked — re-runnable, not asserted.** Two greps over
+> `app/_components/PlayingHost.tsx`, in this order:
+>
+> ```
+> grep -c 'setActive(true);'   app/_components/PlayingHost.tsx   ->  5
+> grep -c 'setLevelId('        app/_components/PlayingHost.tsx   ->  3
+> ```
+>
+> **Both counts are taken after stripping comment lines.** Strip first, always: the *unfiltered*
+> re-arm count on this tree is **6**, because `PlayingHost.tsx:602` names the literal in prose
+> inside a `//` comment. The filtered counts are five direct arm sites and three `levelId`
+> writers, so the set the safety property must cover has **eight** members, not five. A `levelId`
+> writer arms the loop **indirectly**: the compiled-push gate effect fires on any campaign
+> `levelId` change and ends in `retry(); setActive(true);`.
+>
+> The eight members, classified — taken from `11-17-SUMMARY.md` / `CONTRACT A`, not re-derived
+> here:
+>
+> | # | Member | Classification |
+> |---|--------|----------------|
+> | 1 | `startEndlessRun` | resets on its own synchronous path, above its own arm |
+> | 2 | `onRetry` (campaign branch) | same shape, below its endless early return |
+> | 3 | `remountDevSession` (campaign branch) | same shape, below its endless early return |
+> | 4 | `goNext` | resets, then hands the level to the gate effect; never arms directly |
+> | 5 | `toggleDevLevel` | same |
+> | 6 | `runCertWorstCase` (level half) | **GUARDED** by the latch rather than resetting (11-17) |
+> | 7 | `onResume` | provably needs neither — `PauseOverlay` renders only under `showPauseOverlay`, whose **load-bearing** term is `result == null` |
+> | 8 | the compiled-push gate effect | the seam; owns no latch term of its own and trusts its callers |
+>
+> **The member this enumeration missed is number 6, `runCertWorstCase`'s level half** — and a
+> chrome-writer enumeration could not structurally have found it, because **that path writes no
+> chrome at all.** It writes `levelId` and nothing else; the arm happens one seam away, in member
+> 8. It therefore appears in no search for `setLives` / `setScore` / `setCombo` /
+> `setStallTier` / `setSimPhaseNum`, which is precisely what made it invisible to the instrument
+> used here and what made the hoist unsafe there: member 6 neither cleared the latch nor was
+> guarded by it, so the seam armed the frame loop on behalf of a run that was already over.
+>
+> **4. Where it is closed.** Plan `11-17`. The **code fix** is one leading conjunct —
+> `!runEndedRef.current &&` — on the level half's existing condition in
+> `app/_components/PlayingHost.tsx`. The **driven case** is
+> `an ENDED campaign run is not re-armed: a press from the mounted lose panel with the tier
+> already Mid moves no level and starts no loop`, in
+> `tests/ui/PlayingHost.endless-retry.test.tsx`. The **source contract** is
+> `every path that re-arms the frame loop is enumerated — five direct sites and three levelId
+> writers (round-5)`, in `tests/ui/PlayingHost.endless-host.test.ts`, which counts BOTH sets and
+> binds each member's classification to its own named site — so a ninth member cannot appear
+> silently.
+>
+> **The reusable failure, named.** A SUMMARY that asserts a verification which did not happen is
+> read downstream as evidence already collected. The gap here is not in the reading — five sites
+> were genuinely read — it is in the **quantifier standing over it**. The original claim and its
+> table are left visible for exactly that reason, the same treatment `11-14` gave
+> `11-11-SUMMARY.md` in round 3 and the same treatment `docs/ops/ENDLESS-MODE.md` gives its own
+> superseded claims.
+
 Three further sites latch WITHOUT resetting — `failEndlessStart`, `handleMenuPress` and `recordInFlightEndlessRun` — which is why the hoist had to be safe against "latched, but no reset has run yet". The failed-START case in Task 2 drives exactly that state.
 
 **On the plan-checker's INFO advisory 1 (the sixth frozen statement), verified at source rather than taken on trust.** The hoist also makes `waveAdvanceInFlightRef.current = false` at the "phase is neither WON nor LOST" arm unreachable after the boundary, and Task 2 Case A's WALK drive deliberately delivers four post-boundary DOCKED mirrors. It is benign: `failEndlessStart` (`:1223`), `startEndlessRun` (`:1342`) and `toggleDevLevel` (`:1551`) each clear that ref, and the two reset sites that clear `runEndedRef` without it — `onRetry`'s campaign branch (`:1405`) and `goNext` (`:1449`) — are campaign resets where the endless WON branch (`modeRef.current === 'endless'`) is unreachable. Recorded here so a round-5 reader does not rediscover it as a surprise.
