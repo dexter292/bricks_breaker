@@ -216,6 +216,39 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toBeLessThan(recordAt);
   });
 
+  /**
+   * A-01, decided `retry-in-place` by the owner on 2026-09-26. The behaviour half —
+   * the overlay stays up, Retry stays live, a second press recovers — is driven in
+   * `PlayingHost.endless-retry.test.tsx`. What CANNOT be driven from here is the body
+   * copy: `waveBuildFailedWave` is written in this plan and read in 11-08, so until
+   * that reader ships, statement placement is the only evidence available that the
+   * decision was implemented rather than described. That is what this contract pins,
+   * and it is explicitly a stopgap, not a substitute for 11-08's own rendering test.
+   */
+  it('both startEndlessRun failure returns record the wave-1 build failure and leave the overlay alone (A-01)', () => {
+    const m = code.match(
+      /const startEndlessRun = useCallback\(([\s\S]*?)\n {2}\}, \[/,
+    );
+    expect(m?.[1], 'startEndlessRun must be extractable').toBeTruthy();
+    const body = m![1];
+    // Everything before the run is COMMITTED to — past this line the function is
+    // building a new run, and clearing chrome is correct.
+    const commitAt = body.indexOf("modeRef.current = 'endless'");
+    expect(
+      commitAt,
+      'startEndlessRun must still commit to endless mode, or the anchor below is meaningless',
+    ).toBeGreaterThan(0);
+    const preamble = body.slice(0, commitAt);
+    expect(
+      preamble.match(/setWaveBuildFailedWave\(1\)/g)?.length,
+      'BOTH early returns — the readiness guard and the advanceToWave(1) false return — must report the wave-1 build failure (A-01, option A)',
+    ).toBe(2);
+    expect(
+      preamble,
+      'and neither may clear the Results chrome: retry-in-place means the overlay STAYS on screen with Retry live (option C, the silent no-op, was rejected for presenting a dead-looking button)',
+    ).not.toMatch(/setResult\s*\(/);
+  });
+
   it('the compiled-push effect is a no-op during an endless run, gated by ref (SC-5)', () => {
     const m = code.match(
       /useEffect\(\(\) => \{\n([\s\S]*?)\n {2}\}, \[loadResult, fxReady, compiledSv, setActive, retry\]\);/,

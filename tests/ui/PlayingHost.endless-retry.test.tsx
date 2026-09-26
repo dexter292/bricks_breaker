@@ -689,4 +689,47 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       'runEndedRef still holds: the finished run is not recorded a second time',
     ).toHaveBeenCalledTimes(1);
   });
+
+  it('a Retry that cannot build wave 1 keeps the overlay up with Retry live, and a second press recovers (A-01, retry-in-place)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await mountAndStartEndless();
+    await advanceToWaveTwo();
+    await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
+    expect(hostProps.current?.result, 'the Results overlay is up').toBe('lose');
+    recordRunEnd.mockClear();
+
+    // The next generated board — wave 1 of the new run — fails to compile.
+    failCompileFrom = compileCalls + 1;
+    await press('Retry');
+
+    expect(
+      hostProps.current?.result,
+      'retry-in-place: the overlay STAYS — the alternative is a blank screen with no way back',
+    ).toBe('lose');
+    expect(
+      screen.getByRole('button', { name: 'Retry' }),
+      'and Retry stays LIVE — the E2 loading contract, and the whole reason option C (silent no-op) was rejected',
+    ).toBeTruthy();
+    expect(
+      hostProps.current?.levelError,
+      'still not a catalog error — LevelErrorOverlay would replace the live Retry with a dead modal',
+    ).toBeNull();
+    expect(
+      recordRunEnd,
+      'nothing to record: the run had already ended at zero lives, so the funnel no-ops',
+    ).not.toHaveBeenCalled();
+
+    // A second press re-mints the seed. That is what makes the live button a real
+    // remedy rather than a nicer-looking dead end — the claim option A rests on.
+    failCompileFrom = 0;
+    await press('Retry');
+
+    expect(
+      hostProps.current?.result,
+      'the second press starts the run, which clears the overlay',
+    ).toBeNull();
+    expect(screen.getByText('W1'), 'a new run at wave 1').toBeTruthy();
+    expect(hostProps.current?.lives).toBe(3);
+    expect(hostProps.current?.score).toBe(0);
+  });
 });
