@@ -1,8 +1,8 @@
 ---
 phase: 11-endless-mode
-verified: 2026-09-26T21:55:00Z
-status: gaps_found
-score: 37/40 must-haves verified
+verified: 2026-09-26T15:56:05Z
+status: human_needed
+score: 26/28 must-haves verified
 covered_files:
   - ".planning/REQUIREMENTS.md"
   - ".planning/phases/11-endless-mode/11-01-PLAN.md"
@@ -41,309 +41,97 @@ covered_files:
   - ".planning/phases/11-endless-mode/11-17-SUMMARY.md"
   - ".planning/phases/11-endless-mode/11-18-PLAN.md"
   - ".planning/phases/11-endless-mode/11-18-SUMMARY.md"
+  - ".planning/phases/11-endless-mode/11-19-PLAN.md"
+  - ".planning/phases/11-endless-mode/11-19-SUMMARY.md"
+  - ".planning/phases/11-endless-mode/11-20-PLAN.md"
+  - ".planning/phases/11-endless-mode/11-20-SUMMARY.md"
+  - ".planning/phases/11-endless-mode/11-21-PLAN.md"
+  - ".planning/phases/11-endless-mode/11-21-SUMMARY.md"
   - ".planning/phases/11-endless-mode/11-REVIEW.md"
   - ".planning/phases/11-endless-mode/11-UI-SPEC.md"
   - "app/_components/PlayingHost.tsx"
+  - "app/_components/certLevelPlan.ts"
   - "docs/ops/ENDLESS-MODE.md"
   - "src/runtime/GameScreen.tsx"
-  - "src/runtime/overlays/ResultOverlay.tsx"
   - "src/runtime/useGameLoop.ts"
+  - "src/services/storage/catalog.ts"
+  - "tests/runtime.cert-request.test.ts"
+  - "tests/ui/GameScreen.test.tsx"
   - "tests/ui/PlayingHost.endless-host.test.ts"
   - "tests/ui/PlayingHost.endless-record.test.tsx"
   - "tests/ui/PlayingHost.endless-retry.test.tsx"
-  - "tests/ui/ResultOverlay.test.tsx"
-covered_digest: "v1:sha256:84f453bfe2fcc715dc9b101c642679993363b4c3240df0117404226a91be90b4"
-behavior_unverified: 1
+  - "tests/ui/certLevelPlan.test.ts"
+covered_digest: "v1:sha256:b778c3926563848e2587fe568c33d8f52a1f4e792ad0e9172e3f91cd76f07978"
+behavior_unverified: 2
 overrides_applied: 0
 re_verification:
   previous_status: gaps_found
-  previous_score: 31/33
+  previous_score: 37/40
   gaps_closed:
     - >-
-      Round-4 gap — "No resume path can be locked out of its own chrome: every path that begins
-      or resumes a run clears the latch before re-arming the loop AND writes lives, score,
-      combo, stall tier and sim phase itself" (11-15 must_have truth 6, status `partial`).
-      CLOSED, by the GUARD shape the round-4 report named as its first `missing[]` option, and
-      closed in the way it asked for rather than in a way that merely satisfies the words.
-      `app/_components/PlayingHost.tsx:1771-1775` now opens the level half on
-      `!runEndedRef.current && modeRef.current !== 'endless' && levelId !== 'level-03'`.
-      VERIFIED BY MUTATION IN THIS PROCESS, not by reading: deleting the single conjunct at
-      `:1772` turns exactly TWO cases RED in
-      `tests/ui/PlayingHost.endless-retry.test.tsx` — `an ENDED campaign run is not re-armed:
-      a press from the mounted lose panel with the tier already Mid moves no level and starts
-      no loop` and `and the same press leaves the mounted campaign panel reading the level it
-      was played on (WR-02)` — while the two pre-existing LIVE-run campaign cert cases stay
-      GREEN (29 passed / 2 failed in that file). That is both halves of the round-4 demand:
-      the new behaviour is pinned, and the byte-for-byte-identical live-run behaviour is
-      pinned by its own cases staying green under the same mutation. The verifier's fourth
-      `missing[]` item was executed too — the enumeration is now DERIVED (see below) rather
-      than asserted.
+      Round-5 gap 1 — "No `__DEV__` control arms a one-shot whose own discharge preconditions the
+      same change has made unreachable". CLOSED, and closed STRUCTURALLY rather than by a fourth
+      conjunct in a third place. The level question is now ONE pure total function,
+      `certLevelPlanFor` (`app/_components/certLevelPlan.ts`), returning
+      `'force' | 'ready' | 'unreachable'`, consulted exactly once per press and stored
+      (`const plan = certLevelPlan();`), with three consumers reading that same value: the level
+      half (`if (plan === 'force')`), the arm (`certPendingRef.current = plan !== 'unreachable';`)
+      and the deferred-cert effect's self-cancel.
+      VERIFIED BY MUTATION IN THIS PROCESS, not by reading. Reverting the arm alone to its
+      round-5 form (`certPendingRef.current = modeRef.current !== 'endless';`) and running
+      `tests/ui/PlayingHost.endless-retry.test.tsx` turns EXACTLY ONE case RED — `a CAMPAIGN
+      press from a mounted lose panel with the tier AUTO arms nothing — the later Lv walk to
+      level-03 injects nothing (round-6 gap 1)` — 1 failed / 32 passed. That is the cell-5 defect
+      the round-5 verifier reproduced by driven probe, and it is now behaviourally pinned by a
+      case rather than by an argument.
+      I also re-derived the equivalence the round rests on, term for term rather than taking the
+      review's word: `plan === 'force'` holds iff campaign AND `levelId !== 'level-03'` AND
+      `!runEnded` — byte-equivalent to the shipped three-term condition, so 11-16's and 11-17's
+      behaviour (and the WR-02 campaign `Best ·` case that guards N-END-02) is unchanged. Exactly
+      one cell of the 16-cell control cross-product moves, and it is cell 5.
     - >-
-      Round-4 gap, the ENUMERATION half — "Extend 11-15's safety enumeration from chrome
-      WRITERS to loop RE-ARM sites, and pin it so a seventh cannot appear silently". CLOSED and
-      strictly better than the counting contract the round-4 report suggested. The new case
-      `every path that re-arms the frame loop is enumerated — five direct sites and three
-      levelId writers (round-5)` (`tests/ui/PlayingHost.endless-host.test.ts:1443+`) counts the
-      five `setActive(true)` statements AND the three `setLevelId(` writers, and then BINDS
-      three of them to their own function bodies by name with the clear required at a lower
-      index than the arm. I ran the mutation the aggregate count cannot see: DELETING
-      `onRetry`'s own `runEndedRef.current = false;` at `:1471` and ADDING one inside `goNext`
-      holds the file-wide count at exactly 5, and the case still goes RED naming `onRetry`
-      ("expected -1 to be greater than or equal to 0"). The site binding is real, not
-      decorative.
+      Round-5 gap 2 — "`docs/ops/ENDLESS-MODE.md` contains no false statement about the shipped
+      code; every mechanism sentence is backed by a measurement that could observe what it
+      asserts". CLOSED for the mechanism claim it was raised on. The false clause ("injects
+      directly into a world whose loop is already stopped" / "already-stopped world") measured 6
+      occurrences across its four owning files at the round-6 base `6bb18bf` — re-measured by me:
+      `docs/ops/ENDLESS-MODE.md` 2, `app/_components/PlayingHost.tsx` 1,
+      `tests/ui/PlayingHost.endless-retry.test.tsx` 1, `11-17-SUMMARY.md` 2 — and is now 0 in all
+      four. `MEASURED, not derived` is gone from the repo.
+      The REPLACEMENT statement I re-derived link by link at source rather than adopting: (1)
+      `injectCertWorstCase` holds one statement, `certRequest.value = certRequest.value + 1`
+      (`src/runtime/useGameLoop.ts:787`); (2) the sole consumer is
+      `if (certRequest.value !== certApplied.value)` at `:440-442`, inside `onFrame`; (3)
+      `useFrameCallback(onFrame, false)` at `:685`, so `onFrame` cannot run until `setActive(true)`;
+      (4) `certApplied.value =` is assigned exactly once in the file (`:441`), so nothing resets
+      it at a run boundary; (5) the last `applyRetryWorldReset(` (`:415`) precedes the consume
+      block (`:440`), so a queued load lands BELOW the reset, on the freshly reset world. The
+      corrected text says exactly this in both operator-facing locations, names `certRequest` by
+      identifier (3 occurrences in the doc, base 0), states the OPERATOR consequence
+      ("contaminates the next run", `:514`) and keeps the "restart the app and take the reading
+      again" instruction (`:553`). The new instrument `tests/runtime.cert-request.test.ts` pins
+      all five links with per-anchor non-vacuity guards and is honest that it reads source and
+      cannot produce a frame.
     - >-
-      Round-4 advisory A2 — the four-branch `applyChrome` latch contract is VACUOUS, its
-      `.toMatch(/runEndedRef\.current/)` satisfied by the ASSIGNMENT one line below each guard.
-      CLOSED. `GUARD_SHAPE` (`tests/ui/PlayingHost.endless-host.test.ts:718-719`) now requires
-      the negated test, its latch set and its `handleRunEnded(` call as one shape, plus an
-      independent `.toBe(3)` occurrence count. VERIFIED BY MUTATION: turning ONE
-      `if (!runEndedRef.current)` (`PlayingHost.tsx:1098`) into `if (true)` — the exact mutation
-      that left the workspace green at 97 files / 645 tests in round 4 — now FAILS at
-      `tests/ui/PlayingHost.endless-host.test.ts:726`. The endless WON branch is stated
-      honestly in its own separate assertion rather than folded into a claim that is false for
-      it.
+      Round-5 advisory 1 — the `showPauseOverlay` `&&` -> `||` mutation survived the ENTIRE
+      workspace, and nothing in the repo had a negative render case. CLOSED. `tests/ui/GameScreen.test.tsx`
+      now carries `playing + no result: no pause overlay — no Resume, no Paused` and
+      `paused + a result: no pause overlay — the result overlay owns the screen`.
+      VERIFIED BY MUTATION IN THIS PROCESS: applying
+      `!hasLevelError && uiPhase === 'paused' || result == null` to `src/runtime/GameScreen.tsx:110-111`
+      and running all of `tests/ui` now reds EXACTLY those two cases (2 failed / 149 passed, 17
+      files). The same mutation left 16 files / 142 tests green in round 5. ASSERTION 5 in
+      `tests/ui/PlayingHost.endless-host.test.ts` is untouched, as 11-21's prohibition required.
     - >-
-      Round-4 gap, the WR-02 sibling and the MOCK that hid it. CLOSED. The
-      `getBestForLevel` harness mock honours its `id` argument, and the new WR-02 case carries
-      an anti-vacuity POSITIVE CONTROL (four `Lv` presses through `toggleDevLevel` DO move the
-      rendered `best` to 7777). Both halves red under the conjunct-removal mutation above, so
-      the pass is not the mock being blind again.
-    - >-
-      Round-4 advisory A1 — ENDLESS-MODE.md calling `level-03` "the shipped default level, so
-      the common case". CLOSED, as a dated REPLACEMENT clause rather than a deletion
-      (`docs/ops/ENDLESS-MODE.md:455-464`). Re-checked at source in this process:
-      `app/_components/GameHost.tsx:68` defaults to `level-01`, `:196` mounts `level-03` only
-      under `CERT_HARNESS`, and `level-03` is last in `PLAYABLE_LEVEL_ORDER`. The correction
-      states all three and draws the right conclusion (four `Lv` presses, the RARE sub-branch).
-    - >-
-      Round-4 gap artifact 5 — `11-15-SUMMARY.md:177` asserting a safety property over "every
-      path that begins or resumes a run" while reporting five chrome writers. CLOSED. A dated
-      `CORRECTION 2026-09-26 (round 5)` block sits BESIDE the original table (which is kept, and
-      is correct for the set it enumerates), restates the two-grep derivation, tabulates the
-      eight members, and names member 6 as the one a chrome-writer enumeration could not
-      structurally have found. This is the treatment the round-4 report asked for.
+      Round-5 record gap — `.planning/REQUIREMENTS.md` carried THREE unticked boxes sitting above
+      notes whose first word is `Closed` (N-END-01 one, N-END-02 two), left by the `6bb18bf`
+      revert. CLOSED: I ran the coherence gate myself over the current file and it reports 0 such
+      pairs. N-END-01 and N-END-02 are `[x]` with round-6 AMENDED notes (the round-5 "last re-arm
+      path" clause is corrected and now names the neighbouring cell); N-END-03 is `[ ]` with a
+      caveat that explicitly records that round 6 repaired the INSTRUCTIONS for the SC-5 reading
+      and did not take it. Exactly one commit touched the file this round (`661af86`).
   gaps_remaining: []
-  regressions:
-    - >-
-      NEW this round and introduced BY the round-5 conjunct. `runCertWorstCase` now arms a cert
-      one-shot it has made undischargeable on the CAMPAIGN branch — round-3 gap 2 / WR-01
-      reintroduced next door, and in violation of the rule this same function states in prose 34
-      lines BELOW the new conjunct (`PlayingHost.tsx:1795-1796`: "do not arm a latch whose
-      discharge preconditions the same change has made unreachable"). REPRODUCED BY DRIVEN
-      PROBE in this process, both ways. See gap 1.
-    - >-
-      NEW this round. Three artifacts written by round 5 state that the ENDED-run / tier-Mid
-      press "injects directly into a world whose loop is already stopped". The shipped code
-      does not do that: the call only bumps a SharedValue request that is consumed exclusively
-      inside `onFrame`, which is not running. The load is QUEUED and lands on the first frame of
-      the NEXT run. See gap 2.
-gaps:
-  - truth: >-
-      No `__DEV__` control arms a one-shot whose own discharge preconditions the same change has
-      made unreachable — the rule this phase learned in round 3, wrote into
-      `app/_components/PlayingHost.tsx:1795-1796` in round 4, and must not break in round 5
-      (11-18 prohibition "MUST NOT assert an invariant ... that the shipped code does not hold"
-      is the documentation twin of the same failure; the code half is this)
-    status: failed
-    reason: >-
-      REPRODUCED BY DRIVEN PROBE ON THE REAL HOST, both ways, through this repo's own
-      `endless-retry` harness (scratch file `tests/ui/__probe-cr01.test.tsx`, since deleted;
-      `git status` clean). The branch is CAMPAIGN, run ENDED, tier still AUTO — one step away
-      from the branch 11-17 did measure (tier already Mid), and covered by no truth, no
-      assumption and no case in 11-17.
-      POST-ROUND-5 (shipped source). `mountOnly()`, tier left at Auto, level `level-01`,
-      `deliverPhase(SIM.LOST, {lives: 0, score: 2400})` -> lose panel mounted. ONE press of
-      `Cert WC`: the level half is correctly refused by the new conjunct (`Lv` label stays
-      `Switch level, current level-01`) and `injectCertWorstCase` is 0. The TIER half then
-      fires (`tierOverride !== 'mid'`), sets `defer = true`, and `:1806` executes
-      `certPendingRef.current = modeRef.current !== 'endless'` — which in campaign is TRUE. The
-      deferred-cert effect at `:1815-1832` requires `levelId === 'level-03'` AND
-      `tierOverride === 'mid'`; the tier term is now satisfied and the LEVEL term has just been
-      made unreachable BY THE NEW CONJUNCT. The one-shot is stranded. Walking the `Lv` control
-      four steps, exactly as the round-3 verifier walked it:
-      `level-04 inject=0 | level-05 inject=0 | level-06 inject=0 | level-03 inject=1`.
-      One worst-case injection on a later CAMPAIGN session that never pressed the button.
-      PRE-ROUND-5 (the identical probe with the single conjunct at `:1772` removed). At the
-      press: `Lv` moves to `level-03`, `injectCertWorstCase` is 1 — the deferral discharged
-      PROMPTLY. The subsequent `Lv` walk adds nothing (`inject=1` throughout, total 1).
-      SO THE DELTA IS ROUND 5's, AND IT IS EXACTLY THE ROUND-3 DEFECT. Round 5 converted a
-      prompt discharge into a stranded one-shot that fires on an unrelated later session. This
-      is not a pre-existing condition inherited by the round; it is manufactured by the round's
-      own change, in the same function, in the same commit (`62e94cb`) whose comment block
-      quotes the rule it breaks.
-      WHY A GAP AND NOT AN ADVISORY, held to the standard the last two rounds set for
-      themselves. Round 3 raised this precise defect class as a GAP and round 4 closed it as
-      one; classifying the same class as advisory the moment it reappears on the neighbouring
-      branch would make the phase's own precedent unfalsifiable. It is also the FIFTH
-      consecutive instance of this phase's signature failure — the instrument was pointed one
-      branch away from the defect: 11-17 enumerated the ENDED-run / tier-ALREADY-Mid
-      intersection and never asked what the ENDED-run / tier-AUTO intersection does. And the
-      file is git-modified this round, so the re-verification evidence gate is satisfied
-      unconditionally; independently, the driven probe above is deterministic reproducible
-      evidence in its own right.
-      SEVERITY, stated precisely so the closure plan can size it. NO SUCCESS CRITERION FAILS.
-      The arming term is `modeRef.current !== 'endless'`, so this is campaign-only; all five
-      SCs are about endless, the endless press still arms nothing (verified green:
-      `while endless below level-03, Cert WC arms nothing — a later campaign walk to level-03
-      never injects (gap 2)`), and SC-3 is untouched — `recordRunEnd` is not called, no campaign
-      best or star is written on either side. `runCertWorstCase` early-returns unless `__DEV__`
-      or `CERT_HARNESS`, so no player in a shipped build can reach it. The harm is to the
-      INSTRUMENT: an operator taking the SC-5 reading in a dev build can leave a live worst-case
-      injection armed behind them, and it fires silently four `Lv` presses later.
-    artifacts:
-      - path: "app/_components/PlayingHost.tsx"
-        issue: >-
-          Line 1806: `certPendingRef.current = modeRef.current !== 'endless';` knows the MODE
-          term of the level half's condition but not the RUN-ENDED term that `:1772` added. The
-          arming term and the guarded branch have drifted apart within one function — the same
-          shape as round 3, where the arming term knew neither.
-      - path: "app/_components/PlayingHost.tsx"
-        issue: >-
-          Lines 1771-1775 / 1795-1796: the new conjunct sits 34 lines ABOVE a comment that
-          states the rule it breaks. The comment is correct and the code below it is not, which
-          is worse than either alone — a future reader is told the invariant holds.
-      - path: "app/_components/PlayingHost.tsx"
-        issue: >-
-          Lines 1815-1832 / 1703: `certPendingRef` is written at exactly two places — armed at
-          `:1806`, cleared at `:1828` on discharge. NOTHING clears it on a run reset, a level
-          change, a mode change or an unmount, so a stranded arm survives indefinitely until the
-          discharge preconditions happen to line up.
-      - path: "tests/ui/PlayingHost.endless-retry.test.tsx"
-        issue: >-
-          The `Cert WC` describe now holds four campaign/endless cert cases and none of them
-          drives ENDED + tier AUTO. `:1766` (ENDED, tier already Mid) and `:1859` (WR-02, same
-          setup) both cycle the tier to Mid FIRST, which is exactly what makes the tier half
-          no-op and hides the arming path.
-      - path: "tests/ui/PlayingHost.endless-host.test.ts"
-        issue: >-
-          Lines 1520-1523: ASSERTION 3 pins `runEndedRef` occurrences inside `runCertWorstCase`
-          at EXACTLY 1. The most direct repair — teaching `:1806` the run-ended term — adds a
-          second occurrence and reds this assertion. The count is a legitimate anti-prose gate
-          but it is currently also a fix-blocker; the closure plan has to move it deliberately
-          and say why, not discover it.
-    missing:
-      - >-
-        Make the arming term agree with the guarded branch. The minimal shape is
-        `certPendingRef.current = !runEndedRef.current && modeRef.current !== 'endless';` at
-        `:1806`, or equivalently refuse the whole `defer` bookkeeping on an ended run. Whichever
-        is chosen, the invariant to state in the comment is the one already written at
-        `:1795-1796` — and this time the code must be an instance of it.
-      - >-
-        Decide, and write down, what a `Cert WC` press from a mounted campaign Results panel
-        with the tier AUTO should do at all. Today it still fires `setTierOverride('mid')`,
-        which routes through the tier-change effect to `remountDevSession` — a legitimate reset
-        path — so the run does restart coherently. Only the arming is wrong. Do not gate the
-        tier half (11-17 prohibition 1, owner decision of 2026-09-26).
-      - >-
-        Raise `tests/ui/PlayingHost.endless-host.test.ts:1520-1523` from 1 to the new count with
-        a stated reason in its own message, or restructure so the second mention is the guard
-        term rather than a new route. Leaving it at 1 makes the fix un-landable.
-      - >-
-        Drive the missing intersection as a case next to the three existing cert cases:
-        `mountOnly()`, DO NOT touch the tier, `deliverPhase(SIM.LOST, {lives: 0, score: 2400})`,
-        assert the panel, press `Cert WC`, then walk `Lv` four times asserting
-        `injectCertWorstCase` stays 0 at every step and `levelSwitchLabel()` reaches
-        `level-03` (so the walk is not vacuously short). Measured pre-fix, for the `fails_when`:
-        `level-04 inject=0 | level-05 inject=0 | level-06 inject=0 | level-03 inject=1`.
-      - >-
-        Consider clearing `certPendingRef` on the run-boundary reset paths as belt-and-braces,
-        so a future fourth branch cannot strand it again. This is the class fix; the term at
-        `:1806` is the instance fix.
-  - truth: >-
-      `docs/ops/ENDLESS-MODE.md` contains no false statement about the shipped code, and every
-      mechanism sentence added this round is backed by a measurement that could actually observe
-      what it asserts (11-18 must_have truth 1 and truth 6; 11-18 prohibitions 1 and 3)
-    status: failed
-    reason: >-
-      The A1 clause the plan set out to fix IS fixed and I re-checked it at source. What the
-      same plan then added in its place is a NEW false mechanism claim, in the same block, about
-      the code round 5 changed — the fifth statement of this shape the phase has had to correct,
-      and the second time the fixing plan has introduced the next one.
-      THE CLAIM, in three operator- and author-facing places:
-      `docs/ops/ENDLESS-MODE.md:261` and `:493` — "the press injects directly into a world whose
-      loop is already stopped"; `app/_components/PlayingHost.tsx:1760-1761` — the same sentence
-      as a source comment; and `tests/ui/PlayingHost.endless-retry.test.tsx:1824` — the same
-      sentence as an assertion message, carrying the words "MEASURED, not derived".
-      WHY IT IS FALSE, verified link by link at source in this process rather than adopted from
-      the review. (1) `injectCertWorstCase` has exactly one statement:
-      `certRequest.value = certRequest.value + 1` (`src/runtime/useGameLoop.ts:785-789`). It
-      applies nothing. (2) The ONLY consumer of that request is
-      `if (certRequest.value !== certApplied.value) { certApplied.value = certRequest.value;
-      applyCertWorstCaseInject(...) }` at `src/runtime/useGameLoop.ts:440-444`, which sits
-      INSIDE `onFrame`. (3) `onFrame` runs only while the frame callback is active
-      (`:685` `useFrameCallback(onFrame, false)`, `:691-694` `setActive`), and this branch's
-      whole premise is that `setActive(false)` has already run. (4) A repo-wide grep for
-      `certRequest|certApplied` returns six sites and NONE of them resets either value on a run
-      reset, a retry, a level change or a mode change. So the request survives, and
-      `applyCertWorstCaseInject` executes on the FIRST FRAME OF THE NEXT RUN — below the
-      retry-reset block at `:413-439`, i.e. onto the freshly reset world.
-      WHY THE MEASUREMENT DID NOT CATCH IT. `injectCertWorstCase` is `vi.fn()` at
-      `tests/ui/PlayingHost.endless-retry.test.tsx:325`. A call count on a stub is structurally
-      incapable of observing where the load goes; it can only observe that the host called
-      something. 11-17's own assumption block required "Task 1 must MEASURE the injection count
-      on that branch rather than assume it; if the measurement contradicts this derivation, the
-      measurement wins" — the guard was there, and the instrument was too coarse to trip it. The
-      label "MEASURED, not derived" is therefore the least accurate part of the sentence.
-      WHY A GAP AND NOT AN ADVISORY, on the line round 3 and round 4 drew and I am keeping.
-      Round 4 ruled the `level-03`-is-the-default clause ADVISORY because it changed no
-      instruction, no measurement and no operator action. This one changes all three. The doc
-      tells an SC-5 operator the injection is contained in a dead world; in fact the next run
-      the operator starts — including a `Retry` straight from that panel — begins with a
-      worst-case load applied on its first frame. That is silent contamination of precisely the
-      frame-budget reading SC-5 exists to take, in the document that IS the instrument for
-      taking it. It is the same test round 3 applied when it blocked on a false MECHANISM claim
-      in this exact block.
-    artifacts:
-      - path: "docs/ops/ENDLESS-MODE.md"
-        issue: >-
-          Line 493 (§ Limits item 2, the round-5 "Extended 2026-09-26" note) and line 261 (the
-          run-boundary table row) both end the ENDED-run sentence with "the press injects
-          directly into a world whose loop is already stopped". Both need the queued-and-lands-
-          next-run statement instead, and the operator consequence spelled out.
-      - path: "app/_components/PlayingHost.tsx"
-        issue: >-
-          Lines 1760-1761: the same sentence in the `runCertWorstCase` comment block, presented
-          as the cost of the chosen design ("WHAT IT COSTS"). The real cost is larger than
-          stated.
-      - path: "tests/ui/PlayingHost.endless-retry.test.tsx"
-        issue: >-
-          Line 1824: the assertion message asserts the mechanism and labels it "MEASURED, not
-          derived", against a `vi.fn()` (`:325`) that cannot see it. The assertion itself
-          (`toHaveBeenCalledTimes(1)`) is correct and should stay; its message is what is wrong.
-      - path: ".planning/phases/11-endless-mode/11-17-SUMMARY.md"
-        issue: >-
-          Line 207 carries the same claim into the phase record as an observed result.
-      - path: "src/runtime/useGameLoop.ts"
-        issue: >-
-          Lines 334-335, 440-444: `certRequest` / `certApplied` have no reset on any run
-          boundary. This is the mechanism that makes the queued request outlive the run that
-          created it. Not a defect the round introduced, but it is the fact the round's
-          sentences get wrong, and clearing `certApplied` on the retry-reset would make the
-          shipped code match what all three artifacts already say.
-    missing:
-      - >-
-        Correct the sentence in all four places, dated and beside the superseded text per this
-        phase's own convention: the press does not inject into the stopped world — it bumps
-        `certRequest` (`src/runtime/useGameLoop.ts:787`), which only `onFrame` consumes
-        (`:440`), so the worst-case load is QUEUED and applies on the first frame of the next
-        run that arms the loop.
-      - >-
-        State the operator consequence explicitly in § Limits item 2, because this is the half
-        that matters for SC-5: a `Cert WC` press from a mounted Results panel contaminates the
-        NEXT run, including a `Retry` from that same panel. Say whether the reading must be
-        restarted, consistent with the existing "restart the app and take the reading again"
-        instruction.
-      - >-
-        Either strike "MEASURED, not derived" from
-        `tests/ui/PlayingHost.endless-retry.test.tsx:1824` and say what the count actually
-        proves (that the host called the injector, not where the load went), or make it true by
-        asserting on `certRequest` / `certApplied` instead of on the stub.
-      - >-
-        Decide whether the shipped behaviour should match the sentence rather than the reverse.
-        Adding `certApplied.value = certRequest.value;` to the retry-reset block in `onFrame`
-        (`src/runtime/useGameLoop.ts:413-439`) would drop a stale request at the next run
-        boundary and make "the injection does not outlive its run" true of the code. If that is
-        taken, it is a `src/runtime` change and needs its own falsification.
+  regressions: []
 deferred:
   - truth: "A player can start an endless run from a production entry point"
     addressed_in: "Phase 14"
@@ -351,7 +139,7 @@ deferred:
       Phase 14 success criterion 1: 'Title offers campaign, endless and daily as distinct
       entries'. The `__DEV__`-only entry is sanctioned Phase 11 scope (11-05 D-05) and
       ENDLESS-MODE.md § Limits item 4 records the same. Carried forward unchanged from rounds
-      2, 3 and 4.
+      2, 3, 4 and 5.
   - truth: "A permanent endless record surface, and electing which of bestScore / bestWave is THE record"
     addressed_in: "Phase 14"
     evidence: >-
@@ -362,127 +150,207 @@ deferred:
     addressed_in: "Phase 14"
     evidence: >-
       Owner-decided accepted debt of 2026-09-26, recorded in ENDLESS-MODE.md § Flagged
-      assumptions A-04 and § Limits item 7 with the measured 0.77x / 0.85x stretch. Re-verified
-      untouched this round — round 5's only `app/` change is the single conjunct at
-      `PlayingHost.tsx:1772` plus comments, nowhere near `loadKey` or the bake deps.
-      Carried forward.
+      assumptions A-04 and § Limits item 7 with the measured 0.77x / 0.85x stretch.
+      Re-verified untouched this round: `git diff --name-only 6bb18bf..HEAD -- src/` is EMPTY,
+      so no bake key, no `loadKey` and no renderer path moved. Carried forward.
 advisory:
   - finding: >-
-      The round-5 `showPauseOverlay` instrument does NOT catch an `&&` -> `||` mutation of the
-      conjunction, and NOTHING ELSE IN THE REPO DOES EITHER. ASSERTION 5
-      (`tests/ui/PlayingHost.endless-host.test.ts:1568-1581`) matches `result == null` and
-      `uiPhase === 'paused'` as two INDEPENDENT regexes, so both still match when the connecting
-      operator flips.
-    category: architectural
-    reason: >-
-      MEASURED IN THIS PROCESS, and it falsifies BOTH upstream statements about it — the
-      planner's premise (that a sibling structural gate greps the conjunction as one literal, so
-      the mutation would be caught) and 11-REVIEW WR-03's correction (that "the kill comes from
-      two pre-existing cases in tests/ui/GameScreen.test.tsx"). I applied
-      `!hasLevelError && uiPhase === 'paused' || result == null` to
-      `src/runtime/GameScreen.tsx:110-111` and ran the whole of `tests/ui`: 16 files / 142 tests
-      ALL GREEN, including `GameScreen.test.tsx` (6/6). The mutation makes the pause overlay
-      render during normal play and no test in the workspace sees it —
-      `GameScreen.test.tsx:77-85` asserts only the POSITIVE case and there is no negative
-      sibling.
-      NOT a gap, and the line is worth drawing. 11-17's own declared falsification for this
-      member is "`onResume`'s exemption must be RED when `&& result == null` is dropped from
-      `showPauseOverlay`" — I ran exactly that and it IS red, failing the round-5 enumeration
-      case. The instrument does what its plan claims. The `&&`/`||` hole is a pre-existing
-      absence of a negative render case in `GameScreen.test.tsx`, not a phase-11 regression and
-      not a must_have. Fix, when someone is in that file: assert the extracted condition against
-      one literal, and add a negative case that renders `uiPhase='playing'` and asserts no
-      `Resume game` button.
-    evidence_status: "measured (mutation, tests/ui 16 files / 142 tests green); pre-existing coverage hole, not a round-5 regression"
-  - finding: >-
-      `runCertWorstCase`'s comment block claims "setLevelId / setTierOverride are stable useState
-      setters" (`app/_components/PlayingHost.tsx:1810-1811`). `setLevelId` is not — it is a
-      `useCallback` with `[levelId, onLevelIdChange]` deps at `:252-262`, and it is listed in the
-      dependency array immediately below for that reason. Raised as 11-REVIEW IN-02; confirmed
-      at source.
+      WR-01 — CONFIRMED AT SOURCE, and it is mine as well as the review's.
+      `docs/ops/ENDLESS-MODE.md:261` and `:484-485` both still cite the literal expression
+      `!runEndedRef.current && modeRef.current !== 'endless' && levelId !== 'level-03'` as what
+      `runCertWorstCase` "opens that branch on". Plan 11-19 deleted that expression from the
+      function; plan 11-19's OWN new gate pins `runEndedRef` and `modeRef` at ZERO occurrences
+      inside that body, so the cited literal is guaranteed absent from the address the doc sends
+      the reader to. `certLevelPlan` appears in `docs/` ZERO times (measured). 11-20 edited both
+      paragraphs for the queued-load correction and left the citation standing.
     category: other
     reason: >-
-      PRE-EXISTING, not round-5 scope: `git log -S` places the sentence in commit `e20b1f2`
-      ("fix(D1): lint, zero-alloc draw helpers, mandatory post-D1 Cert"), long before Phase 11.
-      The dependency array it justifies is correct either way, so nothing behaves wrongly. One
-      word ("stable useState setters" -> "stable setters") clears it.
-    evidence_status: "structural only, pre-existing — no failing artifact"
+      ADVISORY, and I am applying this phase's OWN severity test rather than inventing one. Round
+      4 ruled the `level-03`-is-the-default clause advisory because it changed no instruction, no
+      measurement and no operator action; round 5 ruled the stopped-world clause a BLOCKER
+      because it changed all three. This one changes none of them. The BEHAVIOURAL content of
+      both sentences is still exactly true — I verified the predicate is term-for-term equivalent
+      to the cited expression, so "the level half fires only when the run has NOT ended, the mode
+      is campaign, and the level is not already `level-03`" and the operator consequence drawn
+      from it ("a press from a MOUNTED Results overlay moves no level and starts no loop") are
+      both correct as shipped. What is stale is a SOURCE POINTER: it tells a maintainer the
+      decision is written inline in `runCertWorstCase` when it is written once in
+      `app/_components/certLevelPlan.ts`. A maintainer who follows the pointer lands on a
+      twenty-line comment at that exact call site that tells them the predicate owns the decision
+      and instructs them not to add a term at the call site, so the code self-corrects the doc.
+      Under the strictest reading of round-5's truth-15 wording ("no false statement about the
+      shipped code") this is a residual falsehood and I am saying so plainly rather than
+      redefining the truth; under the consistency test the phase has applied twice it is
+      advisory, and I am not sending a seventh round for a pointer.
+      WHAT CLOSES IT, one commit: in both places replace the parenthetical citation with
+      "`certLevelPlanFor` in `app/_components/certLevelPlan.ts`, whose 20-cell truth table is
+      `tests/ui/certLevelPlan.test.ts`", keep the three-term prose (it is true and is what the
+      operator needs), and date it beside the superseded citation per this phase's convention.
+    evidence_status: "measured at source (grep: the literal present at :261 and :485; certLevelPlan absent from docs/); behavioural content verified correct"
   - finding: >-
-      The `Cert WC` row of the run-boundary table (`docs/ops/ENDLESS-MODE.md:261`) is now a
-      single table cell of roughly 1,400 words carrying four dated revisions. Raised as
-      11-REVIEW IN-03.
-    category: other
-    reason: >-
-      Confirmed by reading. The two-operator-facing-locations rule (11-18 key_link 2) is being
-      satisfied by copying the whole of § Limits item 2 into a table cell, which is how it stays
-      in sync but is unreadable as a table. When gap 2 above is corrected, the cell should become
-      a one-line statement plus a pointer to § Limits item 2 rather than a fifth full restatement.
-      Not a gap: nothing in it is false except the clause already carried as gap 2.
-    evidence_status: "structural only — legibility, no incorrect content beyond gap 2"
-  - finding: >-
-      Carried unchanged from round 4, all re-confirmed at source and all deliberately out of
-      round-5 scope per 11-17's own assumptions block: (a) the deferred-cert effect
-      (`PlayingHost.tsx:1815-1832`) consumes `certPendingRef` BEFORE its own 50 ms timer and
-      `clearTimeout`s it on any dependency change, so a change inside the window cancels the
-      injection permanently — fails safe; (b) five near-identical run-boundary reset blocks
-      (`:1405-1420, :1470-1483, :1514-1524, :1613-1631, :1668-1681`), which remain the structural
-      cause of this phase's "fix one half, leave the neighbour" pattern and are the right first
-      task for any Phase-14 work in this file; (c) `toggleDevLevel` republishing the outgoing
-      level's campaign best (`:1578` before `:1614`) — the MOCK half of round-3 advisory 1 is now
-      fixed by 11-17, the structural half is not; (d) `codeOnly()` strips `//` but not `/** */`,
-      which is why two functions carry a `//`-only formatting constraint (11-17's CONTRACT A
-      works around it with a local `noBlocks()` rather than widening the shared helper).
+      WR-02 — REPRODUCED BY MUTATION IN THIS PROCESS, and the review understates it slightly.
+      Deleting `certPendingRef.current = false;` (`app/_components/PlayingHost.tsx:1892`, the
+      DISCHARGE clear, above the 50 ms `setTimeout`) leaves the ENTIRE workspace green: 99 files /
+      663 tests passed. That deletion stops the one-shot being one-shot — the deferred effect
+      would re-enter and re-inject on every subsequent dependency change while `levelId` is
+      `level-03` and the tier is Mid. The gate that is supposed to hold it is
+      `expect((body.match(/certPendingRef\.current = false/g) ?? []).length).toBeGreaterThanOrEqual(1)`,
+      and since 11-19 added the self-cancel clear there are TWO matches, so either one can be
+      deleted without moving the count below 1.
     category: architectural
     reason: >-
-      Each re-read this round and each still true. Recorded so they are not rediscovered as new.
-      Note that (a) has acquired a second reason to care: with gap 1 open, a stranded
-      `certPendingRef` plus a cancelling dependency change is how an armed one-shot could sit
-      indefinitely.
-    evidence_status: "structural only — no failing artifact; all four fail safe or are inert today"
+      ADVISORY, not a gap: the shipped code is CORRECT — both clears are present and the one-shot
+      is a one-shot today. This is instrument strength against a hypothetical future edit, on a
+      `__DEV__` / `CERT_HARNESS`-only control that no Success Criterion depends on.
+      The part worth naming honestly is the assertion MESSAGE: "deleting either leaves a latch
+      nothing resets" asserts a discrimination the assertion does not have, which is the same
+      class of over-labelling as round 5's `MEASURED, not derived` — the label round 6 was
+      commissioned to strike. 11-20's own plan text demonstrates the right discipline three lines
+      away (it labels the two identifier counts "REGRESSION gates and not discriminating ones —
+      stated plainly rather than presented as evidence they are not"); this one message slipped.
+      WHAT CLOSES IT, one commit: replace the `toBeGreaterThanOrEqual(1)` with two assertions that
+      each bind a clear to its own site — `.toMatch(/=== 'unreachable'\) \{\s*certPendingRef\.current = false;/)`
+      for the self-cancel and `.toMatch(/certPendingRef\.current = false;\s*const t = setTimeout\(/)`
+      for the discharge — or with `.toBe(2)` plus a stated reason. Then re-run the deletion; it
+      must red.
+    evidence_status: "measured (mutation: discharge clear deleted, 99 files / 663 tests green)"
   - finding: >-
-      Two lint warnings, both in test code, both still present and unchanged since round 3:
+      WR-03 — REPRODUCED BY MUTATION IN THIS PROCESS, in a STRONGER form than the review reported.
+      The review added a new term to the level half AND to the self-cancel. I added it to the
+      LEVEL HALF ALONE — `if (plan === 'force' && !waveAdvanceInFlightRef.current) {` — which is
+      round-5 gap 1's exact shape reconstituted with a different identifier, and the whole
+      workspace stayed green: 99 files / 663 tests. The review's two-sided version is green too
+      (I ran that as well).
+      WHY IT ESCAPES. The anti-drift gates are IDENTIFIER-specific (`runEndedRef` 0, `modeRef` 0),
+      not SHAPE-specific, so a term built from any other identifier is invisible to them. The ARM
+      is exact-literal pinned (`certPendingRef.current = plan !== 'unreachable';`) but the LEVEL
+      HALF's gate is a loose regex, `/if\s*\(\s*plan\s*===[\s\S]*?\)\s*\{[\s\S]*?setLevelId\(/`,
+      which accepts extra conjuncts freely. Note the asymmetry cuts the wrong way: because the arm
+      CANNOT follow, a level half that acquires a term is GUARANTEED to strand an arm.
+    category: architectural
+    reason: >-
+      ADVISORY, and this is the finding I weighed hardest before landing there.
+      For it: it is a real residual hole, and "the next change could diverge silently" is exactly
+      the standard I would call a gap on.
+      Against it, decisively: (a) there is NO present defect — the shipped code is correct and
+      gap 1 is behaviourally pinned, which I proved by mutation above; (b) 11-19's declared
+      must_have is "neither decision site re-tests the predicate's TERMS inline", and that truth
+      is met exactly as written (both counts 0, both discriminating, measured bases 1 and 2) — I
+      am not entitled to fail a phase against a contract it never wrote; (c) the structural claim
+      the module actually makes — "a fourth term added to THIS BODY reaches every decision site by
+      construction" — is TRUE, and the hole is the different case of a term added at a call site
+      INSTEAD of in the predicate, against an explicit twenty-line instruction sitting at that
+      call site; (d) the blast radius is a `__DEV__` / `CERT_HARNESS`-only control, campaign-side,
+      writing no record and reachable by no player in a shipped build. A seventh round to tighten
+      one regex is not proportionate when nothing is broken and the fix is three lines.
+      WHAT CLOSES IT, one commit, and do it the next time that file is open: change the level-half
+      gate to the exact literal `/if \(plan === 'force'\) \{/` with a message saying why extra
+      conjuncts are forbidden HERE and belong in the predicate (the arm's gate is already exactly
+      this shape and is the model), and re-run the one-sided mutation above; it must red.
+    evidence_status: "measured (two mutations, each 99 files / 663 tests green); no present defect"
+  - finding: >-
+      WR-04 — CONFIRMED AT SOURCE. The self-cancel's comment (`PlayingHost.tsx:1858-1878`) offers
+      two mechanisms and neither is true as stated. (1) "a session that goes endless or ends its
+      run since the press ... drops the one-shot HERE": `modeRef` and `runEndedRef` are refs and
+      are deliberately not deps, and `certLevelPlan`'s only dep is `levelId`, so neither a mode
+      change nor a run end re-runs this effect on its own — the drop happens opportunistically,
+      on the next change to `levelReady` / `levelError` / `fxReady` / `levelId` / `tierOverride`.
+      (2) "the tier-change effect is declared ABOVE this one, so ... its campaign branch has
+      already cleared the run-ended latch by the time this body runs": false when the tier was
+      already `mid` (the effect returns at `tierOverrideRef.current === tierOverride` and never
+      calls `remountDevSession`), and false when `remountDevSession` early-returns on
+      `!levelReady || levelError != null || !fxReady` — which sits ABOVE its
+      `runEndedRef.current = false;`.
+    category: other
+    reason: >-
+      ADVISORY. Behaviour is fine and I traced why: the self-cancel is evaluated on EVERY run of
+      the effect, ahead of the discharge test, so it can never be bypassed on a commit where the
+      discharge could fire; and on both real discharge paths the predicate answers `'ready'` from
+      the `level-03` test regardless of the latch, so the ordering claim is decorative rather than
+      load-bearing. The comment's own NEXT sentence already states that robust reason correctly.
+      This is inherited reasoning attached to correct code, in a source comment — no operator
+      action, no measurement, no behaviour.
+      WHAT CLOSES IT: delete the two mechanism sentences and keep the sentence that is true —
+      the predicate answers `'ready'` from the level test regardless of the latch, so a legitimate
+      discharge is robust either way — and say plainly that the drop is opportunistic, taken on
+      the next dependency change rather than at the moment the session turns.
+    evidence_status: "structural, confirmed at source (deps array; tier-effect early return; remountDevSession early return above its clear)"
+  - finding: >-
+      Carried and re-confirmed, all deliberately out of round-6 scope: (a) five near-identical
+      run-boundary reset blocks in `PlayingHost.tsx`, still the structural cause of this phase's
+      fix-one-half-leave-the-neighbour pattern and still the right first task for Phase-14 work in
+      this file; (b) `runCertWorstCase`'s deps comment still says "setLevelId / setTierOverride
+      are stable useState setters" when `setLevelId` is a `useCallback` (pre-existing, commit
+      `e20b1f2`); (c) the `Cert WC` cell of the run-boundary table (`ENDLESS-MODE.md:261`) is now
+      a single table cell of roughly 1,700 words carrying five dated revisions and is unreadable
+      as a table — 11-20 deliberately corrected its content without restructuring it and routed
+      the rewrite-versus-patch choice to the owner, which is still open; (d) `codeOnly()` strips
+      `//` but not `/** */`, which is why two functions carry a `//`-only formatting constraint.
+    category: architectural
+    reason: "Re-read this round, each still true, each inert or fail-safe today. Recorded so they are not rediscovered as new."
+    evidence_status: "structural only — no failing artifact"
+  - finding: >-
+      Two lint warnings, both in test code, unchanged since round 3:
       `Array type using 'ReadonlyArray<T>' is forbidden` at
       `tests/ui/PlayingHost.endless-host.test.ts:367` and `:372`.
     category: other
     reason: >-
-      Re-measured in this process: `npx eslint` over the four changed source/test files reports
-      0 errors and exactly 2 warnings. `npx tsc --noEmit` exits 0. Cosmetic; `eslint --fix`
-      clears it.
-    evidence_status: "measured (eslint 0 errors / 2 warnings, tsc exit 0), non-blocking by severity"
+      Re-measured in this process: `npx eslint` over the seven changed source/test files reports
+      0 errors and exactly 2 warnings; `npx tsc --noEmit` exits 0. Cosmetic; `eslint --fix` clears it.
+    evidence_status: "measured (eslint 0 errors / 2 warnings, tsc exit 0)"
 behavior_unverified_items:
   - truth: >-
-      SC-5 / N-END-03 — wave transitions do not stall the loop: the next board is ready without
-      a frame spike that breaks the Mid budget
+      SC-5 / N-END-03 — wave transitions do not stall the loop: the next board is ready without a
+      frame spike that breaks the Mid budget
     test: >-
-      Launch a dev build (NOT a `CERT_HARNESS` / profiling build — that one mounts on
-      `level-03` and auto-arms the cert injection); arm the perf overlay; press the `Endless`
-      button in the `__DEV__` dev row on the playing HUD; play waves 1 through 5; watch each
-      transition specifically — the moment the last brick of a board breaks and the next board
-      appears. DO NOT PRESS `Cert WC` AT ANY POINT, and this round makes that instruction
-      stronger rather than weaker: gap 1 means a press from an ended campaign panel can leave a
-      worst-case injection ARMED behind you, and gap 2 means a press on the other branch QUEUES
-      a load that lands on the first frame of your NEXT run. If `Cert WC` is pressed at all,
-      restart the app and take the reading again. `Lv` is safe (it is an explicit exit that ends
-      the run visibly). Carry these corrections to ENDLESS-MODE.md as it stands after round 5:
-      the glow-atlas re-bake reason is correctly WITHDRAWN — do not discard a reading for it;
-      the round-4 `level-03`-is-the-default error is CORRECTED (advisory A1 closed); but the
-      round-5 sentence saying the injection lands "in a world whose loop is already stopped" is
-      WRONG (gap 2) — treat the injection as live and contaminating the next run.
+      Launch a dev build (NOT a `CERT_HARNESS` / profiling build — that one mounts on `level-03`
+      and auto-arms the cert injection); arm the perf overlay; press the `Endless` button in the
+      `__DEV__` dev row on the playing HUD; play waves 1 through 5; watch each transition
+      specifically — the moment the last brick of a board breaks and the next board appears.
+      DO NOT PRESS `Cert WC` AT ANY POINT. Round 6 makes the reason for that instruction ACCURATE
+      for the first time, and the accurate reason is the stronger one: a press does not spend its
+      worst-case load on the run that just ended, it QUEUES the load on `certRequest` and it lands
+      on the FIRST FRAME OF YOUR NEXT RUN — including a `Retry` from the panel you are looking at.
+      If `Cert WC` is pressed at all, restart the app and take the reading again. `Lv` is safe (an
+      explicit exit that ends the run visibly). `docs/ops/ENDLESS-MODE.md` § Limits item 2 now
+      states this correctly and no longer needs a verifier's correction carried alongside it — the
+      round-5 "world whose loop is already stopped" clause is GONE from the repo (measured 0), and
+      the round-4 `level-03`-is-the-default error stays corrected.
     expected: >-
       No visible black playfield at a transition; no audio hiccup; no `[audio] preload soft-fail`
       line in the log mid-run; frame times stay inside the Mid budget across each transition
       (p50 <= 16.7 ms, p95 <= 20 ms). The stretched glow halo on every brick is EXPECTED and
-      ACCEPTED (A-04) — not a fifth failure signature.
+      ACCEPTED (A-04) — not a failure signature.
     why_human: >-
-      No automated step in this repo can produce a frame on hardware. Everything proven so far
-      shows only that the bake/audio-preload COLD PATH IS NOT ENTERED at a transition — a source
-      argument (11-05's D-14 re-key of `loadKey` onto brick dimensions alone) plus a jsdom
-      observation. The 0.56 ms generate+compile figure is a Node microbenchmark scaled by a
-      15.5x Hermes ratio taken from an iOS simulator. No round-5 task claimed this half, and
-      N-END-03 correctly stays `[ ]`.
+      No automated step in this repo can produce a frame on hardware; nothing here drives a
+      Reanimated worklet. Everything proven so far shows only that the bake/audio-preload COLD
+      PATH IS NOT ENTERED at a transition — a source argument (the advance block sits ABOVE the
+      `simFrozen` computation in `onFrame`, `src/runtime/useGameLoop.ts:446-458`, so a transition
+      never stops or restarts the frame callback) plus a jsdom observation. The 0.56 ms
+      generate+compile figure is a Node microbenchmark scaled by a 15.5x Hermes ratio from an iOS
+      simulator. No round-6 task claimed this half and `N-END-03` correctly stays `[ ]`.
   - truth: >-
-      (Backstop, 11-15) E1 — a 320px Results panel at a 7-digit score and a 4-digit wave shows
-      no wrap and no clipping
+      (11-19 truth 8) An arm cannot outlive its own reachability — the deferred-cert effect's
+      self-cancel drops `certPendingRef` when the predicate answers `'unreachable'` at discharge
+      time
+    test: >-
+      On a dev build: from a mounted campaign Results panel already at `level-03`, press
+      `Cert WC` (this arms legitimately, cell 7), then leave to endless via the `Endless` dev
+      button before the deferral discharges, then return to a campaign `level-03` session. The
+      one-shot must NOT fire on that later session.
+    expected: "Zero worst-case injections on the later session — the arm was dropped, not carried."
+    why_human: >-
+      MEASURED IN THIS PROCESS: deleting the entire self-cancel clause from
+      `app/_components/PlayingHost.tsx` reds exactly ONE case — the SOURCE contract `the
+      deferred-cert effect is the predicate's third consumer (round-6 self-cancel)` — and leaves
+      662 of 663 behaviour tests GREEN. The clause is pinned at source only; its positive
+      direction is unobservable by any harness in this repo, and 11-19-SUMMARY.md says so in its
+      own words rather than claiming it proven, which is why this is recorded as present-behaviour-
+      unverified rather than as an over-claim. Note that gap 1's closure does NOT depend on it:
+      cell 5 stayed green under the same deletion, so the arm fix alone carries the gap.
+  - truth: >-
+      (Backstop, 11-15 / 11-21) E1 — a 320px Results panel at a 7-digit score and a 4-digit wave
+      shows no wrap and no clipping
     test: >-
       On a device or a layout-capable renderer, open an endless Results panel with
       `score = 9999999` and `wave = 1234` and inspect the `Score ·`, `Wave ·`, `Best ·` and
@@ -490,74 +358,82 @@ behavior_unverified_items:
     expected: "Every line renders on one row, fully visible, with no ellipsis and no overflow."
     why_human: >-
       `verification: backstop`. jsdom computes no layout, so this cannot be observed by any test
-      this repo can run. 11-UI-SPEC's ~28-monospace-character fit is arithmetic, not a
-      rendering; asserting it would convert a backstop into a false `covered`. Abstained, as
-      11-09, 11-11, 11-12, 11-15 and 11-17 each left it.
+      this repo can run. 11-UI-SPEC's ~28-monospace-character fit is arithmetic, not a rendering;
+      asserting it would convert a backstop into a false `covered`. Abstained, as 11-09, 11-11,
+      11-12, 11-15, 11-17 and 11-21 each left it.
   - truth: >-
-      (Backstop) E3 — a 48px HUD row at a 7-digit score and a 3-digit combo shows no wrap and no
-      clipping
-    test: >-
-      Same, against the playing HUD row at `score = 9999999` and `combo = 137`.
+      (Backstop, 11-21) E3 — a 48px HUD row at a 7-digit score and a 3-digit combo shows no wrap
+      and no clipping
+    test: "Same, against the playing HUD row at `score = 9999999` and `combo = 137`."
     expected: "The HUD row renders on one line at 48px with no wrap and no clipping."
     why_human: "Same — jsdom computes no layout. Abstained."
+coincidental_reliance_items: []
 human_verification:
   - test: >-
-      SC-5 device reading — see `behavior_unverified_items[0]` for the full procedure and the
-      three corrections to carry into it, one of which is new this round and makes the
-      do-not-press warning stricter.
+      SC-5 device reading — see `behavior_unverified_items[0]` for the full procedure. This is the
+      FIRST round where the procedure carries no verifier correction: the do-not-press warning and
+      the "restart the app and take the reading again" instruction are both in the document,
+      both survive verbatim, and the reason given for them is now true of the shipped code.
     expected: "p50 <= 16.7 ms and p95 <= 20 ms across each wave-1..5 transition, with none of the four failure signatures."
     why_human: "No automated step in this repo can produce a frame on hardware."
-  - test: "E1 / E3 overflow backstops — see `behavior_unverified_items[1]` and `[2]`."
+  - test: >-
+      The cert self-cancel's positive direction — see `behavior_unverified_items[1]`. Optional,
+      and explicitly NOT load-bearing for gap 1: it is belt-and-braces added by 11-19 beyond what
+      the gap required, and its absence reds only a source contract.
+    expected: "Zero injections on a later campaign level-03 session after an intervening endless detour."
+    why_human: "No harness in this repo can observe the positive direction of the drop."
+  - test: "E1 / E3 overflow backstops — see `behavior_unverified_items[2]` and `[3]`."
     expected: "No wrap, no clipping, at the stated extreme values."
     why_human: "jsdom computes no layout."
   - test: >-
-      FLAGGED PROHIBITION (judgment tier, carried by four consecutive plans and now by 11-18):
-      "MUST NOT assert an invariant in docs/ops/ENDLESS-MODE.md that the shipped code does not
-      hold." Non-authoritative verifier judgement: NOT HELD, and this round it is NOT a judgement
-      call — the falsifying evidence is structural and is recorded as gap 2 (the press does not
-      inject into the stopped world; the request is queued and lands on the next run's first
-      frame). Round 4's A1 falsehood IS corrected; a new one replaced it in the same block. The
-      owner decision required here is not whether the clause is wrong but whether a fifth
-      correction round is proportionate, or whether the block should be rewritten once from the
-      shipped mechanism rather than patched a sixth time.
-    expected: "An owner decision: authorise the gap-2 correction as written, or commission a single rewrite of § Limits item 2 and the table row from source."
-    why_human: >-
-      unverified-prohibition — human review recommended. The prohibition itself is judgment tier;
-      the specific falsification backing it this round is not, which is why it also appears as a
-      gap rather than only here.
+      FLAGGED PROHIBITION (judgment tier, carried by five consecutive plans and now by 11-20):
+      "MUST NOT assert an invariant in `docs/ops/ENDLESS-MODE.md` that the shipped code does not
+      hold." Non-authoritative verifier judgement: HELD for the MECHANISM — the round-5 falsehood
+      is gone from the repo (measured 0 occurrences across its four owning files, base 6) and its
+      replacement is true link by link, which I re-derived at source rather than adopting from the
+      SUMMARY. NOT held for one SOURCE POINTER: `:261` and `:485` still cite an expression 11-19
+      deleted (advisory WR-01). The behavioural content of both sentences remains true and the
+      operator consequence is unchanged, which is why I classified it advisory under this phase's
+      own round-4/round-5 severity test rather than as a sixth blocking round.
+      The owner decision this asks for is the one round 5 already routed here and 11-20
+      deliberately did not take: patch the pointer in place (three lines), or commission the single
+      rewrite of § Limits item 2 and the `:261` table cell from source that both have now earned —
+      the cell is ~1,700 words carrying five dated revisions.
+    expected: "An owner decision: authorise the WR-01 pointer patch as written, or commission the one-time rewrite."
+    why_human: "unverified-prohibition — human review recommended. Judgment tier by declaration."
   - test: >-
-      FLAGGED PROHIBITIONS (judgment tier, all remaining 11-17 and 11-18 statements). Verifier
-      judgement, non-authoritative: HELD for all of them, on the evidence in this report.
-      Specifically: the `Cert WC` TIER half is not gated and the control is not disabled
-      (`:1779-1782` untouched; the endless tier-half boundary case is green); a press from a LIVE
-      campaign run is byte-for-byte unchanged (the two pre-existing cert cases are unedited and
-      stay GREEN under the conjunct-removal mutation that reds both new cases); no SIXTH reset
-      block was added (`grep -c 'runEndedRef.current = false;'` is 5, unchanged); no latch is
-      cleared without its chrome writes; none of 11-15's three mutation-killed assertions was
-      deleted, weakened or re-pointed; the three `if (!runEndedRef.current)` record-once guards
-      survive and are now pinned by shape and by count; no block comment was added to either
-      function; no counted literal is restated in prose inside `runCertWorstCase`; no existing
-      `endless-retry` assertion was edited to accommodate the repaired mock (the `0` arm keeps
-      every level-01 case byte-identical); `git diff -- src/core src/levelgen` is empty and the
-      glow-atlas bake key is untouched; 11-17 did not touch REQUIREMENTS.md and 11-18 touched
-      only it plus two docs; no plan 11-01..11-17 was renumbered or superseded; no superseded
-      claim was erased (both the ENDLESS-MODE and 11-15-SUMMARY corrections sit beside their
-      originals, dated); the do-not-press and "restart the app and take the reading again"
-      instructions survive verbatim; the SC-5 OPEN block, the A-04 acceptance and the round-3
-      glow-atlas withdrawal all survive; no device reading was written; and N-END-03 is untouched
-      at `[ ]` with its caveat intact.
+      FLAGGED PROHIBITIONS (judgment tier, all remaining 11-19, 11-20 and 11-21 statements).
+      Verifier judgement, non-authoritative: HELD for all of them, on the evidence in this report.
+      Specifically, and each checked rather than assumed: the `Cert WC` TIER half is untouched and
+      the control is not disabled (`if (tierOverride !== 'mid')` unchanged, no early return added);
+      no sixth run-boundary reset block was added and `runCertWorstCase` still clears no latch
+      (`runEndedRef` occurrences in that body = 0, gate green); the level half stays GUARDED rather
+      than resetting; every behaviour delta is named with its cell and its measured before/after
+      (cell 5, `04:0 | 05:0 | 06:0 | 03:1` pre-fix -> 0 at every step post-fix; cell 7 unchanged at
+      1); no instrument was weakened, deleted or re-pointed to make a new one pass — the one pin
+      that was MOVED (`runEndedRef` 1 -> 0 inside `runCertWorstCase`) is strictly stronger than
+      what it replaced and carries its reason in its own assertion message and in a comment naming
+      the measured bases; ASSERTION 5 in `tests/ui/PlayingHost.endless-host.test.ts` is byte-
+      unchanged; `git diff --name-only 6bb18bf..HEAD -- src/` is EMPTY so no `src/runtime` behaviour
+      moved and no glow-atlas bake key was touched; no superseded claim was erased (every correction
+      is dated and describes what it supersedes, with the verbatim record in git at `6bb18bf`, the
+      treatment this phase settled on when a discriminating gate pins a false literal at 0); the
+      do-not-press and restart instructions survive verbatim and got stronger, not weaker; the SC-5
+      OPEN block, the A-04 acceptance and the round-3 glow-atlas withdrawal all survive; no device
+      reading was written; N-END-03 is untouched at `[ ]`; `.planning/REQUIREMENTS.md` was touched
+      by exactly one commit (`661af86`) and `requirements.mark-complete` was not run.
     expected: "Spot-confirm or overrule the judgement."
     why_human: >-
       unverified-prohibition — human review recommended. Judgment tier by declaration; recorded
       here rather than silently absorbed into the score.
 ---
 
-# Phase 11: Endless Mode — Verification Report (round 5)
+# Phase 11: Endless Mode — Verification Report (round 6)
 
 **Phase Goal:** A player can start a run that keeps producing boards until they lose, with a record worth chasing
-**Verified:** 2026-09-26T21:55:00Z
-**Status:** gaps_found
-**Re-verification:** Yes — round 5, after plans 11-17 and 11-18
+**Verified:** 2026-09-26T15:56:05Z
+**Status:** human_needed
+**Re-verification:** Yes — round 6, after plans 11-19, 11-20 and 11-21
 
 ## Goal Achievement
 
@@ -567,91 +443,119 @@ human_verification:
 
 | # | Truth (SC) | Status | Evidence |
 |---|------------|--------|----------|
-| 1 | Clearing a board advances to the next generated one in the same run; lives, score and combo carry over; the run ends only at zero lives | ✓ VERIFIED | Regression this round. `tests/endless.wave-loop.test.ts`, `tests/endless.determinism.test.ts` and the `endless-retry` / `endless-run` host suites are all inside the green workspace run (97 files / 648 tests). Round 4's run-ENDED half — the hoisted `applyChrome` latch — is unchanged and still mutation-pinned; round 5 adds the last re-arm path and did not touch the wave loop (`git diff 86c031b..HEAD -- src/core src/levelgen` empty) |
-| 2 | Difficulty rises with wave number through the generator's difficulty input, with the ramp written down | ✓ VERIFIED | Regression. `docs/ops/ENDLESS-MODE.md:15-29` is the written-down ramp (wave 1 = difficulty 0, +1 per wave, clamped at `D_MAX = 20`, D-01/D-02); the policy is two pure integer functions in `src/services/endless/ramp.ts` guarded by `tests/endless.ramp.test.ts`. Untouched by round 5 |
-| 3 | Endless records stored separately from campaign progress; endless play cannot unlock, lock or alter a campaign level's best or stars | ✓ VERIFIED | Regression plus a round-5 strengthening. Storage firewall (`RecordRunEndArgs` discriminated union, `ENDLESS_TELEMETRY_KEY`, `tests/storage.endless-firewall.test.ts`) unchanged; the round-3 driven render case in `endless-record.test.tsx` unchanged; round 5 closes the run-ENDED campaign twin (WR-02) with a case whose pass is non-vacuous for the first time — the `getBestForLevel` mock now honours its `id` and the case carries a positive control |
-| 4 | A seeded endless run is reproducible end to end — same seed and inputs replay to the same wave | ✓ VERIFIED | Regression. `tests/endless.determinism.test.ts` green; scope (headless only; a device run is not replayable, no per-tick intent recorder) is recorded in ENDLESS-MODE.md and re-stated in 11-17's flagged assumptions. Untouched by round 5 |
-| 5 | Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | The source argument holds and is unchanged: the advance block sits ABOVE the `simFrozen` computation in `onFrame` (`src/runtime/useGameLoop.ts:446-458`), so a transition never stops or restarts the frame callback and no `setActive` call is involved. The DEVICE half is unmeasurable in jsdom and no round-5 task claimed it. Routed to human verification; `N-END-03` correctly stays `[ ]` |
+| 1 | Clearing a board advances to the next generated one in the same run; lives, score and combo carry over; the run ends only at zero lives | ✓ VERIFIED | Regression, and the strongest possible form of one this round: `git diff --name-only 6bb18bf..HEAD -- src/` is **EMPTY**. No simulation, generator, runtime or storage file moved. `tests/endless.wave-loop.test.ts`, `tests/endless.determinism.test.ts` and the `endless-retry` / `endless-host` suites are all inside a green workspace run I executed: **99 files / 663 tests passed** |
+| 2 | Difficulty rises with wave number through the generator's difficulty input, with the ramp written down rather than tuned by feel in code | ✓ VERIFIED | Regression. `docs/ops/ENDLESS-MODE.md:15-29` is the written-down ramp (wave 1 = difficulty 0, +1 per wave, clamped at `D_MAX = 20`, D-01/D-02), explicitly framed as what satisfies SC-2 beyond a correct function; the policy is two pure integer functions in `src/services/endless/ramp.ts` guarded by `tests/endless.ramp.test.ts`. Untouched by round 6 |
+| 3 | Endless records stored separately from campaign progress; endless play cannot unlock, lock or alter a campaign level's best or stars | ✓ VERIFIED | Regression, and I checked the one thing round 6 could have disturbed. The storage firewall (`RecordRunEndArgs` discriminated union, `ENDLESS_TELEMETRY_KEY`, `tests/storage.endless-firewall.test.ts`) is untouched — no `src/` change at all. The display firewall's guard, the WR-02 case on the rendered campaign `Best ·`, rides on the cert level half, and I verified the level half is **byte-equivalent** under the new predicate (`plan === 'force'` ⟺ the shipped three-term condition, derived term by term below), so that case is unchanged and green |
+| 4 | A seeded endless run is reproducible end to end — same seed and inputs replay to the same wave | ✓ VERIFIED | Regression. `tests/endless.determinism.test.ts` green inside the 663; scope (headless only — a device run is not replayable, no per-tick intent recorder) recorded in ENDLESS-MODE.md and re-stated in every round's flagged assumptions. Untouched by round 6 |
+| 5 | Wave transitions do not stall the loop: the next board is ready without a frame spike that breaks the Mid budget | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | The source argument holds and is unchanged: the advance block sits ABOVE the `simFrozen` computation in `onFrame` (`src/runtime/useGameLoop.ts:446-458`), so a transition never stops or restarts the frame callback and no `setActive` call is involved. The DEVICE half is unmeasurable in jsdom and no round-6 task claimed it — 11-20 and 11-21 both carry an explicit prohibition against claiming it. Routed to human verification; `N-END-03` correctly stays `[ ]` |
 
-#### Round-4 gap, re-verified in full
-
-| # | Truth | Status | Evidence |
-|---|-------|--------|----------|
-| 6 | No path that begins or resumes a run can be locked out of its own chrome, and the set `every` quantifies over is DERIVED rather than asserted (11-15 truth 6; the round-4 gap) | ✓ VERIFIED | Closed by the GUARD shape. `PlayingHost.tsx:1771-1775`. MUTATION: deleting `:1772` reds exactly the two new `endless-retry` cases while the two pre-existing live-run cert cases stay green (29 passed / 2 failed). The enumeration is now mechanical — `setActive(true)` = 5, `setLevelId(` = 3, eight members, each classified |
-| 7 | Every member's classification is BOUND TO ITS SITE, not to an aggregate | ✓ VERIFIED | MUTATION: relocating `onRetry`'s `runEndedRef.current = false;` (`:1471`) into `goNext` holds the file-wide count at 5 and still reds ASSERTION 4 by name — "onRetry must clear the run-ended latch inside its OWN body ... expected -1 to be greater than or equal to 0" |
-| 8 | `onResume`'s exemption is stated at its FULL source condition and the load-bearing term is named | ✓ VERIFIED (coincidental-reliance) | ASSERTION 5 extracts `showPauseOverlay` from `src/runtime/GameScreen.tsx` and requires BOTH terms. MUTATION: dropping `&& result == null` reds the case, exactly as 11-17 declared. Flagged `coincidental-reliance` / incidental-ordering: it relies on the two terms being conjoined, which nothing asserts — see advisory 1 |
-| 9 | The `applyChrome` latch contract is no longer VACUOUS (round-4 advisory A2) | ✓ VERIFIED | MUTATION: `if (!runEndedRef.current)` -> `if (true)` at `PlayingHost.tsx:1098` now FAILS at `tests/ui/PlayingHost.endless-host.test.ts:726` on `GUARD_SHAPE`. The same mutation left round 4 green at 97 files / 645 tests. The contract states its own limits, and the endless WON branch is asserted honestly and separately |
-| 10 | A MOUNTED campaign Results panel keeps reading the level it was played on (WR-02), and the mock that hid it is repaired non-vacuously | ✓ VERIFIED | Both halves red under the conjunct-removal mutation; the positive control (four `Lv` presses move `best` to 7777 through the legitimate `toggleDevLevel` reset path) proves the mock is no longer blind |
-| 11 | The cert harness's CAMPAIGN behaviour from a LIVE run is byte-for-byte identical | ✓ VERIFIED | `:1737` and `:1782` unedited (`git diff` shows no change inside either case) and GREEN under the same mutation that reds both new cases |
-| 12 | Every new instrument is FALSIFIED with a named expected RED signal | ✓ VERIFIED | Four of the six declared falsifications re-run independently in this process (behaviour case, WR-02 case, `if (true)`, clear-relocation, `&& result == null` drop) — all red as declared |
-
-#### Round-5 documentation and record truths
+#### The two round-5 gaps — the round-6 commission
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 13 | ENDLESS-MODE.md's `level-03` characterisation is corrected (round-4 advisory A1) | ✓ VERIFIED | `docs/ops/ENDLESS-MODE.md:455-464`, dated, a replacement clause not a deletion. Re-checked at source: `GameHost.tsx:68` (`'level-01'`), `:196` (`CERT_HARNESS ? 'level-03' : activeLevelId`), `catalog.ts` `PLAYABLE_LEVEL_ORDER` with `level-03` last |
-| 14 | Both operator-facing statements of the `Cert WC` level half carry BOTH terms of its condition | ✓ VERIFIED | `:261` and `:481-486` each state all three terms (`!runEndedRef.current && modeRef.current !== 'endless' && levelId !== 'level-03'`) and agree with each other |
-| 15 | `docs/ops/ENDLESS-MODE.md` contains no false statement about the shipped code | ✗ FAILED | Gap 2. The A1 falsehood is gone; a new one about the round-5 mechanism replaced it in the same block, at `:261` and `:493` |
-| 16 | `11-15-SUMMARY.md`'s safety claim is corrected in place, beside the table that is right | ✓ VERIFIED | Dated `CORRECTION 2026-09-26 (round 5)` block at `:189+`. The five-row table survives; the correction restates the two-grep derivation, tabulates the eight members and names member 6 as structurally invisible to a chrome-writer enumeration |
-| 17 | N-END-01 and N-END-02 are re-ticked with dated closure notes naming instruments, not conclusions; N-END-03 stays unchecked | ✓ VERIFIED | `.planning/REQUIREMENTS.md:177-182`, committed separately (`b3f1397`) so the record of what was believed stays recoverable. See "Is the re-tick warranted?" below |
-| 18 | No `__DEV__` control arms a one-shot whose discharge preconditions the same change has made unreachable | ✗ FAILED | Gap 1. Reproduced by driven probe: 0 injections at the press, 1 on a later campaign session four `Lv` presses away. Pre-round-5 the same drive gave 1 at the press and 0 on the walk |
+| 6 | No `__DEV__` control arms a one-shot whose own discharge preconditions the same change has made unreachable | ✓ VERIFIED | **MUTATION IN THIS PROCESS.** Reverting the arm alone to its round-5 form reds **exactly one** case — `a CAMPAIGN press from a mounted lose panel with the tier AUTO arms nothing — the later Lv walk to level-03 injects nothing (round-6 gap 1)` — 1 failed / 32 passed in `endless-retry`. The defect the round-5 verifier reproduced by driven probe is now held by a case |
+| 7 | `docs/ops/ENDLESS-MODE.md` and its three code-adjacent siblings state the cert-press mechanism truthfully, backed by an instrument that can observe what it asserts | ✓ VERIFIED (see advisory WR-01) | The false clause: 6 occurrences at base `6bb18bf` (2/1/1/2 across the four owning files — I re-measured the base in git), **0 now**. `MEASURED, not derived` gone. Replacement re-derived by me link by link at `src/runtime/useGameLoop.ts` (787 bump → 440-442 sole consumer inside `onFrame` → 685 `useFrameCallback(onFrame, false)` → 441 sole `certApplied` write → 415 reset precedes 440). New instrument `tests/runtime.cert-request.test.ts` pins all five with non-vacuity guards. Residual: a stale SOURCE POINTER at `:261`/`:485` — advisory WR-01, behavioural content still true |
 
-**Score:** 37/40 truths verified (1 present, behavior-unverified). The table above shows the 18 load-bearing truths; the remaining 22 are round-1..4 must-haves re-checked as regressions (all still ✓ — the workspace suite is green at 97 files / 648 tests, up 3 from round 4's 645, and every round-5 change is confined to the four files in the diff).
+#### 11-19 — one predicate, three consumers
+
+| # | Truth | Status | Evidence |
+|---|-------|--------|----------|
+| 8 | ONE named predicate decides both halves; `certLevelPlanFor` defined exactly once; consulted exactly once per press through one memo | ✓ VERIFIED | `app/_components/certLevelPlan.ts` exists, is pure (no React, no refs, one type import). `const plan = certLevelPlan();` pinned at exactly 1 by a gate whose measured base was 0 |
+| 9 | Neither decision site re-tests the predicate's terms inline — `runEndedRef` = 0 and `modeRef` = 0 inside `runCertWorstCase`; both 0 inside the deferred-cert effect | ✓ VERIFIED | Gates green at `endless-host.test.ts:1538-1544` and `:1678-1684`, with measured bases 1 and 2 stated in the assertion messages and the round-5 pin of `runEndedRef` at EXACTLY 1 deliberately MOVED with its reason recorded — the one pin change this round, and it is strictly stronger than what it replaced |
+| 10 | The predicate is exhaustive over its REAL domain, and the domain is derived rather than asserted — 20 cells, level set read at runtime from `PLAYABLE_LEVEL_ORDER` | ✓ VERIFIED | `tests/ui/certLevelPlan.test.ts` imports `PLAYABLE_LEVEL_ORDER` from `src/services/storage/catalog.ts` (5 members, confirmed at source), asserts the table's key list equals it AS A SET, then drives all 2×2×5 cells. A sixth playable level reds the table rather than escaping it |
+| 11 | Exactly ONE cell of the 16-cell control cross-product changes behaviour, and it is cell 5 | ✓ VERIFIED | I derived this independently rather than accepting it: `plan === 'force'` ⟺ campaign ∧ `levelId !== 'level-03'` ∧ `!runEnded`, identical to the shipped three-term condition; `plan !== 'unreachable'` ⟺ campaign ∧ (`level-03` ∨ run live), versus the old arm's campaign — they differ only at campaign ∧ ENDED ∧ not-`level-03`, and the arm statement only runs when `defer` is true, which there requires the tier half, i.e. tier not Mid. That is cell 5 and no other |
+| 12 | Cell 5 (campaign / ENDED / `level-01` / tier AUTO) is DRIVEN on the real host: the press arms nothing and a four-step `Lv` walk to `level-03` injects nothing at any step | ✓ VERIFIED | The case exists, is green, and reds under the arm-revert mutation I ran. The walk asserts the rendered label at every step, so it cannot pass vacuously short |
+| 13 | Cell 7 (campaign / ENDED / already `level-03` / tier AUTO) — the nearest neighbour — still arms and still discharges exactly ONE injection | ✓ VERIFIED | `a CAMPAIGN press from a mounted lose panel ALREADY at level-03 with the tier AUTO still injects exactly once (cell 7, unchanged)`, green. The fix suppresses the stranded arm without disabling the harness where the discharge is genuinely reachable |
+| 14 | All eight pre-existing `Cert WC` cases stay green; `it(` in `endless-retry` moves 31 → 33 | ✓ VERIFIED | 33 tests in that file, all green on the unmutated tree; two added, none deleted |
+| 15 | An arm cannot outlive its own reachability — the deferred-cert effect's self-cancel | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | The clause is present and correctly placed (ahead of the discharge test, so it cannot be bypassed on a commit where the discharge could fire). But this is a CANCELLATION invariant and presence is not behaviour: **deleting the entire clause reds ONE source contract and leaves 662/663 behaviour tests green** (measured in this process). Source-pinned only. 11-19-SUMMARY says exactly this in its own words (`:47`), so it is an honest limit rather than an over-claim. Gap 1 does not depend on it — cell 5 stayed green under the deletion |
+
+#### 11-20 — the queueing instrument
+
+| # | Truth | Status | Evidence |
+|---|-------|--------|----------|
+| 16 | The false clause is at 0 across all four owning files; the three `.planning` REPORT files keep their copies | ✓ VERIFIED | Base re-measured by me in git at `6bb18bf`: 2 + 1 + 1 + 2 = 6. Now 0 in all four. The executor's reported reconciliation (6 at the plan's named base, 0 in `PlayingHost.tsx` on the tree it received, because sibling `07907f3` deleted that paragraph while extracting the predicate) is ACCURATE — I confirmed the commit and the file states |
+| 17 | The replacement statement is true link by link, each pinned by a re-runnable assertion | ✓ VERIFIED | Five links re-derived at source by me (see truth 7). `tests/runtime.cert-request.test.ts` holds five `it(` cases plus an extraction guard so a drifted anchor is RED rather than vacuously green |
+| 18 | `MEASURED, not derived` is gone; the `toHaveBeenCalledTimes(1)` assertion is kept and only its message moves | ✓ VERIFIED | Repo-wide grep for the phrase returns nothing |
+| 19 | § Limits item 2 states the OPERATOR consequence, not only the mechanism; `certRequest` named by identifier in both operator-facing locations | ✓ VERIFIED | `contaminates the next run` at `:514`; `restart the app and take the reading again` intact at `:553`; `certRequest` occurrences in the doc 0 → 3 |
+| 20 | `src/runtime` behaviour is NOT changed, and the reason is recorded rather than assumed | ✓ VERIFIED | `git diff --name-only 6bb18bf..HEAD -- src/` is empty. The plan records WHY the tempting `certApplied` reset was not taken (no harness can drive `onFrame`; and it would swallow the deferred-inject path) and flags it for Phase 14 with its two preconditions |
+| 21 | Both operator-facing locations agree with each other and neither erases what it supersedes | ✓ VERIFIED (see advisory WR-01) | `:261` and `:484-520` both carry the queued-load correction, dated, describing rather than quoting the superseded wording (the verbatim original in git at `6bb18bf`), consistent with each other. The stale source citation they both also carry is advisory WR-01 — it was created by sibling plan 11-19 and claimed by no plan |
+
+#### 11-21 — the advisory decision and the record
+
+| # | Truth | Status | Evidence |
+|---|-------|--------|----------|
+| 22 | The round-5 advisory gets an explicit decision: `showPauseOverlay` acquires a NEGATIVE render case, with the rejected alternative recorded | ✓ VERIFIED | Two new cases in `tests/ui/GameScreen.test.tsx` (`:122`, `:131`) |
+| 23 | The negative cases are behavioural and go RED under the operator mutation | ✓ VERIFIED | **MUTATION IN THIS PROCESS:** `&&` → `\|\|` on `GameScreen.tsx:110-111`, all of `tests/ui` → **2 failed / 149 passed**, and the two failures are exactly the new cases. The same mutation left the workspace green in round 5. ASSERTION 5 untouched, as the prohibition required |
+| 24 | `.planning/REQUIREMENTS.md` is coherent — no `- [ ]` above a note whose first word is `Closed` | ✓ VERIFIED | I ran the coherence gate over the current file myself: **0 pairs**. The executor's reported base correction (3 such pairs, not the plan's 2 — N-END-02 carries two closure notes) is accurate against the file |
+| 25 | N-END-01 and N-END-02 re-ticked on round-6 evidence, each note AMENDED rather than re-stated; the round-5 "last re-arm path" clause corrected | ✓ VERIFIED | `:177-181`. The amendment names the neighbouring cell the round-5 enumeration missed and cites the 20-cell table, the two driven host cases and the re-pointed source contract — every one of which I verified exists and does what the note says |
+| 26 | N-END-03 stays `[ ]` with an accurate caveat, gaining one sentence that round 6 repaired the INSTRUCTIONS without taking the reading | ✓ VERIFIED | `:183`. The sentence is true: 11-20 repaired § Limits item 2 and took no reading |
+| 27 | The requirements edit is EVIDENCE-GATED, not schedule-gated | ✓ VERIFIED | The SUMMARY records the three transcripts. I re-ran all three independently: `npx vitest run` 99 files / 663 tests passed, `npx tsc --noEmit` exit 0, `npx eslint` 0 errors / 2 carried warnings |
+| 28 | `.planning/REQUIREMENTS.md` touched by exactly ONE commit this round; `requirements.mark-complete` not run | ✓ VERIFIED | `git log 6bb18bf..HEAD -- .planning/REQUIREMENTS.md` → `661af86` only |
+
+**Score:** 26/28 truths verified (2 present, behavior-unverified: SC-5's device half and 11-19's self-cancel). The table enumerates the 28 load-bearing truths for this round. Rounds 1–5's remaining must-haves were re-checked as regressions and are all still ✓ — the workspace is green at 99 files / 663 tests (up 15 from round 5's 648) and `git diff -- src/` over the round-6 base is empty, so no behavioural regression surface was even touched.
 
 ### Is the N-END-01 / N-END-02 re-tick warranted?
 
-**Yes, on my own evidence, with one thing worth saying out loud.** Both requirements' substance is verified independently above (SC-1 and SC-3), the closure notes name instruments rather than conclusions, they state plainly that the claim rests on the round-4 verifier's judgement plus round-5 instruments and **not** on a fresh first-principles audit, and they point at N-END-03's still-open device half. That is an unusually honest closure note and I would not send it back.
+**Yes, on my own evidence, and more comfortably than in round 5.** Both requirements' substance is verified independently above (SC-1 and SC-3). The closure notes name instruments rather than conclusions, they still state plainly that the claim rests on named instruments plus a verifier's judgement and **not** on a fresh first-principles audit, and — the thing round 5 asked for — the round-5 clause calling the tier-already-Mid case "the last re-arm path" has been amended rather than left standing. The amendment says what the case actually covered, names the neighbouring cell that was a live defect, and points at the 16-cell enumeration that now covers both. That is the phase correcting its own record in the requirements file instead of leaving a sixth instance of "correct about the half that was fixed, silent about the neighbour" in the one document a future milestone will read first.
 
-The thing worth saying: N-END-01's note credits `an ENDED campaign run is not re-armed ...` as "the last re-arm path". Gap 1 shows that press still arms something on the neighbouring branch. That does not falsify N-END-01 — the requirement is about the endless wave loop and its zero-lives end, and the stranded one-shot is campaign-side `__DEV__` bookkeeping that touches neither. The box stays `[x]`. But the word "last" is one round premature, and if the closure plan for gap 1 is written it should amend that clause rather than leave a fifth instance of "correct about the half that was fixed, silent about the neighbour" in the requirements file itself.
+The boxes and the notes now agree in both directions (gate: 0 unticked-above-`Closed` pairs), which was the round-5 record gap.
 
-**N-END-03 stays `[ ]`, correctly.** No round-5 task claimed the device half, and none did.
+**N-END-03 stays `[ ]`, correctly.** No round-6 task claimed the device half; two plans carry an explicit prohibition against claiming it; and the note records what round 6 *did* do for it (repaired the instructions) without inflating that into a reading.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `app/_components/PlayingHost.tsx` | Level half guarded on the run-ended latch | ✓ VERIFIED (with gap 1 open in the same function) | `:1772` present and mutation-pinned; `:1806` arming term is gap 1 |
-| `tests/ui/PlayingHost.endless-retry.test.tsx` | The ENDED-campaign behaviour case + the WR-02 sibling + the repaired mock | ✓ VERIFIED | Both cases red under the conjunct-removal mutation; positive control present; 31 tests in the file, all green on the unmutated tree |
-| `tests/ui/PlayingHost.endless-host.test.ts` | CONTRACT A (re-arm enumeration) + CONTRACT B (de-vacuumed latch contract) | ✓ VERIFIED | Both mutation-killed in this process; 26 tests green |
-| `docs/ops/ENDLESS-MODE.md` | A1 corrected; both terms stated; SC-5 block intact | ⚠️ HOLLOW — corrected where asked, newly wrong elsewhere | A1 closed (`:455-464`); both terms stated (`:261`, `:481-486`); SC-5 OPEN block, do-not-press warning and restart instruction all survive verbatim. Gap 2 is at `:261` and `:493` |
-| `.planning/phases/11-endless-mode/11-15-SUMMARY.md` | Correction beside the table | ✓ VERIFIED | `:189+`, dated, table kept |
-| `.planning/REQUIREMENTS.md` | N-END-01/02 re-ticked with dated notes; N-END-03 untouched | ✓ VERIFIED | `:177-182`; separate commit `b3f1397` |
-| `src/runtime/useGameLoop.ts` | Not in scope for round 5 — read only | ✓ UNCHANGED | `git diff 86c031b..HEAD -- src/runtime` empty. Read here because gap 2's mechanism lives in it |
+| `app/_components/certLevelPlan.ts` | The pure three-way policy, no React, no refs | ✓ VERIFIED | 80 lines, one type import (`LevelId` via `src/runtime/loadLevel`, chosen because `app -> core` is not an allowed boundary edge), three ordered tests each with its recorded reason. Imported and used by `PlayingHost.tsx:67-69` |
+| `tests/ui/certLevelPlan.test.ts` | 20-cell exhaustive table, domain derived from the catalog | ✓ VERIFIED | Imports `PLAYABLE_LEVEL_ORDER`, asserts set equality, drives all 20 cells, then names the two gap-relevant cells with their consequence |
+| `app/_components/PlayingHost.tsx` | One memo, three consumers, zero inline term tests | ✓ VERIFIED | `certLevelPlan` memo at `:1720-1727`; consumers at `:1741`/`:1836`, `:1838`, `:1879`. Both identifier gates at 0. Gap 1 mutation-pinned |
+| `tests/runtime.cert-request.test.ts` | Five links of the queued-load claim, over shipped source | ✓ VERIFIED | New file, 141 lines, 5 `it(` + extraction guard; every link independently re-derived by me at `src/runtime/useGameLoop.ts` |
+| `tests/ui/GameScreen.test.tsx` | Negative render cases for the pause-overlay conjunction | ✓ VERIFIED | Two cases, both red under the `&&` → `\|\|` mutation I ran; case 2 carries a positive control (the result overlay's `Retry level` IS present in the same render), so the absence is the gate refusing rather than an empty screen |
+| `tests/ui/PlayingHost.endless-host.test.ts` | Re-pointed source contract: one definition, one call, zero inline re-tests | ✓ VERIFIED (level-half gate loose — advisory WR-03) | Both 0-counts discriminating with stated bases. The arm is exact-literal pinned; the level half's gate is a loose regex that accepts extra conjuncts (measured) |
+| `tests/ui/PlayingHost.endless-retry.test.tsx` | Cell 5 and cell 7 driven; the `:1824` message corrected | ✓ VERIFIED | 33 tests, all green; cell 5 reds under the arm revert |
+| `docs/ops/ENDLESS-MODE.md` | Queued-load correction in both operator-facing locations, operator consequence stated, SC-5 block intact | ✓ VERIFIED (stale source pointer — advisory WR-01) | `:261` and `:484-520` corrected and dated; `contaminates the next run` at `:514`; do-not-press and restart instructions intact at `:553`; SC-2 ramp block and A-04 acceptance untouched |
+| `.planning/REQUIREMENTS.md` | Boxes and notes that agree; N-END-03 untouched at `[ ]` | ✓ VERIFIED | 0 incoherent pairs; one commit (`661af86`) |
+| `src/` (all) | Out of scope for round 6 — read only | ✓ UNCHANGED | `git diff --name-only 6bb18bf..HEAD -- src/` is empty. Read here because gap 2's mechanism lives in `useGameLoop.ts` |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| `runCertWorstCase` level half (`PlayingHost.tsx:1776`) | compiled-push gate effect (`:676-702`) | `setLevelId('level-03')` -> `retry(); setActive(true)` | ✓ WIRED AND NOW GUARDED | Driven probe: on an ended campaign run the `Lv` label stays `level-01`, `retry` not called, zero `setActive(true)` |
-| `runCertWorstCase` `defer` branch (`:1806`) | deferred-cert effect (`:1815-1832`) | `certPendingRef` one-shot | ✗ NOT_WIRED — armed without a reachable discharge | Gap 1. On the campaign / tier-AUTO branch the arm fires and the `levelId === 'level-03'` precondition has just been made unreachable by `:1772` |
-| `injectCertWorstCase` (`useGameLoop.ts:785`) | `applyCertWorstCaseInject` (`:442`) | `certRequest` SharedValue consumed only in `onFrame` | ⚠️ PARTIAL — real, but not what three artifacts say it is | Gap 2. With the loop inactive the request is queued, not applied; nothing resets `certApplied`, so it lands on the next run's first frame |
-| `runCertWorstCase` level half | `getBestForLevel` preload (`:459-490`) -> `setResultBest` -> `Best ·` | `levelId` change past a mounted panel | ✓ CLOSED | WR-02 case green; red under conjunct removal; positive control proves observability |
-| `onResume` (`:1206-1221`) | `PauseOverlay` | `showPauseOverlay` (`GameScreen.tsx:110-111`) | ✓ WIRED | Both terms asserted by ASSERTION 5; dropping `result == null` reds it. See advisory 1 for what that assertion does not cover |
+| `certLevelPlanFor` (pure) | the `certLevelPlan` memo | `certLevelPlanFor({mode, runEnded, levelId})` reading refs at call time | ✓ WIRED | `:1720-1727`; `levelId` is state and is in the deps, the two refs deliberately are not, with the reason stated |
+| the memo | the level half `if (plan === 'force')` | the stored `plan` | ✓ WIRED | Byte-equivalent to the shipped three-term condition (derived term by term). Gate pins the call-site shape, loosely — WR-03 |
+| the memo | `certPendingRef.current = plan !== 'unreachable';` | the same stored `plan` | ✓ WIRED AND NOW EXACT-PINNED | **This is the link round 5 broke.** It is now the same value, not a second expression, and it is the one site pinned to an exact literal. Reverting it reds cell 5 |
+| the memo | the deferred-cert effect's self-cancel → `certPendingRef` cleared | `certLevelPlan() === 'unreachable'` | ⚠️ WIRED, SOURCE-PINNED ONLY | Present, correctly ordered ahead of the discharge test, deps include `certLevelPlan` so exhaustive-deps guards it. But deleting it leaves 662/663 green — truth 15 |
+| `injectCertWorstCase` (`useGameLoop.ts:787`) | `applyCertWorstCaseInject` (`:442`) | `certRequest` consumed only inside `onFrame` | ✓ WIRED, AND NOW CORRECTLY DESCRIBED | The link is real and queued; round 6's correction now says so in all four owning artifacts, pinned by `tests/runtime.cert-request.test.ts` |
+| cert level half | `getBestForLevel` preload → `setResultBest` → `Best ·` | `levelId` change past a mounted panel | ✓ CLOSED, UNCHANGED | The level half is byte-equivalent, so the WR-02 case guarding N-END-02's display firewall is unaffected and green |
+| `onResume` | `PauseOverlay` | `showPauseOverlay` (`GameScreen.tsx:110-111`) | ✓ WIRED, AND NOW OPERATOR-PINNED | Round 5's `coincidental-reliance` flag on this link is CLEARED: the conjunction's operator is now observable, and the `\|\|` mutation reds two cases |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|--------------------|--------|
-| Results overlay `Best ·` (campaign, mounted) | `resultBest` | `getBestForLevel(levelId)` via `previousBestRef` | Yes — and now observably per-level, the mock having been repaired | ✓ FLOWING |
+| Results overlay `Best ·` (campaign, mounted) | `resultBest` | `getBestForLevel(levelId)` via `previousBestRef` | Yes — per-level and observably so (repaired mock + positive control, round 5) | ✓ FLOWING |
 | Results overlay `Best ·` / `Best wave ·` (endless) | endless watermark refs | `ENDLESS_TELEMETRY_KEY` snapshot at mount | Yes | ✓ FLOWING |
-| `Cert WC` worst-case load | `certRequest` -> `applyCertWorstCaseInject` | `onFrame` only | Yes, but on a LATER frame than three artifacts claim | ⚠️ STATIC-IN-DOCS — see gap 2 |
+| Cert level decision | `plan` | `certLevelPlanFor(mode, runEnded, levelId)` — one pure call per press | Yes — three consumers read the same value | ✓ FLOWING |
+| `Cert WC` worst-case load | `certRequest` → `applyCertWorstCaseInject` | `onFrame` only | Yes, on the next armed frame — and every artifact now says so | ✓ FLOWING (documentation corrected) |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Workspace baseline | `npx vitest run` | 97 files / 648 tests passed | ✓ PASS |
+| Workspace baseline | `npx vitest run` | 99 files / 663 tests passed | ✓ PASS |
 | Typecheck | `npx tsc --noEmit` | exit 0 | ✓ PASS |
-| Lint (4 changed files) | `npx eslint <files>` | 0 errors, 2 carried warnings | ✓ PASS |
-| Gap-1 repro, shipped source | driven probe, campaign / ENDED / tier AUTO, press `Cert WC` then 4× `Lv` | `lvAtPress=level-01 injectAtPress=0 walk=04:0 \| 05:0 \| 06:0 \| 03:1 total=1` | ✗ FAIL (defect reproduced) |
-| Gap-1 delta, conjunct removed | same probe against the round-4 source | `lvAtPress=level-03 injectAtPress=1 walk=01:1 \| 04:1 \| 05:1 \| 06:1 total=1` | ✗ FAIL (proves round 5 caused the delta) |
-| Round-4 gap closed | delete `PlayingHost.tsx:1772`, run `endless-retry` | 2 failed / 29 passed — both new cases red, both live-run cert cases green | ✓ PASS |
-| A2 de-vacuumed | `if (!runEndedRef.current)` -> `if (true)` at `:1098`, run `endless-host` | FAIL at `endless-host.test.ts:726` | ✓ PASS |
-| Site binding real | relocate `onRetry`'s clear into `goNext` (file count held at 5), run `endless-host` | FAIL naming `onRetry` | ✓ PASS |
-| `onResume` exemption pinned | drop `&& result == null` from `showPauseOverlay`, run `endless-host` | FAIL on the re-arm enumeration case | ✓ PASS |
-| `showPauseOverlay` operator | `&&` -> `\|\|`, run all of `tests/ui` | 16 files / 142 tests GREEN | ✗ FAIL (mutation survives everywhere — advisory 1) |
+| Lint (7 changed source/test files) | `npx eslint <files>` | 0 errors, 2 carried warnings | ✓ PASS |
+| **Gap 1 closed, behaviourally** | revert the arm to `modeRef.current !== 'endless'`, run `endless-retry` | 1 failed / 32 passed — the failure is exactly the cell-5 case | ✓ PASS |
+| **Advisory 1 closed, behaviourally** | `&&` → `\|\|` on `showPauseOverlay`, run all of `tests/ui` | 2 failed / 149 passed — both failures are the new negative cases | ✓ PASS |
+| Gap 2 clause eliminated | grep the four owning files for the false clause | 0 (base 6, re-measured in git at `6bb18bf`) | ✓ PASS |
+| Queued-load chain, re-derived | read `src/runtime/useGameLoop.ts` at 787 / 440-442 / 685 / 441 / 415 | all five links as the correction states | ✓ PASS |
+| Requirements coherence | run the unticked-above-`Closed` gate over the current file | 0 pairs | ✓ PASS |
+| Self-cancel is behaviour-pinned? | delete the self-cancel clause, run the full suite | 1 failed / 662 passed — the failure is a SOURCE contract | ✗ FAIL (source-only — truth 15) |
+| Discharge clear is pinned? | delete `certPendingRef.current = false;` at `:1892`, run the full suite | 99 files / 663 tests GREEN | ✗ FAIL (advisory WR-02) |
+| Level half resists a NEW term? | add `&& !waveAdvanceInFlightRef.current` to the level half only, run the full suite | 99 files / 663 tests GREEN | ✗ FAIL (advisory WR-03) |
+| Level half + self-cancel, two-sided | the review's WR-03 mutation, run the full suite | 99 files / 663 tests GREEN | ✗ FAIL (advisory WR-03) |
 
-All source mutations were reverted and `git status` is clean apart from the three pre-existing untracked/modified `.planning` files present at session start.
+All source mutations were reverted; `git status` is clean apart from the three pre-existing untracked/modified `.planning` files present at session start.
 
 ### Probe Execution
 
@@ -663,45 +567,44 @@ All source mutations were reverted and `git status` is clean apart from the thre
 
 | Requirement | Source Plans | Description | Status | Evidence |
 |-------------|--------------|-------------|--------|----------|
-| N-END-01 | 11-01/03/04/05/06/07/09/10/13/14/15/16/17/18 | Clearing a board advances in the same run; lives/score/combo carry over; the run ends only at zero lives | ✓ SATISFIED | SC-1 above. `[x]` with a dated round-5 closure note; the re-tick is warranted (see caveat on the word "last") |
-| N-END-02 | 11-02/05/06/07/08/09/10/11/12/15/17/18 | Endless records stored separately; endless play cannot alter campaign unlocks, bests or stars | ✓ SATISFIED | SC-3 above, strengthened this round by the non-vacuous WR-02 case. `[x]` with a dated closure note |
-| N-END-03 | 11-01/03/04/05/06/07/08/09/11/14/16/18 | Seeded endless run reproducible end to end; wave transitions cause no frame spike outside the Mid budget | ? NEEDS HUMAN | Reproducibility half ✓ (SC-4). Frame-budget half device-gated and unmeasured. `[ ]` is correct |
+| N-END-01 | 11-01/03/04/05/06/07/09/10/13/14/15/16/17/18/19/20/21 | Clearing a board advances in the same run; lives/score/combo carry over; the run ends only at zero lives | ✓ SATISFIED | SC-1 above. `[x]` with a round-6 amended closure note; the re-tick is warranted and the round-5 "last re-arm path" overstatement is corrected |
+| N-END-02 | 11-02/05/06/07/08/09/10/11/12/15/17/18/19/21 | Endless records stored separately; endless play cannot alter campaign unlocks, bests or stars | ✓ SATISFIED | SC-3 above. No `src/` change this round; the display firewall's guard rides on a level half I verified byte-equivalent. `[x]` with a round-6 amended note |
+| N-END-03 | 11-01/03/04/05/06/07/08/09/11/14/16/18/20/21 | Seeded endless run reproducible end to end; wave transitions cause no frame spike outside the Mid budget | ? NEEDS HUMAN | Reproducibility half ✓ (SC-4). Frame-budget half device-gated and unmeasured. `[ ]` is correct, and its caveat now records what round 6 did and did not do for it |
 
-No orphaned requirements: every ID mapped to Phase 11 in REQUIREMENTS.md is claimed by at least one plan, and every ID in a plan's `requirements` field exists in REQUIREMENTS.md.
+**No orphaned requirements:** every ID mapped to Phase 11 in REQUIREMENTS.md is claimed by at least one plan, and every ID in a plan's `requirements` field exists in REQUIREMENTS.md. (`N-GEN-01/02/03` sit immediately above in the file and are Phase 10's, not this phase's.)
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `app/_components/PlayingHost.tsx` | 1806 | Latch armed without the guard term its own branch now carries | 🛑 Blocker | Gap 1 |
-| `docs/ops/ENDLESS-MODE.md` | 261, 493 | Mechanism sentence contradicted by the shipped code | 🛑 Blocker | Gap 2 |
-| `tests/ui/PlayingHost.endless-retry.test.tsx` | 1824 | Assertion message labelled "MEASURED, not derived" against a `vi.fn()` that cannot observe the claim | 🛑 Blocker | Gap 2 |
+| `docs/ops/ENDLESS-MODE.md` | 261, 485 | Cites a source expression deleted by 11-19; the module that replaced it appears nowhere in `docs/` | 📋 Advisory | WR-01 — behavioural content still true, no operator action changes |
+| `tests/ui/PlayingHost.endless-host.test.ts` | 1674-1677 | Assertion message claims a discrimination the `toBeGreaterThanOrEqual(1)` does not have | 📋 Advisory | WR-02 — measured; shipped code correct |
+| `tests/ui/PlayingHost.endless-host.test.ts` | 1519-1520 | Level-half gate is a loose regex; accepts extra conjuncts built from any new identifier | 📋 Advisory | WR-03 — measured both ways; no present defect |
+| `app/_components/PlayingHost.tsx` | 1858-1878 | Self-cancel comment states two mechanisms, neither true of the code | 📋 Advisory | WR-04 — behaviour correct for a different, correctly-stated reason in the same comment |
 | `tests/ui/PlayingHost.endless-host.test.ts` | 367, 372 | `ReadonlyArray<T>` lint warning | ℹ️ Info | Carried, cosmetic |
-| `app/_components/PlayingHost.tsx` | 1810 | "stable useState setters" — `setLevelId` is a `useCallback` | ℹ️ Info | Pre-existing (commit `e20b1f2`) |
+| `app/_components/PlayingHost.tsx` | 1841-1842 | "stable useState setters" — `setLevelId` is a `useCallback` | ℹ️ Info | Pre-existing (commit `e20b1f2`) |
 
-No `TBD`, `FIXME` or `XXX` marker exists in any file this phase modified.
+No `TBD`, `FIXME` or `XXX` marker exists in any file this phase modified (scanned all eight round-6 files).
 
 ### Human Verification Required
 
-Four items, in the frontmatter `human_verification` block: the SC-5 device reading (with a stricter do-not-press instruction than round 4 gave, because of gaps 1 and 2), the two layout backstops, and the two flagged-prohibition decisions. The first prohibition is no longer a pure judgement call — its falsification this round is structural and is recorded as gap 2.
+Five items, in the frontmatter `human_verification` block: the SC-5 device reading (whose written procedure is, for the first time in three rounds, correct as it stands and needs no verifier correction carried alongside it), the cert self-cancel's unobservable positive direction, the two layout backstops, and the two flagged-prohibition decisions. The first prohibition is judgement-tier and I have recorded my non-authoritative verdict for both halves of it rather than absorbing it into the score.
 
 ### Gaps Summary
 
-**Round 4's gap is genuinely closed, and closed well.** I re-ran five separate mutations rather than reading the summaries, and every one of them behaved as the plan declared: the conjunct is load-bearing, the live-run behaviour is untouched, the vacuous contract is repaired, the site binding survives a relocation the aggregate count cannot see, and the `onResume` exemption is pinned to the term that actually does the work. The enumeration went from asserted to derived, and the two documentation corrections are dated, placed beside what they supersede, and true where round 4 said they were false.
+**No gaps. Both round-5 blockers are closed, and closed by evidence I generated rather than read.**
 
-**And round 5 shipped two new defects of exactly the kinds this phase keeps shipping.** Both are one step away from something the round did check, which is now a five-round pattern rather than a coincidence:
+Gap 1 was closed structurally rather than by a fourth conjunct in a third place, which is what round 5 asked for: the level question is now one pure total function with three consumers reading one stored value. I did not take the equivalence on trust — I derived `plan === 'force'` ⟺ the shipped three-term condition term by term, which is what lets 11-16's and 11-17's behaviour and N-END-02's display guard survive unchanged, and I confirmed the single changed cell is cell 5 by the same derivation. Then I ran the mutation: reverting the arm alone reds exactly one case, and it is the cell-5 case. Gap 2's false clause is gone from all four files it owned (base 6 re-measured in git, now 0), its replacement is true at every one of five links I re-read at source, and it has an instrument that pins them and is honest that it reads source rather than producing frames. Round 5's advisory 1 was closed too, and I confirmed by mutation that the `&&`/`||` hole nothing in the repo could see is now covered by two cases.
 
-1. **Gap 1 is round-3's defect on the neighbouring branch.** 11-17 measured the ENDED-run / tier-ALREADY-Mid intersection thoroughly and never asked what ENDED-run / tier-AUTO does. It arms a one-shot the same conjunct has made undischargeable, breaking a rule the same function states in prose 34 lines below. I reproduced it both ways: 0 at the press and 1 four `Lv` presses later on the shipped tree; 1 at the press and nothing later on the round-4 tree. The round manufactured it.
+**The three executors' reported base drifts are accurate.** I checked the one that mattered: the false clause measured 6 at the plan's named base `6bb18bf` and 0 in `PlayingHost.tsx` on the tree the executor actually received, because sibling plan 11-19's commit `07907f3` deleted that paragraph in between. The commit and both file states confirm it. The roadmap tick bases and the vacuous gate counter are reported the same way — stated as measured on the executed tree with the vacuity called out, rather than edited to fit. That is the discipline this phase has been trying to install for six rounds, and it is working.
 
-2. **Gap 2 is a false mechanism claim introduced by the plan that was fixing the previous false mechanism claim in the same block** — the second time that has happened in this phase. The saving detail is that the instrument, not the author, is what failed: `injectCertWorstCase` is a `vi.fn()`, so the count of 1 that the plan correctly insisted on measuring simply cannot see whether the load was applied or queued. It was queued. It lands on the next run, which is the run an SC-5 operator is about to measure.
+**What remains, and why I am not sending a seventh round for it.** Four advisories, three of which I measured myself. WR-01 is a stale source pointer whose behavioural content is still true — it changes no instruction, no measurement and no operator action, which is precisely the test this phase applied in round 4 to call a clause advisory and in round 5 to call one blocking. WR-02 and WR-03 are gate strength, not behaviour: the shipped code is correct on both, and the exposure is a hypothetical future edit to a `__DEV__`-only control that writes no record, alters no campaign best or star, and cannot be reached by any player in a shipped build. WR-04 is inherited reasoning attached to correct code, in a comment that states the right reason two sentences later.
 
-Neither breaks a Success Criterion — both are `__DEV__` / `CERT_HARNESS` only, campaign-side, with nothing recorded and no campaign best or star written. They are gaps because this phase has twice ruled that this exact defect class is a gap, and because the second one damages the instrument an unmeasured Success Criterion depends on.
+I weighed WR-03 hardest, because "the next change could diverge silently" is the standard I would normally call a gap on, and because the asymmetry cuts the wrong way — the arm is exact-pinned, so a level half that acquires a term is *guaranteed* to strand an arm rather than merely allowed to. What decided it: 11-19's declared must_have is that neither site re-tests **the predicate's terms** inline, and that truth is met exactly as written with both counts discriminating against measured bases; the module's own structural claim ("a fourth term added to this body reaches every decision site by construction") is true; and the escape requires an author to add a term at a call site in direct defiance of a twenty-line instruction sitting at that call site telling them not to. A phase does not fail its goal because a gate could be one notch tighter, and all four fixes together are one commit of about thirty lines with no behaviour change — best done the next time someone opens those files, which Phase 14's work on the five reset blocks will require anyway.
 
-**The structural cause is unchanged and is now four rounds old.** `runCertWorstCase` has two independent halves, three conditions and a one-shot, and every round has fixed one term while a sibling term stayed ignorant of the change. The five duplicated reset blocks (advisory 4b) are the same pattern in a different function. The closure plan for gap 1 should fix the class — agree the arming term with the branch, and consider clearing `certPendingRef` at the run-boundary resets — rather than the fourth instance.
-
-One practical constraint for that plan, so it is not discovered mid-flight: `tests/ui/PlayingHost.endless-host.test.ts:1520-1523` pins `runEndedRef` occurrences inside `runCertWorstCase` at exactly 1, which blocks the most direct repair. Move it deliberately, with a reason in its own message.
+**The phase goal is achieved.** A player can start a run that keeps producing boards until they lose, with a record worth chasing: four of the five Success Criteria are verified, the fifth has its automatable half verified and its device half correctly and honestly left open as `N-END-03` `[ ]`, N-END-01 and N-END-02 are ticked on evidence I checked rather than on the notes' own say-so, and the record file and the operator document now agree with each other and with the shipped code on everything that changes what a reader would do. The only thing standing between this phase and `passed` is a frame no machine in this repo can produce.
 
 ---
 
-_Verified: 2026-09-26T21:55:00Z_
+_Verified: 2026-09-26T15:56:05Z_
 _Verifier: Claude (gsd-verifier)_
