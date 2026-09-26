@@ -1,6 +1,6 @@
 ---
 phase: 11-endless-mode
-reviewed: 2026-09-26T10:02:06Z
+reviewed: 2026-09-26T11:39:55Z
 depth: standard
 files_reviewed: 5
 files_reviewed_list:
@@ -10,335 +10,381 @@ files_reviewed_list:
   - tests/ui/PlayingHost.endless-record.test.tsx
   - tests/ui/PlayingHost.endless-retry.test.tsx
 findings:
-  critical: 1
-  warning: 4
+  critical: 0
+  warning: 6
   info: 4
-  total: 9
+  total: 10
 status: issues_found
 ---
 
-# Phase 11: Code Review Report
+# Phase 11: Code Review Report (round 4)
 
-**Reviewed:** 2026-09-26T10:02:06Z
+**Reviewed:** 2026-09-26T11:39:55Z
 **Depth:** standard
 **Files Reviewed:** 5
 **Status:** issues_found
+**Diff base:** `1693fcab9e340d74dfcd837eb1a10911d027c9b1`
 
 ## Summary
 
-Round 3 of gap closure. Four changes are under review: the mode term on the
-`getBestForLevel` publication (11-12), the `runEndedRef` term on the endless WON
-branch plus the `waveAdvanceInFlightRef` clear in `failEndlessStart` (11-13), the
-mode term on `runCertWorstCase`'s level half (11-14), and the re-measured
-`docs/ops/ENDLESS-MODE.md`.
+Two changes are under review: 11-15 (hoist `if (runEndedRef.current) { return; }` to the
+first statement of `applyChrome`, delete the now-unreachable inner copy) and 11-16 (add a
+run-mode term to `runCertWorstCase`'s deferral arm, re-scope the `Cert WC` injection claim
+in `ENDLESS-MODE.md`).
 
-Baseline checks all green and were run, not assumed: `npx tsc --noEmit` is clean,
-the three endless suites pass (67 tests), `eslint` reports 0 errors / 2 warnings
-(both newly introduced, IN-01).
+**Round-3 CR-01 is genuinely fixed, verified at source and by mutation — not accepted on
+the plan's word.** `applyChrome` line 991 is the first statement of the callback body; every
+subsequent write in that function, including the five mirror-sourced chrome writes at
+994–998, is below it and the guard body is a bare `return`. Deleting lines 991–993 turns
+**9 test cases across 3 files** red (measured in this review, not quoted from the plan), and
+those failures include both the prop-channel and the rendered-overlay channel. The branch
+this review was asked to check specifically — `waveAdvanceInFlightRef.current = false` at
+line 1095, now unreachable once the latch holds — **is** benign, and I traced it
+independently rather than taking the planner's word: the ref is read only inside
+`modeRef.current === 'endless'` (line 1003), and the only path that puts `modeRef` back to
+`'endless'` is `startEndlessRun`, which clears both refs together at 1407–1408. The three
+campaign clearers that leave `waveAdvanceInFlightRef` alone (1471, 1515, 1669) are all
+campaign-only and cannot reach a reader of it, because `toggleDevLevel` (1621) — the only
+endless→campaign writer — clears it.
 
-Three of the four code changes do what they claim. Two defects were found by
-driving the real host through scratch probes (both probes were deleted after
-measurement; no source file was modified):
+**But the round-4 pattern the brief asked me to weigh holds for a fourth time, in two
+independent places.** Each round has fixed the half that was named and left the adjacent
+half standing, and the mechanism is structural, not a lapse of attention:
 
-1. **The 11-13 latch stops at the wave, not at the chrome.** An endless run that has
-   ended still repaints its own Results overlay from post-boundary mirrors. Measured:
-   `Score · 2400` → `Score · 9999` while `recordRunEnd` had already banked 2400, on an
-   overlay simultaneously showing `Best · 2400` and `New Record`. Same producer
-   (a straggler mirror) that 11-13 accepted as real for the wave walk. CR-01.
-2. **11-14's gate strands a one-shot flag.** Pressing `Cert WC` during an endless run
-   with the tier not already Mid arms `certPendingRef` for a deferred injection whose
-   preconditions can never be met while endless. Measured: the injection then fires
-   unbidden on a later, unrelated campaign session. WR-01.
+1. **11-16 gated `Cert WC`'s level half on the run MODE, not on run-ENDED state.** With the
+   tier already Mid and a campaign Results overlay mounted, `setLevelId('level-03')` at 1743
+   fires with no reset of `result` or `runEndedRef` — the only one of the four `setLevelId`
+   sites in this file that omits the reset. The compiled-push gate then calls `retry()` and
+   `setActive(true)` on a live sim behind a still-mounted overlay, and **11-15's hoist is
+   what makes that silent**: pre-hoist the HUD repainted (wrong but visible); post-hoist the
+   latch freezes it (WR-01).
+2. **11-12 closed the `getBestForLevel` repaint for endless only.** The guard at 476/486 is
+   a MODE test, not a run-ended test, so the campaign half of the exact defect 11-12's own
+   comment describes ("repainted a MOUNTED endless Results overlay's `Best ·` … measured
+   4200 → 7777") is still open for campaign, and WR-01 is a concrete route to it (WR-02).
 
-Both new gap-3 drives in `PlayingHost.endless-retry.test.tsx` deliver the straggler
-mirror carrying the *same* score as the boundary mirror, which is why CR-01 is
-invisible to them (WR-04).
+The root cause of the pattern is WR-06: the run-boundary reset exists in **five near-identical
+copies**, and 11-15's own safety argument is an audit of all five ("keep it if you add a
+sixth"). An invariant that has to be re-proved at five sites is an invariant that will be
+half-fixed again.
 
-No security findings. The only randomness (`Date.now() >>> 0` run seed) is correctly
-documented as a difficulty input and explicitly disclaimed as non-CSPRNG
-(`ENDLESS-MODE.md` § Limits 5); there is no injection, deserialization, credential or
-path surface in this scope. `safeWatermark` correctly hardens the persisted-blob → UI
-boundary.
+Finally, the new source contract in `endless-host.test.ts` that claims every run-boundary
+branch "consults" the latch is **vacuous for three of its four branches** — I replaced all
+three remaining `if (!runEndedRef.current)` guards with `if (true)` and the entire suite
+(16 files, 139 cases) stayed green, because the regex matches the `runEndedRef.current = true`
+*assignment* on the next line (WR-03). This is the same "instrument pointed one symbol away
+from the defect" the test file itself names three times in its own prose.
 
-## Critical Issues
+No security findings. Nothing in this diff touches an injection, credential, crypto or
+deserialization surface; `runSeedRef = Date.now() >>> 0` is already documented as a
+non-secret difficulty input (A-03, § Limits item 5) and is unchanged.
 
-### CR-01: An ended endless run keeps repainting its own Results overlay — displayed score diverges from the recorded score
+## Narrative Findings (AI reviewer)
 
-**File:** `app/_components/PlayingHost.tsx:934-946` (chrome writes at 936-940, the new
-latch at 976)
+### Warnings
 
-**Issue:** 11-13 added `if (runEndedRef.current) { return; }` to the endless WON branch
-so that an ended run stays ended. The guard sits at line 976 — *below* the five
-unconditional chrome writes at the top of `applyChrome`:
+#### WR-01: `runCertWorstCase`'s level half restarts the sim without clearing the ended-run state — and the 11-15 hoist now hides it
 
-```ts
-const applyChrome = useCallback((mirror: ChromeMirror) => {
-  setSimPhaseNum(mirror.phase);
-  setLives(mirror.lives);
-  setScore(mirror.score);      // <- runs for every post-boundary mirror
-  setCombo(mirror.combo);
-  setStallTier(mirror.stallTier);
-  if (modeRef.current === 'endless' && mirror.phase === SIM.WON) {
-    if (runEndedRef.current) { return; }   // 11-13's latch
-```
+**File:** `app/_components/PlayingHost.tsx:1742-1745` (with `:676-703`, `:991-993`)
 
-`score` / `lives` are the props `GameScreen` hands to the real `ResultOverlay`
-(`src/runtime/GameScreen.tsx:192-195`), so a mirror that arrives after the run
-boundary rewrites the finished run's displayed numbers while `recordRunEnd` has
-already banked the boundary values.
+**Issue:** `setLevelId('level-03')` at 1743 is the only one of this file's four `setLevelId`
+sites that does not also clear `result` and `runEndedRef`. `goNext` (1508–1516),
+`toggleDevLevel` (1578–1621) and the `setTierOverride`→`remountDevSession` route all do.
+On the branch where the tier is **already** `'mid'`, the level half fires alone: no
+`remountDevSession` runs, so nothing resets the overlay.
 
-Measured on the real host through this repo's own `PlayingHost.endless-record`
-harness (scratch probe, since deleted): endless run at wave 2, `LOST` at score 2400,
-then **one** straggler `WON` mirror at score 9999:
+Reachable sequence, all inside `__DEV__` (the dev row renders at `zIndex: 20` **above** the
+result scrim — `src/runtime/GameScreen.tsx:206-221` — so `Cert WC` is tappable from a mounted
+Results overlay):
 
-```
-recorded: {"mode":"endless","wave":2,"score":2400,"outcome":"lose",...}
-overlay after loss:      Lose … Wave · 2  Score · 2400  Best · 2400  Best wave · 2  New Record
-overlay after straggler: Lose … Wave · 2  Score · 9999  Best · 2400  Best wave · 2  New Record
-host score prop: 9999
-```
+1. Campaign run on `level-01` ends → `runEndedRef = true`, `result = 'lose'`, overlay up.
+2. Operator has previously forced the tier to Mid.
+3. Press `Cert WC` → level half fires, tier half no-ops → `setLevelId('level-03')`,
+   `defer = true`, `certPendingRef = true`, return. **`result` and `runEndedRef` untouched.**
+4. `loadResult`/`loadKey` change → re-bake → `fxReady` true → the compiled-push effect
+   (676–703) runs `compiledSv.value = level-03`, `retry()`, `setActive(true)`.
+5. A `level-03` simulation is now live with `runEndedRef.current === true`, so **every**
+   chrome mirror returns at line 991. The HUD is frozen on the dead `level-01` run's lives
+   and score; the mounted overlay still reads `Lose / Out of lives`; and the deferred
+   one-shot then injects the worst-case ball/particle/shake load onto that invisible sim.
 
-The result is exactly the class 11-13's own comment names as the defect it closes —
-"an overlay that contradicts the readout behind it": the player is shown a score of
-9999 sitting above a `Best · 2400` and a `New Record` badge, for a run filed at 2400.
-`lives`, `combo`, `stallTier` and `simPhaseNum` mutate on the same path.
+Pre-11-15 this state was wrong but *observable* — the chrome repainted. The hoist is correct
+in itself; the defect is that this producer of ended-run state was never brought under the
+same latch, so the fix converted a visible incoherence into a silent one. Note also that a
+loss on that hidden `level-03` run reaches no telemetry at all, because `applyChrome` returns
+above the campaign LOST branch.
 
-Reachability is the *same* producer 11-13 accepted as real when it wrote the wave-walk
-fix (`tests/ui/PlayingHost.endless-retry.test.tsx`, the gap-3 preamble: "a straggler
-frame that was in flight when the loop stopped"). If that producer is real enough to
-walk the wave, it is real enough to rewrite the score. The defect is display-tier —
-nothing false reaches `telemetry.endless` — but it is player-visible and it is a hole
-in the precise claim this round shipped.
-
-**Fix:** an ended run's chrome must not move at all. Hoist the latch to the first
-statement of `applyChrome`, above the chrome writes:
-
-```ts
-const applyChrome = useCallback((mirror: ChromeMirror) => {
-  // ONE latch, EVERY boundary — including the chrome. A run that has ended owns its
-  // final score, lives and combo; a straggler mirror may not rewrite them.
-  if (runEndedRef.current) {
-    return;
-  }
-  setSimPhaseNum(mirror.phase);
-  ...
-```
-
-This is safe against lock-out: every path that begins or resumes a run clears
-`runEndedRef` *before* re-arming the loop — `startEndlessRun` (clears, then `retry()`
-+ `setActive(true)`), `onRetry`'s campaign branch, `goNext`, `toggleDevLevel`,
-`remountDevSession` — and `handleMenuPress` unmounts the host. If the HUD behind the
-overlay is wanted live for some reason, the alternative is a `resultScore` /
-`resultLives` state snapshotted at the boundary and passed to `ResultOverlay` instead
-of the live `score` / `lives`; do not leave the overlay reading mutable chrome.
-
-## Warnings
-
-### WR-01: `runCertWorstCase` strands `certPendingRef`, and the deferred injection later fires on an unrelated campaign run
-
-**File:** `app/_components/PlayingHost.tsx:1676-1687` (and the consumer effect at
-1691-1720)
-
-**Issue:** 11-14 gates the level half on the mode but leaves the deferral bookkeeping
-untouched:
+**Fix:** either gate the level half on run-ended state as well as run mode, or give it the
+same reset the other three `setLevelId` sites carry. The minimal version:
 
 ```ts
-if (modeRef.current !== 'endless' && levelId !== 'level-03') { setLevelId('level-03'); defer = true; }
-if (tierOverride !== 'mid') { setTierOverride('mid'); defer = true; }
-if (defer) { certPendingRef.current = true; return; }
-```
-
-Press `Cert WC` during an endless run with the tier **not** already Mid: the level half
-is now gated, so `levelId` stays (say) `level-01`, but the tier half still sets
-`defer = true` and latches `certPendingRef.current = true`. The consumer effect
-requires `levelId === 'level-03' && tierOverride === 'mid'`, and nothing in endless can
-ever satisfy the first term — so the flag is never cleared, and the press injects
-nothing at all. Before 11-14 the level half supplied the missing precondition and the
-deferred injection fired; the gate removed the trigger but not the latch.
-
-The flag survives the run. Measured on the real host (scratch probe, since deleted):
-endless run at wave 2 → press `Cert WC` (tier unset) → 0 injections, run restarts at
-wave 1 as documented → then walk `Lv` four times (`level-01 → 04 → 05 → 06 →
-level-03`, `PLAYABLE_LEVEL_ORDER`) with `tierOverride` still Mid → **1
-`injectCertWorstCase` call** on a campaign run that never pressed the button. Note
-`levelId` is GameHost-controlled (`app/_components/GameHost.tsx:195-199`), so the
-level walk survives a Menu round trip too.
-
-**Fix:** do not arm a deferral whose preconditions are unreachable.
-
-```ts
-if (defer) {
-  // While endless the level half is gated, so the deferred effect's
-  // `levelId === 'level-03'` precondition can never be met — arming it here strands
-  // the one-shot and fires it on a later campaign session.
-  certPendingRef.current = modeRef.current !== 'endless';
-  return;
+if (modeRef.current !== 'endless' && levelId !== 'level-03') {
+  // A level change is a run boundary like every other one in this file: the
+  // compiled-push effect will retry() + setActive(true) on the new board, and a
+  // stale `runEndedRef` would latch applyChrome over a LIVE sim (11-15).
+  setResult(null);
+  setWaveBuildFailedWave(null);
+  runEndedRef.current = false;
+  setLevelId('level-03');
+  defer = true;
 }
 ```
 
-### WR-02: `ENDLESS-MODE.md`'s re-measured `Cert WC` guidance is false for one of the two branches it enumerates
-
-**File:** `docs/ops/ENDLESS-MODE.md:433-448` (and the boundary-table row at 261)
-
-**Issue:** the SC-5 do-not-press block states, as a re-measurement dated 2026-09-26:
-
-> **`Cert WC`** (`runCertWorstCase`) still **injects the worst-case ball, particle and
-> shake load onto the board under measurement**, which alone disqualifies any frame
-> time captured across it
-
-That is true only of the tier-already-Mid branch. In the tier-unset branch — the very
-branch the next two sub-bullets describe — `defer` is set, the function returns before
-`injectCertWorstCase()`, and (per WR-01) the deferred injection is stranded rather than
-delivered. So the press injects **nothing** onto the board under measurement, and the
-injection instead appears later, on a board the reader is not measuring. The
-boundary-table row at line 261 has the same shape: it asserts "It still injects the
-worst-case load onto the live board" for the tier-Mid case (correct) and says nothing
-about the tier-unset case leaving an armed one-shot behind.
-
-This matters because the document's stated purpose is that a later reader "finds it
-already worked through rather than rediscovering it", and this block was explicitly
-re-measured this round.
-
-**Fix:** split the claim per branch and disclose the stranded deferral (after WR-01 is
-fixed, the second half of the correction becomes "nothing is armed"):
-
-```markdown
-> - **the tier half**, when the tier is not already `mid`, sets it to `mid` … and the
->   press injects **nothing** on this path: `runCertWorstCase` returns at its `defer`
->   branch before `injectCertWorstCase()`. The worst-case load is injected only when
->   the tier is ALREADY `mid`, which is the bullet below.
-```
-
-### WR-03: `toggleDevLevel` republishes the *outgoing* level's campaign best as the *incoming* level's `Best`
-
-**File:** `app/_components/PlayingHost.tsx:1548` (`setResultBest(previousBestRef.current)`,
-added by 11-12 Task 2)
-
-**Issue:** `toggleDevLevel` calls `setLevelId(next)` at line 1509 and then publishes
-`previousBestRef.current` at 1548. That ref holds `getBestForLevel(levelId)` for the
-level being **left** — the preload effect's re-run for the new level is asynchronous
-(it is the whole premise of the fix). So between the press and the next storage read,
-the host renders one campaign level's personal best as another campaign level's
-`Best ·`. The value published is mode-correct and level-wrong.
-
-It is latent today for exactly the reason 11-11's WR-04 was latent before it was
-fixed: `best` only reaches `ResultOverlay`, and `toggleDevLevel` sets `result` to
-`null` in the same commit. The 11-11 comment block argues at length that a latent
-wrong-record publication is worth fixing now because Phase 14 adds a mid-run record
-surface; the same argument applies verbatim here.
-
-The new test cannot see it: the storage mock is
-`getBestForLevel: (id: LevelId) => getBestForLevelImpl(id)` where every implementation
-ignores `id` and returns the single module-level `campaignBest`
-(`tests/ui/PlayingHost.endless-record.test.tsx:339-341`), so `level-01`'s best and
-`level-04`'s best are the same number by construction.
-
-**Fix:** cache per level rather than per mount, and publish the entry for the level
-being switched **to**:
-
-```ts
-const bestByLevelRef = useRef<Partial<Record<LevelId, number>>>({});
-// in the preload effect, alongside previousBestRef.current = b:
-bestByLevelRef.current[levelId] = b;
-// in toggleDevLevel, computing `next` before setLevelId:
-setResultBest(bestByLevelRef.current[next] ?? 0);
-```
-
-and make the test mock honour its argument (`getBestForLevelImpl = (id) => id === 'level-01' ? 7777 : 123`)
-so the level term is actually observed.
-
-### WR-04: the new gap-3 drives cannot observe post-boundary chrome mutation
-
-**File:** `tests/ui/PlayingHost.endless-retry.test.tsx:886-905, 911-946, 960-1022`
-
-**Issue:** all three new gap-3 cases deliver the post-boundary straggler with the
-*same* score as the boundary mirror — `deliverPhase(SIM.LOST, { lives: 0, score: 2400 })`
-followed by `deliverPhase(SIM.WON, { score: 2400 })`. Every assertion is therefore
-about the wave readout, `advanceWave`, `boardFingerprint()` and `recordRunEnd`; none
-can see that `applyChrome` unconditionally rewrote `score`, `lives`, `combo` and
-`simPhaseNum` from the straggler (CR-01). The cases prove what they claim, but they
-leave the neighbouring half of "an ended run stays ended" unmeasured, which is the
-same blind spot the round-2 verifier called out for source-only contracts.
-
-**Fix:** give the straggler a distinguishable payload and assert the run's own numbers
-are frozen — this is the drive that makes CR-01 red:
-
-```ts
-await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
-await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
-expect(hostProps.current?.score, 'an ended run owns its final score').toBe(2400);
-expect(hostProps.current?.lives).toBe(0);
-```
-
-(and the rendered-text sibling in `PlayingHost.endless-record.test.tsx`:
-`expect(overlayText()).toContain('Score · 2400')`).
-
-## Info
-
-### IN-01: two new lint warnings introduced by this round's test code
-
-**File:** `tests/ui/PlayingHost.endless-host.test.ts:367, 372`
-
-**Issue:** `npx eslint` on the four changed source/test files reports 0 errors and
-exactly 2 warnings, both added this round:
-`Array type using 'ReadonlyArray<T>' is forbidden. Use 'readonly T[]' instead
-(@typescript-eslint/array-type)` — the `endlessOnly` / `campaignOnly` declarations.
-
-**Fix:** `const endlessOnly: readonly (readonly [string, string])[] = [...]`, or run
-`eslint --fix` on the file.
-
-### IN-02: the source file now carries a formatting constraint imposed by a test regex
-
-**File:** `app/_components/PlayingHost.tsx:1642-1645`
-
-**Issue:** `runCertWorstCase` documents that it may use `//` comments only, because
-`codeOnly()` in `tests/ui/PlayingHost.endless-host.test.ts:28-30` strips line comments
-but not block comments, so a `/** */` note could satisfy or falsify a structural
-contract with prose. That is a real hazard, but the remedy puts the burden on every
-future author of that function instead of on the instrument.
-
-**Fix:** strip block comments in the instrument as well, then delete the constraint
-from the source:
-`src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')`.
-
-### IN-03: `PlayingHost.tsx` is a 1,898-line file whose component body is a single ~1,600-line function
-
-**File:** `app/_components/PlayingHost.tsx:189-1790`
-
-**Issue:** 652 of 1,898 lines (34 %) are comments, much of it planning narrative
-(round numbers, review IDs, rejected alternatives) rather than API documentation. The
-endless subsystem — `mode`/`modeRef`, `wave`/`waveRef`, `runSeedRef`,
-`waveAdvanceInFlightRef`, `runEndedRef`, `advanceToWave`, `startEndlessRun`,
-`failEndlessStart`, `recordInFlightEndlessRun` — is a cohesive unit spread across
-~700 lines of an already-large host, and three of this phase's defects (the walking
-wave, the unguarded publication, the un-mode-aware `Cert WC`) were each "one missing
-term in one branch" of it.
-
-**Fix:** extract a `useEndlessRun({ store, compiledSv, advanceWave, retry, setActive })`
-hook owning the refs, the boundary funnel and `advanceToWave`, returning
-`{ mode, wave, startRun, failStart, recordInFlight, onChrome }`. The source-contract
-tests get a far smaller and more stable surface to anchor regexes against as a side
-effect.
-
-### IN-04: the per-run reset block is copy-pasted across five callbacks
-
-**File:** `app/_components/PlayingHost.tsx:1347-1356, 1410-1419, 1454-1463, 1560-1569, 1608-1617`
-
-**Issue:** the identical ten-line "new run" block (wall-clock refs, `setLives(3)`,
-`setScore(0)`, `setCombo(1)`, `setStallTier(0)`, `setSimPhaseNum(SIM.DOCKED)`,
-`setUiPhase('playing')`) appears verbatim in `startEndlessRun`, `onRetry`, `goNext`,
-`toggleDevLevel` and `remountDevSession`, each preceded by a near-identical
-chrome-clearing block. The phase's own history records `toggleDevLevel` as "the third
-un-mode-aware copy of the run-boundary reset, with the same omission list as the two
-already fixed" — i.e. this duplication has already produced defects, and a sixth
-copy will produce another.
-
-**Fix:** one `beginNewRun()` helper (plus `clearEndOfRunChrome()`), called from all
-five sites; the only per-site difference is whether `retry()` / `setActive(true)`
-follow, which the caller keeps.
+(If a full reset is not wanted here, the alternative is to refuse the press while
+`result != null` — but that is a behaviour decision, not a review call.)
 
 ---
 
-_Reviewed: 2026-09-26T10:02:06Z_
+#### WR-02: the `getBestForLevel` preload publishes `setResultBest` with no run-ended guard — the campaign half of the gap-1 class
+
+**File:** `app/_components/PlayingHost.tsx:460-493` (specifically `:476-478` and `:486-488`)
+
+**Issue:** 11-12 closed this for endless by wrapping the publication in
+`if (modeRef.current !== 'endless')`. That is a **mode** guard; the defect it fixes is a
+**run-ended** defect. The comment at 471–475 states the symptom exactly — "unguarded, this
+line repainted a MOUNTED endless Results overlay's `Best ·` with a campaign per-level best
+(measured 4200 → 7777) whenever the read landed late" — and the campaign arm of the same
+branch is still unguarded against it.
+
+Concretely, via WR-01's step 3: `levelId` becomes `level-03` while the `level-01` Results
+overlay is mounted and `runEndedRef` is true. The effect re-runs for `level-03`, resolves,
+and `setResultBest(b)` repaints `Best ·` on the mounted panel with **another level's**
+personal best, under the `New Record` badge the `level-01` run earned. The `.catch` arm at
+486–488 is worse in the same position: a storage failure repaints it to `Best · 0`.
+
+This is a narrower window than the endless case was (it needs a `levelId` change or a slow
+first read while an overlay is mounted), but it is the same class and the same line, and the
+fix costs one term.
+
+**Fix:**
+
+```ts
+// The publication belongs to the mode the player is in AND to a run that is
+// still live: a mounted Results panel's `Best ·` is a record, not a cache read.
+if (modeRef.current !== 'endless' && !runEndedRef.current) {
+  setResultBest(b);
+}
+```
+
+(and the matching term on the `.catch` arm).
+
+---
+
+#### WR-03: three now-dead latch guards remain in `applyChrome`, and the contract that claims to pin them is vacuous — proved by mutation
+
+**File:** `app/_components/PlayingHost.tsx:1077`, `:1098`, `:1105`;
+`tests/ui/PlayingHost.endless-host.test.ts:698-702`
+
+**Issue:** With the guard hoisted to 991, control cannot reach 1077, 1098 or 1105 with
+`runEndedRef.current === true` — nothing between 991 and those lines writes the ref
+(`advanceToWave` and `advanceWave` do not; `handleRunEnded` is only called inside these very
+gates). So all three `if (!runEndedRef.current)` tests are **always true**: dead conditions.
+
+11-15's stated reason for deleting the fourth copy is that "an inner copy could not be killed
+by any mutation and would contradict the 'ONE latch, EVERY boundary' design". That reasoning
+applies verbatim to these three, which were kept. The treatment is inconsistent with its own
+justification.
+
+Worse, the contract that is supposed to protect them cannot see the difference. Lines
+698–702 assert `expect(body).toMatch(/runEndedRef\.current/)` per branch — satisfied by the
+`runEndedRef.current = true;` **assignment** sitting one line below each guard. **Measured in
+this review:** replacing all three guards with `if (true)` leaves the whole suite green
+(16 files, 139 cases, 0 failures). The assertion proves a symbol is present, not that a guard
+exists — the exact failure shape this file's own prose names at rounds 2, 3 and 4.
+
+**Fix:** pick one and make the contract match it.
+- Delete the three dead conditions (keeping the `runEndedRef.current = true;` assignments),
+  and re-point the enumeration at what actually holds: each branch **sets** the latch.
+- Or keep them as defence-in-depth and say so in the comment at 1035–1044 (which currently
+  argues the opposite), and tighten the assertion to
+  `.toMatch(/if \(!runEndedRef\.current\) \{/)` so the guard, not the assignment, is pinned.
+
+---
+
+#### WR-04: `level-03` is documented as "the shipped default level" — it is not, and the SC-5 operator is told the wrong sub-branch is common
+
+**File:** `docs/ops/ENDLESS-MODE.md:456`; `tests/ui/PlayingHost.endless-retry.test.tsx:1672-1674`
+
+**Issue:** Both places assert `level-03` is the shipped default `LevelId`. The default is
+`level-01` (`app/_components/GameHost.tsx:68`, `useState<LevelId>('level-01')`);
+`level-03` is forced **only** under `CERT_HARNESS` (`GameHost.tsx:196`,
+`levelId={CERT_HARNESS ? 'level-03' : activeLevelId}`), i.e. `EXPO_PUBLIC_CERT=1`.
+
+This matters operationally, not just pedantically. The block it sits in is the SC-5 discharge
+procedure, which instructs the reader to "launch a dev build; arm the perf overlay" —
+`EXPO_PUBLIC_PERF_OVERLAY=1`, a **different** flag from `EXPO_PUBLIC_CERT`
+(`src/devflags.ts:20-23`). The operator taking that reading is on `level-01`, i.e. the
+*first* sub-branch, and the document tells them the second one is "the common case". A doc
+whose whole purpose is that the next reader finds the reasoning already worked through should
+not invert which branch they are standing in.
+
+**Fix:** in `ENDLESS-MODE.md:456`, replace "the shipped default level, so the common case"
+with something true, e.g. "the level a `CERT_HARNESS` build forces (`GameHost.tsx:196`); on
+an ordinary dev build the session starts at `level-01`, so this sub-branch is reached by
+walking `Lv` to it". Apply the same correction to the test comment, and drop the unverifiable
+"Phase 08 D-06" citation or replace it with the source reference.
+
+---
+
+#### WR-05: the deferred cert one-shot is consumed before it fires and its own cleanup can cancel it
+
+**File:** `app/_components/PlayingHost.tsx:1782-1809`
+
+**Issue:** The effect clears `certPendingRef.current = false` at 1795, **then** arms a 50 ms
+`setTimeout` at 1796, and returns a cleanup that clears that timer. If any dependency
+(`levelReady`, `levelError`, `fxReady`, `levelId`, `tierOverride`) changes inside that 50 ms
+window, React runs the cleanup — cancelling the pending injection — and the re-run
+early-returns at 1783 because the flag has already been consumed. The one-shot is then
+silently lost: nothing fires, nothing logs, and `certPendingRef` is false.
+
+This is the mirror image of the defect 11-16 just fixed. 11-16's own stated rule is "do not
+arm a latch whose discharge preconditions the same change has made unreachable"; the
+neighbouring rule — do not consume a latch before the work it guards has actually happened —
+is unaddressed. The new C1 case (`a CAMPAIGN press below level-03 still arms the deferral and
+discharges it exactly once`) cannot see this, because `settle()` runs the timers with no
+intervening dep change.
+
+I did not find a deterministic 50 ms-window dep change on the current code, so this is latent
+rather than live — but it is one added dependency or one fast double-press away.
+
+**Fix:** consume the flag where the work happens, not where the timer is armed:
+
+```ts
+const t = setTimeout(() => {
+  certPendingRef.current = false;
+  injectCertWorstCase();
+}, 50);
+return () => clearTimeout(t);
+```
+
+---
+
+#### WR-06: five duplicated run-boundary reset blocks — this is the structural cause of the "fix one half, leave the neighbour" pattern
+
+**File:** `app/_components/PlayingHost.tsx` — `startEndlessRun` `:1385-1419`, `onRetry`
+campaign arm `:1463-1483`, `goNext` `:1503-1525`, `toggleDevLevel` `:1587-1631`,
+`remountDevSession` campaign arm `:1658-1682`
+
+**Issue:** `startEndlessRun`, `onRetry` (campaign arm), `goNext`, `toggleDevLevel` and
+`remountDevSession` (campaign arm) each contain a near-identical ~14-statement reset:
+`clearCountdown` / `setCountdownNumeral(null)` / `setResult(null)` /
+`setWaveBuildFailedWave(null)` / `setIsNewRecord(false)` / `setResultStars(null)` /
+`setNextGateId(null)` / `runEndedRef.current = false` / the three wall-clock refs /
+`setLives(3)` / `setScore(0)` / `setCombo(1)` / `setStallTier(0)` /
+`setSimPhaseNum(SIM.DOCKED)` / `setUiPhase('playing')`. `failEndlessStart` (1266–1293) is a
+sixth, partial copy. They differ in four places only: which `Best` is republished, whether
+`waveAdvanceInFlightRef` is cleared, whether `retry()`/`setActive(true)` are called, and
+whether `mode` moves.
+
+11-15's safety argument is explicitly an audit of all five ("Every one of the five sites that
+clears this latch writes its own chrome immediately afterwards … keep it if you add a
+sixth"). That is a correctness property the language cannot enforce and that a reviewer must
+re-derive by hand every round. It is the same shape as the five `setLevelId` sites in WR-01,
+of which exactly one omits the reset — which is precisely how WR-01 survived 11-16.
+
+Weighing the pattern as asked: rounds 2, 3 and 4 each shipped a fix that was correct and
+each left an adjacent producer of the same state unguarded. The common factor is not
+inattention; it is that "what a run boundary means" is written out five to six times instead
+of once.
+
+**Fix:** extract the shared body, e.g.
+
+```ts
+/** THE run-boundary reset. Every caller that begins a run routes here — one place
+ *  where "a new run" is defined, so a sixth caller cannot get a subset of it. */
+const beginRun = useCallback((opts: { best: number; bestWave?: number }) => {
+  clearCountdown();
+  setCountdownNumeral(null);
+  setResult(null);
+  setWaveBuildFailedWave(null);
+  setIsNewRecord(false);
+  setResultStars(null);
+  setNextGateId(null);
+  setResultBest(opts.best);
+  if (opts.bestWave != null) setResultBestWave(opts.bestWave);
+  runEndedRef.current = false;
+  waveAdvanceInFlightRef.current = false;
+  runStartedAtRef.current = Date.now();
+  runWallClockMsRef.current = 0;
+  wallClockActiveRef.current = true;
+  setLives(3); setScore(0); setCombo(1); setStallTier(0);
+  setSimPhaseNum(SIM.DOCKED);
+  setUiPhase('playing');
+}, [clearCountdown]);
+```
+
+The callers keep their own mode/level/`retry()` specifics above and below it. This also lets
+the existing source contract assert the property once ("the latch is cleared in exactly one
+place, and chrome is written below it") instead of enumerating five sites.
+
+---
+
+### Info
+
+#### IN-01: the new cert term can clear an already-armed deferral
+
+**File:** `app/_components/PlayingHost.tsx:1773`
+
+**Issue:** `certPendingRef.current = modeRef.current !== 'endless'` changes this line from
+"arm" to "arm or disarm". An endless press with the tier not yet Mid now writes `false` over
+a flag a prior campaign press may have set. The window is narrow (it needs `tierOverride`
+cycled away from `'mid'` between the two presses), but the assignment expresses a side effect
+the plan did not intend.
+
+**Fix:** `if (modeRef.current !== 'endless') { certPendingRef.current = true; }` — same
+guarantee, no new clearing behaviour. If the source-contract regex at
+`endless-host.test.ts:1386` / `:1390` is what forced the expression form, change the regex.
+
+---
+
+#### IN-02: absolute source line numbers baked into assertion messages
+
+**File:** `tests/ui/PlayingHost.endless-host.test.ts:733`
+
+**Issue:** "Measured pre-fix, the guard was at source line 976 and the first write at 936".
+Those indices describe a file revision that no longer exists and cannot be checked by anyone
+reading the failure later.
+
+**Fix:** state the property ("the guard sat below all five mirror-sourced writes") and cite
+the plan/verification id rather than line numbers.
+
+---
+
+#### IN-03: `isNewRecord` can fire against a watermark that has not been read yet
+
+**File:** `app/_components/PlayingHost.tsx:746-755` (endless), `:796-800` (campaign)
+
+**Issue:** `endlessBestScoreRef` / `endlessBestWaveRef` are 0 until the mount-time
+`getSnapshot()` resolves (508–526), and `previousBestRef` is 0 until `getBestForLevel`
+resolves. A run that ends inside that window compares against 0, so
+`record = runScore > 0 || runWave > 0` is unconditionally true and the overlay shows
+`New Record` beside a `Best ·` read post-merge from the returned blob. Nothing is
+mis-persisted (`asyncStorageStore.recordRunEnd` chains the write behind hydration and
+`mergeHighWatermark` takes the max), so this is display-only, and the window is short enough
+that a real run is unlikely to close inside it.
+
+**Fix:** track whether the watermark read has landed (`watermarksLoadedRef`) and suppress the
+badge — not the `Best ·` line — until it has.
+
+---
+
+#### IN-04: comment-to-code ratio at the 11-15 site
+
+**File:** `app/_components/PlayingHost.tsx:936-990`
+
+**Issue:** 55 comment lines introduce a 3-line statement; `applyChrome` (934–1114) is roughly
+150 lines of commentary around 30 lines of code, and much of it is round-by-round history
+(what 11-13 did, what was measured pre-fix, which alternative was rejected) rather than what
+the code does. History of this depth belongs in `ENDLESS-MODE.md`, which already carries it.
+The practical cost is real: the `//`-only constraint at this site exists solely because the
+prose is large enough to collide with the source-contract regexes that scan the file.
+
+**Fix:** keep the load-bearing paragraphs (the "clear BEFORE write" pairing at 968–974 and
+the telemetry-scope note at 976–980, both of which a future editor must not violate) and move
+the measured-pre-fix narrative and the rejected alternative to the ops doc, referenced by id.
+
+---
+
+_Reviewed: 2026-09-26T11:39:55Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
