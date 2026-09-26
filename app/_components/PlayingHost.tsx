@@ -933,6 +933,64 @@ export function PlayingHost({
 
   const applyChrome = useCallback(
     (mirror: ChromeMirror) => {
+      // 11-15 — `11-VERIFICATION.md` round-3 gap 1. THE latch, and it is FIRST.
+      //
+      // `//` LINE COMMENTS ONLY at this site. `codeOnly()` in
+      // `tests/ui/PlayingHost.endless-host.test.ts` strips `//` and leaves `/** */`
+      // standing, so a block comment here could satisfy or falsify that file's
+      // ordering contract on prose alone.
+      //
+      // 11-13 wrote this test as the first statement of the endless WON BRANCH. The
+      // five writes below — sim phase, lives, score, combo, stall tier, every one of
+      // them taken from the mirror — opened the function ABOVE that branch and above
+      // every mode test, so the latch owned the wave and owned no number the player
+      // was actually reading. 11-13's own stated design is ONE latch, EVERY boundary;
+      // this is that design at the tier where it is true. The four branches below are
+      // not the only consequences of a run boundary — the five writes are too.
+      //
+      // MEASURED PRE-FIX, on this repo's own harness with the real `ResultOverlay`
+      // mounted: a run banked `{mode:'endless', wave:2, score:2400, outcome:'lose'}`
+      // opens at `Score · 2400 / Best · 2400 / New Record`, and ONE straggler `WON`
+      // mirror at `{lives:3, score:9999}` repaints the mounted slot to `Score · 9999`
+      // above the SAME `Best · 2400` and the SAME `New Record`, under an `Out of
+      // lives` heading, with host props back at score 9999 and lives 3. The CAMPAIGN
+      // panel was worse: `setResult(...)` sits outside each campaign branch's own
+      // `if (!runEndedRef.current)` gate, so the same straggler flipped a lost run's
+      // heading from lose to win as well as its score. One statement closes both,
+      // because the five writes precede both campaign branches too.
+      //
+      // THE BOUNDARY MIRROR ITSELF IS UNAFFECTED, which is the half that makes this a
+      // latch and not a freeze: `runEndedRef` is still false when the LOST (or WON)
+      // mirror arrives, so that mirror writes the run's real final score and its real
+      // zero lives, and the branch it triggers is what sets the latch. The panel can
+      // only open at 2400/0 because this guard let that mirror through.
+      //
+      // NO RESUME PATH IS LOCKED OUT. Every one of the five sites that clears this
+      // latch writes its own chrome immediately afterwards, clear BEFORE write, each
+      // checked at source: `startEndlessRun`, `onRetry`'s campaign branch, `goNext`'s
+      // next-level reset, `toggleDevLevel`'s endless exit, and `remountDevSession`'s
+      // campaign branch. A reset that ever cleared the latch WITHOUT writing chrome,
+      // or wrote chrome BEFORE clearing, would strand a new run on the previous run's
+      // numbers — that pairing is the safety argument, so keep it if you add a sixth.
+      //
+      // THIS CANNOT CHANGE WHAT REACHES TELEMETRY, and the scope is the verifier's,
+      // not the review's: `recordRunEnd` stays at exactly one call across a straggler,
+      // `advanceWave` never fires, no board is rebuilt, and `best` / `bestWave` /
+      // `isNewRecord` are written at `handleRunEnded` and never here. The RECORD was
+      // always right; the run's own score above it was not.
+      //
+      // REJECTED ALTERNATIVE, recorded so the choice is auditable. The verifier
+      // offered a second shape: snapshot `resultScore` / `resultLives` at the run
+      // boundary and hand those to `ResultOverlay` instead of the live chrome. Not
+      // taken. This hoist is ONE statement and closes the campaign panel by the same
+      // edit, because the same five writes precede the campaign WON and LOST branches;
+      // the snapshot shape adds two more pieces of state that all five reset paths
+      // would then also have to maintain, and it leaves the HUD BEHIND the overlay
+      // still repainting from a finished run. Pick one and do not leave the overlay
+      // reading mutable state — this picks the hoist.
+      if (runEndedRef.current) {
+        return;
+      }
       setSimPhaseNum(mirror.phase);
       setLives(mirror.lives);
       setScore(mirror.score);
@@ -973,9 +1031,17 @@ export function PlayingHost({
         // `Menu` records nothing because the latch already holds. This was an
         // incoherent ENDED state, a burned seed walk and a self-contradicting
         // overlay — not a false record.
-        if (runEndedRef.current) {
-          return;
-        }
+        //
+        // 11-15 — the guard this comment describes now lives at the TOP of
+        // `applyChrome`, above the five mirror-sourced writes, and the copy that used
+        // to sit here has been REMOVED rather than left standing as a second, dead
+        // test of the same ref. Control cannot reach this line with
+        // `runEndedRef.current` true, so an inner copy could not be killed by any
+        // mutation and would contradict the "ONE latch, EVERY boundary" design in the
+        // paragraphs above. The ordering assertions 11-13 wrote against this branch
+        // are re-pointed at the function preamble in
+        // `tests/ui/PlayingHost.endless-host.test.ts`; the concurrency guard below is
+        // a DIFFERENT obligation and stays exactly where it is.
         if (!waveAdvanceInFlightRef.current) {
           waveAdvanceInFlightRef.current = true;
           if (advanceToWave(waveRef.current + 1)) {
