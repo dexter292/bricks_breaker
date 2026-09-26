@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 3
+current_plan: 4
 status: in_progress
-stopped_at: Completed 11-10-PLAN.md
-last_updated: "2026-09-26T07:47:06.522Z"
-state_head: 7e6e72b7e97e85d54ecf82e781e16c698d74ddcf
+stopped_at: Completed 11-11-PLAN.md
+last_updated: "2026-09-26T08:00:52.220Z"
+state_head: e7198c3221108cc6c8dc3617ef770d6a1dfe81b4
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 11
 
 **Phase 11 (Endless Mode) — all 6 plans executed.** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record.  
@@ -117,6 +117,7 @@ Total Plans in Phase: 11
 | Phase 11 P08 | 25 min | 3 tasks | 10 files |
 | Phase 11 P09 | 10 min | 3 tasks | 5 files |
 | Phase 11 P10 | 9 min | 2 tasks | 4 files |
+| Phase 11 P11 | 10 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,9 @@ Total Plans in Phase: 11
 - [Phase 11]: The mode branch in handleRunEnded moved ahead of evaluatePersonalBest, and each arm now owns its own recordRunEnd call — a single ternary call site cannot express branch-before-compare, because the ternary IS the branch and it sits after the compare — Gap 2's three symptoms — the campaign PB shown as the endless Best, New Record firing against an unrelated campaign score, and the endless score written into previousBestRef where the next run start re-published it — all came from that one ordering. 11-UI-SPEC Record Display Contract makes branch-before-compare the contract.
 - [Phase 11]: waveBuildFailedWave alone discriminates the two wave-build-failure bodies: 1 is always Retry-time (tap Retry), >= 2 is always mid-run (run saved) — no second flag was added — Structural, not a convention: a mid-run failure sets waveRef.current + 1 and waveRef is >= 1 from the first successful build, so mid-run can never produce 1. 11-07 stored the FAILED wave rather than the last good one precisely so this needs no arithmetic.
 - [Phase 11]: mode/wave/bestWave are REQUIRED props on GameScreenProps and ResultOverlay, and the overlay FORCES the lose variant in endless rather than trusting the caller's kind — A defaulted mode would silently render campaign chrome for an endless run if a call site forgot it — the exact class of defect this plan closes. Gating only on kind would make the SC-1 unreachability of Win/All clear/stars/Next a caller promise; isWin = kind === 'win' && !isEndless makes it a component property.
+- [Phase 11]: WR-04 folded in: startEndlessRun publishes endlessBestScoreRef/endlessBestWaveRef, never previousBestRef — the host `best` prop belongs to the player's mode for the whole lifetime of a run, not only while ResultOverlay is mounted — Latent today (`best` reaches only ResultOverlay, unmounted mid-run, and handleRunEnded always overwrites first) but rendered the moment Phase 14 adds a mid-run endless record surface. Owner folded the fix in 2026-09-26 rather than record it as debt. Both halves published: resultBestWave is the endless-only counterpart on the same Record Display Contract row.
+- [Phase 11]: The campaign-ref claim moved to the source-contract tier because the WR-04 fix REMOVES the only behavioural probe of it — previousBestRef's remaining readers are campaign resets unreachable while modeRef is latched to endless, and the getBestForLevel effect heals the ref on every levelId change — The contract states in its own comment what it does NOT prove: counting assignment sites proves the WRITE, never the RENDER. Asserted as two campaign-only REGIONS (the mount effect's success + fail-soft pair is one place), not a literal statement count of two, which would have been unsatisfiable without deleting the load-bearing fail-soft branch.
+- [Phase 11]: docs/ops/ENDLESS-MODE.md keeps its bolded `every path that discards a run records it first` sentence STANDING with a dated correction beneath, rather than rewriting it as though it had always held; A-02 retires to DECIDED 2026-09-26 and the SC-5 do-not-press note NARROWS to the tier button and Cert WC — Same superseded-claim-beside-its-correction treatment BOARD-GENERATOR.md § Limits item 2 received. `Lv` came out of the warning because A-02 made it an explicit exit; the tier button stays because cycleDevTier fires remountDevSession, whose endless branch restarts the run at wave 1 and re-bakes the glow atlas — the exact cold path SC-5 exists to prove is not entered.
 
 ### Decisions (Post-MVP close)
 
@@ -225,6 +229,7 @@ Total Plans in Phase: 11
 
 - [MVP] Hardware performance gates still open (waived only for Phase 1 close)
 - N-END-03 is deliberately left UNCHECKED in REQUIREMENTS.md by plan 11-08. Its reproducibility half is verified (tests/endless.determinism.test.ts); its second clause — "wave transitions cause no frame spike outside the Mid budget" — is the unmeasured SC-5 device half. Checking it would be the untaken-reading failure the phase's own prohibitions forbid. Discharge it together with the SC-5 device reading.
+- Phase gate instrument defect (reported by 11-11 Task 3, deliberately NOT fixed): the plan's freeze command `git diff --name-only origin/main...HEAD -- src/core src/levelgen` prints 8, because origin/main (8788caa) predates Phase 10 and Phase 10 CREATED src/levelgen. Against the phase base b99607b the diff is 0 and the freeze holds. Future phase gates must anchor on the phase directory's first commit, not origin/main.
 
 ## Deferred Items
 
@@ -237,6 +242,6 @@ Total Plans in Phase: 11
 
 ## Session Continuity
 
-Last session: 2026-09-26T07:47:06.497Z
-Stopped at: Completed 11-10-PLAN.md
+Last session: 2026-09-26T08:00:27.164Z
+Stopped at: Completed 11-11-PLAN.md
 Resume file: None
