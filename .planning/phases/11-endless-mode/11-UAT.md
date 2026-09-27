@@ -1,5 +1,5 @@
 ---
-status: testing
+status: partial
 phase: 11-endless-mode
 source: [11-VERIFICATION.md]
 started: 2026-09-27T00:00:00Z
@@ -8,22 +8,20 @@ updated: 2026-09-27T00:00:00Z
 
 ## Current Test
 
-number: 1
-name: SC-5 device reading — wave transitions stay inside the Mid budget
-expected: |
-  p50 <= 16.7 ms and p95 <= 20 ms across each wave-1..5 transition, with none of the
-  four failure signatures (visible black playfield at a transition, audio hiccup, a
-  `[audio] preload soft-fail` line mid-run, or a frame time outside the Mid budget).
-  The stretched glow halo on every brick is EXPECTED and ACCEPTED (A-04) — not a fifth
-  failure signature.
-awaiting: user response
+[testing paused — 4 items outstanding]
+
+Paused 2026-09-27 at the user's request to move on to Phase 12. Test 1 was skipped
+(no device reading taken); tests 2, 3, 4 and 5 were never presented and remain
+[pending], deliberately — no decision was recorded on the reader's behalf.
+Resume with `/gsd-verify-work 11`; it picks up at test 2.
 
 ## Tests
 
 ### 1. SC-5 device reading — wave transitions stay inside the Mid budget
 expected: p50 <= 16.7 ms and p95 <= 20 ms across each wave-1..5 transition, with none of the four failure signatures. Full procedure in `docs/ops/ENDLESS-MODE.md` § SC-5. This is the first round whose procedure carries no verifier correction — the do-not-press warning and the "restart the app and take the reading again" instruction are both present, both survive verbatim, and the reason given for them is now true of the shipped code.
 why_human: No automated step in this repo can produce a frame on hardware.
-result: [pending]
+result: skipped
+reason: User skipped — no device reading taken this session. SC-5 / N-END-03 stays undischarged.
 
 ### 2. The cert self-cancel's positive direction
 expected: Zero injections on a later campaign `level-03` session after an intervening endless detour.
@@ -77,8 +75,8 @@ result: [pending]
 total: 5
 passed: 0
 issues: 0
-pending: 5
-skipped: 0
+pending: 4
+skipped: 1
 blocked: 0
 
 ## Gaps
