@@ -171,7 +171,28 @@ Plans:
   4. Device clock changes are handled by an explicit, written policy — the behaviour on a backwards clock jump is a decision recorded in the phase, not an accident
   5. Daily results never touch campaign progress or endless records
 
-**Plans:** TBD
+**Plans:** 6 plans in 4 waves (tracer-first: one end-to-end slice, then expansion)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 12-01-PLAN.md — Tracer: one local calendar date played end to end — date key → `generate` → campaign-shaped run → the compiler-enforced `daily` arm of `RecordRunEndArgs` → a Daily Result panel rendered from the stored record, with the `__DEV__` `Daily` entry (wave 1)
+
+**Wave 2**
+
+- [ ] 12-02-PLAN.md — SC-1 and SC-5 get instruments: the TZ-pinned derivation battery (locale invariance, both real 2026 DST days, rollover), 731-key board distinctness with the no-network source contract, and the two-store daily firewall with its `@ts-expect-error` compile-time half (wave 2)
+- [ ] 12-03-PLAN.md — The streak walk as pure functions over sorted ISO keys (D-13/D-14/D-17, including the underivable-length omission), behind a blocking decision checkpoint for D-16's one-way scalars and their reconcile rule (wave 2)
+
+**Wave 3**
+
+- [ ] 12-04-PLAN.md — Read-side hardening: `sanitizeDailyRecord` bounds on read and validates every stored date key with integer arithmetic, dropping invalid entries in the playable direction; plus N-DAILY-03's clock cases under a pinned zone (wave 3)
+- [ ] 12-05-PLAN.md — The Daily Result panel built out to its approved contract (streak block, badge, streak-ended line, countdown, board-failure variant), the foreground refresh decided as one AppState subscription, and the daily run boundaries closed in the host (wave 3)
+
+**Wave 4**
+
+- [ ] 12-06-PLAN.md — `docs/ops/DAILY-CHALLENGE.md`, N-DAILY-03's written policy; and `12-VALIDATION.md` closed out with real task ids and eight device-verification items routed to a person (wave 4)
+
 **UI hint**: yes
 
 ### Phase 13: Achievements
