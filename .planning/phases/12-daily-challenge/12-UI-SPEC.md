@@ -1,7 +1,7 @@
 ---
 phase: 12
 slug: daily-challenge
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-09-27
@@ -649,13 +649,23 @@ controls exist, what a press writes, whether a date closes) is `explicit` and ow
 
 ## UI Considerations
 
-> **Provenance:** pre-populated by `gsd-ui-researcher` from the six probe element kinds and the
-> eight-category taxonomy, using the relevance filter. Element kinds below are
-> **researcher-proposed and not yet user-confirmed**; the `/gsd-ui-phase` step 9.5 probe run
-> REPLACES these rows idempotently and is the authoritative pass.
+> **Provenance:** authoritative pass — written by the `/gsd-ui-phase` step 9.5 probe run
+> (`ui-consideration-probe.cjs`) after the checker approved this contract, REPLACING the
+> researcher's pre-populated rows. Element kinds were user-confirmed at the propose-then-confirm
+> step; one override was applied and is recorded below.
+>
+> **Kind override (E3), recorded because the name is misleading on purpose.** The probe classified
+> the countdown as `static-content` alone, which raises only `overflow` and `long-text`. Both a
+> pre-value state and an invalid-remainder branch are specified in § Clock policy in the UI, so
+> leaving them unraised would keep them out of the coverage table and out of the verifier's
+> routing. The taxonomy has no `derived-value` kind; `media` is the nearest carrier that raises
+> `empty`/`loading`/`error`/`populated`. **E3 was run as `["static-content", "media"]` for its
+> raised-category set only — the countdown is not media, carries no image, video or icon, and
+> nothing downstream should read the override as a claim that it is.**
 
-Applicable state considerations resolved: **22 covered · 3 backstop · 12 dismissed · 0 unresolved**
-— 37 rows, recounted from the tables below (31 across the 5 elements + 6 cross-element).
+Probe-raised considerations: **34** (E1 8 · E2 8 · E3 6 · E4 4 · E5 8) —
+**25 covered · 2 backstop · 7 dismissed · 0 unresolved**.
+One further backstop row (E1 vertical fit) is authored beyond the probe set and counted separately.
 
 ### E1 — Daily Result panel, streak + metric block *(list-collection, static-content)*
 
@@ -674,22 +684,25 @@ Applicable state considerations resolved: **22 covered · 3 backstop · 12 dismi
 
 | Category | Status | Resolution / Reason |
 |---|---|---|
+| empty | ✗ dismissed | A fixed literal control set, not a data-driven collection. The contracted absence of `Retry` on a closed date is a rule-derived absence (D-01 restated), not an empty state |
 | loading | ✅ covered | `Menu` is instant and always enabled once the panel renders; nothing gates it (RUN-03) |
 | error | ✅ covered | The board-failure variant is the only failure that reaches this element, and it renders `Retry` + `Menu` with `Today's board could not be built — tap Retry`; the date stays open. `LevelErrorOverlay` is forbidden here |
-| overflow | ✅ covered | Fixed single-word labels at Body 16px inside a 320px panel — 5 characters against a 27-character budget; no reflow path exists |
-| long-text | ✅ covered | Fixed English literals, never user input; the a11y labels are not rendered visually and so have no layout path |
-| empty | ✗ dismissed | A fixed literal control set, not a data-driven collection. The contracted absence of `Retry` on a closed date is a rule-derived absence, not an empty state |
+| populated | ✅ covered | The populated state is the only state and is fully enumerated: `Menu` alone once the date is closed, `Retry` + `Menu` while it is open. There is no third arrangement — no greyed control, no disabled variant |
 | partial | ✗ dismissed | All-or-nothing: the controls render with the panel or not at all |
+| overflow | ✅ covered | Fixed single-word labels at Body 16px inside a 320px panel — 5 characters against a 27-character budget; no reflow path exists |
 | zero-one-many | ✗ dismissed | One or two fixed controls decided by the open/closed rule, not a variable-count collection |
+| long-text | ✅ covered | Fixed English literals, never user input; the a11y labels are not rendered visually and so have no layout path |
 
-### E3 — Countdown line *(static-content)*
+### E3 — Countdown line *(static-content + `media` override — see the provenance note above)*
 
 | Category | Status | Resolution / Reason |
 |---|---|---|
+| empty | ✅ covered | No pre-value state exists. `now` is an injected prop and the remainder is derived synchronously on every render, so there is no frame in which the line has a slot but no value — it either renders a form or is omitted entirely |
+| loading | ✅ covered | Same construction: derived, never fetched. There is no async source and therefore no skeleton, spinner or progressive reveal |
 | error | ✅ covered | A non-positive or non-finite remainder is never displayed: the line is omitted and the local date key is re-derived. No negative duration and no "expired" state can render |
+| populated | ✅ covered | Three fixed forms, enumerated in Copywriting § The countdown line, covering the hour-plus, sub-hour and sub-minute cases |
 | overflow | ✅ covered | The longest form, `New board in under a minute` (27 chars), sits exactly at the computed 27-character budget at Body 16px; the numeric forms are ≤ 20 chars |
 | long-text | ✅ covered | Three fixed templates, integers only, no locale-formatted duration string |
-| loading | ✅ covered | Derived synchronously from the injected `now` on every render — there is no fetch, no async source, and therefore no pre-value state to show |
 
 ### E4 — Pause overlay during a daily run *(nav, interactive-control, static-content)*
 
@@ -704,25 +717,20 @@ Applicable state considerations resolved: **22 covered · 3 backstop · 12 dismi
 
 | Category | Status | Resolution / Reason |
 |---|---|---|
-| loading | ✅ covered | The `Daily` button is instant; board generation for the date runs on the cold path and does not gate the control |
-| populated | ✅ covered | One new control, positioned immediately right of `Endless`, with no new readout |
-| overflow | 🧪 backstop | { statement: A device check on a 375pt-wide viewport must confirm the `Daily` control is fully on-screen and tappable in the non-wrapping dev row, verification: backstop } — the ≈431–475px content width is computed from font metrics and style values, never observed on a device; the row is ≈360–404px today (≈397–404px in its two default `Auto …` tier states, i.e. already past 375pt at launch), `Daily` takes every state over unconditionally, and the slot has no left bound |
-| error | ✅ covered | Pressing `Lv`, the tier button or `Cert WC` during a live daily run records the in-flight run as `abandoned` and exits daily; the date stays open and no write closes it. This is a **store-write** assertion, not a layout one, and the instrument already ships: `tests/ui/PlayingHost.endless-run.test.tsx` mounts `PlayingHost` under jsdom, `fireEvent.click`s dev-row `Pressable`s by accessibility name, and asserts over a mocked `recordRunEnd` (`toHaveBeenCalledTimes(1)`, then `mock.calls[0][0]`). The daily case is the same pattern with `mode: 'daily'`, `outcome: 'abandoned'`. `11-VERIFICATION.md` WR-02 recording these controls as undefined once a non-campaign run is entered is why this case is **risky** — which is a reason it must carry an explicit test, not a reason it is unobservable |
 | empty | ✗ dismissed | A dev-only strip of fixed literal controls; no data-driven collection can be empty |
+| loading | ✅ covered | The `Daily` button is instant; board generation for the date runs on the cold path and does not gate the control |
+| error | ✅ covered | Pressing `Lv`, the tier button or `Cert WC` during a live daily run records the in-flight run as `abandoned` and exits daily; the date stays open and no write closes it. This is a **store-write** assertion, not a layout one, and the instrument already ships: `tests/ui/PlayingHost.endless-run.test.tsx` mounts `PlayingHost` under jsdom, `fireEvent.click`s dev-row `Pressable`s by accessibility name, and asserts over a mocked `recordRunEnd` (`toHaveBeenCalledTimes(1)`, then `mock.calls[0][0]`). The daily case is the same pattern with `mode: 'daily'`, `outcome: 'abandoned'`. `11-VERIFICATION.md` WR-02 recording these controls as undefined once a non-campaign run is entered is why this case is **risky** — which is a reason it must carry an explicit test, not a reason it is unobservable |
+| populated | ✅ covered | One new control, positioned immediately right of `Endless`, with no new readout |
 | partial | ✗ dismissed | Fixed literal controls with no partial-data path |
+| overflow | 🧪 backstop | { statement: A device check on a 375pt-wide viewport must confirm the `Daily` control is fully on-screen and tappable in the non-wrapping dev row, verification: backstop } — the ≈431–475px content width is computed from font metrics and style values, never observed on a device; the row is ≈360–404px today (≈397–404px in its two default `Auto …` tier states, i.e. already past 375pt at launch), `Daily` takes every state over unconditionally, and the slot has no left bound |
 | zero-one-many | ✗ dismissed | A fixed control set, not a variable-count collection; `list-collection` is a prose-cue artifact of the phrase "dev **row**" |
 | long-text | ✗ dismissed | Fixed literals on a `__DEV__`-only surface deleted in Phase 14 |
 
-### Cross-element
+### Authored beyond the probe set
 
 | Category | Status | Resolution / Reason |
 |---|---|---|
-| overflow (vertical, E1) | 🧪 backstop | { statement: A device check on a 320×568pt viewport must confirm the fully-populated 11-row Daily Result panel fits inside the safe area with the `Menu` CTA visible without scrolling, verification: backstop } — the 456px computed height leaves headroom on paper, but jsdom does no layout and the safe-area insets are device-supplied |
-| empty (E3, E4) | ✗ dismissed | Static content and fixed controls — neither is a data-bearing collection |
-| partial (E3) | ✗ dismissed | A single derived scalar; there is no subset of it that can be present |
-| zero-one-many (E3) | ✗ dismissed | One line, not a collection |
-| populated (E2, E4) | ✗ dismissed | Fixed literal control sets; the populated state is the only state and is fully specified in Copywriting |
-| media (all) | ✗ dismissed | No `media` element exists in this phase — no images, no video, no icons |
+| overflow (vertical, E1) | 🧪 backstop | { statement: A device check on a 320×568pt viewport must confirm the fully-populated 11-row Daily Result panel fits inside the safe area with the `Menu` CTA visible without scrolling, verification: backstop } — the 456px computed height leaves headroom on paper, but jsdom does no layout and the safe-area insets are device-supplied. The probe raises `overflow` once per element on the horizontal axis; this vertical facet is authored separately so it is not silently folded into the E1 row above |
 
 <!-- Status vocabulary (locked by probe-core projectTruths):
      ✅ covered   → a plain truth string lifted into must_haves.truths
@@ -731,7 +739,6 @@ Applicable state considerations resolved: **22 covered · 3 backstop · 12 dismi
      ⚠ unresolved → an explicit planner assumption (surfaced, never silently dropped)
      ✗ dismissed  → not applicable, with the reason stated; never lifted, never silently dropped
      Rows are REPLACED (not appended) on a probe re-run — idempotent. -->
-
 ---
 
 ## Registry Safety
@@ -748,12 +755,12 @@ vetting gate does not apply. If a plan ever proposes a package, the project rule
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: pending
-- [ ] Dimension 2 Visuals: pending
-- [ ] Dimension 3 Color: pending
-- [ ] Dimension 4 Typography: pending
-- [ ] Dimension 5 Spacing: pending
-- [ ] Dimension 6 Registry Safety: pending
-- [ ] Dimension 7 Inventory Provenance: pending
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** APPROVED by gsd-ui-checker, 2026-09-27 (7/7 dimensions, after one revision)
