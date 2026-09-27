@@ -4,13 +4,13 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_plan: 4
 status: in_progress
-stopped_at: "Completed 11-21-PLAN.md (round 6 closed: showPauseOverlay operator now observable; REQUIREMENTS.md coherent — N-END-01/02 re-ticked on an evidence gate, N-END-03 still open on the SC-5 device half)"
-last_updated: "2026-09-26T15:34:27.726Z"
-state_head: 661af8687eb69445c5a42a8f67b26eac7f075308
+stopped_at: Phase 12 UI-SPEC approved
+last_updated: "2026-09-27T16:40:05.786Z"
+state_head: d27aba492f47ac7ad1c5fc4872c3ae0aff2afaa6
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 32
+  total_plans: 38
   completed_plans: 32
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
+current_phase_name: daily-challenge
 current_phase: 11
-current_phase_name: Endless Mode
 ---
 
 # Project State
@@ -53,7 +53,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Current Plan: 4
-Total Plans in Phase: 21
+Total Plans in Phase: 6
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
 **Next:** `/gsd-verify-work 11` (round 7 — and harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
@@ -286,6 +286,6 @@ Total Plans in Phase: 21
 
 ## Session Continuity
 
-Last session: 2026-09-26T15:34:27.696Z
-Stopped at: Completed 11-21-PLAN.md (round 6 closed: showPauseOverlay operator now observable; REQUIREMENTS.md coherent — N-END-01/02 re-ticked on an evidence gate, N-END-03 still open on the SC-5 device half)
-Resume file: None
+Last session: 2026-09-27T09:53:16.359Z
+Stopped at: Phase 12 UI-SPEC approved
+Resume file: .planning/phases/12-daily-challenge/12-UI-SPEC.md

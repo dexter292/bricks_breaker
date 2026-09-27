@@ -89,8 +89,8 @@ that out entirely — no server, no account).
 - **D-15: Daily history is a bounded window of recent dates**, following Phase 9 D-05's
   reasoning for `RECENT_RUNS_BOUND` — the blob is read whole on every app open, so nothing
   in it may grow without limit.
-- **D-16: Two unbounded scalars survive the window: longest streak ever, and total dates
-  played.** Without these, trimming history would silently erase an achievement, and a
+- **D-16: Two unbounded scalars survive the window — longest streak ever, and total dates played.**
+  Without these, trimming history would silently erase an achievement, and a
   streak longer than the window would read as the window length. They are updated when a
   date closes, never recomputed from the trimmed window.
   — **Reversibility:** one-way — once players have accumulated these numbers there is no
