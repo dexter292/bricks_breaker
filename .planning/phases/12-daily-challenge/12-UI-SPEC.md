@@ -159,7 +159,7 @@ reuses the existing Heading token.
 | Accent (10%) | `#FFFFFF` (`BALL_PADDLE`) | Ball/paddle; `Retry` fill; `Menu` outline + label; HUD metric text; the `Win` and `Daily` headings; **all** daily metric lines except the streak-ended one; the countdown line |
 | Destructive | `#E85D5D` | The `Lose` heading **and** the streak-ended line — see the extension note below |
 | Record slot | `#F2CC8F` (`BRICK_HP1`) | The `Best streak ever` badge fill **only** |
-| Muted | `#6B7280` (`BRICK_UNBREAKABLE`) | Dev button borders only. **Never** for a daily number the player is meant to read |
+| Muted | `#6B7280` (`BRICK_UNBREAKABLE`) | Dev button borders. Also consumed by `ResultOverlay.starEmpty` (`ResultOverlay.tsx:303`), which is campaign-only and which daily never renders (D-12) — so the fence holds. **No daily surface may use it,** and never for a number the player is meant to read |
 
 **Accent (`#FFFFFF`) reserved for:**
 
@@ -535,17 +535,56 @@ Phase 14 deletes it (`N-UI-01`).
 **No dev readout, and the reason is a measured one.** The dev row is `flexDirection: 'row'` with
 `gap: 8` and **no `flexWrap`**, rendered into an absolutely-positioned slot with `right: padR` and
 no `left` (`GameScreen.tsx` `devSwitchSlot`) — so it is sized to its content and any excess extends
-past the **left** screen edge. At the 12px dev label size the five existing controls already
-compute to ≈394px of content, which exceeds a 375pt-wide viewport **today, before this phase**.
-Adding `Daily` costs ≈69px more. Placing it right of `Endless` means the phase's own control is not
-among the ones that clip; adding a readout as well would spend another ≈30px for a number the Daily
-Result panel already shows.
+past the **left** screen edge.
+
+Derivation, from the measured inputs only: `SpaceMono` advance 0.612 em × the 12px dev label size =
+**7.344px per character**; each `Pressable` adds **26px** of chrome (`paddingHorizontal: 12` × 2 +
+`borderWidth: 1` × 2); each seam adds `gap: 8`. `minWidth: 44` never binds — every label already
+clears it.
+
+| Shipped control | Label | chars | Width |
+|---|---|---|---|
+| level cycle | `Lv 03` | 5 | 36.7 + 26 = **62.7** |
+| cert worst-case | `Cert WC` | 7 | 51.4 + 26 = **77.4** |
+| endless entry | `Endless` | 7 | 51.4 + 26 = **77.4** |
+| crash probe | `Crash` | 5 | 36.7 + 26 = **62.7** |
+| | | | + 4 seams × 8 = 32 |
+| **Fixed subtotal** | | | **≈312px** |
+
+The fifth control is the tier cycle, and **its label is not a constant** — `tierOverride` is
+`useState<QualityTier | null>(null)` (`PlayingHost.tsx:269`), so on mount it reads
+`` `Auto ${qualityTier}` `` (`:1935`) over `QualityTier = 'low' | 'mid' | 'high'`
+(`resolveQualityTier.ts:6`). The short `Low`/`Mid`/`High` forms are reachable only after cycling the
+override (`cycleDevTier`, `:1639`, which then wraps back to `null`). All six states:
+
+| Tier label | When | chars | Tier control | **Row total** | With `Daily` |
+|---|---|---|---|---|---|
+| `Auto low` / `Auto mid` | **default, on mount** | 8 | 84.8 | **≈397px** | ≈468px |
+| `Auto high` | **default, on mount** | 9 | 92.1 | **≈404px** | ≈475px |
+| `Low` / `Mid` | after 1–2 presses | 3 | 48.0 | ≈360px | ≈431px |
+| `High` | after 3 presses | 4 | 55.4 | ≈368px | ≈438px |
+
+So the row's width **today, before this phase, is ≈360–404px depending on the tier state**, and the
+two states it is actually in when a dev build launches — `Auto …` — are ≈397px and ≈404px, both past
+a 375pt-wide viewport. The overridden `High` state (≈368px) and the `Low`/`Mid` states (≈360px) do
+fit. **The row therefore already clips at its default, and only stops clipping once someone has
+pressed the tier button.** During an endless run the `W{n}` readout — a bare `Text` with no padding
+and no border, so 2–3 characters plus one 8px seam — adds a further ≈23px at `W1` / ≈30px at `W17`,
+pushing even the `Low`/`Mid` states past 375pt.
+
+Adding `Daily` costs **≈71px** (5 chars: 36.7 + 26, + an 8px seam). That takes the row to
+**≈431–475px**: over 375pt in **every** tier state, in every mode, unconditionally.
+
+That is what decides both rules here. Placing `Daily` immediately right of `Endless` means the
+phase's own control is not among the ones pushed past the left edge; and adding a `D{n}` readout as
+well would spend another ≈30px — the same ≈30px the `W{n}` readout already costs — for a number the
+Daily Result panel already shows.
 
 **Recommended, not required** (dev ergonomics only, no production surface): add
 `flexWrap: 'wrap'` and `justifyContent: 'flex-end'` to `styles.devRow`, add `left: padL` to
-`styles.devSwitchSlot` so the row has a width to wrap within, and add `pointerEvents="box-none"` to
-the `devRow` `View` so the now-full-width row does not swallow playfield taps. Phase 14 deletes the
-row regardless.
+`styles.devSwitchSlot` so the row has a width to wrap within. Nothing needs adding for touch
+pass-through: the slot `View` **already** carries `pointerEvents="box-none"` (`GameScreen.tsx:218`),
+so a now-full-width row still does not swallow playfield taps. Phase 14 deletes the row regardless.
 
 ### Shell rules (unchanged, restated)
 
@@ -591,14 +630,20 @@ document are one of these three; none is recalled.
 | Horizontal fit: usable panel text width **272px** = 320 max − 2×24 padding; at Body 16px that is **27 characters**; the longest daily string, `Your 1234-day streak ended` (26 chars ≈ 255px), fits | Arithmetic over the two measurements above | **computed — not observed on a rendered panel** |
 | Vertical fit: maximum content height **456px** = 48 panel padding + 40 heading + 40 body + 7×32 metric rows + 44 badge + 60 CTA | Arithmetic over the measured style values | **computed — not observed on a rendered panel** |
 | Contrast ratios in [§ Color](#color) | WCAG 2.x relative luminance computed from the hex pairs | **computed — not device-measured** |
-| Dev row ≈394px today, ≈463px with `Daily` | 0.612 em × 12px per character + 24px horizontal padding per control + 8px gaps | **computed — not observed on a device** |
+| Dev row content width today: **≈360–404px** across the six tier-label states, of which the two default (`Auto …`) states are **≈397px** and **≈404px**; **+≈23–30px** during an endless run (`W{n}`); **≈431–475px** once `Daily` is added | 0.612 em × 12px = 7.344px/char, + 26px chrome per `Pressable` (`paddingHorizontal: 12`×2 + `borderWidth: 1`×2), + `gap: 8` per seam; `W{n}` is a bare `Text` with no chrome. Label set read from `PlayingHost.tsx:269,1639,1934-1941` and `resolveQualityTier.ts:6` — the tier label is **variable**, not the constant `High`. Per-state arithmetic in [§ Entry point](#entry-point--__dev__-only) | **computed — not observed on a device** |
 | SDK 57: `react-native-safe-area-context` supported; `expo-localization` exists but is unused and uninstalled | `https://docs.expo.dev/versions/v57.0.0/` index consulted 2026-09-27 | **verified against the versioned docs** |
 
 **What jsdom cannot observe.** The project's UI tests run under `jsdom` + `@testing-library/react`,
 which does no layout: it cannot report wrapping, clipping, truncation, overlap, or safe-area
-behaviour on a notched device. Every fit claim above is therefore `backstop` in
+behaviour on a notched device. Every **fit** claim above is therefore `backstop` in
 [§ UI Considerations](#ui-considerations), not `explicit` — a passing jsdom render is not evidence
 that the panel fits. Do not let a `render()` assertion be recorded as having verified one of them.
+
+**What jsdom can observe, and must.** The limit is layout, and only layout. Mounting the host,
+pressing a control by accessibility name and asserting over a mocked store all work today —
+`tests/ui/PlayingHost.endless-run.test.tsx` does exactly that. Any claim of this shape (which
+controls exist, what a press writes, whether a date closes) is `explicit` and owes a case;
+`backstop` is not available to it.
 
 ---
 
@@ -609,8 +654,8 @@ that the panel fits. Do not let a `render()` assertion be recorded as having ver
 > **researcher-proposed and not yet user-confirmed**; the `/gsd-ui-phase` step 9.5 probe run
 > REPLACES these rows idempotently and is the authoritative pass.
 
-Applicable state considerations resolved: **19 covered · 4 backstop · 11 dismissed · 0 unresolved**
-(34 raised across 5 elements).
+Applicable state considerations resolved: **22 covered · 3 backstop · 12 dismissed · 0 unresolved**
+— 37 rows, recounted from the tables below (31 across the 5 elements + 6 cross-element).
 
 ### E1 — Daily Result panel, streak + metric block *(list-collection, static-content)*
 
@@ -661,8 +706,8 @@ Applicable state considerations resolved: **19 covered · 4 backstop · 11 dismi
 |---|---|---|
 | loading | ✅ covered | The `Daily` button is instant; board generation for the date runs on the cold path and does not gate the control |
 | populated | ✅ covered | One new control, positioned immediately right of `Endless`, with no new readout |
-| overflow | 🧪 backstop | { statement: A device check on a 375pt-wide viewport must confirm the `Daily` control is fully on-screen and tappable in the non-wrapping dev row, verification: backstop } — the ≈463px content width is computed from font metrics and style values; the row already exceeds 375pt before this phase and the slot has no left bound |
-| error | 🧪 backstop | { statement: Pressing `Lv`, the tier button or `Cert WC` during a live daily run must leave the daily date open and must not write a daily result, verification: backstop } — `11-VERIFICATION.md` WR-02 records these controls as having undefined behaviour once a non-campaign run is entered; this contract requires the `abandoned`-then-exit treatment but cannot observe it in jsdom |
+| overflow | 🧪 backstop | { statement: A device check on a 375pt-wide viewport must confirm the `Daily` control is fully on-screen and tappable in the non-wrapping dev row, verification: backstop } — the ≈431–475px content width is computed from font metrics and style values, never observed on a device; the row is ≈360–404px today (≈397–404px in its two default `Auto …` tier states, i.e. already past 375pt at launch), `Daily` takes every state over unconditionally, and the slot has no left bound |
+| error | ✅ covered | Pressing `Lv`, the tier button or `Cert WC` during a live daily run records the in-flight run as `abandoned` and exits daily; the date stays open and no write closes it. This is a **store-write** assertion, not a layout one, and the instrument already ships: `tests/ui/PlayingHost.endless-run.test.tsx` mounts `PlayingHost` under jsdom, `fireEvent.click`s dev-row `Pressable`s by accessibility name, and asserts over a mocked `recordRunEnd` (`toHaveBeenCalledTimes(1)`, then `mock.calls[0][0]`). The daily case is the same pattern with `mode: 'daily'`, `outcome: 'abandoned'`. `11-VERIFICATION.md` WR-02 recording these controls as undefined once a non-campaign run is entered is why this case is **risky** — which is a reason it must carry an explicit test, not a reason it is unobservable |
 | empty | ✗ dismissed | A dev-only strip of fixed literal controls; no data-driven collection can be empty |
 | partial | ✗ dismissed | Fixed literal controls with no partial-data path |
 | zero-one-many | ✗ dismissed | A fixed control set, not a variable-count collection; `list-collection` is a prose-cue artifact of the phrase "dev **row**" |
