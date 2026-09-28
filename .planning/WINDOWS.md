@@ -39,6 +39,7 @@ last_updated: 2026-09-28T04:15:33.124Z
 | 22 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 3: the per-runtime timezone cache ON DEVICE. Reproduced only by setenv+tzset in a desktop harness; a real OS timezone change is a different mechanism and was not observable. If a device check shows the date re-derives without a relaunch, NARROW the Limits paragraph in docs/ops/DAILY-CHALLENGE.md, do not delete it. | open |  | 2026-09-28T04:15:32.795Z |  |
 | 23 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | Device item 4: a real local-midnight rollover with the Daily Result panel open. No test can advance a device wall clock across midnight while the runtime lives. Confirm the countdown never renders a negative value and omits at or below zero. The re-derivation half of clock-policy rule 5 is UNIMPLEMENTED: the review fix for WR-04 deleted the write-only localTodayRef, so nothing re-derives the local date on rollover while the panel is open. Wiring it means swapping a read-only panel out from under the player, which is a design decision on the Phase 14 Title surface, not a review fix. Do not check for it here. | open |  | 2026-09-28T04:15:32.904Z |  |
 | 24 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 8: NO HUMAN HAS PLAYED A DAILY BOARD. Nothing in docs/ops/DAILY-CHALLENGE.md was calibrated by one, and its front matter says so. Play a full daily board to a win and to a loss on consecutive days and confirm the streak, best-streak and days-played figures move as the policy states. | open |  | 2026-09-28T04:15:33.015Z |  |
+| 25 | 12 | accepted-cost | src/services/storage/telemetry.ts |  | Accepted cost 4 (docs/ops/DAILY-CHALLENGE.md): a carried currentStreakStart is credible only when the surviving window is saturated at DAILY_HISTORY_BOUND. Sub-saturated means never trimmed, so the stored dates are the whole evidence. Consequence: a SATURATED window damaged at its oldest end becomes sub-saturated and under-reports a genuine long streak until the next close (measured 450 -> 399 -> 451, self-repairing). Under-report is the chosen direction; the rule refuses nothing a legitimate write can produce, only what damage produces. Residual inside the accepted T-12-05 tamper model: 399 genuine consecutive dates beside a hand-written totalDaysPlayed of 3000 reads 399, then the next close writes longestStreak 2710. | open |  | 2026-09-28T13:40:00.000Z |  |
 
 ````json
 [
@@ -87,7 +88,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "11",
     "file": "src/runtime/useGameLoop.ts",
     "line": null,
-    "description": "onFrame dependency array required waveRequest/waveApplied/ticksBanked (react-hooks/exhaustive-deps) — auto-fixed, Rule 3",
+    "description": "onFrame dependency array required waveRequest/waveApplied/ticksBanked (react-hooks/exhaustive-deps) \u2014 auto-fixed, Rule 3",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-25T14:40:25.863Z",
@@ -100,7 +101,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "11",
     "file": "app/_components/PlayingHost.tsx",
     "line": null,
-    "description": "Task 3's __DEV__ entry Pressable and W{n} readout landed in Task 2's commit — without a consumer, 'wave' and 'startEndlessRun' are unused symbols and lint warns, which both tasks' acceptance criteria forbid (Rule 3)",
+    "description": "Task 3's __DEV__ entry Pressable and W{n} readout landed in Task 2's commit \u2014 without a consumer, 'wave' and 'startEndlessRun' are unused symbols and lint warns, which both tasks' acceptance criteria forbid (Rule 3)",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-25T15:12:29.666Z",
@@ -126,7 +127,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "11",
     "file": "tests/ui/PlayingHost.endless-run.test.tsx",
     "line": null,
-    "description": "Added a behavioural endless-run suite beyond the plan's file list — the plan pinned SC-1 only by absence-greps (Rule 2)",
+    "description": "Added a behavioural endless-run suite beyond the plan's file list \u2014 the plan pinned SC-1 only by absence-greps (Rule 2)",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-25T15:12:29.896Z",
@@ -152,7 +153,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "11",
     "file": "tests/ui/PlayingHost.endless-host.test.ts",
     "line": null,
-    "description": "Task 2 source contract (b) scoped to the failure preamble, not the whole startEndlessRun body — the literal plan wording would have required deleting the success-path setWaveBuildFailedWave(null) clear, a user-visible copy defect",
+    "description": "Task 2 source contract (b) scoped to the failure preamble, not the whole startEndlessRun body \u2014 the literal plan wording would have required deleting the success-path setWaveBuildFailedWave(null) clear, a user-visible copy defect",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-26T07:29:19.613Z",
@@ -178,7 +179,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "11",
     "file": "docs/ops/ENDLESS-MODE.md",
     "line": null,
-    "description": "SC-5 device reading remains OPEN — no frame measurement taken; discharge procedure improved only",
+    "description": "SC-5 device reading remains OPEN \u2014 no frame measurement taken; discharge procedure improved only",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-26T09:53:22.231Z",
@@ -230,7 +231,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "12",
     "file": "src/services/storage/telemetry.ts",
     "line": null,
-    "description": "mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts)",
+    "description": "mergeDailyRecord and mergeDailyRecords have no executing test \u2014 the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts)",
     "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-28T01:48:07.463Z",
@@ -243,7 +244,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "12",
     "file": "src/runtime/overlays/DailyResultOverlay.tsx",
     "line": null,
-    "description": "12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06.",
+    "description": "12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it \u2014 device verification, owned by 12-06.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T03:58:52.704Z",
@@ -256,7 +257,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "12",
     "file": "src/runtime/overlays/DailyResultOverlay.tsx",
     "line": null,
-    "description": "12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06.",
+    "description": "12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device \u2014 owned by 12-06.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T03:59:12.456Z",
@@ -269,7 +270,7 @@ last_updated: 2026-09-28T04:15:33.124Z
     "phase": "12",
     "file": "app/_components/PlayingHost.tsx",
     "line": null,
-    "description": "12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06.",
+    "description": "12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 \u2014 owned by 12-06.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T03:59:12.560Z",
@@ -351,6 +352,19 @@ last_updated: 2026-09-28T04:15:33.124Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T04:15:33.015Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 25,
+    "kind": "accepted-cost",
+    "phase": 12,
+    "file": "src/services/storage/telemetry.ts",
+    "line": null,
+    "description": "Accepted cost 4 (docs/ops/DAILY-CHALLENGE.md): a carried currentStreakStart is credible only when the surviving window is saturated at DAILY_HISTORY_BOUND. Sub-saturated means never trimmed, so the stored dates are the whole evidence. Consequence: a SATURATED window damaged at its oldest end becomes sub-saturated and under-reports a genuine long streak until the next close (measured 450 -> 399 -> 451, self-repairing). Under-report is the chosen direction; the rule refuses nothing a legitimate write can produce, only what damage produces. Residual inside the accepted T-12-05 tamper model: 399 genuine consecutive dates beside a hand-written totalDaysPlayed of 3000 reads 399, then the next close writes longestStreak 2710.",
+    "status": "open",
+    "reason": null,
+    "recorded_at": "2026-09-28T13:40:00.000Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
