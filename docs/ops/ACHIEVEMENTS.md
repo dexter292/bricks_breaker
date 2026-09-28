@@ -562,14 +562,28 @@ records the run as `abandoned`, which evaluates and stores the unlock, and then 
 and navigates away — so there is no panel left to show it on. Under D-02 the delta is one-shot, so
 it can never fire later either: the player earns it, it is theirs, and nothing ever tells them.
 
+**How much of the catalog this reaches: 7 of the 12 entries**, measured by the phase-13 verifier —
+`combo-25`, `rally-60`, `cascade-12`, `pickups-100`, `bricks-1000`, `runs-50` and
+`endless-runs-20`, in all three modes, because `mergeRunIntoTelemetry` increments `runsPlayed`
+unconditionally. Over half the catalog, not an edge.
+
 This is a real gap and it is **not** fixed here. The fix is a placement decision, not a
 one-liner — there is no surface on the Menu route that states run outcomes, and inventing a
 toast or a modal for it would be the phase's first notification-shaped UI, which D-05 and the
-whole § What the player sees were written against. It belongs with Phase 14's Achievements screen,
-where a newly-unlocked marker has somewhere to live. Recorded as WINDOWS #35. Noted here because
-the alternative — suppressing the unlock on an abandoned run so it can be re-earned later —
-would be worse: it contradicts D-17's one-way rule and would make the same play produce different
-results depending on how the player left the screen.
+whole § What the player sees were written against. Recorded as WINDOWS #35. The alternative —
+suppressing the unlock on an abandoned run so it can be re-earned later — would be worse: it
+contradicts D-17's one-way rule and would make the same play produce different results depending
+on how the player left the screen.
+
+**It is deferred TO Phase 14, and Phase 14 does not currently cover it.** Stated plainly because
+the first version of this paragraph implied otherwise: Phase 14's SC-3 as written requires only
+locked/unlocked entries with descriptions, so a Phase 14 that satisfies its own success criteria
+verbatim still leaves an abandon-earned unlock indistinguishable from every other unlocked entry.
+Whoever plans that phase must add a newly-unlocked marker or an unseen-unlock surface
+**explicitly** — this is an inherited obligation on its discuss stage, not a mitigation it already
+provides. What makes the deferral acceptable meanwhile is only that the unlock is *durable*: it is
+stored, it survives a cold start, and it is in the set Phase 14's screen reads. The goal's verb —
+telling the player — is genuinely unmet on that path.
 
 **3. This document does not cover the Achievements screen.** Phase 14 owns it. This phase writes
 the data it reads — `telemetry.achievements.unlocked`, every id minted by the catalog, every `at`
