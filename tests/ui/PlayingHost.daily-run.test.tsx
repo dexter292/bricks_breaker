@@ -60,7 +60,12 @@ import type {
   DailyRecord,
   RecordRunEndArgs,
 } from '../../src/services/storage';
-import { localDateKey, previousDateKey } from '../../src/services/daily';
+import {
+  localDateKey,
+  localMidnightEndingMs,
+  nextLocalMidnightMs,
+  previousDateKey,
+} from '../../src/services/daily';
 
 // The entry is `__DEV__`-gated (N-UI-01), which is the point — so the harness has to
 // stand where a dev build stands. An undefined `__DEV__` renders no dev row at all.
@@ -564,6 +569,17 @@ async function mountAndStartDaily(): Promise<void> {
   await pressDaily();
 }
 
+/**
+ * Narrow one of the panel's millisecond props, which the harness types as `unknown`
+ * because it captures whatever the host renders with. The `typeof` check is not
+ * ceremony — a prop that arrived as `undefined` would otherwise make a remainder
+ * comparison pass as `NaN <= 0` being false, or silently coerce.
+ */
+function ms(value: unknown, what: string): number {
+  expect(typeof value, `${what} must reach the panel as a number`).toBe('number');
+  return value as number;
+}
+
 /** The daily arm calls to `recordRunEnd`, narrowed. */
 function dailyCalls(): { date: string; outcome: string; score: number }[] {
   return recordRunEnd.mock.calls
@@ -929,6 +945,8 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
 
     // No panel yet: the interval must not exist. `advanceTimersByTime` rather than
     // `runAllTimers` throughout — see the file header.
+    const beforeClosed = lastScreenProps.dailyNowMs;
+    now.mockReturnValue(DAY_A_NOON + 180_000);
     await act(async () => {
       vi.advanceTimersByTime(180_000);
       await Promise.resolve();
@@ -937,10 +955,25 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
       lastScreenProps.result,
       'still mid-run, so no daily panel is open',
     ).toBeNull();
+    expect(
+      lastScreenProps.dailyNowMs,
+      'and with the panel closed the instant is UNTOUCHED across 180s of timers — an ' +
+        'interval that fired would have moved it, so this observes the absence rather ' +
+        'than merely asserting the panel is closed',
+    ).toBe(beforeClosed);
+    now.mockReturnValue(DAY_A_NOON);
 
     await deliverPhase(SIM.WON, { score: 1200 });
     const atPublish = lastScreenProps.dailyNowMs;
+    // CAPTURED BEFORE the refresh — the whole point. `expect(x).toBe(x)` after the fact
+    // passes for every value including undefined and NaN, and pinned nothing.
+    const boundaryAtPublish = lastScreenProps.dailyNextBoundaryMs;
     expect(atPublish).toBe(DAY_A_NOON);
+    expect(
+      boundaryAtPublish,
+      'fixture sanity: the published boundary is the midnight ending the SHOWN date, so ' +
+        'the constant compared against below is itself the right number',
+    ).toBe(localMidnightEndingMs(localDateKey(DAY_A_NOON)));
 
     now.mockReturnValue(DAY_A_NOON + 180_000);
     await act(async () => {
@@ -955,7 +988,78 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     ).toBe(DAY_A_NOON + 180_000);
     expect(
       lastScreenProps.dailyNextBoundaryMs,
-      'and the boundary stays pinned to the shown date, so the remainder can actually reach zero',
-    ).toBe(lastScreenProps.dailyNextBoundaryMs);
+      'and the boundary stays pinned across the refresh, so the remainder can actually ' +
+        'reach zero (12-UI-SPEC § Clock policy rule 5)',
+    ).toBe(boundaryAtPublish);
+
+    // Now step the clock PAST the pinned boundary, which is the only advance that can
+    // tell a pinned boundary from a re-derived one: within day A both answer the same
+    // number, so an assertion that never crosses midnight cannot falsify the rule.
+    const now2 = vi.spyOn(Date, 'now');
+    now2.mockReturnValue(DAY_B_NOON);
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+      await Promise.resolve();
+    });
+    now2.mockRestore();
+
+    expect(
+      lastScreenProps.dailyNowMs,
+      'the tick after the rollover reads the fresh clock',
+    ).toBe(DAY_B_NOON);
+    expect(
+      lastScreenProps.dailyNextBoundaryMs,
+      'but the boundary is STILL the one pinned at publish — re-deriving it here would ' +
+        'move it a whole day and the remainder would be permanently positive',
+    ).toBe(boundaryAtPublish);
+    expect(
+      ms(lastScreenProps.dailyNextBoundaryMs, 'dailyNextBoundaryMs') -
+        ms(lastScreenProps.dailyNowMs, 'dailyNowMs'),
+      'which is what makes the omission reachable at all: the remainder is now ' +
+        'non-positive, so the countdown line drops rather than counting to a second tomorrow',
+    ).toBeLessThanOrEqual(0);
+  });
+
+  it('a run that crosses local midnight counts down to the midnight ending the SHOWN date, not to the next one', async () => {
+    // Begun 23:58 on day A, finished 00:01 on day B. D-08 records the result under the
+    // date the run STARTED on, so the panel is dated A while the clock is already on B.
+    const startedAt = DAY_A_NOON + 11 * 60 * 60 * 1000 + 58 * 60 * 1000;
+    const finishedAt = startedAt + 3 * 60 * 1000;
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(startedAt);
+    await mountAndStartDaily();
+
+    now.mockReturnValue(finishedAt);
+    await deliverPhase(SIM.WON, { score: 1200 });
+    now.mockRestore();
+
+    expect(
+      localDateKey(startedAt),
+      'fixture sanity: the run began on day A…',
+    ).toBe(localDateKey(DAY_A_NOON));
+    expect(
+      localDateKey(finishedAt),
+      '…and finished on day B, so the clock has genuinely crossed',
+    ).toBe(localDateKey(DAY_B_NOON));
+    expect(
+      dailyCalls()[0]!.date,
+      'the result is recorded under the START date, which must never move (D-08)',
+    ).toBe(localDateKey(DAY_A_NOON));
+
+    const boundary = ms(lastScreenProps.dailyNextBoundaryMs, 'dailyNextBoundaryMs');
+    expect(
+      boundary,
+      'the countdown ends when the SHOWN date ends, which is already behind us',
+    ).toBe(localMidnightEndingMs(localDateKey(DAY_A_NOON)));
+    expect(
+      boundary - ms(lastScreenProps.dailyNowMs, 'dailyNowMs'),
+      'so the remainder is non-positive and the line omits itself — the new board is ' +
+        'already playable and the panel must not advertise it as pending',
+    ).toBeLessThanOrEqual(0);
+    expect(
+      nextLocalMidnightMs(finishedAt) - finishedAt,
+      'the clock-derived boundary the defect produced would have advertised ~23h59m of ' +
+        'wait beside a panel dated yesterday — stated so this case cannot pass vacuously',
+    ).toBeGreaterThan(23 * 60 * 60 * 1000);
   });
 });
