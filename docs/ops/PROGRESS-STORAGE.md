@@ -87,7 +87,60 @@ After play-path / `levelId` plumbing changes (C2):
 
 Ceiling measurement itself is a separate session (not part of routine UAT approval).
 
+## Achievements in the v4 telemetry blob (Phase 13 / D-13)
+
+> The sections above describe the **v3** `ProgressBlob` and its migration chain. The telemetry
+> sub-object (`lifetime`, `byMode`, `endless`, `daily`, `achievements`, `recentRuns`) lives in the
+> **v4** blob at `@nbb/progress/v4` (`PROGRESS_VERSION`, `PROGRESS_KEY` in
+> `src/services/storage/types.ts`). This section covers the achievements field only; the catalog,
+> the thresholds and the surface are in [`ACHIEVEMENTS.md`](./ACHIEVEMENTS.md).
+
+**Shape.** `TelemetryBlob.achievements` is an `AchievementRecord` — `{ unlocked: AchievementUnlock[] }`
+— where an `AchievementUnlock` is `{ id, at }`: the catalog id, and the Unix ms at which it was
+**first** earned (D-14). The timestamp never moves; an id already present keeps its existing `at`
+on every write and on every merge (D-17 / D-22). An **array**, deliberately not a map keyed by id —
+`sanitizeAggregateMap` in the same parser is the counter-example, copying every key it finds on
+read with no cap (WINDOWS #27).
+
+**Bound.** `ACHIEVEMENT_UNLOCK_BOUND` is **64**, applied on write and again on read (after the
+unknown-id drop). The arithmetic: an unknown id is dropped, so a legitimate record can never
+exceed the catalog's size and that drop *is* the natural cap; 64 is more than five times D-09's
+largest catalog, and it caps a hostile blob at roughly `64 × 40` bytes of JSON — about 2.5 KB,
+against the ~2 MB Android CursorWindow practical ceiling the `RECENT_RUNS_BOUND` comment names. It
+exists anyway because it is the fence that survives a future relaxation of the id check. Both
+trims keep the **first** entries (`slice(0, …)`), never the last: the recent-run ring keeps the
+newest because it is a window on recent activity, whereas an unlock is permanent (D-17) and
+dropping the oldest would un-earn the achievements a player has held longest.
+
+**Degrade rules (D-15 / D-21), and the one that inverts.** Downward, like every other v4 field, and
+a corrupt achievements field degrades **alone** — campaign unlocks, bests, stars, the endless
+record and the daily history are provably untouched.
+
+| What is malformed | What happens | Why |
+|---|---|---|
+| the `id` | the entry is **dropped** | an id is not a counter; there is no nearest valid value |
+| the `at` | it **defaults and the entry is kept** | D-17 — an unlock is one-way; dropping it would un-earn an achievement the player did earn. A bad timestamp costs only a sort order |
+
+That pair has no other precedent in this parser and must not be unified: `sanitizeRunLogEntry`
+drops on a non-finite timestamp and is the wrong analog. Guards: `sanitizeAchievementUnlock` and
+`sanitizeAchievementRecord` in `src/services/storage/parseBlob.ts`, asserted by
+`tests/storage.progress-v4.test.ts` and `tests/achievements.record.test.ts`.
+
+**No version bump and no migration were taken (D-13).** The field is **additive on an existing
+version**, exactly the precedent `endless` set and `daily` followed: `sanitizeTelemetry` starts
+from `defaultTelemetryBlob()` and copies field by field, so a v4 blob written before achievements
+existed parses clean with the field defaulted and every other field intact — asserted rather than
+assumed (`tests/storage.progress-v4.test.ts`, the no-migration case). **`PROGRESS_VERSION` is
+unchanged at 4 and `@nbb/progress/v4` is unchanged.**
+
+**Three write sites, not two (D-23).** The field must be present in `defaultTelemetryBlob`
+(`types.ts`), `mergeTelemetryBlobs` and `cloneTelemetryBlob` (`telemetry.ts`) — the compiler forces
+all three — **and** in `sanitizeTelemetry` (`parseBlob.ts`), which it does **not**. A field the
+parser never reads is silently defaulted and the file still compiles. Anyone adding a second field
+to this record should read `ACHIEVEMENTS.md` § *The stored shape* first.
+
 ## Not in this doc’s scope
 
 - Score-band star thresholds (**E2 / N-CNT-02**)
 - Chapters / cloud sync / aimed serve
+- The achievement catalog, its twelve thresholds and the result-panel surface (**[`ACHIEVEMENTS.md`](./ACHIEVEMENTS.md)**)
