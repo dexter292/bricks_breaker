@@ -227,6 +227,22 @@ throwaway file written, linted and deleted in one command), which prints **5 err
 block and 0 without**. When you need evidence that D-03 and D-20 are still enforced, that probe
 is the evidence; a green lint is not.
 
+**That probe now has a committed runner: `scripts/assert-purity.mjs`, the sixth
+`assert-*.mjs` in `npm test`.** Until the phase-13 security audit pointed it out, the command
+existed only inside `13-01-PLAN.md`'s verify block — so the sole observer of the phase's central
+purity guarantee had to be reconstructed from a planning artifact, which is not a standing gate.
+It is red-proved in both directions: 5 with the block, and exit 1 with the diagnostic when the
+block is deleted from the config.
+
+**The second layer rule has no such runner, and nothing but lint holds it.** The display names
+cross from `src/services` into `src/runtime`, and the only mechanism stopping a panel from
+importing the catalog directly is `eslint.config.js`'s `boundaries/dependencies`. **No unit test
+observes it** — a `services/achievements` import planted into `achievementLines.ts` is rejected by
+lint alone, with `There is no policy allowing dependencies from elements of type "runtime" to
+elements of type "services"`. Written here rather than only in `13-VALIDATION.md` because that
+file is phase history and this one is what a contributor reads; a green `vitest run` says nothing
+about the layer boundary.
+
 ## The stored shape
 
 `TelemetryBlob.achievements` is an `AchievementRecord`
