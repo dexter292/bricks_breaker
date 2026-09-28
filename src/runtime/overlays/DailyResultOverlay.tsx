@@ -175,7 +175,19 @@ type Props = {
   dateKey: string;
   /** This date's stored score. Suppressed on the board-failure variant. */
   score: number;
-  /** `streakFrom` over the stored keys — the run ending at this date (D-13 / D-14). */
+  /**
+   * `currentDailyStreak` over the stored RECORD — the run ending at this date
+   * (D-13 / D-14). The host supplies it; this tier cannot import `src/services`.
+   *
+   * **`streakFrom` over the stored keys is NOT the source, and naming it here was the
+   * stale line review IN-01 found.** `streakFrom` walks the TRIMMED window and saturates
+   * at `DAILY_HISTORY_BOUND`: MEASURED over 450 consecutive closes it returns 400 against
+   * a stored `longestStreak` of 450, which both states a streak the player does not have
+   * AND silently stops the record badge firing, since the badge predicate is
+   * `streak === longestStreak`. 12-05 removed that derivation for exactly this reason
+   * (WINDOWS #19). The prop is the one place a reader of this panel would find a
+   * derivation named, so it must name the right one.
+   */
   streak: number;
   /** `DailyRecord.longestStreak` — the lifetime maximum (D-16). */
   longestStreak: number;
