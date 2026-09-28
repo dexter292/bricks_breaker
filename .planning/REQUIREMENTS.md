@@ -190,9 +190,9 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 
 ### Achievements
 
-- [ ] **N-ACH-01** (FC-R01): Achievements are declared as data — id, description, pure predicate over a telemetry snapshot — so adding one needs no game-code edit
-- [ ] **N-ACH-02**: Evaluation is deterministic and idempotent; unlocks persist across app kills under the storage migration contract
-- [ ] **N-ACH-03**: An unlock is surfaced without interrupting a live rally; the catalog covers all three modes, not just score thresholds
+- [x] **N-ACH-01** (FC-R01): Achievements are declared as data — id, description, pure predicate over a telemetry snapshot — so adding one needs no game-code edit
+- [x] **N-ACH-02**: Evaluation is deterministic and idempotent; unlocks persist across app kills under the storage migration contract
+- [x] **N-ACH-03**: An unlock is surfaced without interrupting a live rally; the catalog covers all three modes, not just score thresholds
 
 ### Meta Shell
 

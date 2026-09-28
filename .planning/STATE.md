@@ -4,9 +4,9 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_plan: 5
 status: in_progress
-stopped_at: Completed 13-04-PLAN.md
-last_updated: "2026-09-28T14:50:13.612Z"
-state_head: 32452702113e6a5d58e270bced728c48f341878e
+stopped_at: Completed 13-05-PLAN.md — phase 13 automated half complete; four device claims outstanding
+last_updated: "2026-09-28T15:12:02.900Z"
+state_head: 723dd211ff3da2bfc7c6334509143649aa3cfd47
 progress:
   total_phases: 6
   completed_phases: 1
@@ -139,6 +139,7 @@ Total Plans in Phase: 5
 | Phase 13 P02 | 18 min | 2 tasks | 4 files |
 | Phase 13 P03 | 13 min | 2 tasks | 3 files |
 | Phase 13 P04 | 10 min | 2 tasks | 5 files |
+| Phase 13 P05 | 16 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -289,6 +290,11 @@ Total Plans in Phase: 5
 - [Phase 13]: 13-04: the daily unlock block is the SAME JSX body as ResultOverlay's, differing only in its gating flag and its neighbours — if the two bodies diverge in anything else, one of them is wrong
 - [Phase 13]: 13-04: suppression reuses the shipped isClosed (daily) and showRunLines (endless) flags and adds none — a second flag meaning 'is there a run' is a second place for the answer to drift. Red-proved both ways: removing the gate reds the absence case, inverting it to failureKind === 'none' reds the mid-run presence case
 - [Phase 13]: 13-04: order-preservation and non-mutation are SEPARATE test cases — MEASURED: sorting the caller's array reds only non-mutation (clean is filtered before the sort), sorting the returned data reds only order. One case standing for both would have proved neither
+- [Phase 13]: ACHIEVEMENT_LINES_MAX stays 2 and all four device backstops stay OPEN — No physical iOS device was available and the Simulator is not acceptable evidence for a safe-area inset claim (phase 11 established that for its own frame-timing claim). The consequence of a non-zero bottom inset is written down instead - the constant drops to 1 with two named test cases moving alongside it.
+- [Phase 13]: WINDOWS 16, 17, 28 and 29 were ANNOTATED with a recipe and a consequence, never closed or duplicated — No automated step in this repository can discharge a layout claim (jsdom performs no layout). Closing one on a green npm test is the false-gate failure this project has shipped three times; duplicating them under new ids would make the ship gate count one debt twice.
+- [Phase 13]: 13-VALIDATION.md nyquist_compliant true is SCOPED in the frontmatter, and status stays draft — It describes the per-task map (every row an executed command with a measured status), not the four Manual-Only items, which have no automated command anywhere. Only /gsd-validate-phase may set the validated status.
+- [Phase 13]: Two seeded validation rows named cases in the WRONG FILE and were vacuous at exit 0 - corrected to the executed commands — tests/achievements.record.test.ts has no 'unknown id' or 'degrades alone' case; both claims live in tests/storage.progress-v4.test.ts. Each predicted command would have printed Tests 24 skipped (24) and exited 0 - the same silent non-binding 13-03 measured through wrong case, reached through wrong file.
+- [Phase 13]: GameScreen's achievements threading is recorded as compiler-checked and behaviourally unobserved — grep -cin achiev tests/ui/GameScreen.test.tsx prints 0; both panel suites render the overlays directly. Filed as WINDOWS 32 rather than implied to be covered.
 
 ### Decisions (Post-MVP close)
 
@@ -325,6 +331,6 @@ Total Plans in Phase: 5
 
 ## Session Continuity
 
-Last session: 2026-09-28T14:49:06.210Z
-Stopped at: Completed 13-04-PLAN.md
+Last session: 2026-09-28T15:12:02.857Z
+Stopped at: Completed 13-05-PLAN.md — phase 13 automated half complete; four device claims outstanding
 Resume file: None
