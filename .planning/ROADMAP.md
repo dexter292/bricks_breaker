@@ -171,13 +171,13 @@ Plans:
   4. Device clock changes are handled by an explicit, written policy — the behaviour on a backwards clock jump is a decision recorded in the phase, not an accident
   5. Daily results never touch campaign progress or endless records
 
-**Plans:** 6 plans in 5 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 1/6 plans executed in 5 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — Tracer: one local calendar date played end to end — date key → `generate` → campaign-shaped run → the compiler-enforced `daily` arm of `RecordRunEndArgs` → a Daily Result panel rendered from the stored record, with the `__DEV__` `Daily` entry (wave 1)
+- [x] 12-01-PLAN.md — Tracer: one local calendar date played end to end — date key → `generate` → campaign-shaped run → the compiler-enforced `daily` arm of `RecordRunEndArgs` → a Daily Result panel rendered from the stored record, with the `__DEV__` `Daily` entry (wave 1)
 
 **Wave 2**
 

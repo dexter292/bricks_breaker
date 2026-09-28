@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 4
+current_plan: 2
 status: in_progress
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-09-27T16:40:05.786Z"
-state_head: d27aba492f47ac7ad1c5fc4872c3ae0aff2afaa6
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-09-28T01:48:20.613Z"
+state_head: f880fd07e43eb4e26d5622961e98dca365aeb411
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 38
-  completed_plans: 32
+  completed_plans: 33
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
-current_phase_name: daily-challenge
 current_phase: 11
+current_phase_name: Daily Challenge
 ---
 
 # Project State
@@ -48,11 +48,11 @@ current_phase: 11
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Phase 11 — Endless Mode
+**Current focus:** Phase 12 — Daily Challenge
 
 ## Current Position
 
-Current Plan: 4
+Current Plan: 2
 Total Plans in Phase: 6
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
@@ -128,6 +128,7 @@ Total Plans in Phase: 6
 | Phase 11 P19 | 10 min | 3 tasks | 5 files |
 | Phase 11 P20 | 13 min | 3 tasks | 5 files |
 | Phase 11 P21 | 11 min | 3 tasks | 5 files |
+| Phase 12 P01 | 17 min | 1 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -250,6 +251,10 @@ Total Plans in Phase: 6
 - [Phase 11]: [Phase 11]: N-END-01 and N-END-02 re-ticked on a round-6 evidence gate that ran BEFORE the file was opened (npm test 99 files / 663 tests, typecheck, lint — all green, transcripts dated in the commit body); the incoherent box/note pairs go 3 to 0; N-END-03 stays [ ] because round 6 repaired the INSTRUCTIONS for the SC-5 reading without taking it
 - [Phase 11]: [Phase 11]: N-END-01's superseded clause is DESCRIBED, not quoted — the first draft re-introduced the false literal while retiring it and moved the plan's own premature-clause gate from 0 back to 1. Caught by running the gate, not by reading it
 - [Phase 11]: [Phase 11]: Four plan-stated bases had moved under this plan by execution time (false-clause enumeration 6 at 6bb18bf vs 5 at da1c356; nine declared falsifications vs twelve recorded; roadmap ticks 2/1 not 0/3, making one gate counter vacuous; the :108 line already half-edited by update-plan-progress). All four reported in the SUMMARY rather than edited to fit
+- [Phase 12]: DAILY_DIFFICULTY = 10 — from the generator's published table: between level-01's 32 bricks and level-03's showpiece, ~2-minute median clear, and exactly where endless arrives at wave 11 (D-11)
+- [Phase 12]: The daily arm of RecordRunEndArgs carries date and NO levelId, so bestByLevel/unlocked/bestScore are unreachable at compile time rather than merely unwritten (N-DAILY-03 / SC-5)
+- [Phase 12]: telemetryKey stays ONE const ternary in both stores; the daily branch reaches DAILY_TELEMETRY_KEY and never a date, which is what keeps byMode.daily bounded (D-15)
+- [Phase 12]: ResultOverlay.mode is NOT widened — daily ships as a separate scalar-props DailyResultOverlay, which is SC-5 at the prop signature
 
 ### Decisions (Post-MVP close)
 
@@ -286,6 +291,6 @@ Total Plans in Phase: 6
 
 ## Session Continuity
 
-Last session: 2026-09-27T09:53:16.359Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-daily-challenge/12-UI-SPEC.md
+Last session: 2026-09-28T01:48:12.821Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None

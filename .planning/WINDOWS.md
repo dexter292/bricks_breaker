@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 12
+open_count: 14
 waived_count: 0
 fixed_count: 1
-total_count: 13
-last_updated: 2026-09-26T15:20:54.201Z
+total_count: 15
+last_updated: 2026-09-28T01:48:07.463Z
 ---
 
 # Broken Windows Ledger
@@ -28,6 +28,8 @@ last_updated: 2026-09-26T15:20:54.201Z
 | 11 | 11 | unrun-verify | docs/ops/ENDLESS-MODE.md |  | SC-5 device reading remains OPEN — no frame measurement taken; discharge procedure improved only | open |  | 2026-09-26T09:53:22.231Z |  |
 | 12 | 11 | unrun-verify | docs/ops/ENDLESS-MODE.md |  | SC-5 device frame-budget reading remains UNMEASURED: 11-20 repaired the instructions for taking it and explicitly did not take it; no automated step in this repo can drive onFrame | open |  | 2026-09-26T15:20:54.093Z |  |
 | 13 | 11 | deviation | app/_components/PlayingHost.tsx |  | 11-20 base disagreement: plan measured the falsified clause at 1 here on 6bb18bf; wave 9 (07907f3) had already deleted it, so the phase-wide enumeration is 5 on the executed tree, not 6 | open |  | 2026-09-26T15:20:54.201Z |  |
+| 14 | 12 | stub | src/services/storage/parseBlob.ts |  | sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord) | open |  | 2026-09-28T01:48:07.356Z |  |
+| 15 | 12 | unrun-verify | src/services/storage/telemetry.ts |  | mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts) | open |  | 2026-09-28T01:48:07.463Z |  |
 
 ````json
 [
@@ -197,6 +199,32 @@ last_updated: 2026-09-26T15:20:54.201Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-26T15:20:54.201Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 14,
+    "kind": "stub",
+    "phase": "12",
+    "file": "src/services/storage/parseBlob.ts",
+    "line": null,
+    "description": "sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T01:48:07.356Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 15,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "src/services/storage/telemetry.ts",
+    "line": null,
+    "description": "mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T01:48:07.463Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
