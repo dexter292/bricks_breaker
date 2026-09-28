@@ -298,7 +298,7 @@ extraordinary run.
 
 ## Accepted costs
 
-Three named, bounded, deliberately unmitigated things. Each is a **decision a later reader will
+Four named, bounded, deliberately unmitigated things. Each is a **decision a later reader will
 find**, not a defect they should file.
 
 **1. The practice hole (D-08).** Because the board is derived from the date, exiting before the
@@ -325,6 +325,27 @@ feature: everyone gets the same board on the same day. What the read path *does*
 is tampering that would **crash, corrupt or inflate** — an oversized or malformed key is
 dropped rather than rendered, the history is bounded on read as well as on write, and every
 fence degrades downward.
+
+**4. A DAMAGED long-streak window under-reports, and will not be repaired.** A carried
+`currentStreakStart` may reach back past the oldest stored date only when the stored window is
+**saturated** at `DAILY_HISTORY_BOUND`. The reasoning is structural: a sub-saturated window has
+never been trimmed — the write path slices to either the whole history or exactly the bound,
+and the merge unions before it trims — so the dates it holds are the whole of that record's
+evidence, and a start older than its oldest key has nothing left to explain the gap. Without
+that rule, `totalDaysPlayed` is the only thing vouching for the claim, and it is a self-reported
+counter the sanitizer copies whole while it drops history entry by entry; MEASURED before the
+rule, three stored dates beside `totalDaysPlayed: 3000` read `Streak · 2463` and the next close
+wrote `longestStreak: 2464`, which is one-way under **D-16** and repairable only by a migration.
+
+The cost: a genuine long-streak player whose saturated window loses an entry **at its oldest
+end** — a truncated write, a malformed field, a field an older build never wrote — drops below
+saturation, so their carried start is refused and the panel reads the window instead of the run.
+MEASURED: a 450-day player who loses one such entry reads **399**, not 450. That is an
+**under-report**, which is the direction every fence in this phase degrades in, and it is the
+direction chosen on purpose: reading 399 costs that player a badge until their next close, while
+reading 2463 for a three-day player writes 2464 into storage forever. The bound is **not**
+`history.length` — clamping to the surviving count would read `Streak · 400` for every
+legitimate 450-day player, which is the failure D-16 was re-opened to fix.
 
 ## Flagged assumptions from this round
 
