@@ -1,12 +1,20 @@
 /**
- * N-ACH-02 / SC-2 / SC-5 / D-01 / D-02 / D-12 / D-14 / D-19 — the achievement write path,
- * end to end through both stores.
+ * N-ACH-02 / SC-2 / SC-3 / SC-5 / D-01 / D-02 / D-12 / D-14 / D-19 / D-22 / D-23 — the
+ * achievement write path AND the three claims a parser test cannot make, end to end through
+ * both stores.
  *
  * This is plan 13-01's primary verify. It drives real runs through `recordRunEnd` and
  * asserts four things the tracer exists to prove: that a qualifying run PERSISTS the
  * unlock with a timestamp AND reports it on the widened return; that the same run a second
  * time reports nothing and moves nothing; that the evaluation sits OUTSIDE every mode gate;
  * and that the write touches no campaign state.
+ *
+ * Plan 13-03 EXTENDED it with the five claims that need a whole store rather than a parse:
+ * that an unlock survives a genuine cold start (SC-3); that reconciling memory against
+ * freshly-hydrated disk keeps the EARLIEST timestamp for a shared id (D-22); that no id
+ * inherits another id's timestamp; that an ordinary campaign run recorded afterwards does
+ * not erase the set (D-23, the site no test names directly); and that a hand-edited blob
+ * cannot grow the collection (T-13-02).
  *
  * SHAPE MERGED FROM TWO SHIPPED ANALOGS. The both-stores harness — the parameterised suite
  * body, its two instantiations, the `fakeAsyncStorage` double and the `runStats` helper —
@@ -17,12 +25,19 @@
  * each paid.
  *
  * WHAT THIS FILE IS NOT EVIDENCE ABOUT, stated so its silence is not read as coverage:
- *  - The READ path. `parseBlob.ts` is untouched by plan 13-01, so a stored achievements
- *    field is currently discarded on read (`sanitizeTelemetry` starts from
- *    `defaultTelemetryBlob()`). The sanitizer, the unknown-id drop and the
- *    degrades-alone case are plan 13-03's, and nothing here says they exist.
+ *  - The SANITIZER's own field rules. Plan 13-03 wired `sanitizeAchievementRecord` into
+ *    `sanitizeTelemetry`, so the stored field now survives a read and the cases below
+ *    depend on that — but the unknown-id drop, the timestamp default (D-21), the
+ *    de-duplication, the trim-after-drop ordering, the degrades-alone independence
+ *    contract and the no-migration case are all asserted at the parser, in
+ *    `tests/storage.progress-v4.test.ts` § `sanitizeAchievementRecord`. The cardinality
+ *    case below is the ONE claim here that reaches the parser, and it reaches it through a
+ *    whole store on purpose: an alarm on the composition, not on the sanitizer.
  *  - The PANEL. `tests/ui/ResultOverlay.achievements.test.tsx` owns the markup and
  *    `tests/ui/PlayingHost.daily-run.test.tsx` owns the host wiring. Nothing here renders.
+ *  - WINDOWS #27. `sanitizeAggregateMap` in the same parser is still uncapped and plan
+ *    13-03 did not close it. The cardinality case below names it as the defect family it
+ *    watches for; nothing here should be read as evidence that it is fixed.
  *  - The EVALUATOR's own correctness. The expected id set below is DERIVED by running the
  *    catalog's predicates, which is deliberate — the subject of this file is the storage
  *    wiring around them (placement, persistence, timestamps, set difference, firewall).
@@ -39,11 +54,16 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  ACHIEVEMENT_UNLOCK_BOUND,
   PLAYABLE_LEVEL_ORDER,
+  PROGRESS_KEY,
   createMemoryProgressStore,
+  defaultProgressBlob,
   defaultRunStatsInput,
   defaultTelemetryAggregate,
   defaultTelemetryBlob,
+  mergeTelemetryBlobs,
+  parseProgressResult,
   type ProgressStore,
   type RunStatsInput,
 } from '../src/services/storage';
@@ -122,7 +142,59 @@ const CONTROL_ID = EXPECTED_IDS[0] ?? '';
 /** Ids a FRESH blob already qualifies for — must be none, or the absence cases are about the catalog. */
 const IDS_ON_A_FRESH_BLOB = qualifyingAchievements(defaultTelemetryBlob());
 
-function recordSuite(label: string, makeStore: () => ProgressStore): void {
+/**
+ * The three ids the merge cases key on, DERIVED from the catalog for the reason
+ * `CONTROL_ID` is: a hand-written id would go on passing while a catalog change silently
+ * shrank this file's coverage. Only the FIRST three are needed, and the catalog's size is
+ * asserted non-vacuously in the suite body before they are used.
+ */
+const CATALOG_IDS = ACHIEVEMENT_CATALOG.map((a) => a.id);
+
+/**
+ * Four distinct unlock instants, deliberately far apart and deliberately all DIFFERENT.
+ *
+ * The D-22 case asserts that the later of a shared pair appears NOWHERE in the merged
+ * collection, so no other entry in that case may legitimately carry the same number — a
+ * shared constant would make the absence assertion unfalsifiable.
+ */
+const T_SHARED_EARLY = 1_700_000_100_000;
+const T_ONLY_MEMORY = 1_700_000_200_000;
+const T_SHARED_LATE = 1_700_000_300_000;
+const T_ONLY_DISK = 1_700_000_400_000;
+
+/**
+ * One store flavour: how to make one, how to hydrate one from persisted BYTES, and whether
+ * it has a disk that a second store can be re-opened over.
+ *
+ * `coldStart` is `null` for a store with no disk. That is not a gap to be papered over with
+ * an assertion that happens to hold — see the skip in the suite body, which states the
+ * reason in the test name instead.
+ */
+type StoreFlavor = {
+  label: string;
+  make: () => ProgressStore;
+  /**
+   * A store hydrated from a raw persisted v4 JSON string, through the REAL parse path.
+   *
+   * Both flavours route through `parseProgressResult`, which is what makes the cardinality
+   * claim below uniform across them: the memory store takes no raw bytes of its own, so it
+   * is seeded from a parsed blob exactly as the shipped app-kill case in
+   * `tests/storage.progress-v4.test.ts` seeds its relaunched store.
+   */
+  fromRaw: (raw: string) => ProgressStore;
+  /** A live store, the bytes it persisted, and a SECOND store over those same bytes. */
+  coldStart:
+    | (() => {
+        live: ProgressStore;
+        persisted: () => string | null;
+        relaunch: () => ProgressStore;
+      })
+    | null;
+};
+
+function recordSuite(flavor: StoreFlavor): void {
+  // Aliased so plan 13-01's five cases below read exactly as it left them.
+  const { label, make: makeStore } = flavor;
   describe(`achievement write path — ${label} (N-ACH-02 / D-01 / D-19)`, () => {
     it('the fixtures are non-vacuous: the catalog qualifies something for a big run and nothing for a fresh blob', () => {
       expect(
@@ -368,10 +440,264 @@ function recordSuite(label: string, makeStore: () => ProgressStore): void {
       expect(after.bestScore).toBe(0);
       expect(after.unlocked).toEqual([PLAYABLE_LEVEL_ORDER[0]]);
     });
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Plan 13-03: the five claims a parser test cannot make.
+    // ───────────────────────────────────────────────────────────────────────────────
+
+    if (flavor.coldStart == null) {
+      // An explicit SKIP with its reason in the name, never an assertion that passes
+      // vacuously. This store is constructed from a blob held in RAM: a "second store over
+      // the same bytes" would be the same object, so the case would report green while
+      // asserting nothing at all about persistence.
+      it.skip(`an unlock survives a cold start — SKIPPED for the ${label}, which has no disk: a second store over the same bytes is the same object in RAM, so the case would pass without asserting persistence (N-ACH-02 / SC-3)`, () => {
+        // Asserted for the AsyncStorage-backed instantiation of this same suite body; the
+        // parser half of SC-3 is the round-trip case in tests/storage.progress-v4.test.ts.
+      });
+    } else {
+      const coldStart = flavor.coldStart;
+      it('an unlock survives a cold start — a SECOND store over the same persisted bytes hydrates it (N-ACH-02 / SC-3 / D-13)', async () => {
+        const { live, persisted, relaunch } = coldStart();
+        await live.getSnapshot(); // hydrate first, as the hosts do
+
+        const result = live.recordRunEnd({
+          mode: 'campaign',
+          levelId: PLAYABLE_LEVEL_ORDER[0]!,
+          score: 900,
+          outcome: 'win',
+          livesRemaining: 3,
+          stats: runStats({ bricksBroken: QUALIFYING_BRICKS }),
+        });
+        expect(
+          result.newlyUnlocked,
+          'the unlock must fire on the live store, or the relaunch below is reading a blob that never had one',
+        ).toContain(CONTROL_ID);
+        const at = (await live.getSnapshot()).telemetry.achievements.unlocked.find(
+          (e) => e.id === CONTROL_ID,
+        )!.at;
+
+        await live.flush?.();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(
+          persisted() ?? '',
+          'the BYTES on disk must carry the field — an app kill leaves nothing else behind, so this is the intermediate control between the write and the hydrate',
+        ).toContain(CONTROL_ID);
+
+        // The app kill: a brand-new store closure over the same stored string, reading it
+        // back through `parseProgressResult` exactly as a relaunch does.
+        const relaunched = relaunch();
+        const snap = await relaunched.getSnapshot();
+        expect(
+          snap.telemetry.achievements.unlocked.map((e) => e.id),
+          'SC-3: until plan 13-03 wired the sanitizer, `sanitizeTelemetry` started from `defaultTelemetryBlob()` and never looked at a stored achievements field — so this hydrated [] and the unlock was silently un-earned on every cold start',
+        ).toContain(CONTROL_ID);
+        expect(
+          snap.telemetry.achievements.unlocked.find((e) => e.id === CONTROL_ID)!.at,
+          'D-14: the moment came back with it, unchanged — a timestamp that cannot survive the trip cannot be reconstructed afterwards',
+        ).toBe(at);
+      });
+    }
+
+    // The name carries the word `earliest` in LOWER CASE deliberately: `13-VALIDATION.md`'s
+    // row for D-22 filters this file with `-t "earliest"`, and MEASURED — vitest's `-t` is
+    // case-SENSITIVE, so a name spelling it `EARLIEST` leaves the gate matching nothing and
+    // exiting 0 on `Tests 24 skipped (24)`.
+    it('the reconcile keeps the earliest timestamp for a shared id — memory against freshly-hydrated disk (D-22)', () => {
+      expect(
+        CATALOG_IDS.length,
+        'this case needs three distinct catalog ids, or the union it asserts over is degenerate',
+      ).toBeGreaterThan(2);
+      const [shared, onlyMemory, onlyDisk] = CATALOG_IDS as [string, string, string];
+
+      const early = defaultTelemetryBlob();
+      early.achievements = {
+        unlocked: [
+          { id: shared, at: T_SHARED_EARLY },
+          { id: onlyMemory, at: T_ONLY_MEMORY },
+        ],
+      };
+      const late = defaultTelemetryBlob();
+      late.achievements = {
+        unlocked: [
+          { id: shared, at: T_SHARED_LATE },
+          { id: onlyDisk, at: T_ONLY_DISK },
+        ],
+      };
+
+      /**
+       * BOTH argument orders, and the symmetry is the whole point.
+       *
+       * MEASURED while writing this case: asserting one order alone is not enough. With the
+       * later copy passed as `memory` and the earlier as `incoming`, an incoming-wins loop
+       * — `byId.set` on every entry, `mergeDailyRecords`' shipped rule — returns the EARLY
+       * timestamp too, because the earlier copy simply happens to be written last. The case
+       * then passes against exactly the defect D-22 exists to forbid. Earliest-wins is
+       * COMMUTATIVE and incoming-wins is not, so requiring the same answer in both
+       * directions is what actually binds the rule.
+       */
+      for (const [label, merged] of [
+        ['memory=early, incoming=late', mergeTelemetryBlobs(early, late)],
+        ['memory=late, incoming=early', mergeTelemetryBlobs(late, early)],
+      ] as const) {
+        const entries = merged.achievements.unlocked;
+
+        expect(
+          entries.map((e) => e.id).sort(),
+          `${label}: the union must hold all three ids — neither side may lose its exclusive unlock, because D-17 makes an unlock one-way`,
+        ).toEqual([shared, onlyMemory, onlyDisk].sort());
+        expect(
+          entries.filter((e) => e.id === shared),
+          `${label}: one entry per id — whole \`{ id, at }\` records are keyed and merged as units`,
+        ).toHaveLength(1);
+        expect(
+          entries.find((e) => e.id === shared)?.at,
+          `${label}: D-22 — earliest wins. \`mergeDailyRecords\` resolves the same situation incoming-wins, and copying that loop without inverting it walks the timestamp FORWARD on every reconcile, destroying exactly the recency order D-14 stores it for.`,
+        ).toBe(T_SHARED_EARLY);
+        // The inverse, stated EXPLICITLY over the WHOLE collection. An incoming-wins copy
+        // still produces all three ids and still produces one entry per id, so both
+        // assertions above pass against it in at least one argument order.
+        expect(
+          entries.map((e) => e.at),
+          `${label}: the LATER of the shared pair must appear NOWHERE in the merged collection — a containment-only assertion would pass against an incoming-wins merge`,
+        ).not.toContain(T_SHARED_LATE);
+      }
+    });
+
+    it('the reconcile does not cross one id with another id’s timestamp — the phase-12 evidence-crossing defect in its narrow achievements form', () => {
+      const [idA, idB] = CATALOG_IDS as [string, string];
+
+      const memory = defaultTelemetryBlob();
+      memory.achievements = { unlocked: [{ id: idA, at: T_SHARED_EARLY }] };
+      const incoming = defaultTelemetryBlob();
+      incoming.achievements = { unlocked: [{ id: idB, at: T_ONLY_DISK }] };
+
+      const merged = mergeTelemetryBlobs(memory, incoming);
+      const why =
+        'the defect this watches for is a merge that unions the IDS and then reduces over ALL the timestamps — a min across the collection rather than per id — which stamps every achievement with the earliest instant in either copy. That is one record’s evidence attached to another’s claim: the phase-12 `carriedStartIsCredible` defect in a new place.';
+
+      expect(merged.achievements.unlocked.find((e) => e.id === idA)?.at, why).toBe(
+        T_SHARED_EARLY,
+      );
+      expect(merged.achievements.unlocked.find((e) => e.id === idB)?.at, why).toBe(T_ONLY_DISK);
+      // Disjoint ids, so the collection is exactly the two of them — neither dropped.
+      expect(merged.achievements.unlocked).toHaveLength(2);
+    });
+
+    it('a campaign run recorded AFTER an unlock does not erase the unlock set (D-23)', async () => {
+      const store = makeStore();
+
+      const unlocking = store.recordRunEnd({
+        mode: 'campaign',
+        levelId: PLAYABLE_LEVEL_ORDER[0]!,
+        score: 900,
+        outcome: 'win',
+        livesRemaining: 3,
+        stats: runStats({ bricksBroken: QUALIFYING_BRICKS }),
+      });
+      expect(
+        unlocking.newlyUnlocked,
+        'the unlock must LAND first — it is the positive control that makes the survival assertion below non-vacuous rather than a set that was empty all along',
+      ).toContain(CONTROL_ID);
+      const before = (await store.getSnapshot()).telemetry.achievements.unlocked;
+      expect(before.length).toBeGreaterThan(0);
+      const at = before.find((e) => e.id === CONTROL_ID)!.at;
+
+      // An ORDINARY campaign run that qualifies for nothing. `mergeRunIntoTelemetry` starts
+      // from `cloneTelemetryBlob`, so a field missing from that clone is erased by every
+      // other mode's run-end write — silently, with no test naming the function that did
+      // it. The compiler forces `cloneTelemetryBlob` to NAME the field (`error TS2741` at
+      // its declaration, measured); it cannot see whether the field is CARRIED or reset.
+      const ordinary = store.recordRunEnd({
+        mode: 'campaign',
+        levelId: PLAYABLE_LEVEL_ORDER[1]!,
+        score: 25,
+        outcome: 'lose',
+        livesRemaining: 0,
+        stats: runStats({ bricksBroken: 3, livesLost: 3 }),
+      });
+      expect(
+        ordinary.newlyUnlocked,
+        'the second run must cross nothing, or this case is measuring a new unlock rather than the survival of the old one',
+      ).toEqual([]);
+
+      const after = (await store.getSnapshot()).telemetry.achievements.unlocked;
+      expect(
+        after.map((e) => e.id).sort(),
+        'D-23: every id present before the ordinary run is still present after it. A `cloneTelemetryBlob` that dropped the field would report an EMPTY set here while every other assertion in this file stayed green',
+      ).toEqual(before.map((e) => e.id).sort());
+      expect(
+        after.find((e) => e.id === CONTROL_ID)?.at,
+        'and the moment did not move — carried, not re-stamped (D-17)',
+      ).toBe(at);
+    });
+
+    it('a hostile blob cannot grow the stored collection past the catalog’s size — the cardinality alarm (T-13-02)', async () => {
+      const padding = Array.from({ length: ACHIEVEMENT_UNLOCK_BOUND * 4 }, (_, i) => ({
+        id: `not-an-achievement-${i}`,
+        at: 1_600_000_000_000 + i,
+      }));
+      const real = CATALOG_IDS.slice(0, 2).map((id, i) => ({
+        id,
+        at: 1_650_000_000_000 + i,
+      }));
+      const seeded = [...padding, ...real];
+      expect(
+        seeded.length,
+        'the seed must exceed ACHIEVEMENT_UNLOCK_BOUND, or the alarm cannot detect a collection that grows without limit',
+      ).toBeGreaterThan(ACHIEVEMENT_UNLOCK_BOUND);
+
+      const blob = defaultProgressBlob();
+      blob.telemetry.achievements = { unlocked: seeded };
+      const store = flavor.fromRaw(JSON.stringify(blob));
+      await store.getSnapshot(); // hydrate, as the hosts do
+
+      store.recordRunEnd({
+        mode: 'campaign',
+        levelId: PLAYABLE_LEVEL_ORDER[0]!,
+        score: 100,
+        outcome: 'win',
+        livesRemaining: 2,
+        stats: runStats({ bricksBroken: 10, livesLost: 1 }),
+      });
+
+      const stored = (await store.getSnapshot()).telemetry.achievements.unlocked;
+      expect(
+        stored.length,
+        `a hand-edited blob carrying ${seeded.length} entries must not produce more than the catalog's ${ACHIEVEMENT_CATALOG.length}; it produced ${stored.length}. The defect family this watches for is sanitizeAggregateMap in the same parser, which has NO cap at all and copies every key it finds on every read — WINDOWS #27 measured 5 000 injected keys surviving parseProgressResult with status 'ok'. This collection is bounded only because it is an ARRAY with a bound whose ids are validated; relax either and it becomes that map.`,
+      ).toBeLessThanOrEqual(ACHIEVEMENT_CATALOG.length);
+      // Non-vacuity: the two REAL seeded unlocks survived, so the cap above is a cap and
+      // not a sanitizer that discarded the whole field.
+      expect(
+        stored.map((e) => e.id),
+        'the real unlocks in the hostile blob are kept — a hostile blob yields FEWER achievements than a clean one and never more, which is the phase invariant',
+      ).toContain(real[0]!.id);
+      // And none of the invented ids reached the store.
+      expect(
+        stored.filter((e) => e.id.startsWith('not-an-achievement')),
+        'no invented id survives to reach the host, let alone a rendered Text (T-13-01)',
+      ).toEqual([]);
+    });
   });
 }
 
-recordSuite('memory store', () => createMemoryProgressStore());
-recordSuite('AsyncStorage-backed store', () =>
-  __createAsyncStorageProgressStoreForTests(fakeAsyncStorage()),
-);
+recordSuite({
+  label: 'memory store',
+  make: () => createMemoryProgressStore(),
+  fromRaw: (raw) => createMemoryProgressStore(parseProgressResult(raw).progress),
+  // No disk: see the explicit skip in the suite body.
+  coldStart: null,
+});
+recordSuite({
+  label: 'AsyncStorage-backed store',
+  make: () => __createAsyncStorageProgressStoreForTests(fakeAsyncStorage()),
+  fromRaw: (raw) =>
+    __createAsyncStorageProgressStoreForTests(fakeAsyncStorage({ [PROGRESS_KEY]: raw })),
+  coldStart: () => {
+    const storage = fakeAsyncStorage();
+    return {
+      live: __createAsyncStorageProgressStoreForTests(storage),
+      persisted: () => storage.map.get(PROGRESS_KEY) ?? null,
+      relaunch: () => __createAsyncStorageProgressStoreForTests(storage),
+    };
+  },
+});
