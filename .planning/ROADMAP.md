@@ -211,7 +211,7 @@ Plans:
   4. An unlock is surfaced to the player at a point that does not interrupt a live rally
   5. The catalog covers the shipped verbs and all three modes (campaign, endless, daily), not just score thresholds
 
-**Plans:** 5 plans
+**Plans:** 5 plans in 4 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
@@ -222,12 +222,15 @@ Plans:
 **Wave 2**
 
 - [ ] 13-02-PLAN.md — The catalog filled to twelve entries across campaign, endless and daily, five cumulative and seven skill-gated, every threshold carrying its stated reasoning as a judgement (D-09/D-10/D-11/D-12); plus the catalog and evaluator suites (wave 2)
-- [ ] 13-03-PLAN.md — The read path: `sanitizeAchievementRecord` drops an unknown id but defaults a malformed timestamp (D-15/D-17/D-21), bounds after the drop, and the reconcile keeps the earliest timestamp (D-22); plus the cold-start, independence and clone cases against both hand-mirrored stores (wave 2)
-- [ ] 13-04-PLAN.md — The same block on `DailyResultOverlay` above the countdown, the shared classifier's full battery under the node environment, and the two run-absent suppression states each proved beside a positive control (D-05/D-06/D-07) (wave 2)
 
 **Wave 3**
 
-- [ ] 13-05-PLAN.md — `docs/ops/ACHIEVEMENTS.md`, the v4 field written into `PROGRESS-STORAGE.md`, the phase's only tree-wide gate, `13-VALIDATION.md` closed out, and the four device/layout claims routed to end-of-phase human verification with WINDOWS #16/#17/#28/#29 left open (wave 3)
+- [ ] 13-03-PLAN.md — The read path: `sanitizeAchievementRecord` drops an unknown id but defaults a malformed timestamp (D-15/D-17/D-21), bounds after the drop, and the reconcile keeps the earliest timestamp (D-22); plus the cold-start, independence and clone cases against both hand-mirrored stores (wave 3)
+- [ ] 13-04-PLAN.md — The same block on `DailyResultOverlay` above the countdown, the shared classifier's full battery under the node environment, and the two run-absent suppression states each proved beside a positive control (D-05/D-06/D-07) (wave 3)
+
+**Wave 4**
+
+- [ ] 13-05-PLAN.md — `docs/ops/ACHIEVEMENTS.md`, the v4 field written into `PROGRESS-STORAGE.md`, the phase's only tree-wide gate, `13-VALIDATION.md` closed out, and the four device/layout claims routed to end-of-phase human verification with WINDOWS #16/#17/#28/#29 left open (wave 4)
 
 **UI hint**: yes
 

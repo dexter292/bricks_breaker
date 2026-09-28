@@ -5,14 +5,14 @@ milestone_name: Retention & Replayability
 current_plan: Not started
 status: in_progress
 stopped_at: Phase 12 complete, ready to plan Phase 11
-last_updated: "2026-09-28T08:17:35.013Z"
-state_head: 55696b68f327109f0089e3a55627dad08b2b75a2
+last_updated: "2026-09-28T13:09:29.449Z"
+state_head: 2c12dba2d299999dab9fab62850fe7b0f37372ed
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 38
+  total_plans: 43
   completed_plans: 38
-  percent: 17
+  percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
-current_phase: 11
-current_phase_name: Endless Mode
+current_phase_name: achievements
+current_phase: 13
 ---
 
 # Project State
@@ -53,7 +53,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Current Plan: Not started
-Total Plans in Phase: 6
+Total Plans in Phase: 5
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
 **Next:** `/gsd-verify-work 11` (round 7 — and harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
