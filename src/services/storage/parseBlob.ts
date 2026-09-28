@@ -456,6 +456,16 @@ function sanitizeDailyHistoryEntry(raw: unknown): DailyHistoryEntry | null {
  * start reaching absurdly far belongs to `telemetry.ts`, which is where the walk lives; this
  * body's obligation is shape and ordering.
  *
+ * Also deliberately NOT rejected here: a start claiming a run longer than the record's own
+ * `totalDaysPlayed` — the review finding CR-01 defect. The bound is real and it is enforced,
+ * but it lives in ONE place and that place is `carriedStartIsCredible` in `telemetry.ts`,
+ * not here. Reason: this function only ever sees a record crossing the PARSE boundary,
+ * whereas the number the bound protects (`longestStreak`, one-way under D-16) is raised by
+ * `mergeDailyRecord` over a record held in memory that never re-enters this parser. A rule
+ * stated at the boundary alone would not govern the write that makes the damage permanent;
+ * a rule stated in both places is a rule that drifts. So the boundary keeps shape and
+ * ordering, and the walk keeps length.
+ *
  * The newest key is taken as a MAXIMUM rather than as the last element, because a tampered
  * blob need not be sorted and this predicate must not depend on an order it cannot trust.
  */

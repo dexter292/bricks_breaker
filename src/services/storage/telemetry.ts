@@ -143,7 +143,17 @@ export function mergeDailyRecord(
   history.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
 
   const keys = history.map((e) => e.date);
-  const currentStreakStart = resolveStreakStart(keys, next.daily.currentStreakStart);
+  // Incremented only on a date's FIRST close, which is what makes a repeated write
+  // idempotent (D-06 / A-01). Hoisted above the streak derivation because
+  // `resolveStreakStart` bounds a carried start by this count and must see the count that
+  // INCLUDES the date being closed right now — otherwise the 450th consecutive close would
+  // have its own legitimate 450-day start rejected by a bound of 449.
+  const totalDaysPlayed = safeCounter(next.daily.totalDaysPlayed) + (at >= 0 ? 0 : 1);
+  const currentStreakStart = resolveStreakStart(
+    keys,
+    next.daily.currentStreakStart,
+    totalDaysPlayed,
+  );
   const currentStreak = streakLengthFrom(keys, currentStreakStart);
 
   next.daily = {
@@ -151,10 +161,11 @@ export function mergeDailyRecord(
     history: history.slice(-DAILY_HISTORY_BOUND),
     // A running max that never falls — breaking a streak restarts the run, it does not
     // lower the lifetime best.
+    // The one-way scalar (D-16). It can only ever be raised from `currentStreak`, which is
+    // derived from `currentStreakStart` above — so the bound in `carriedStartIsCredible` is
+    // what keeps a bare claim out of a number no later release can repair.
     longestStreak: Math.max(safeCounter(next.daily.longestStreak), currentStreak),
-    // Incremented only on a date's FIRST close, which is what makes a repeated write
-    // idempotent (D-06 / A-01).
-    totalDaysPlayed: safeCounter(next.daily.totalDaysPlayed) + (at >= 0 ? 0 : 1),
+    totalDaysPlayed,
     currentStreakStart,
   };
   return next;
@@ -206,6 +217,65 @@ function inclusiveDaySpan(start: string, end: string): number {
 }
 
 /**
+ * Is a CARRIED start credible against the record that carries it?
+ *
+ * **This is the single home of the carried-start admissibility rule.** Both
+ * `resolveStreakStart` (which serves the write path via `mergeDailyRecord` and the read
+ * path via `currentDailyStreak`) and `reconcileStreakStart` (which serves the two-device
+ * merge) ask this one predicate, and nothing else restates it. `parseBlob.ts`'s
+ * `sanitizeStreakStart` deliberately does NOT repeat it — see the note there for why the
+ * parse boundary is the wrong place: a record assembled in memory never re-enters the
+ * parser, so a rule stated only at the boundary would not govern the write that makes
+ * `longestStreak` permanent. One rule, one place.
+ *
+ * Three questions, all of which a carried key must answer:
+ *  1. Well-formed and in range (`isValidDateKey` — integer checks, no parse round trip).
+ *  2. Strictly older than the window-derived start. A carried value that is not older
+ *     carries nothing the stored window does not already prove.
+ *  3. Reachable from the newest stored date within `DAILY_STREAK_WALK_CAP`, **and within
+ *     the record's own `totalDaysPlayed`**.
+ *
+ * Question 3's length bound is the whole of the fix for review finding CR-01. Every date
+ * increments `totalDaysPlayed` on its FIRST close (`mergeDailyRecord`) and a streak counts
+ * closed dates, so `currentStreak <= totalDaysPlayed` is an invariant of every
+ * legitimately-written record — the bound needs no new field, no migration and no second
+ * source of truth. It is needed because the carried start is the one member of this record
+ * with no stored evidence behind it: `sanitizeDailyHistoryEntry` drops history ENTRY BY
+ * ENTRY while `currentStreakStart` survives WHOLE, so any rejection — tampering, a
+ * truncated write, a field an older build never wrote — shrinks the evidence without
+ * shrinking the claim, and a consecutive floored remainder is exactly the condition the
+ * carried start was designed to be trusted on. MEASURED on the shipped code before this
+ * bound: two stored dates with `totalDaysPlayed: 2` beside a carried `2020-01-01` read as
+ * `Streak · 2463`, and the next close persisted `longestStreak: 2464`, which is one-way
+ * (D-16) and repairable only by a migration.
+ *
+ * The bound can only ever UNDER-report, which is the direction this phase chooses at every
+ * other site. `mergeDailyRecords`' documented lossy topology under-counts `totalDaysPlayed`
+ * and never over-counts, so a reconciled record can only make this bite EARLIER, and
+ * biting means falling back to the window-derived start. The legitimate case D-16 exists to
+ * serve is untouched: a player on a genuine 450-day run carries `totalDaysPlayed: 450`, so
+ * a start 450 days back is admitted even though only `DAILY_HISTORY_BOUND` dates survive
+ * the window.
+ *
+ * The window-DERIVED start is deliberately NOT subject to this bound. It is backed by dates
+ * actually present in the record, whereas a carried start is a bare claim; clamping the
+ * derived value too would read `Streak · 0` off any older blob that has real history but
+ * never wrote a `totalDaysPlayed`.
+ */
+function carriedStartIsCredible(
+  candidate: string,
+  derivedStart: string,
+  newest: string,
+  totalDaysPlayed: number,
+): boolean {
+  if (!isValidDateKey(candidate) || candidate >= derivedStart) {
+    return false;
+  }
+  const span = inclusiveDaySpan(candidate, newest);
+  return span > 0 && span <= safeCounter(totalDaysPlayed);
+}
+
+/**
  * The start of the run in progress: derived from stored dates wherever they can say, and
  * carried forward only where they cannot. **This is the whole self-correction contract.**
  *
@@ -213,32 +283,35 @@ function inclusiveDaySpan(start: string, end: string): number {
  *  1. No stored dates — no run, `''`.
  *  2. The window contains a gap — the start is EXACTLY derivable, so the derived value
  *     wins and any stored value is discarded, tampered or merely stale.
- *  3. The stored value is not a well-formed date key — discard it (`isValidDateKey`,
- *     integer range checks, no parse round trip).
- *  4. The stored value is not older than the derived one — a run cannot start after its
- *     own earliest proven date, so discard it.
- *  5. The stored value is unreachable within the walk cap — not a real run; discard it.
- *  6. Otherwise the window is consecutive end to end and cannot contradict the stored
+ *  3. The stored value fails `carriedStartIsCredible` — malformed, not older than the
+ *     derived start, unreachable within the walk cap, or claiming a run longer than the
+ *     record's own `totalDaysPlayed`. Discard it. That predicate is the ONLY statement of
+ *     the rule; do not restate any part of it here.
+ *  4. Otherwise the window is consecutive end to end and cannot contradict the stored
  *     value, so carry it: this is the only path on which a streak longer than
  *     `DAILY_HISTORY_BOUND` survives, and it is exactly what D-16 exists to protect.
  *
  * Every discard path falls back to the window-derived start, which UNDER-reports the
  * streak and never inflates it. That direction is deliberate: a lifetime best invented
  * out of a tampered blob is a worse failure than one that stopped growing.
+ *
+ * `totalDaysPlayed` must be the count AFTER the date being written is counted — see the
+ * hoist in `mergeDailyRecord`. Passing the pre-increment count would reject the legitimate
+ * carried start of a player closing the newest day of their own longest run.
  */
 function resolveStreakStart(
   sortedKeys: readonly string[],
   storedStart: string,
+  totalDaysPlayed: number,
 ): string {
   const { start, floored } = runStartInWindow(sortedKeys);
   if (start === '' || !floored) {
     return start;
   }
-  if (!isValidDateKey(storedStart) || storedStart >= start) {
-    return start;
-  }
   const newest = sortedKeys[sortedKeys.length - 1]!;
-  return inclusiveDaySpan(storedStart, newest) > 0 ? storedStart : start;
+  return carriedStartIsCredible(storedStart, start, newest, totalDaysPlayed)
+    ? storedStart
+    : start;
 }
 
 /** The current run's length: the calendar span back to its start, or the derivable walk. */
@@ -277,7 +350,10 @@ function streakLengthFrom(sortedKeys: readonly string[], start: string): number 
  */
 export function currentDailyStreak(record: DailyRecord): number {
   const keys = record.history.map((e) => e.date);
-  return streakLengthFrom(keys, resolveStreakStart(keys, record.currentStreakStart));
+  return streakLengthFrom(
+    keys,
+    resolveStreakStart(keys, record.currentStreakStart, record.totalDaysPlayed),
+  );
 }
 
 /** Fold one finished run into an aggregate (cumulative sums, running maxes). */
@@ -453,22 +529,25 @@ function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
     x.date < y.date ? -1 : x.date > y.date ? 1 : 0,
   );
   const keys = history.map((e) => e.date);
+  // The union size is taken BEFORE the bound below: trimming what we store must not lower
+  // what we have counted, which is the whole of D-16. Hoisted because it is also the bound
+  // `reconcileStreakStart` holds the two carried claims to.
+  const totalDaysPlayed = Math.max(
+    safeCounter(a.totalDaysPlayed),
+    safeCounter(b.totalDaysPlayed),
+    keys.length,
+  );
   return {
     // Bound on merge as well as on write — reconciling two full windows must not produce
     // a longer one, exactly as the recent-run ring is re-bounded below.
     history: history.slice(-DAILY_HISTORY_BOUND),
     longestStreak: Math.max(safeCounter(a.longestStreak), safeCounter(b.longestStreak)),
-    // The union size is taken BEFORE the bound above: trimming what we store must not
-    // lower what we have counted, which is the whole of D-16.
-    totalDaysPlayed: Math.max(
-      safeCounter(a.totalDaysPlayed),
-      safeCounter(b.totalDaysPlayed),
-      keys.length,
-    ),
+    totalDaysPlayed,
     currentStreakStart: reconcileStreakStart(
       keys,
       a.currentStreakStart,
       b.currentStreakStart,
+      totalDaysPlayed,
     ),
   };
 }
@@ -484,14 +563,16 @@ function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
  *  - If the unioned history contains a gap, the run start is exactly derivable from it and
  *    **both** stored claims are discarded — including the earlier one.
  *  - If the union is consecutive end to end it can contradict neither claim, so the
- *    EARLIEST admissible claim is carried. Admissible means well-formed, older than the
- *    derived start, and reachable within the walk cap.
+ *    EARLIEST admissible claim is carried. Admissible is exactly `carriedStartIsCredible`
+ *    — the same predicate `resolveStreakStart` uses, asked against the same merged
+ *    `totalDaysPlayed` the union just produced, and not restated here.
  *  - With no admissible claim, the derived start stands.
  */
 function reconcileStreakStart(
   sortedKeys: readonly string[],
   aStart: string,
   bStart: string,
+  totalDaysPlayed: number,
 ): string {
   const { start, floored } = runStartInWindow(sortedKeys);
   if (start === '' || !floored) {
@@ -499,11 +580,8 @@ function reconcileStreakStart(
   }
   const newest = sortedKeys[sortedKeys.length - 1]!;
   const admissible = [aStart, bStart]
-    .filter(
-      (candidate) =>
-        isValidDateKey(candidate) &&
-        candidate < start &&
-        inclusiveDaySpan(candidate, newest) > 0,
+    .filter((candidate) =>
+      carriedStartIsCredible(candidate, start, newest, totalDaysPlayed),
     )
     .sort();
   return admissible[0] ?? start;

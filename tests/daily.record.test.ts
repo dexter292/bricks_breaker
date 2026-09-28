@@ -36,6 +36,7 @@ import {
   DAILY_HISTORY_BOUND,
   DAILY_STREAK_WALK_CAP,
   createMemoryProgressStore,
+  currentDailyStreak,
   defaultRunStatsInput,
   defaultTelemetryBlob,
   mergeDailyRecord,
@@ -69,6 +70,25 @@ function consecutiveEndingAt(end: string, n: number): string[] {
     out.unshift(previousDateKey(out[0]!));
   }
   return out;
+}
+
+/**
+ * Days from `start` to `end` inclusive, by the phase's own calendar walk.
+ *
+ * Used only to build fixtures that are INTERNALLY CONSISTENT: a record carrying a
+ * `currentStreakStart` also has to carry a `totalDaysPlayed` large enough to have closed
+ * that many dates, because `carriedStartIsCredible` now holds the claim to that bound.
+ * Derived rather than hard-coded so the fixtures cannot drift out of agreement with the
+ * adjacency rule they are built from.
+ */
+function inclusiveSpan(start: string, end: string): number {
+  let cursor = end;
+  let days = 1;
+  while (cursor !== start) {
+    cursor = previousDateKey(cursor);
+    days++;
+  }
+  return days;
 }
 
 /** Close `date` through a real store, exactly as a finished daily run does. */
@@ -355,6 +375,83 @@ describe('currentStreakStart self-correction (D-16 amendment, 12-03)', () => {
       );
     }
   });
+
+  it('never reports a run longer than the number of dates the record says were ever closed', () => {
+    // THE INVARIANT, stated rather than the implementation tested: a streak counts closed
+    // dates and every close increments `totalDaysPlayed`, so no record can be on a run
+    // longer than its own day count. A carried start that claims otherwise is inconsistent
+    // with the record carrying it and must not be believed.
+    //
+    // This is the shape of the defect, not an off-by-one: `sanitizeDailyHistoryEntry` drops
+    // history ENTRY BY ENTRY while `currentStreakStart` survives WHOLE, so any rejection —
+    // tamper, a truncated write, a field an older build never wrote — leaves a short but
+    // consecutive window beside an ancient claim, which is exactly the floored condition
+    // the carried start is trusted on. MEASURED on the code before the bound: read side
+    // 2463, and the next close persisted `longestStreak: 2464` — one-way under D-16.
+    const record = recordOf(['2026-09-27', '2026-09-28'], {
+      currentStreakStart: '2020-01-01',
+      longestStreak: 2,
+      totalDaysPlayed: 2,
+    });
+
+    expect(
+      currentDailyStreak(record),
+      'the panel must not show a streak the record cannot have earned',
+    ).toBeLessThanOrEqual(record.totalDaysPlayed);
+    expect(currentDailyStreak(record), 'specifically, the two dates it can prove').toBe(2);
+
+    // The write side independently: `longestStreak` is the one-way scalar, and it can only
+    // ever be raised from this same derivation. Checking it separately is the point — a fix
+    // that only calmed the display would still burn the number into storage.
+    const next = mergeDailyRecord(blobWithDaily(record), {
+      date: '2026-09-29',
+      score: 500,
+      outcome: 'win',
+    });
+    expect(
+      next.daily.longestStreak,
+      'the one-way lifetime best must not be raised from an unbelievable claim',
+    ).toBeLessThanOrEqual(next.daily.totalDaysPlayed);
+    expect(next.daily.longestStreak, 'three dates closed, three days of streak').toBe(3);
+    expect(
+      next.daily.currentStreakStart,
+      'and the discard falls back to the window-derived start, as every other discard does',
+    ).toBe('2026-09-27');
+  });
+
+  it('still carries the start of a genuine run longer than the window — the bound does not bite the case D-16 exists for', () => {
+    // The control that makes the case above non-vacuous. A player on a real OVERSHOOT-day
+    // run has closed OVERSHOOT dates, so `totalDaysPlayed` is OVERSHOOT and a start that
+    // many days back is admitted — even though only DAILY_HISTORY_BOUND dates survive the
+    // window and `streakFrom` over them saturates at the bound.
+    const dates = consecutiveEndingAt('2027-06-01', OVERSHOOT);
+    const record = recordOf(dates.slice(-DAILY_HISTORY_BOUND), {
+      currentStreakStart: dates[0],
+      longestStreak: OVERSHOOT,
+      totalDaysPlayed: OVERSHOOT,
+    });
+
+    expect(
+      currentDailyStreak(record),
+      'the carried start is believed, because the record can account for every day of it',
+    ).toBe(OVERSHOOT);
+    expect(
+      currentDailyStreak(record),
+      'and it exceeds the window it could have been recomputed from',
+    ).toBeGreaterThan(record.history.length);
+    expect(
+      streakFrom(record.history.map((e) => e.date)),
+      'fixture sanity: the window alone saturates at the bound, which is why D-16 stores a date',
+    ).toBe(DAILY_HISTORY_BOUND);
+
+    // And the bound is exactly tight, not merely generous: one fewer day closed than the
+    // claim needs, and the same start is no longer credible.
+    const short = { ...record, totalDaysPlayed: OVERSHOOT - 1 };
+    expect(
+      currentDailyStreak(short),
+      'one day short of accounting for the claim, and the window-derived start stands',
+    ).toBe(DAILY_HISTORY_BOUND);
+  });
 });
 
 describe('mergeDailyRecord does not mutate its input (12-03)', () => {
@@ -425,8 +522,19 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
 
   it('carries the earlier stored start only when the union is consecutive end to end', () => {
     const window = consecutiveEndingAt('2026-09-26', 4);
-    const a = blobWithDaily(recordOf(window, { currentStreakStart: '2026-01-01' }));
-    const b = blobWithDaily(recordOf(window, { currentStreakStart: '2026-05-01' }));
+    // Both copies have closed enough dates for the older claim to be possible. Stated
+    // explicitly because `reconcileStreakStart` now holds a carried claim to the merged
+    // `totalDaysPlayed`: a record whose window is four dates and whose scalar says four
+    // dates cannot also have been on a run since January, and the sibling case below is
+    // the one that pins that. Here the scalars are consistent, so the bound is silent and
+    // the case tests what it says it tests — earliest-admissible-claim-wins.
+    const played = inclusiveSpan('2026-01-01', '2026-09-26');
+    const a = blobWithDaily(
+      recordOf(window, { currentStreakStart: '2026-01-01', totalDaysPlayed: played }),
+    );
+    const b = blobWithDaily(
+      recordOf(window, { currentStreakStart: '2026-05-01', totalDaysPlayed: played }),
+    );
     const merged = mergeTelemetryBlobs(a, b);
 
     expect(
@@ -437,6 +545,29 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
       merged.daily.currentStreakStart,
       'with the union silent, the earlier surviving claim is carried',
     ).toBe('2026-01-01');
+  });
+
+  it('discards BOTH claims when the merged totalDaysPlayed cannot support them', () => {
+    // The same fixture as above with one number changed: four dates closed, four days
+    // played, and two claims reaching back to January. Neither copy can have been on that
+    // run, so the union-derived start stands for both — the under-reporting direction.
+    const window = consecutiveEndingAt('2026-09-26', 4);
+    const a = blobWithDaily(
+      recordOf(window, { currentStreakStart: '2026-01-01', totalDaysPlayed: 4 }),
+    );
+    const b = blobWithDaily(
+      recordOf(window, { currentStreakStart: '2026-05-01', totalDaysPlayed: 4 }),
+    );
+    const merged = mergeTelemetryBlobs(a, b);
+
+    expect(
+      merged.daily.currentStreakStart,
+      'no claim survives its own record, so the union-derived start is all that is left',
+    ).toBe(window[0]);
+    expect(
+      currentDailyStreak(merged.daily),
+      'and the streak is the window, never the claim',
+    ).toBe(window.length);
   });
 
   it('under-counts rather than inflates when a trimmed copy meets one holding exclusive dates', () => {
