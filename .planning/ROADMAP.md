@@ -171,7 +171,7 @@ Plans:
   4. Device clock changes are handled by an explicit, written policy — the behaviour on a backwards clock jump is a decision recorded in the phase, not an accident
   5. Daily results never touch campaign progress or endless records
 
-**Plans:** 3/6 plans executed in 5 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 4/6 plans executed in 5 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
@@ -189,7 +189,7 @@ Plans:
 
 **Wave 4**
 
-- [ ] 12-04-PLAN.md — Read-side hardening: `sanitizeDailyRecord` bounds on read and validates every stored date key with integer arithmetic, dropping invalid entries in the playable direction; plus N-DAILY-03's clock cases under a pinned zone (wave 4)
+- [x] 12-04-PLAN.md — Read-side hardening: `sanitizeDailyRecord` bounds on read and validates every stored date key with integer arithmetic, dropping invalid entries in the playable direction; plus N-DAILY-03's clock cases under a pinned zone (wave 4)
 - [ ] 12-05-PLAN.md — The Daily Result panel built out to its approved contract (streak block, badge, streak-ended line, countdown, board-failure variant), the foreground refresh decided as one AppState subscription, and the daily run boundaries closed in the host (wave 4)
 
 **Wave 5**
