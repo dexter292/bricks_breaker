@@ -1008,13 +1008,22 @@ export function PlayingHost({
    * phase is that a read failure or a sanitizer degrade renders NO BLOCK, never an error
    * surface. There is no error copy anywhere in this phase.
    *
-   * **Called unconditionally on every run end, which is why there is no reset anywhere
-   * else.** Stated as an absence, the way `publishDailyPanel`'s JSDoc states its inverse:
-   * a reset in `startEndlessRun`, in `startDailyRun` and on the campaign start path would
-   * be one rule in three places, and it is unnecessary because a run that records always
-   * republishes — with an empty array when nothing fired. A run that ends WITHOUT
-   * recording is the endless Retry-time wave-build failure, and the panel suppresses the
-   * block there structurally on its existing `showRunLines`.
+   * **Called unconditionally on every run end, which is why there is ONE reset elsewhere
+   * and not three.** A reset in `startEndlessRun`, on the campaign start path and at
+   * every daily entry would be one rule in four places, and it is unnecessary wherever a
+   * run records, because a run that records always republishes — with an empty array when
+   * nothing fired.
+   *
+   * The states where NO run records are therefore the whole of the risk, and there are
+   * three of them. Two need nothing: the endless Retry-time wave-build failure and a
+   * daily board failure are both suppressed structurally by the panels' existing
+   * `showRunLines` / `isClosed` gates. The THIRD is `startDailyRun`'s read-only
+   * closed-date branch, where `isClosed` is true and no run happens — so the gate is
+   * satisfied with nothing to show, and the previous run's names would render on the
+   * daily panel. That branch resets this state explicitly and the reason is written at
+   * the call site. This enumeration was incomplete when first written (13 code review
+   * WR-01); it is stated as three-of-which-one-acts so a fourth run-absent state is
+   * checked against it rather than assumed covered.
    */
   const publishUnlockedAchievements = useCallback((ids: unknown) => {
     const returned = Array.isArray(ids) ? ids : [];
@@ -1959,6 +1968,17 @@ export function PlayingHost({
       setResultStars(null);
       setNextGateId(null);
       setWaveBuildFailedWave(null);
+      // 13 code review WR-01: the THIRD run-absent state, and the only one the block's
+      // own suppression cannot reach. No run happens here, so `handleRunEnded` never
+      // fires and `publishUnlockedAchievements` is never called — while `isClosed` IS
+      // true, so `DailyResultOverlay`'s gate is satisfied and the block renders whatever
+      // the last recorded run left in state. Measured: unlock something in campaign, then
+      // press `Daily` on an already-closed date, and that campaign unlock appears on the
+      // daily panel. Every other panel scalar in this branch is already neutralised on
+      // exactly this reasoning; this one was missed. The stored record carries no per-day
+      // unlock list to show instead — nor should it, the date is read-only — so the
+      // correct render is the ABSENCE.
+      setUnlockedAchievementNames([]);
       clearCountdown();
       setCountdownNumeral(null);
       modeRef.current = 'daily';

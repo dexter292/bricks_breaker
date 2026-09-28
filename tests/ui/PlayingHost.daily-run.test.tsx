@@ -751,7 +751,7 @@ describe('PlayingHost daily run (behaviour)', () => {
 
     expect(
       lastScreenProps.unlockedAchievements,
-      'a run that records always REPUBLISHES, with an empty array when nothing fired — which is why there is no reset in startDailyRun, startEndlessRun or the campaign start path',
+      'a run that records always REPUBLISHES, with an empty array when nothing fired — which is why no reset is needed on any path where a run RECORDS. The paths where none does are the exception, and the closed-date one is covered in the boundaries block below',
     ).toEqual([]);
   });
 
@@ -890,6 +890,50 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
       lastScreenProps.dailyNextBoundaryMs,
       'the countdown has a boundary to count to',
     ).toBeGreaterThan(0);
+  });
+
+  it('a CAMPAIGN unlock does not leak onto the closed-date daily panel (13 code review WR-01)', async () => {
+    const entry = ACHIEVEMENT_CATALOG[0]!;
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    // Today is already closed, so pressing `Daily` takes the read-only branch. The run
+    // that puts names into host state is therefore a CAMPAIGN one — which is the actual
+    // shape of the defect: not a stale DATE but a stale MODE. `startDailyRun` derives
+    // its date from `Date.now()` and can only ever open today, so re-opening some other
+    // day is not a reachable state and would be the wrong case to write.
+    const today = localDateKey(DAY_A_NOON);
+    seedClosedThrough(today, 4242);
+    newlyUnlocked = [entry.id];
+
+    // `mountHost` leaves the host in campaign mode on `level-01`; this win records under
+    // the campaign arm and publishes through the one shared call.
+    await mountHost();
+    await deliverPhase(SIM.WON, { score: 1200 });
+
+    expect(
+      lastScreenProps.unlockedAchievements,
+      "THE POSITIVE CONTROL: the campaign run must actually have published a name, or the emptiness asserted below is the emptiness of a panel that never had anything and the case is vacuous",
+    ).toEqual([entry.name]);
+    expect(
+      lastScreenProps.mode,
+      'and it published from CAMPAIGN, which is what makes the leak cross-mode',
+    ).toBe('campaign');
+
+    await pressDaily();
+    now.mockRestore();
+
+    expect(
+      lastScreenProps.unlockedAchievements,
+      "the closed-date branch is the third run-absent state and the only one the panel gates cannot suppress: no run happens, so nothing records and publishUnlockedAchievements is never called, yet isClosed IS true so the block's gate is satisfied. The stored record carries no per-day unlock list to show instead — nor should it, the date is read-only — so the correct render is the ABSENCE. Rendering the campaign run's names here tells the player they earned something on a daily board they did not play",
+    ).toEqual([]);
+    expect(
+      lastScreenProps.mode,
+      'and the read-only branch really did run, or the emptying above is about some other panel',
+    ).toBe('daily');
+    expect(
+      lastScreenProps.score,
+      'rendered from the STORED entry for the date, which is the path this branch takes',
+    ).toBe(4242);
   });
 
   it('an open date is still playable and still starts a run — the closed-date branch is not a blanket block', async () => {
