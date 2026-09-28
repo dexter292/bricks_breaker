@@ -40,7 +40,7 @@ filled_in: "2026-09-28"
 | **UI environment** | per-file docblock `@vitest-environment jsdom` — **not** global |
 | **Quick run command** | `npx vitest run tests/achievements` |
 | **Full suite command** | `npm test` (`vitest run` + **five** `assert-*.mjs` scripts) |
-| **Measured runtime** | pre-phase: ~10s for `vitest run` at 107 files / 798 tests. **Re-measured 2026-09-28 at phase close: `Duration 10.24s` at 112 files / 869 tests; the quick run is `259ms`** |
+| **Measured runtime** | pre-phase: ~10s for `vitest run` at 107 files / 798 tests. **Re-measured 2026-09-28 at phase close: `Duration 10.24s` at 112 files / 869 tests; the quick run is `259ms`. Re-measured again after the code-review fixes: 112 files / 871 tests** |
 
 **Three gates are load-bearing this phase and are not optional:**
 
@@ -233,7 +233,7 @@ at phase close (`[ -f ]` on each).
 - [x] `tests/achievements.catalog.test.ts` — N-ACH-01: data shape, purity, unique ids, the 16-char name budget, three-mode coverage. **Shipped with 6 cases** (13-02 T1)
 - [x] `tests/achievements.evaluate.test.ts` — N-ACH-02: determinism, idempotency as a set difference, retroactive unlock, hostile snapshot. **Shipped with 5 cases**, including a `throwing predicate` case beyond the plan's list (13-02 T2)
 - [x] `tests/achievements.record.test.ts` — the read/write path: unknown id dropped, timestamps, independent degradation, **both stores asserted separately**. Created by 13-01 T1 with 14 cases, two premises repaired by 13-02 T1, extended to **24 cases** by 13-03 T2
-- [x] `tests/ui/achievementLines.test.ts` — the shared pure classifier: cap at 2, the `and n more` form, ordering. **`.ts` under the node environment, not jsdom** — corrected 2026-09-28 from the `certLevelPlan` precedent the pattern map found: a pure classifier needs no DOM, and typing it jsdom would have bought a renderer it never uses. **Shipped with 13 cases** (13-04 T1a), node environment verified by measurement (note F)
+- [x] `tests/ui/achievementLines.test.ts` — the shared pure classifier: cap at 2, the `and n more` form, ordering. **`.ts` under the node environment, not jsdom** — corrected 2026-09-28 from the `certLevelPlan` precedent the pattern map found: a pure classifier needs no DOM, and typing it jsdom would have bought a renderer it never uses. **Shipped with 13 cases** (13-04 T1a), node environment verified by measurement (note F). **14 as of the code review**: WR-02's fix added a comment-stripping source scan, because the cap constant is a no-op at its shipped value and no black-box case can observe it
 - [x] `tests/ui/ResultOverlay.achievements.test.tsx` — the campaign/endless panel block and its suppression states. 4 cases from 13-01 T1, 4 more from 13-04 T2, **8 total**
 
 Extended rather than created:
@@ -300,7 +300,7 @@ being quietly ticked to make the file look finished.
 | `npm run typecheck` | exit **0**, `error TS` count **0** | exit 0 |
 | `npm run lint` | exit **0**, `✖ 3 problems (0 errors, 3 warnings)` | 3 warnings — unchanged |
 | `__purity_probe` | **`purity_probe_errors=5`**; probe file removed; `0` on a scratch config with the block deleted | 5 with the block, 0 without |
-| `npm test` | exit **0**, `Test Files 112 passed (112)`, `Tests 868 passed \| 1 skipped (869)`, all five `assert-*.mjs` OK | pre-phase 107 files / 798 tests |
+| `npm test` | exit **0**, `Test Files 112 passed (112)`, `Tests 868 passed \| 1 skipped (869)`, all five `assert-*.mjs` OK. **Post-code-review: `Tests 870 passed \| 1 skipped (871)`** — the two added cases are WR-02's source scan and WR-01's cross-mode leak case | pre-phase 107 files / 798 tests |
 | `npx vitest run tests/achievements` | `Test Files 3 passed (3)`, `Tests 34 passed \| 1 skipped (35)` | exit 1, `No test files found` |
 
 **Approval:** the automated half is complete and green. The four device and layout items above are

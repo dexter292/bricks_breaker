@@ -140,7 +140,7 @@ function zeroSnapshot(): AchievementSnapshot {
   return {
     lifetime: zeroCounters(),
     byMode: { campaign: {}, endless: {}, daily: {} },
-    endless: { bestWave: 0, bestScore: 0 },
+    endless: { bestWave: 0 },
     daily: { longestStreak: 0, totalDaysPlayed: 0 },
   };
 }
@@ -163,7 +163,6 @@ function veteranSnapshot(): AchievementSnapshot {
     },
     endless: {
       bestWave: FAR_PAST_ANY_THRESHOLD,
-      bestScore: FAR_PAST_ANY_THRESHOLD,
     },
     daily: {
       longestStreak: FAR_PAST_ANY_THRESHOLD,

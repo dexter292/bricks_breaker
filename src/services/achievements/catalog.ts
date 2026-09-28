@@ -125,6 +125,12 @@ export type AchievementCounters = {
  * `daily.history` is deliberately absent: plan 13-01 declared it, no shipped predicate
  * reads it, and this view's whole contract is that it names the subset that is read. A
  * field carried here that nothing reads is a schema obligation with no beneficiary.
+ *
+ * `endless.bestScore` is absent for the SAME reason, and it was removed rather than
+ * grandfathered: it survived the `daily.history` cut in plan 13-02 and the phase-13
+ * verifier found it (W3) still sitting beside `bestWave`, which `endless-wave-10` does
+ * read. A rule applied to one field and not the one next to it is not a rule. An entry
+ * that needs a best SCORE adds it back here, in the commit that adds that entry.
  */
 export type AchievementSnapshot = {
   readonly lifetime: AchievementCounters;
@@ -135,7 +141,6 @@ export type AchievementSnapshot = {
   };
   readonly endless: {
     readonly bestWave: number;
-    readonly bestScore: number;
   };
   readonly daily: {
     readonly longestStreak: number;

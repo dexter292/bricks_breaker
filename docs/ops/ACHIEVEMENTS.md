@@ -404,8 +404,13 @@ and D-05's own reversibility clause anticipated exactly this ("the cap is a sing
 `ACHIEVEMENT_LINES_MAX` was read by nothing in production — the cap was the branch table alone, so
 the remedy recorded in WINDOWS #28 ("this constant drops to 1") would have changed no rendered
 row. The constant now clamps the returned array, so lowering it genuinely reduces the block.
-Measured both ways: with the clamp removed one case reds, and with the constant set to 1 **eight**
-cases red, where before the fix only the assertion naming the number did.
+Measured both ways: with the clamp removed one case reds, and with the constant set to 1 **eleven
+cases across three files** red (8 in `achievementLines.test.ts`, 2 in
+`ResultOverlay.achievements.test.tsx`, 1 in `DailyResultOverlay.test.tsx`), where before the fix
+only the assertion naming the number did. That figure was first recorded as eight — the count from
+running the classifier's file alone — and corrected after the phase-13 verifier measured the whole
+suite. WINDOWS #28's remedy said **two**, and omitted the daily panel entirely; it is corrected
+there too, because #28 is the entry a maintainer executes the change from.
 
 The clamp is **downward only**, and the asymmetry is deliberate: at 1 the surviving row is the
 first *name* line rather than a bare count, which is what D-05 asks for. Raising it above 2 changes
@@ -548,9 +553,9 @@ reasoning as inherited and every number as re-openable.
 
 **2. The device half of the row budget is unmeasured, and one number can still change shipped
 code.** See *Flagged assumptions*. `ACHIEVEMENT_LINES_MAX` is 2 on the stated zero-inset
-assumption; a non-zero bottom inset drops it to 1, and two test cases move with it. That remedy is
-only real as of the phase-13 code review's WR-02 fix — see *The measured arithmetic* — and the
-number of cases that move on the edit is now **eight**, not two.
+assumption; a non-zero bottom inset drops it to 1. That remedy is only real as of the phase-13
+code review's WR-02 fix — see *The measured arithmetic* — and the number of cases that move on the
+edit is **eleven across three files**, not the two WINDOWS #28 originally recorded.
 
 **2b. An unlock earned on an ABANDONED run is persisted and never announced.** `handleMenuPress`
 records the run as `abandoned`, which evaluates and stores the unlock, and then calls `onMenu()`
