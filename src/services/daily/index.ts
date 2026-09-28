@@ -2,6 +2,7 @@
 
 export {
   localDateKey,
+  localMidnightEndingMs,
   nextLocalMidnightMs,
   previousDateKey,
   isValidDateKey,

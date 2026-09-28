@@ -120,6 +120,50 @@ export function nextLocalMidnightMs(nowMs: number): number {
 }
 
 /**
+ * The local midnight that ENDS the calendar date `key` — the instant at which a player
+ * looking at `key` gets a new board.
+ *
+ * The countdown's boundary must come from the date the PANEL IS SHOWING, not from the
+ * clock. `12-UI-SPEC.md` § Clock policy rule 5 pins it once at publish time and never
+ * re-derives it, which is the only reason the remainder can fall to zero and the line can
+ * omit itself. Deriving it from `Date.now()` instead breaks the case that motivates the
+ * pin at all: a run begun at 23:58 and finished at 00:01 is recorded under the date it
+ * STARTED on (D-08), so the panel says `Daily · <yesterday>` — and a clock-derived
+ * boundary would sit beside it advertising `New board in 23h 59m` while the new date is
+ * already open and playable. A confident wrong number, which the UI-SPEC rates worse than
+ * a silent omission.
+ *
+ * Same midday anchor as `previousDateKey` below, for the reason spelled out there: from
+ * local noon no DST shift can reach either end of the calendar day, so the step never
+ * depends on the constructor's resolution of a local midnight that does not exist. The
+ * step itself is `nextLocalMidnightMs`, so this is one derivation reused rather than a
+ * second opinion about what ends a day.
+ *
+ * Total over any string, and fenced by `isValidDateKey` rather than by a finite-number
+ * check on the three fields — `Number('')` is 0, not `NaN`, so a field check alone would
+ * happily build a boundary in the year 0 out of the empty string (MEASURED:
+ * -2211638400000). A rejected key yields 0, which a countdown reads as already expired and
+ * therefore OMITS: the silent direction. Callers holding a clock read should still gate on
+ * `isValidDateKey` themselves and fall back to it, so a degraded date keeps a countdown
+ * rather than losing one.
+ */
+export function localMidnightEndingMs(key: string): number {
+  if (!isValidDateKey(key)) {
+    return 0;
+  }
+  const noon = new Date(
+    Number(key.slice(0, 4)),
+    Number(key.slice(5, 7)) - 1,
+    Number(key.slice(8, 10)),
+    12,
+    0,
+    0,
+    0,
+  ).getTime();
+  return Number.isFinite(noon) ? nextLocalMidnightMs(noon) : 0;
+}
+
+/**
  * The local calendar date exactly one calendar day before `key` — pure string to string.
  *
  * **Calendar arithmetic, never duration arithmetic**, for the reason the module header

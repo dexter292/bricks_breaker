@@ -42,7 +42,11 @@
  *  - **Which board a key produces.** That is `tests/daily.board.test.ts`.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { localDateKey, nextLocalMidnightMs } from '../src/services/daily';
+import {
+  localDateKey,
+  localMidnightEndingMs,
+  nextLocalMidnightMs,
+} from '../src/services/daily';
 
 /**
  * The ambient zone, captured ONCE at module scope before any case reassigns it.
@@ -328,6 +332,53 @@ describe('nextLocalMidnightMs (SC-1 / N-DAILY-01, 12-02)', () => {
         localDateKey(boundary),
         `the boundary derived from ${nowMs} must itself be a well-formed key`,
       ).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    }
+  });
+});
+
+describe('localMidnightEndingMs (12-UI-SPEC § Clock policy rule 5, review WR-03)', () => {
+  it('is the midnight that ends the SHOWN date, not the one that ends the clock\'s date', () => {
+    setZone('America/Los_Angeles');
+    // A run begun 23:58 on 2026-09-27 and finished 00:01 on 2026-09-28. The result is
+    // recorded under the date the run STARTED on (D-08), so the panel shows 2026-09-27
+    // while the clock has already crossed into the 28th.
+    const finishedAt = Date.parse('2026-09-28T07:01:00.000Z'); // 00:01 local 09-28
+    expect(localDateKey(finishedAt), 'fixture sanity: the clock has crossed').toBe(
+      '2026-09-28',
+    );
+
+    const shown = localMidnightEndingMs('2026-09-27');
+    expect(
+      localDateKey(shown - 1),
+      'the boundary is the instant that ends 2026-09-27',
+    ).toBe('2026-09-27');
+    expect(
+      shown - finishedAt,
+      'so from 00:01 on the 28th the remainder is already negative — the countdown omits ' +
+        'itself rather than advertising a board the player can already play',
+    ).toBeLessThan(0);
+    expect(
+      nextLocalMidnightMs(finishedAt) - finishedAt,
+      'the clock-derived boundary is what the defect produced: ~23h59m of confident wrong ' +
+        'number beside a panel dated yesterday',
+    ).toBeGreaterThan(23 * 60 * 60 * 1000);
+  });
+
+  it('inherits the day-step, so it is right on a local day that has no midnight (America/Santiago)', () => {
+    setZone('America/Santiago');
+    // 2026-09-06 has no 00:00 local. The date that ENDS at that non-existent midnight is
+    // 2026-09-05, and the boundary must be the first instant that does exist on the 6th.
+    expect(localMidnightEndingMs('2026-09-05')).toBe(SANTIAGO_FIRST_INSTANT_OF_SUNDAY);
+  });
+
+  it('is total over a malformed key, degrading to an already-expired boundary', () => {
+    setZone('America/Los_Angeles');
+    for (const bad of ['', 'not-a-date', 'xxxx-xx-xx']) {
+      expect(
+        localMidnightEndingMs(bad),
+        `${JSON.stringify(bad)} must yield a finite already-expired boundary, never NaN — ` +
+          'a NaN remainder would reach the UI as a rendered literal',
+      ).toBe(0);
     }
   });
 });

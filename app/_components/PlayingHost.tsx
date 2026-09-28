@@ -35,7 +35,9 @@ import {
   DAILY_DIFFICULTY,
   endedStreakLength,
   hasResultFor,
+  isValidDateKey,
   localDateKey,
+  localMidnightEndingMs,
   nextLocalMidnightMs,
 } from '../../src/services/daily';
 import {
@@ -935,6 +937,16 @@ export function PlayingHost({
    * The clock is read ONCE here, in a callback — never during render, which
    * `react-hooks/purity` fails the build on. The countdown is DERIVED from that single
    * read and never accumulated.
+   *
+   * **The boundary comes from `date`, not from that clock read**, which is the whole of
+   * `12-UI-SPEC.md` § Clock policy rule 5 and what the two comments below and
+   * `docs/ops/DAILY-CHALLENGE.md` already said the code did. On the just-finished path
+   * this function is called with `runDate = dailyDateRef.current` — the date the run
+   * STARTED on, which must never move (D-08) — so a run begun at 23:58 and finished at
+   * 00:01 shows `Daily · <yesterday>`. Deriving the boundary from the clock would then
+   * advertise `New board in 23h 59m` beside it while the new date is already playable.
+   * Deriving it from the shown date gives a remainder that is already zero, so the line
+   * omits itself: the silent direction the UI-SPEC asks for.
    */
   const publishDailyPanel = useCallback(
     (record: DailyRecord | null | undefined, date: string) => {
@@ -952,7 +964,11 @@ export function PlayingHost({
       setDailyEndedStreakLength(endedStreakLength(keys, date));
       const at = Date.now();
       setDailyNowMs(at);
-      setDailyNextBoundaryMs(nextLocalMidnightMs(at));
+      // A degraded date keeps a clock-derived countdown rather than losing one — showing
+      // the wrong panel date with no countdown is a second failure on top of the first.
+      setDailyNextBoundaryMs(
+        isValidDateKey(date) ? localMidnightEndingMs(date) : nextLocalMidnightMs(at),
+      );
     },
     [],
   );
