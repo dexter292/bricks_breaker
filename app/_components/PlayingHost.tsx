@@ -2610,7 +2610,7 @@ export function PlayingHost({
         {mode === 'endless' ? (
           <Text
             accessibilityLabel={`Wave ${wave}`}
-            style={styles.devSwitchLabel}
+            style={styles.devReadout}
           >{`W${wave}`}</Text>
         ) : null}
         <Pressable
@@ -2698,6 +2698,15 @@ const styles = StyleSheet.create({
   },
   devRow: {
     flexDirection: 'row',
+    // MEASURED on an iPhone 17 simulator (402pt), 2026-09-28: the seven controls total
+    // ~431-475px, so an unwrapped row overflows and CLIPS AT THE LEFT — `Lv` and the tier
+    // button were cut off and unreachable while `Daily` and `Crash` stayed on screen.
+    // 12-UI-SPEC E5 predicted the ~431-475px width from font metrics and routed the fit to
+    // a device backstop; this is that backstop coming back positive. Wrapping is the fix
+    // that holds at any width, and costs nothing: Phase 14 deletes the whole row.
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    rowGap: 8,
     gap: 8,
     alignItems: 'center',
   },
@@ -2707,5 +2716,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,
+  },
+  /**
+   * The `W{n}` readout is not a control, so it carries no 44pt target — but it DOES need the
+   * same opaque chrome as its neighbours. MEASURED on an iPhone 17 simulator, 2026-09-28: as a
+   * bare label it rendered directly onto the brick field, squeezed between two opaque buttons,
+   * and was unreadable exactly when it matters — during an endless run, which is the only time
+   * it is shown and the run an SC-5 reading measures.
+   */
+  devReadout: {
+    color: '#FFFFFF',
+    fontFamily: 'SpaceMono',
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: '#12121f',
+    borderWidth: 1,
+    borderColor: '#6B7280',
+    overflow: 'hidden',
   },
 });

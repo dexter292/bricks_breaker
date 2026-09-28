@@ -190,6 +190,13 @@ export function GameScreen({
 
   const playfieldTop = insets.top + HUD_STRIP_CONTENT;
   const padR = Math.max(insets.right, 16);
+  // The dev-row slot needs a LEFT bound as well as a right one. Absolutely positioned
+  // with `right` alone it sizes to its content and grows leftwards off-screen, which is
+  // how the row came to clip `Lv` and the tier button (MEASURED on an iPhone 17
+  // simulator at 402pt, 2026-09-28; 12-UI-SPEC E5 named the cause — "the slot has no
+  // left bound" — and routed the fit to a device backstop). Bounding it gives the row's
+  // `flexWrap` a real width to wrap against.
+  const padL = Math.max(insets.left, 16);
 
   return (
     <View style={styles.root}>
@@ -302,6 +309,7 @@ export function GameScreen({
               styles.devSwitchSlot,
               {
                 top: insets.top + HUD_STRIP_CONTENT + 8,
+                left: padL,
                 right: padR,
                 zIndex: 20,
               },

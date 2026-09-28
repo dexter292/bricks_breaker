@@ -571,7 +571,7 @@ export function recordFrame(
   canvas.restore();
 
   if (drawOverlayFlag && hudFont) {
-    drawOverlay(canvas, metrics, hudFont);
+    drawOverlay(canvas, metrics, hudFont, hPx);
   }
 
   return tools.recorder.finishRecordingAsPicture();
