@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 3
+current_plan: 4
 status: in_progress
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-09-28T02:07:38.275Z"
-state_head: e225830db1dfdf8a6f892f0a1598b54ae78f8aeb
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-09-28T03:11:27.742Z"
+state_head: c2cfbe9232a1c659629ae220be94cdd547691c9b
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 35
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 6
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
@@ -130,6 +130,7 @@ Total Plans in Phase: 6
 | Phase 11 P21 | 11 min | 3 tasks | 5 files |
 | Phase 12 P01 | 17 min | 1 tasks | 15 files |
 | Phase 12 P02 | 19 min | 3 tasks | 5 files |
+| Phase 12 P03 | 31 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -256,6 +257,9 @@ Total Plans in Phase: 6
 - [Phase 12]: The daily arm of RecordRunEndArgs carries date and NO levelId, so bestByLevel/unlocked/bestScore are unreachable at compile time rather than merely unwritten (N-DAILY-03 / SC-5)
 - [Phase 12]: telemetryKey stays ONE const ternary in both stores; the daily branch reaches DAILY_TELEMETRY_KEY and never a date, which is what keeps byMode.daily bounded (D-15)
 - [Phase 12]: ResultOverlay.mode is NOT widened — daily ships as a separate scalar-props DailyResultOverlay, which is SC-5 at the prop signature
+- [Phase 12]: D-16 amended: DailyRecord gains currentStreakStart, a stored DATE rather than a counter — With only longestStreak and totalDaysPlayed the closing streak could be derived solely from the bounded window, so longestStreak saturated at DAILY_HISTORY_BOUND+1 (MEASURED 401 for 450 consecutive closes), defeating D-16. Approved by the developer at plan 12-03 blocking checkpoint.
+- [Phase 12]: Daily record reconcile is max-and-union, and is explicitly not lossless — longestStreak takes a per-field max; totalDaysPlayed takes max(a, b, union size). A trimmed copy meeting one with exclusive dates under-counts by the overlap and never inflates; the limit is stated in the doc comment and asserted in tests/daily.record.test.ts.
+- [Phase 12]: Tamper fences in the daily record degrade downward, never inflating — DAILY_STREAK_WALK_CAP=36525 is a tamper fence, not a streak ceiling: exceeding it discards the stored start rather than saturating at it, because saturating would invent ~36525 days of play from a hostile blob.
 
 ### Decisions (Post-MVP close)
 
@@ -292,6 +296,6 @@ Total Plans in Phase: 6
 
 ## Session Continuity
 
-Last session: 2026-09-28T02:07:38.241Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-09-28T03:11:06.159Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
