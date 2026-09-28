@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 17
+open_count: 21
 waived_count: 0
-fixed_count: 2
-total_count: 19
-last_updated: 2026-09-28T03:59:12.664Z
+fixed_count: 3
+total_count: 24
+last_updated: 2026-09-28T04:15:33.124Z
 ---
 
 # Broken Windows Ledger
@@ -28,12 +28,17 @@ last_updated: 2026-09-28T03:59:12.664Z
 | 11 | 11 | unrun-verify | docs/ops/ENDLESS-MODE.md |  | SC-5 device reading remains OPEN — no frame measurement taken; discharge procedure improved only | open |  | 2026-09-26T09:53:22.231Z |  |
 | 12 | 11 | unrun-verify | docs/ops/ENDLESS-MODE.md |  | SC-5 device frame-budget reading remains UNMEASURED: 11-20 repaired the instructions for taking it and explicitly did not take it; no automated step in this repo can drive onFrame | open |  | 2026-09-26T15:20:54.093Z |  |
 | 13 | 11 | deviation | app/_components/PlayingHost.tsx |  | 11-20 base disagreement: plan measured the falsified clause at 1 here on 6bb18bf; wave 9 (07907f3) had already deleted it, so the phase-wide enumeration is 5 on the executed tree, not 6 | open |  | 2026-09-26T15:20:54.201Z |  |
-| 14 | 12 | stub | src/services/storage/parseBlob.ts |  | sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord) | open |  | 2026-09-28T01:48:07.356Z |  |
+| 14 | 12 | stub | src/services/storage/parseBlob.ts |  | sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord) | fixed |  | 2026-09-28T01:48:07.356Z | 2026-09-28T04:15:33.124Z |
 | 15 | 12 | unrun-verify | src/services/storage/telemetry.ts |  | mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts) | fixed |  | 2026-09-28T01:48:07.463Z | 2026-09-28T03:08:57.659Z |
 | 16 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06. | open |  | 2026-09-28T03:58:52.704Z |  |
 | 17 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06. | open |  | 2026-09-28T03:59:12.456Z |  |
 | 18 | 12 | unrun-verify | app/_components/PlayingHost.tsx |  | 12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06. | open |  | 2026-09-28T03:59:12.560Z |  |
 | 19 | 12 | deviation | app/_components/PlayingHost.tsx |  | The daily panel's Streak line is derived by currentDailyStreak (the write side's own exact derivation) rather than by streakFrom over the trimmed window, which plan 12-05 and 12-03's handoff both prescribed. MEASURED: streakFrom returns 400 against a stored longestStreak of 450, which both misreports the streak and silently stops the record badge firing for a player on their best-ever run. | open |  | 2026-09-28T03:59:12.664Z |  |
+| 20 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 1 (12-VALIDATION Manual-Only): Android Hermes date-key + nextLocalMidnightMs on a 23h DST day. Only the Apple slice of the SDK 57 Hermes artifact was executable; the Android engine is a separate compilation against bionic tzdata and was NEVER executed. Routed to a device check by plan 12-06. | open |  | 2026-09-28T04:15:32.571Z |  |
+| 21 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 2: Android Intl/ICU4J locale invariance. The five-locale measurement was taken on the Apple Hermes slice; the ICU4J layer was read, not executed. Routed to a physical Android device by plan 12-06. | open |  | 2026-09-28T04:15:32.685Z |  |
+| 22 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 3: the per-runtime timezone cache ON DEVICE. Reproduced only by setenv+tzset in a desktop harness; a real OS timezone change is a different mechanism and was not observable. If a device check shows the date re-derives without a relaunch, NARROW the Limits paragraph in docs/ops/DAILY-CHALLENGE.md, do not delete it. | open |  | 2026-09-28T04:15:32.795Z |  |
+| 23 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | Device item 4: a real local-midnight rollover with the Daily Result panel open. No test can advance a device wall clock across midnight while the runtime lives. Confirm the countdown never renders a negative value, omits at or below zero, and that the date re-derives. | open |  | 2026-09-28T04:15:32.904Z |  |
+| 24 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 8: NO HUMAN HAS PLAYED A DAILY BOARD. Nothing in docs/ops/DAILY-CHALLENGE.md was calibrated by one, and its front matter says so. Play a full daily board to a win and to a loss on consecutive days and confirm the streak, best-streak and days-played figures move as the policy states. | open |  | 2026-09-28T04:15:33.015Z |  |
 
 ````json
 [
@@ -213,10 +218,10 @@ last_updated: 2026-09-28T03:59:12.664Z
     "file": "src/services/storage/parseBlob.ts",
     "line": null,
     "description": "sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord)",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-28T01:48:07.356Z",
-    "resolved_at": null,
+    "resolved_at": "2026-09-28T04:15:33.124Z",
     "milestone": "v1.2"
   },
   {
@@ -281,6 +286,71 @@ last_updated: 2026-09-28T03:59:12.664Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T03:59:12.664Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 20,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "docs/ops/DAILY-CHALLENGE.md",
+    "line": null,
+    "description": "Device item 1 (12-VALIDATION Manual-Only): Android Hermes date-key + nextLocalMidnightMs on a 23h DST day. Only the Apple slice of the SDK 57 Hermes artifact was executable; the Android engine is a separate compilation against bionic tzdata and was NEVER executed. Routed to a device check by plan 12-06.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T04:15:32.571Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 21,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "docs/ops/DAILY-CHALLENGE.md",
+    "line": null,
+    "description": "Device item 2: Android Intl/ICU4J locale invariance. The five-locale measurement was taken on the Apple Hermes slice; the ICU4J layer was read, not executed. Routed to a physical Android device by plan 12-06.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T04:15:32.685Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 22,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "docs/ops/DAILY-CHALLENGE.md",
+    "line": null,
+    "description": "Device item 3: the per-runtime timezone cache ON DEVICE. Reproduced only by setenv+tzset in a desktop harness; a real OS timezone change is a different mechanism and was not observable. If a device check shows the date re-derives without a relaunch, NARROW the Limits paragraph in docs/ops/DAILY-CHALLENGE.md, do not delete it.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T04:15:32.795Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 23,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "src/runtime/overlays/DailyResultOverlay.tsx",
+    "line": null,
+    "description": "Device item 4: a real local-midnight rollover with the Daily Result panel open. No test can advance a device wall clock across midnight while the runtime lives. Confirm the countdown never renders a negative value, omits at or below zero, and that the date re-derives.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T04:15:32.904Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 24,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "docs/ops/DAILY-CHALLENGE.md",
+    "line": null,
+    "description": "Device item 8: NO HUMAN HAS PLAYED A DAILY BOARD. Nothing in docs/ops/DAILY-CHALLENGE.md was calibrated by one, and its front matter says so. Play a full daily board to a win and to a loss on consecutive days and confirm the streak, best-streak and days-played figures move as the policy states.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T04:15:33.015Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }

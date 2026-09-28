@@ -171,7 +171,7 @@ Plans:
   4. Device clock changes are handled by an explicit, written policy — the behaviour on a backwards clock jump is a decision recorded in the phase, not an accident
   5. Daily results never touch campaign progress or endless records
 
-**Plans:** 5/6 plans executed in 5 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 6/6 plans executed in 5 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
@@ -194,7 +194,7 @@ Plans:
 
 **Wave 5**
 
-- [ ] 12-06-PLAN.md — `docs/ops/DAILY-CHALLENGE.md`, N-DAILY-03's written policy; and `12-VALIDATION.md` closed out with real task ids and eight device-verification items routed to a person (wave 5)
+- [x] 12-06-PLAN.md — `docs/ops/DAILY-CHALLENGE.md`, N-DAILY-03's written policy; and `12-VALIDATION.md` closed out with real task ids and eight device-verification items routed to a person (wave 5)
 
 **UI hint**: yes
 

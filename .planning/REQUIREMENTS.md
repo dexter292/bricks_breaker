@@ -184,9 +184,9 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 
 ### Daily Challenge
 
-- [ ] **N-DAILY-01** (FC-R03): The board derives from the local calendar date alone — same date, same board, no network
-- [ ] **N-DAILY-02**: The day's result is recorded once per date and shown on re-open rather than regenerated; a streak is computed from stored dates, not an incrementable counter
-- [ ] **N-DAILY-03**: Behaviour on device-clock changes is an explicit written policy; daily results never touch campaign or endless records
+- [x] **N-DAILY-01** (FC-R03): The board derives from the local calendar date alone — same date, same board, no network
+- [x] **N-DAILY-02**: The day's result is recorded once per date and shown on re-open rather than regenerated; a streak is computed from stored dates, not an incrementable counter
+- [x] **N-DAILY-03**: Behaviour on device-clock changes is an explicit written policy; daily results never touch campaign or endless records
 
 ### Achievements
 

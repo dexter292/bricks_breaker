@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_plan: 6
 status: in_progress
-stopped_at: Completed 12-05-PLAN.md
-last_updated: "2026-09-28T04:02:43.089Z"
-state_head: 5967066e9ea8ee2ca7b707383ec8a54b96eb91b6
+stopped_at: Completed 12-06-PLAN.md
+last_updated: "2026-09-28T04:18:07.127Z"
+state_head: 38173562b75ee8e7d68fd55e848a33427eca0d9d
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 38
-  completed_plans: 37
+  completed_plans: 38
   percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -133,6 +133,7 @@ Total Plans in Phase: 6
 | Phase 12 P03 | 31 min | 3 tasks | 9 files |
 | Phase 12 P04 | 18 min | 2 tasks | 4 files |
 | Phase 12 P05 | 26 min | 3 tasks | 12 files |
+| Phase 12 P06 | 9 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -267,6 +268,11 @@ Total Plans in Phase: 6
 - [Phase 12]: Task 2 ships no source and therefore has no RED phase; its six cases were proved non-vacuous by four reverted source mutations instead of by a manufactured RED commit.
 - [Phase 12]: The daily panel Streak line is derived by currentDailyStreak — the write side own exact derivation — rather than by streakFrom over the trimmed window, which both plan 12-05 and 12-03 handoff prescribed. — MEASURED at 450 consecutive closes: streakFrom returns 400 against a stored longestStreak of 450. The panel would state a streak the player does not have, and the streak === longestStreak badge would stop firing permanently for a player on their best-ever run.
 - [Phase 12]: The 60-second daily countdown interval is scoped to the Daily Result panel being open, red-proved on this tree rather than taken on trust. — Induced unconditionally it throws 'Aborting after running 10000 timers' across four host specs no plan in phase 12 owns; scoped, 20 files / 183 tests pass.
+- [Phase 12]: 12-VALIDATION.md status stays draft while nyquist_compliant goes true: 'validated' is the lifecycle marker for validate-phase having run, and it has not
+- [Phase 12]: The sign-off's automated-verify line is ticked with a named exception — 13 of 14 phase tasks carry an <automated> block; the one that does not is a checkpoint:decision that ships no code
+- [Phase 12]: docs/ops/DAILY-CHALLENGE.md records the falsified midday-anchor rationale as a preserved measurement (38355 dates, 15 zones, 0 differences) so a later reader does not correct it back
+- [Phase 12]: max-and-union is documented as lossy with its worked under-count (500/10/410 -> 500 where the truth is 510), never as exact
+- [Phase 12]: Five device verifications that existed only in prose were appended to WINDOWS (20-24); entry 14 was marked fixed after verifying the close mechanically
 
 ### Decisions (Post-MVP close)
 
@@ -303,6 +309,6 @@ Total Plans in Phase: 6
 
 ## Session Continuity
 
-Last session: 2026-09-28T04:02:12.887Z
-Stopped at: Completed 12-05-PLAN.md
+Last session: 2026-09-28T04:17:59.800Z
+Stopped at: Completed 12-06-PLAN.md
 Resume file: None
