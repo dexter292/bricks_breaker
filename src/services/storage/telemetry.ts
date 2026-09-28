@@ -13,7 +13,10 @@
  * written ONLY by `mergeEndlessRecord`; `mergeRunIntoTelemetry` never touches
  * them, so no campaign run can reach the endless record (SC-3).
  */
+import { isValidDateKey, previousDateKey, streakFrom } from '../daily';
 import {
+  DAILY_HISTORY_BOUND,
+  DAILY_STREAK_WALK_CAP,
   RECENT_RUNS_BOUND,
   defaultTelemetryAggregate,
   type DailyHistoryEntry,
@@ -63,7 +66,12 @@ export function cloneTelemetryBlob(t: TelemetryBlob): TelemetryBlob {
       daily: cloneAggregateMap(t.byMode.daily),
     },
     endless: { ...t.endless },
-    daily: { history: t.daily.history.map((e) => ({ ...e })) },
+    daily: {
+      history: t.daily.history.map((e) => ({ ...e })),
+      longestStreak: t.daily.longestStreak,
+      totalDaysPlayed: t.daily.totalDaysPlayed,
+      currentStreakStart: t.daily.currentStreakStart,
+    },
     recentRuns: t.recentRuns.map((e) => ({ ...e })),
   };
 }
@@ -106,9 +114,10 @@ export function mergeEndlessRecord(
  * repeated close of the same date benign rather than a history that grows a duplicate
  * every time.
  *
- * No write-time history bound here: `DAILY_HISTORY_BOUND` belongs to plan 12-03, the
- * first plan that both declares it and overshoots it in a test. No history reachable on
- * this path is long enough to trim.
+ * The history is bounded on write by `DAILY_HISTORY_BOUND` (D-15), in the one-line shape
+ * the recent-run ring already uses. The three D-16 values are maintained here and are
+ * NEVER recomputed from the trimmed window — see `resolveStreakStart` below for the one
+ * rule that makes that safe rather than merely asserted.
  */
 export function mergeDailyRecord(
   telemetry: TelemetryBlob,
@@ -127,8 +136,118 @@ export function mergeDailyRecord(
   } else {
     history.push(entry);
   }
-  next.daily = { history };
+  // Keep the array sorted: every D-16 derivation below is a walk over a sorted key array
+  // (`src/services/daily/streak.ts`), and an out-of-order arrival would shorten a streak
+  // silently rather than loudly. Runs normally arrive in date order, so this is a fence,
+  // not a hot path.
+  history.sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : 0));
+
+  const keys = history.map((e) => e.date);
+  const currentStreakStart = resolveStreakStart(keys, next.daily.currentStreakStart);
+  const currentStreak = streakLengthFrom(keys, currentStreakStart);
+
+  next.daily = {
+    // Bound on write (D-15), same one-line shape as the recent-run ring below.
+    history: history.slice(-DAILY_HISTORY_BOUND),
+    // A running max that never falls — breaking a streak restarts the run, it does not
+    // lower the lifetime best.
+    longestStreak: Math.max(safeCounter(next.daily.longestStreak), currentStreak),
+    // Incremented only on a date's FIRST close, which is what makes a repeated write
+    // idempotent (D-06 / A-01).
+    totalDaysPlayed: safeCounter(next.daily.totalDaysPlayed) + (at >= 0 ? 0 : 1),
+    currentStreakStart,
+  };
   return next;
+}
+
+/**
+ * The oldest key of the consecutive run ending at the newest stored key, and whether that
+ * walk ran out of window rather than meeting a real gap.
+ *
+ * `floored: false` means the window CONTAINS the gap that started the current run, so the
+ * run's start is exactly derivable from stored dates and nothing carried can override it.
+ * `floored: true` means the window is consecutive end to end: the run may reach back
+ * further than anything stored, and the window is silent on how much further.
+ */
+function runStartInWindow(sortedKeys: readonly string[]): {
+  start: string;
+  floored: boolean;
+} {
+  if (sortedKeys.length === 0) {
+    return { start: '', floored: false };
+  }
+  const n = streakFrom(sortedKeys);
+  return { start: sortedKeys[sortedKeys.length - n]!, floored: n === sortedKeys.length };
+}
+
+/**
+ * Days from `start` to `end` inclusive by calendar walk, or 0 if `start` is not reachable
+ * within `DAILY_STREAK_WALK_CAP`.
+ *
+ * Calendar arithmetic, never duration arithmetic — `previousDateKey` steps the day field
+ * through the local-field `Date` constructor, so a 23- or 25-hour DST day counts as one
+ * day like every other. Subtracting timestamps would not.
+ *
+ * Returning 0 on exceeding the cap is the tamper signal, and callers treat it as "this
+ * start is not credible" rather than as a length. See `DAILY_STREAK_WALK_CAP` for why
+ * discarding beats saturating.
+ */
+function inclusiveDaySpan(start: string, end: string): number {
+  let cursor = end;
+  let days = 1;
+  while (cursor !== start) {
+    if (days >= DAILY_STREAK_WALK_CAP) {
+      return 0;
+    }
+    cursor = previousDateKey(cursor);
+    days++;
+  }
+  return days;
+}
+
+/**
+ * The start of the run in progress: derived from stored dates wherever they can say, and
+ * carried forward only where they cannot. **This is the whole self-correction contract.**
+ *
+ * In order:
+ *  1. No stored dates — no run, `''`.
+ *  2. The window contains a gap — the start is EXACTLY derivable, so the derived value
+ *     wins and any stored value is discarded, tampered or merely stale.
+ *  3. The stored value is not a well-formed date key — discard it (`isValidDateKey`,
+ *     integer range checks, no parse round trip).
+ *  4. The stored value is not older than the derived one — a run cannot start after its
+ *     own earliest proven date, so discard it.
+ *  5. The stored value is unreachable within the walk cap — not a real run; discard it.
+ *  6. Otherwise the window is consecutive end to end and cannot contradict the stored
+ *     value, so carry it: this is the only path on which a streak longer than
+ *     `DAILY_HISTORY_BOUND` survives, and it is exactly what D-16 exists to protect.
+ *
+ * Every discard path falls back to the window-derived start, which UNDER-reports the
+ * streak and never inflates it. That direction is deliberate: a lifetime best invented
+ * out of a tampered blob is a worse failure than one that stopped growing.
+ */
+function resolveStreakStart(
+  sortedKeys: readonly string[],
+  storedStart: string,
+): string {
+  const { start, floored } = runStartInWindow(sortedKeys);
+  if (start === '' || !floored) {
+    return start;
+  }
+  if (!isValidDateKey(storedStart) || storedStart >= start) {
+    return start;
+  }
+  const newest = sortedKeys[sortedKeys.length - 1]!;
+  return inclusiveDaySpan(storedStart, newest) > 0 ? storedStart : start;
+}
+
+/** The current run's length: the calendar span back to its start, or the derivable walk. */
+function streakLengthFrom(sortedKeys: readonly string[], start: string): number {
+  if (sortedKeys.length === 0 || start === '') {
+    return 0;
+  }
+  const span = inclusiveDaySpan(start, sortedKeys[sortedKeys.length - 1]!);
+  return span > 0 ? span : streakFrom(sortedKeys);
 }
 
 /** Fold one finished run into an aggregate (cumulative sums, running maxes). */
@@ -265,10 +384,32 @@ function mergeEndlessRecords(a: EndlessRecord, b: EndlessRecord): EndlessRecord 
  * ISO-8601 local `YYYY-MM-DD` (`src/services/daily` `localDateKey`), zero-padded to a
  * fixed width, which is the whole reason D-14's streak walk needs no date parsing.
  *
- * D-16's two scalars are not here yet. When plan 12-03 adds them this function gains
- * the max-vs-sum reconcile its blocking checkpoint decides — `longestStreak` is a max
- * and `totalDaysPlayed` is a count, and this record will be the first structure in the
- * blob needing both in one object.
+ * ## The D-16 reconcile contract (`max-and-union`, decided at plan 12-03's checkpoint)
+ *
+ * This record is the first structure in the blob needing a max AND a count in one object,
+ * so the rule is stated here rather than read off an analog. `mergeEndlessRecords` is a
+ * pure per-field maximum and is **not** the model for the count: a maximum over two
+ * devices' counts loses every date the lower copy held exclusively, and a sum
+ * double-counts every date both hold. The in-repo precedent for a type that both sums and
+ * maxes is `mergeAggregates` in this file, whose sum-vs-max contract is stated in the
+ * module header above.
+ *
+ *  - `longestStreak` is an "ever" field and takes the **maximum**.
+ *  - `totalDaysPlayed` is a count and takes the maximum of the two carried scalars **and
+ *    the size of the unioned history** — so it neither double-counts a date both copies
+ *    hold nor drops one only a single copy holds. The union is computed right here, so
+ *    there is no second pass.
+ *  - `currentStreakStart` is a date and follows neither rule; see `reconcileStreakStart`.
+ *
+ * **This is NOT lossless, and must not be described as such.** One topology under-counts:
+ * a copy whose history has been TRIMMED, reconciled against one holding dates exclusively
+ * outside that window. Worked example — copy A has closed 500 dates but its window holds
+ * the newest 400; copy B holds 10 dates A has never seen. The union sees 410, the carried
+ * scalars are 500 and 10, so the rule reports 500 while the truth is 510: B's exclusive
+ * dates are lost because A's window cannot vouch for them and A's scalar already exceeds
+ * the union. The error is bounded by that exclusive-and-outside-the-window overlap, and it
+ * is always in the under-reporting direction — the rule can never inflate past the truth.
+ * `tests/daily.record.test.ts` asserts this topology rather than only describing it.
  */
 function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
   const byDate = new Map<string, DailyHistoryEntry>();
@@ -281,7 +422,61 @@ function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
   const history = [...byDate.values()].sort((x, y) =>
     x.date < y.date ? -1 : x.date > y.date ? 1 : 0,
   );
-  return { history };
+  const keys = history.map((e) => e.date);
+  return {
+    // Bound on merge as well as on write — reconciling two full windows must not produce
+    // a longer one, exactly as the recent-run ring is re-bounded below.
+    history: history.slice(-DAILY_HISTORY_BOUND),
+    longestStreak: Math.max(safeCounter(a.longestStreak), safeCounter(b.longestStreak)),
+    // The union size is taken BEFORE the bound above: trimming what we store must not
+    // lower what we have counted, which is the whole of D-16.
+    totalDaysPlayed: Math.max(
+      safeCounter(a.totalDaysPlayed),
+      safeCounter(b.totalDaysPlayed),
+      keys.length,
+    ),
+    currentStreakStart: reconcileStreakStart(
+      keys,
+      a.currentStreakStart,
+      b.currentStreakStart,
+    ),
+  };
+}
+
+/**
+ * Reconcile two claimed run starts against the unioned history.
+ *
+ * `min(a, b)` on its own is WRONG: the earlier start is only meaningful if the union
+ * actually supports an unbroken run from it, and two copies that disagree are exactly the
+ * case where it may not. So the union is asked first, on the same principle as
+ * `resolveStreakStart`: derived beats carried.
+ *
+ *  - If the unioned history contains a gap, the run start is exactly derivable from it and
+ *    **both** stored claims are discarded — including the earlier one.
+ *  - If the union is consecutive end to end it can contradict neither claim, so the
+ *    EARLIEST admissible claim is carried. Admissible means well-formed, older than the
+ *    derived start, and reachable within the walk cap.
+ *  - With no admissible claim, the derived start stands.
+ */
+function reconcileStreakStart(
+  sortedKeys: readonly string[],
+  aStart: string,
+  bStart: string,
+): string {
+  const { start, floored } = runStartInWindow(sortedKeys);
+  if (start === '' || !floored) {
+    return start;
+  }
+  const newest = sortedKeys[sortedKeys.length - 1]!;
+  const admissible = [aStart, bStart]
+    .filter(
+      (candidate) =>
+        isValidDateKey(candidate) &&
+        candidate < start &&
+        inclusiveDaySpan(candidate, newest) > 0,
+    )
+    .sort();
+  return admissible[0] ?? start;
 }
 
 /** Merge two telemetry blobs (memory ↔ freshly-hydrated disk). */

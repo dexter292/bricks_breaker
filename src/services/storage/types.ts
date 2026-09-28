@@ -53,6 +53,45 @@ export type RunOutcome = 'win' | 'lose' | 'abandoned';
 export const RECENT_RUNS_BOUND = 50 as const;
 
 /**
+ * Bounded daily history window (D-15), same reasoning as `RECENT_RUNS_BOUND` above and the
+ * same obligation to state arithmetic rather than assert a number. A `{ date, score,
+ * outcome }` entry serialises to roughly 45 bytes of JSON, so 400 entries is ~18KB against
+ * the ~2MB Android CursorWindow practical ceiling the ring-buffer comment already names —
+ * the same order of magnitude of headroom as the 50-entry ring.
+ *
+ * 400 rather than a rounder 365 because the window IS the longest ended streak the D-17
+ * line can ever report as ended: past it, `endedStreakLength` hits the window floor and
+ * must omit the line entirely. A tighter window would start suppressing that line a month
+ * earlier for no storage gain worth having.
+ *
+ * Declared in plan 12-03 rather than 12-01: 12-01's tracer reaches no history long enough
+ * to trim, and a constant a slice never exercises is a rider on that slice. This is the
+ * first plan that both applies the bound and overshoots it in a test.
+ */
+export const DAILY_HISTORY_BOUND = 400 as const;
+
+/**
+ * Hard stop for the `currentStreakStart` walk — a TAMPER FENCE, not a streak ceiling.
+ *
+ * 36 525 is a hundred Gregorian years of unbroken daily play (365.25 x 100, leap days
+ * included): longer than any human can accumulate, so a legitimate blob can never reach
+ * it and the fence never truncates a real streak. What it bounds is a hostile one — the
+ * blob is plaintext, and a `currentStreakStart` of `0001-01-01` would otherwise spin the
+ * walk through roughly 740 000 iterations.
+ *
+ * MEASURED on this project's own Node (plan 12-03): the full 36 525-step walk costs 7.25ms
+ * and a realistic 450-day streak costs 0.69ms. This runs once when a date closes, never
+ * per frame.
+ *
+ * **Exceeding it discards the stored start rather than saturating at it.** Reaching the
+ * cap proves the value is not a real run, and reporting ~36 525 days of daily play that
+ * never happened would inflate a lifetime achievement out of garbage. The walk falls back
+ * to the start the stored window can vouch for, which under-reports and never inflates —
+ * the safe direction, and the same direction `endedStreakLength` chose at its own floor.
+ */
+export const DAILY_STREAK_WALK_CAP = 36_525 as const;
+
+/**
  * Lifetime / per-(mode, level) counter roll-up (D-06…D-10).
  * Cumulative fields sum across runs; `*Ever` fields take a running max.
  */
@@ -182,6 +221,46 @@ export type DailyHistoryEntry = {
  */
 export type DailyRecord = {
   history: DailyHistoryEntry[];
+  /**
+   * Longest run of consecutive closed dates EVER (D-16). Updated when a date closes and
+   * **never recomputed from the trimmed window** — that sentence is the whole of D-16.
+   * Without it, trimming the history would silently erase an achievement, and a streak
+   * longer than the window would read as the window length.
+   *
+   * It is a running max and never falls: breaking a streak restarts `currentStreakStart`,
+   * it does not lower this.
+   */
+  longestStreak: number;
+  /**
+   * Count of dates ever closed (D-16). Also never recomputed from the trimmed window: a
+   * player past the window size would watch a number they have been growing go DOWN.
+   * Incremented only when a date is closed for the FIRST time, so a repeated write of the
+   * same date is idempotent (D-06).
+   */
+  totalDaysPlayed: number;
+  /**
+   * The first date of the run currently in progress, as a `YYYY-MM-DD` key, or `''` when
+   * no date has ever been closed.
+   *
+   * **A date, deliberately not a counter.** SC-3 requires the streak be "computed from
+   * stored dates rather than an incrementing counter that a crash could corrupt"; the
+   * current streak is a `previousDateKey` walk from the closing date back to this one, so
+   * it stays derived — this field just says how far back to walk, which the bounded
+   * window (D-15) cannot otherwise express.
+   *
+   * **Why it exists (amends D-16, approved at plan 12-03's decision checkpoint).** With
+   * only the two scalars above, the closing streak could only be derived from the stored
+   * window, so `longestStreak` saturated at `DAILY_HISTORY_BOUND + 1` and could never
+   * report a longer run — MEASURED at 401 for 450 consecutive closes. That defeats D-16's
+   * own purpose. One more stored date makes the run exactly derivable and unbounded.
+   *
+   * **Self-correcting, by contract.** Whenever the stored window contains a gap, the run
+   * start is derivable from the dates alone and the derived value WINS — any stored value
+   * is discarded. The field is trusted only where the window is consecutive end to end and
+   * therefore cannot contradict it. A malformed, future-dated or absurdly old value
+   * degrades to the window-derived start, which under-reports and never inflates.
+   */
+  currentStreakStart: string;
 };
 
 export type TelemetryBlob = {
@@ -226,7 +305,7 @@ export function defaultEndlessRecord(): EndlessRecord {
 
 /** Empty daily record — no date has been closed yet. */
 export function defaultDailyRecord(): DailyRecord {
-  return { history: [] };
+  return { history: [], longestStreak: 0, totalDaysPlayed: 0, currentStreakStart: '' };
 }
 
 export function defaultTelemetryBlob(): TelemetryBlob {

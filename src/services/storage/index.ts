@@ -31,6 +31,8 @@ export {
   type DailyHistoryEntry,
   defaultDailyRecord,
   DAILY_TELEMETRY_KEY,
+  DAILY_HISTORY_BOUND,
+  DAILY_STREAK_WALK_CAP,
   type RunLogEntry,
   type RunStatsInput,
 } from './types';

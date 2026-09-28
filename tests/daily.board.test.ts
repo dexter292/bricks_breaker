@@ -77,6 +77,7 @@ const NETWORK_PRIMITIVES = [
 /** The daily policy sources whose text the no-network contract is asserted over. */
 const DAILY_POLICY_SOURCES = [
   'src/services/daily/dateKey.ts',
+  'src/services/daily/streak.ts',
   'src/services/daily/index.ts',
 ] as const;
 
@@ -286,23 +287,34 @@ describe('daily board no network (SC-1 / N-DAILY-01, 12-02)', () => {
       ).toEqual([]);
     }
 
-    // The reachable set of `dateKey.ts` is `dateKey.ts`: it imports nothing at all, so the
-    // scan above is complete for it rather than merely local. The barrel re-exports only
-    // from that file.
+    // What makes the scan above COMPLETE rather than merely local: every import source
+    // anywhere in the daily policy tree is a relative sibling, so the tree's reachable set
+    // is exactly the files scanned and nothing outside it can smuggle a network primitive
+    // in. Narrowed by plan 12-03 from an assertion that pinned the literal set
+    // `['./dateKey']` — that form contradicted this comment's own stated intent ("so plan
+    // 12-03/12-05 adding an export to this barrel does not red a case about the network")
+    // and red the moment `streak.ts` joined the tree. The claim below is the one the case
+    // is actually about, and it STRENGTHENS the gate: `streak.ts` is now scanned too, and
+    // every file in the tree is held to the locality rule rather than only the barrel.
+    for (const path of DAILY_POLICY_SOURCES) {
+      const sources = [...strippedSource(path).matchAll(/from\s+'([^']+)'/g)].map((m) => m[1]!);
+      for (const source of sources) {
+        expect(
+          source.startsWith('./'),
+          `${path} imports '${source}', which leaves the daily policy tree — the network ` +
+            'scan above would no longer be complete',
+        ).toBe(true);
+      }
+    }
+
+    // Non-vacuity for the locality rule: the matcher must actually find an import source.
+    // Without this the loop above passes just as happily against a broken regex.
     expect(
-      strippedSource('src/services/daily/dateKey.ts').includes('import'),
-      'dateKey.ts must import nothing, so its reachable set is itself',
-    ).toBe(false);
-    // The barrel's own reachable set: every module it pulls from. Asserted as the SET of
-    // import sources rather than as the barrel's literal text, so plan 12-03/12-05 adding
-    // an export to this barrel does not red a case about the network.
-    const barrelSources = [
-      ...strippedSource('src/services/daily/index.ts').matchAll(/from\s+'([^']+)'/g),
-    ].map((m) => m[1]);
-    expect(
-      [...new Set(barrelSources)],
-      'the barrel must re-export only from the daily policy module, whose own imports are empty',
-    ).toEqual(['./dateKey']);
+      [...strippedSource('src/services/daily/index.ts').matchAll(/from\s+'([^']+)'/g)].map(
+        (m) => m[1],
+      ),
+      'the barrel must re-export from the daily policy modules, and the matcher must see them',
+    ).toEqual(['./dateKey', './streak']);
 
     // Non-vacuity: the detector must actually detect. Without this the case above would
     // pass just as happily with an empty primitive list or a broken matcher.
