@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 27
+open_count: 30
 waived_count: 0
 fixed_count: 4
-total_count: 31
-last_updated: 2026-09-28T15:08:14.000Z
+total_count: 34
+last_updated: 2026-09-28T15:10:38.059Z
 ---
 
 # Broken Windows Ledger
@@ -46,6 +46,9 @@ last_updated: 2026-09-28T15:08:14.000Z
 | 29 | 13 | deviation | src/runtime/overlays/ResultOverlay.tsx |  | OWNER DECISION, DEFERRED. Phase-13 UI-SPEC: Dynamic Type ceiling. allowFontScaling defaults to true and an explicit lineHeight scales with it (both measured in the installed RN tree), so adding two rows drops the campaign-win panel's text-multiplier ceiling from 1.433 to 1.102 - from clipping at the first accessibility size to clipping one step above default, since iOS xLarge is about 1.118. PRE-EXISTING in kind (the panel already clips at AX1 today) and confined to 320x568, reachable only via Display Zoom. Lever is maxFontSizeMultiplier across three shipped components, so it is not phase 13's to pull. Recorded as decision D-18 with a DUE POINT: Phase 14, which owns those components. Do not let this sit as an open note without an owner. PHASE-13 ANNOTATION 2026-09-28 (plan 13-05 T3) — NOT discharged, LEFT OPEN, and NOT to be marked fixed. REPRODUCTION: 320x568pt (Display Zoom, as #28) with the system text size raised ONE step above default — iOS xLarge, approximately 1.118 against a computed ceiling of 1.102. EXPECTED: the panel IS EXPECTED TO CLIP. Confirming the clipping is the CORRECT outcome. It is not a new defect to file and not a regression to fix here: it is D-18's recorded deferral, DUE at Phase 14, which owns the three shipped components maxFontSizeMultiplier would touch. CONSEQUENCE: none for this phase. Record what was seen with a date and leave this entry OPEN against Phase 14. Marking it fixed would record a deferral as a repair, and filing a NEW window for the same clipping would make the ship gate count one debt twice — do neither. | open |  | 2026-09-28T19:40:00.000Z |  |
 | 30 | 13 | deviation | src/services/achievements/catalog.ts |  | Entry 1's predicate was routed through the new total readers despite the plan saying it was unchanged — a uniform degradation direction beat a literal 'unchanged' contract | open |  | 2026-09-28T14:05:37.218Z |  |
 | 31 | 13 | deviation | tests/achievements.record.test.ts |  | Plan 13-01's store suite had two premises invalidated by the mode-aware catalog (lifetime-only fixture; spotless seeding run); both repaired and 13-03 must preserve them through its rewrite | open |  | 2026-09-28T14:05:37.325Z |  |
+| 32 | 13 | unmet-truth | src/runtime/GameScreen.tsx |  | COVERAGE GAP, named not papered over. The achievements prop threaded to BOTH arms of the showResult route has NO behavioural test. MEASURED by plan 13-05 T2: grep -cin achiev tests/ui/GameScreen.test.tsx prints 0. The only automated observers are npm run typecheck (the prop must exist on ResultOverlay and DailyResultOverlay and both arms must accept it - a real gate, since 13-01 could not wire an arm to a prop the component did not declare) and npm run lint (the runtime -> services boundary). Both panel suites render the overlays DIRECTLY, not through GameScreen. So the claim 'the prop reaches both arms' is compiler-checked and behaviourally unobserved, and 13-VALIDATION.md's row for it is marked with a qualified status for that reason rather than a green tick. Closing it means a GameScreen-level render case, which no plan in phase 13 owned. | open |  | 2026-09-28T15:10:37.830Z |  |
+| 33 | 13 | unmet-truth | .planning/phases/13-achievements/13-VALIDATION.md |  | GATES THAT COULD NOT FAIL, found and corrected at phase close. Two of the twenty seeded per-task map rows named cases in the WRONG FILE: 'npx vitest run tests/achievements.record.test.ts -t "unknown id"' and the same with -t "degrades alone". Neither case name exists in that file - the unknown-id drop and the independent-degradation claim both live in tests/storage.progress-v4.test.ts, where plan 13-03 T1 put the sanitizer battery. As written each would have printed Tests 24 skipped (24) at EXIT 0: the same silent non-binding plan 13-03 measured through wrong CASE, reached here through wrong FILE. A third row (-t "achievements" for the D-13 no-migration claim) matched a whole describe body rather than the claim, and a fourth (-t "timestamp") swept in three unrelated cases. All four corrected to the EXECUTED commands with the correction noted in the file. Open work: no gate anywhere in this repo checks that a -t filter in a planning artifact actually binds to a case that exists. | open |  | 2026-09-28T15:10:37.944Z |  |
+| 34 | 13 | deviation | .planning/phases/13-achievements/13-05-PLAN.md |  | Plan 13-05 Task 3's presence gate invokes 'gsd-tools windows list', which DOES NOT EXIST - the windows verb offers status, append, waive, fixed only. As written the command errored to stderr (suppressed by 2>/dev/null), printed 0, and so FAILED the gate it was written to pass. Executed instead against 'windows status --raw', asserting both presence and open-ness of #16/#17/#28/#29 (4/4 present, 4/4 open), which is strictly more than the gate asked for. Recorded because a planning artifact naming a non-existent subcommand is the same defect family as a -t filter that does not bind. | open |  | 2026-09-28T15:10:38.059Z |  |
 
 ````json
 [
@@ -449,6 +452,45 @@ last_updated: 2026-09-28T15:08:14.000Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T14:05:37.325Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 32,
+    "kind": "unmet-truth",
+    "phase": "13",
+    "file": "src/runtime/GameScreen.tsx",
+    "line": null,
+    "description": "COVERAGE GAP, named not papered over. The achievements prop threaded to BOTH arms of the showResult route has NO behavioural test. MEASURED by plan 13-05 T2: grep -cin achiev tests/ui/GameScreen.test.tsx prints 0. The only automated observers are npm run typecheck (the prop must exist on ResultOverlay and DailyResultOverlay and both arms must accept it - a real gate, since 13-01 could not wire an arm to a prop the component did not declare) and npm run lint (the runtime -> services boundary). Both panel suites render the overlays DIRECTLY, not through GameScreen. So the claim 'the prop reaches both arms' is compiler-checked and behaviourally unobserved, and 13-VALIDATION.md's row for it is marked with a qualified status for that reason rather than a green tick. Closing it means a GameScreen-level render case, which no plan in phase 13 owned.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T15:10:37.830Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 33,
+    "kind": "unmet-truth",
+    "phase": "13",
+    "file": ".planning/phases/13-achievements/13-VALIDATION.md",
+    "line": null,
+    "description": "GATES THAT COULD NOT FAIL, found and corrected at phase close. Two of the twenty seeded per-task map rows named cases in the WRONG FILE: 'npx vitest run tests/achievements.record.test.ts -t \"unknown id\"' and the same with -t \"degrades alone\". Neither case name exists in that file - the unknown-id drop and the independent-degradation claim both live in tests/storage.progress-v4.test.ts, where plan 13-03 T1 put the sanitizer battery. As written each would have printed Tests 24 skipped (24) at EXIT 0: the same silent non-binding plan 13-03 measured through wrong CASE, reached here through wrong FILE. A third row (-t \"achievements\" for the D-13 no-migration claim) matched a whole describe body rather than the claim, and a fourth (-t \"timestamp\") swept in three unrelated cases. All four corrected to the EXECUTED commands with the correction noted in the file. Open work: no gate anywhere in this repo checks that a -t filter in a planning artifact actually binds to a case that exists.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T15:10:37.944Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 34,
+    "kind": "deviation",
+    "phase": "13",
+    "file": ".planning/phases/13-achievements/13-05-PLAN.md",
+    "line": null,
+    "description": "Plan 13-05 Task 3's presence gate invokes 'gsd-tools windows list', which DOES NOT EXIST - the windows verb offers status, append, waive, fixed only. As written the command errored to stderr (suppressed by 2>/dev/null), printed 0, and so FAILED the gate it was written to pass. Executed instead against 'windows status --raw', asserting both presence and open-ness of #16/#17/#28/#29 (4/4 present, 4/4 open), which is strictly more than the gate asked for. Recorded because a planning artifact naming a non-existent subcommand is the same defect family as a -t filter that does not bind.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T15:10:38.059Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
