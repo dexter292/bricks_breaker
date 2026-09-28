@@ -81,6 +81,45 @@ reason: |
   REVERTED immediately after: `git diff` over `src/ app/ tests/ scripts/` is EMPTY and the
   full suite is green at 107 files / 798 tests on the restored tree.
 
+  SECOND PASS, 2026-09-28 — THE PERF OVERLAY ARMED. The first pass missed that the
+  procedure's "arm the perf overlay" step is a shipped project dev flag, not a source change:
+  `PERF_OVERLAY = process.env.EXPO_PUBLIC_PERF_OVERLAY === '1'` (`src/devflags.ts`), which
+  feeds `drawOverlayFlag` in `PlayingHost.tsx`. Because `EXPO_PUBLIC_*` is inlined at BUNDLE
+  time, a second Metro was started on port 8082 carrying the flag and the dev client pointed
+  at it by deep link; the user's own Metro on 8081 was left untouched. This is the instrument
+  the discharge procedure names, used as it is meant to be used.
+
+  READINGS, all four transitions W1->W2->W3->W4->W5 traversed in one continuous run:
+
+  | Point | p95 | p99 | frames>16.7ms | sprites |
+  |---|---|---|---|---|
+  | campaign level-01, before endless | 16.67 | 16.67 | **3 / 152** | 256 |
+  | wave 2 (after 1st transition) | 16.67 | 16.67 | **3 / 3,980** | 256 |
+  | wave 3 (after 2nd) | 16.67 | 16.67 | **3 / 12,809** | 256 |
+  | wave 4 (after 3rd) | 16.67 | 16.67 | **3 / 20,515** | 256 |
+  | wave 5 (after 4th) | 16.67 | 16.67 | **3 / 28,682** | 256 |
+
+  `worklet tick PASS` at every reading. Final score 30,030, 5 lives, no crash.
+
+  THE RESULT: the over-budget counter NEVER MOVED. It is the same 3 frames at 28,682 samples
+  that were already there at 152 samples on campaign level-01 BEFORE endless started. Endless
+  play and all four wave transitions added **zero** dropped frames. p95 and p99 sat on the
+  16.67 ms display interval throughout, so the distribution shows no deviation even at the
+  99th percentile. `sprites` held at 256 with no growth across waves.
+
+  WHY THIS IS EVIDENCE, AND EXACTLY HOW FAR IT GOES. SC-5's real question is whether the
+  glow-bake / audio-preload COLD PATH re-fires at a wave transition. That is a question about
+  WORK, and work that re-fires would add over-budget frames on any hardware. None were added
+  across four transitions and ~28.5k frames. Combined with signature (a) not observed and
+  ZERO `preload soft-fail` lines in 62,081 device-log lines, three of the four failure
+  signatures are now observed-negative AT REAL TRANSITIONS rather than argued from source.
+
+  WHAT IT STILL DOES NOT DO — unchanged, and the reason test 1 stays blocked. A Mac has far
+  more headroom than a mid-tier phone: a cold path costing ~10 ms on device might cost ~1 ms
+  here and never cross 16.7 ms, so an absence of dropped frames on this hardware cannot
+  establish `p50 <= 16.7 ms, p95 <= 20 ms` ON DEVICE. The measurement narrows the risk
+  substantially; it does not close it. `Device digest` stays OPEN and N-END-03 stays `[ ]`.
+
   A by-product worth keeping: the paddle has a MOVEMENT SPEED CAP. A slow continuous
   `touch_path` tracks 1:1 (commanded 135 pt, reached 132) while a fast jump is clipped
   (commanded 100 pt, reached 155). Anyone automating this surface needs to know that.
