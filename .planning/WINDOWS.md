@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 13
+open_count: 17
 waived_count: 0
 fixed_count: 2
-total_count: 15
-last_updated: 2026-09-28T03:08:57.659Z
+total_count: 19
+last_updated: 2026-09-28T03:59:12.664Z
 ---
 
 # Broken Windows Ledger
@@ -30,6 +30,10 @@ last_updated: 2026-09-28T03:08:57.659Z
 | 13 | 11 | deviation | app/_components/PlayingHost.tsx |  | 11-20 base disagreement: plan measured the falsified clause at 1 here on 6bb18bf; wave 9 (07907f3) had already deleted it, so the phase-wide enumeration is 5 on the executed tree, not 6 | open |  | 2026-09-26T15:20:54.201Z |  |
 | 14 | 12 | stub | src/services/storage/parseBlob.ts |  | sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord) | open |  | 2026-09-28T01:48:07.356Z |  |
 | 15 | 12 | unrun-verify | src/services/storage/telemetry.ts |  | mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts) | fixed |  | 2026-09-28T01:48:07.463Z | 2026-09-28T03:08:57.659Z |
+| 16 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06. | open |  | 2026-09-28T03:58:52.704Z |  |
+| 17 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06. | open |  | 2026-09-28T03:59:12.456Z |  |
+| 18 | 12 | unrun-verify | app/_components/PlayingHost.tsx |  | 12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06. | open |  | 2026-09-28T03:59:12.560Z |  |
+| 19 | 12 | deviation | app/_components/PlayingHost.tsx |  | The daily panel's Streak line is derived by currentDailyStreak (the write side's own exact derivation) rather than by streakFrom over the trimmed window, which plan 12-05 and 12-03's handoff both prescribed. MEASURED: streakFrom returns 400 against a stored longestStreak of 450, which both misreports the streak and silently stops the record badge firing for a player on their best-ever run. | open |  | 2026-09-28T03:59:12.664Z |  |
 
 ````json
 [
@@ -226,6 +230,58 @@ last_updated: 2026-09-28T03:08:57.659Z
     "reason": "",
     "recorded_at": "2026-09-28T01:48:07.463Z",
     "resolved_at": "2026-09-28T03:08:57.659Z",
+    "milestone": "v1.2"
+  },
+  {
+    "id": 16,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "src/runtime/overlays/DailyResultOverlay.tsx",
+    "line": null,
+    "description": "12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T03:58:52.704Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 17,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "src/runtime/overlays/DailyResultOverlay.tsx",
+    "line": null,
+    "description": "12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T03:59:12.456Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 18,
+    "kind": "unrun-verify",
+    "phase": "12",
+    "file": "app/_components/PlayingHost.tsx",
+    "line": null,
+    "description": "12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T03:59:12.560Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 19,
+    "kind": "deviation",
+    "phase": "12",
+    "file": "app/_components/PlayingHost.tsx",
+    "line": null,
+    "description": "The daily panel's Streak line is derived by currentDailyStreak (the write side's own exact derivation) rather than by streakFrom over the trimmed window, which plan 12-05 and 12-03's handoff both prescribed. MEASURED: streakFrom returns 400 against a stored longestStreak of 450, which both misreports the streak and silently stops the record badge firing for a player on their best-ever run.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T03:59:12.664Z",
+    "resolved_at": null,
     "milestone": "v1.2"
   }
 ]
