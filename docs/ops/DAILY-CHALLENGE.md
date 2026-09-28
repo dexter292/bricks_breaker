@@ -299,7 +299,10 @@ extraordinary run.
 ## Accepted costs
 
 Nine named, bounded, deliberately unmitigated things. Each is a **decision a later reader will
-find**, not a defect they should file.
+find**, not a defect they should file. **Four are numbered below; the other five are recorded as
+Limits 5-9 in the `## Limits` section.** References elsewhere in this document that read
+"cost N" for N >= 5 mean Limit N — the phase-12 security audit found readers hunting for five
+accepted costs that are not there.
 
 **1. The practice hole (D-08).** Because the board is derived from the date, exiting before the
 final life and re-entering returns the **same** board, so a determined player can rehearse.
@@ -491,7 +494,7 @@ provenance is named, deferred work, not a thing already done.
 
 **The cost is question 2, and it is a real one.** A copy that stopped syncing can be telling the
 truth about a run its partner never saw, and `totalDaysPlayed` under-counts on exactly that
-topology (accepted cost 5 above) — so the merged record can be unable to support a claim that is
+topology (Limit 5) — so the merged record can be unable to support a claim that is
 true. MEASURED: a device that stopped syncing 150 days into a genuine 600-day run, reconciled
 against the device that kept playing, reads **550** — every day of it backed by a stored date in
 the union — not 600. Storing the unsupportable claim instead reads **400**, because the
@@ -504,7 +507,7 @@ this phase degrades in:
 - Accepted cost 4 now applies **per copy** at the merge. A copy whose own window is
   sub-saturated contributes no carried start at all, even when its partner's window is full.
 - A reconciled streak is bounded by the merged `totalDaysPlayed`, and that number is not
-  lossless (cost 5). A streak can therefore be shorter than the truth after a reconcile, and it
+  lossless (Limit 5). A streak can therefore be shorter than the truth after a reconcile, and it
   self-repairs on the next close exactly as cost 4 does.
 
 **Nor does it fence `totalDaysPlayed` crossing devices, and that is a decision left open
@@ -515,7 +518,7 @@ reads **450** and the next close still writes **451**, because the start it carr
 genuine one and no honest close can move a start backwards. What has changed is the CEILING on
 that record's future claims: 3000 instead of 450, raised by a record it merely met. Reaching an
 inflated streak from there needs a second hand-written field — the carried start — at which
-point it is T-12-05's tamper model again (a saturated window beside a hand-written count and a
+point it is T-12-06's tamper model again (a saturated window beside a hand-written count and a
 hand-written start reads **2709** on one device, with no merge involved at all). This is not
 patched here because `max` is load-bearing: it is the only reason a 450-day player's count
 survives a 400-entry window, which is D-16's whole purpose. Fencing it means first deciding
@@ -525,6 +528,6 @@ whether a lifetime counter may cross devices at all, and that is a design decisi
 overlooked. It is an "ever" field merged by maximum with no evidence test, so a hand-written
 value survives a reconcile. MEASURED, and note this needs **no merge at all**: a single record
 carrying `longestStreak: 3000` beside two stored dates still reads `longestStreak: 3000` after
-closing another date, while the streak the panel shows reads **2**. That is T-12-05's accepted
+closing another date, while the streak the panel shows reads **2**. That is T-12-06's accepted
 tamper model — both scalars hand-written on a plaintext blob — not a reconcile defect, and the
 displayed streak is derived and fenced independently of it.

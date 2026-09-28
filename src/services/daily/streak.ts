@@ -50,7 +50,7 @@
  * SECURITY: nothing here protects anything. The streak is a display value derived from a
  * plaintext, attacker-writable blob (AsyncStorage). A rooted device can write any history
  * it likes and these functions will faithfully report the streak that history implies —
- * that is accepted (T-12-05), because a daily streak guards no asset.
+ * that is accepted (T-12-06), because a daily streak guards no asset.
  */
 
 import { previousDateKey } from './dateKey';
