@@ -33,6 +33,8 @@ import {
   defaultTelemetryAggregate,
   defaultEndlessRecord,
   ENDLESS_TELEMETRY_KEY,
+  DAILY_HISTORY_BOUND,
+  defaultDailyRecord,
   cloneTelemetryBlob,
   v3ToV4,
   type ProgressBlob,
@@ -388,6 +390,336 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
     const absent = parseProgressResult(null);
     expect(absent.status).toBe('absent');
     expect(absent.progress).toEqual(defaultProgressBlob());
+  });
+});
+
+/**
+ * The read half of the daily record (N-DAILY-02 / N-DAILY-03 / D-15 / D-16 / T-12-15…17,
+ * plan 12-04).
+ *
+ * Mirrors the endless-record block above case for case, because the daily record inherits
+ * `sanitizeTelemetry`'s independence contract verbatim: start from the default, copy only
+ * the keys the default declares, coerce each field on its own so a broken one cannot
+ * discard a good sibling. Three things the endless record has no counterpart for are
+ * written fresh, and each exists against a named threat:
+ *
+ *  - **Per-entry validation** (T-12-15). 12-UI-SPEC renders the stored key verbatim with no
+ *    formatting step, so a 4 000-character `date` would reach a `Text` inside a 320px
+ *    panel. The entry is DROPPED — never truncated, never repaired.
+ *  - **Bound on read** (T-12-16), applied AFTER the drop. Trimming first would let padding
+ *    garbage push real dates out of the window; the ordering case below is built so that
+ *    mistake is falsifiable rather than merely forbidden in a comment.
+ *  - **Degrade downward, never upward** (D-16 as amended at 12-03's checkpoint). An invalid
+ *    `currentStreakStart` falls back to the empty start, which under-reports a streak.
+ *    Inflating one out of a tampered blob is the direction this phase has refused at every
+ *    turn.
+ *
+ * 12-UI-SPEC § Storage-failure is what makes dropping the right answer rather than merely a
+ * safe one: an unreadable entry means "this date has no stored result", i.e. playable. The
+ * cost — a transient fault handing a player a second attempt at the day — is accepted there
+ * in writing, because the alternative locks a player out of their day on a transient fault.
+ */
+describe('sanitizeDailyRecord — bounded on read, every stored key validated (12-04)', () => {
+  const first = PLAYABLE_LEVEL_ORDER[0] as string;
+
+  /** A v4 blob with a known campaign payload and a caller-supplied daily record. */
+  function parseWithDaily(daily: unknown) {
+    return parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 500, stars: 1 } },
+        bestScore: 500,
+        updatedAt: 7,
+        telemetry: { ...defaultTelemetryBlob(), daily },
+      }),
+    );
+  }
+
+  /**
+   * `count` consecutive ISO keys from 2025-01-01, built by UTC counting rather than through
+   * `localDateKey`. This is a FIXTURE: deriving it with the very function the parser's
+   * validator guards would let a broken pair agree by computing the same wrong answer twice.
+   */
+  function consecutiveKeys(count: number): string[] {
+    const out: string[] = [];
+    const d = new Date(Date.UTC(2025, 0, 1));
+    for (let i = 0; i < count; i++) {
+      out.push(
+        `${String(d.getUTCFullYear()).padStart(4, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`,
+      );
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return out;
+  }
+
+  const winEntry = (date: string, score = 100) => ({ date, score, outcome: 'win' as const });
+
+  it('a missing or non-object daily record parses to the default without making the enclosing blob corrupt', () => {
+    for (const broken of [undefined, null, 'nope', [], 42, true]) {
+      const r = parseWithDaily(broken);
+      expect(r.status, `daily: ${String(broken)} must not make the blob corrupt`).toBe('ok');
+      expect(r.progress.telemetry.daily).toEqual(defaultDailyRecord());
+      // …and every campaign field is untouched by it (N-DAILY-03 / SC-5).
+      expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+      expect(r.progress.bestScore).toBe(500);
+    }
+  });
+
+  it('a partial daily record keeps the fields it does have and coerces the invalid ones (D-16)', () => {
+    const r = parseWithDaily({
+      history: [
+        winEntry('2026-09-26', 1_200),
+        { date: '2026-09-27', score: -5, outcome: 'lose' },
+      ],
+      longestStreak: 2,
+      totalDaysPlayed: -3,
+    });
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily.history).toEqual([
+      { date: '2026-09-26', score: 1_200, outcome: 'win' },
+      { date: '2026-09-27', score: 0, outcome: 'lose' },
+    ]);
+    expect(r.progress.telemetry.daily.longestStreak).toBe(2);
+    expect(r.progress.telemetry.daily.totalDaysPlayed).toBe(0);
+    // Absent entirely — the field the record does not carry defaults rather than throwing.
+    expect(r.progress.telemetry.daily.currentStreakStart).toBe('');
+  });
+
+  it('every non-numeric daily scalar shape degrades to 0 without touching its sibling scalar', () => {
+    const daily = (over: Record<string, unknown>) => ({
+      history: [winEntry('2026-09-27')],
+      longestStreak: 4,
+      totalDaysPlayed: 9,
+      currentStreakStart: '2026-09-27',
+      ...over,
+    });
+
+    // A string counter, a JSON `null` (the wire form of NaN/Infinity) and a fractional
+    // counter each degrade that field ALONE.
+    expect(parseWithDaily(daily({ longestStreak: '4' })).progress.telemetry.daily).toMatchObject({
+      longestStreak: 0,
+      totalDaysPlayed: 9,
+    });
+    expect(
+      parseWithDaily(daily({ totalDaysPlayed: Number.NaN })).progress.telemetry.daily,
+    ).toMatchObject({ longestStreak: 4, totalDaysPlayed: 0 });
+    expect(
+      parseWithDaily(daily({ longestStreak: 4.7, totalDaysPlayed: 9.2 })).progress.telemetry.daily,
+    ).toMatchObject({ longestStreak: 4, totalDaysPlayed: 9 });
+
+    // …and a broken scalar leaves the history and the stored start standing.
+    const broken = parseWithDaily(daily({ longestStreak: null })).progress.telemetry.daily;
+    expect(broken.longestStreak).toBe(0);
+    expect(broken.history).toHaveLength(1);
+    expect(broken.currentStreakStart).toBe('2026-09-27');
+  });
+
+  it('drops a history entry that is not an object, and one whose date is not a string', () => {
+    const r = parseWithDaily({
+      history: [
+        'nope',
+        null,
+        42,
+        [],
+        { score: 10, outcome: 'win' },
+        { date: 20_260_927, score: 10, outcome: 'win' },
+        winEntry('2026-09-27'),
+      ],
+    });
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-27']);
+  });
+
+  it('drops a history entry naming an impossible calendar date — month 0 or 13, day 0 or 32, 30 February, and 29 February in a non-leap year', () => {
+    const impossible = [
+      '2026-00-10',
+      '2026-13-10',
+      '2026-09-00',
+      '2026-09-32',
+      '2026-02-30',
+      '2026-02-29',
+      '1900-02-29',
+      '2026-9-27',
+      '2026-09-27T00:00:00Z',
+      '',
+      'not-a-date',
+    ];
+    for (const date of impossible) {
+      const r = parseWithDaily({ history: [{ date, score: 10, outcome: 'win' }] });
+      expect(r.status, `${date} must not make the blob corrupt`).toBe('ok');
+      expect(r.progress.telemetry.daily.history, `${date} must be dropped`).toEqual([]);
+    }
+
+    // The non-vacuity control: the leap rule is the FULL one, so a real 29 February — and a
+    // 400th-year one — survive. Without this the case above would pass on a validator that
+    // rejected everything.
+    const leap = parseWithDaily({ history: [winEntry('2024-02-29'), winEntry('2000-02-29')] });
+    expect(leap.progress.telemetry.daily.history.map((e) => e.date)).toEqual([
+      '2024-02-29',
+      '2000-02-29',
+    ]);
+  });
+
+  it('drops a 4 000-character date string rather than truncating it or rendering it (T-12-15)', () => {
+    const hostile = '9'.repeat(4_000);
+    const r = parseWithDaily({
+      history: [{ date: hostile, score: 10, outcome: 'win' }, winEntry('2026-09-27')],
+    });
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-27']);
+    // Not truncated either: no prefix of it survives anywhere in the record.
+    expect(JSON.stringify(r.progress.telemetry.daily)).not.toContain(hostile.slice(0, 32));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+  });
+
+  it('drops a history entry whose outcome is outside the closed set — abandoned never closes a date (D-07)', () => {
+    for (const outcome of ['abandoned', 'WIN', 'won', '', 1, null, undefined]) {
+      const r = parseWithDaily({ history: [{ date: '2026-09-27', score: 10, outcome }] });
+      expect(
+        r.progress.telemetry.daily.history,
+        `outcome ${String(outcome)} is outside { win, lose } and must be dropped`,
+      ).toEqual([]);
+    }
+    // Control: both members of the closed set survive.
+    const ok = parseWithDaily({
+      history: [
+        { date: '2026-09-26', score: 10, outcome: 'win' },
+        { date: '2026-09-27', score: 10, outcome: 'lose' },
+      ],
+    });
+    expect(ok.progress.telemetry.daily.history).toHaveLength(2);
+  });
+
+  it('trims a history longer than DAILY_HISTORY_BOUND on read — a tampered blob cannot grow the window (T-12-16)', () => {
+    const keys = consecutiveKeys(DAILY_HISTORY_BOUND + 60);
+    const r = parseWithDaily({ history: keys.map((k) => winEntry(k)) });
+    const history = r.progress.telemetry.daily.history;
+
+    expect(history).toHaveLength(DAILY_HISTORY_BOUND);
+    // The TRAILING window survives — newest kept, oldest evicted, exactly as the shipped
+    // recent-run ring does one field below.
+    expect(history[history.length - 1]?.date).toBe(keys[keys.length - 1]);
+    expect(history[0]?.date).toBe(keys[60]);
+  });
+
+  it('applies the trailing-window trim AFTER dropping invalid entries, so padding garbage cannot push real dates out of the window', () => {
+    const keys = consecutiveKeys(DAILY_HISTORY_BOUND);
+    const padding = Array.from({ length: 40 }, () => ({
+      date: '2026-02-30',
+      score: 1,
+      outcome: 'win',
+    }));
+    const r = parseWithDaily({ history: [...keys.map((k) => winEntry(k)), ...padding] });
+    const history = r.progress.telemetry.daily.history;
+
+    // Trim-then-drop keeps the last 400 of 440 — losing the 40 OLDEST real dates and then
+    // dropping the padding anyway, for 360 survivors. Drop-then-trim keeps all 400. The
+    // difference is what makes the ordering falsifiable rather than merely asserted.
+    expect(history).toHaveLength(DAILY_HISTORY_BOUND);
+    expect(history.map((e) => e.date)).toEqual(keys);
+  });
+
+  it('degrades an invalid currentStreakStart downward to the empty start, never to one that inflates a streak (D-16 amendment)', () => {
+    const history = [winEntry('2026-09-26'), winEntry('2026-09-27')];
+    const startFor = (currentStreakStart: unknown) =>
+      parseWithDaily({ history, longestStreak: 2, totalDaysPlayed: 2, currentStreakStart })
+        .progress.telemetry.daily.currentStreakStart;
+
+    // Controls first, so the rejections below cannot pass vacuously: a well-formed in-window
+    // start is carried…
+    expect(startFor('2026-09-26')).toBe('2026-09-26');
+    // …and so is one reaching back PAST the trimmed window, which is the entire reason the
+    // field is stored rather than derived (D-16, as amended).
+    expect(startFor('2020-01-01')).toBe('2020-01-01');
+
+    for (const hostile of ['2026-02-30', '9'.repeat(4_000), 20_260_927, null, '', '2026-9-26']) {
+      expect(
+        startFor(hostile),
+        `${String(hostile).slice(0, 16)} must degrade to the empty start`,
+      ).toBe('');
+    }
+
+    // A start that POSTDATES its own newest stored date cannot be a real run start —
+    // discarded, which under-reports rather than inflating.
+    expect(startFor('2027-01-01')).toBe('');
+    // And with no stored dates at all there is no run in progress for a start to name.
+    expect(
+      parseWithDaily({ history: [], currentStreakStart: '2026-09-26' }).progress.telemetry.daily
+        .currentStreakStart,
+    ).toBe('');
+  });
+
+  it('a fully corrupt daily record leaves unlocked, bestByLevel, bestScore, stars and the endless record intact (N-DAILY-03 / SC-5)', () => {
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    telemetry.endless = { bestWave: 14, bestScore: 8_400 };
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: {
+          ...telemetry,
+          daily: {
+            history: 'not-an-array',
+            longestStreak: 'lots',
+            totalDaysPlayed: [],
+            currentStreakStart: 999,
+          },
+        },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily).toEqual(defaultDailyRecord());
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 14, bestScore: 8_400 });
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(6);
+  });
+
+  it('an existing v4 blob written before the daily record existed parses with the field defaulted and every campaign field intact — no version bump, no migration', () => {
+    // The exact old shape: a v4 telemetry object with no `daily` key at all.
+    const oldTelemetry = {
+      lifetime: { ...defaultTelemetryAggregate(), runsPlayed: 4, bricksBroken: 120 },
+      byMode: {
+        campaign: { [first]: { ...defaultTelemetryAggregate(), runsPlayed: 4 } },
+        endless: {},
+        daily: {},
+      },
+      endless: { bestWave: 3, bestScore: 900 },
+      recentRuns: [],
+    };
+    expect(Object.keys(oldTelemetry)).not.toContain('daily');
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: oldTelemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.v).toBe(PROGRESS_VERSION);
+    expect(r.progress.telemetry.daily).toEqual(defaultDailyRecord());
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 3, bestScore: 900 });
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(120);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
   });
 });
 

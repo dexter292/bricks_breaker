@@ -40,13 +40,14 @@ import {
   defaultTelemetryBlob,
   mergeDailyRecord,
   mergeTelemetryBlobs,
+  parseProgressResult,
   type DailyRecord,
   type ProgressStore,
   type RunOutcome,
   type RunStatsInput,
   type TelemetryBlob,
 } from '../src/services/storage';
-import { previousDateKey, streakFrom } from '../src/services/daily';
+import { hasResultFor, previousDateKey, streakFrom } from '../src/services/daily';
 
 /** All-zero per-run counters — only the fields a case cares about are set. */
 function runStats(over: Partial<RunStatsInput> = {}): RunStatsInput {
@@ -461,5 +462,66 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
       merged.daily.totalDaysPlayed,
       'but it never inflates past the truth, which is the direction that matters',
     ).toBeLessThanOrEqual(510);
+  });
+});
+
+/**
+ * The read-side fence, from the caller's side (T-12-15 / D-01 / 12-UI-SPEC § Storage-failure,
+ * plan 12-04).
+ *
+ * `tests/storage.progress-v4.test.ts` owns `sanitizeDailyRecord`'s case-by-case table. This
+ * file owns the consequence a PLAYER sees, which is the claim 12-UI-SPEC actually made: an
+ * entry that cannot be read means the date it named has no stored result, and a date with no
+ * stored result is playable (D-01).
+ *
+ * Both halves are asserted in one case on purpose. An implementation that dropped the entry
+ * but somehow left its date reading as closed would satisfy the first half alone and lock a
+ * player out of their day — which is exactly the failure the UI-SPEC rejected in writing when
+ * it accepted the opposite cost (a transient fault handing a player a second attempt).
+ */
+describe('a tampered blob supplying an invalid key (T-12-15 / D-01, 12-04)', () => {
+  it('drops the entry with an invalid key and leaves that date with no stored result — the playable direction', () => {
+    const hostile = '9'.repeat(4_000);
+    const raw = JSON.stringify({
+      v: 4,
+      unlocked: [],
+      bestByLevel: {},
+      bestScore: 0,
+      updatedAt: 0,
+      telemetry: {
+        ...defaultTelemetryBlob(),
+        daily: {
+          history: [
+            { date: hostile, score: 5_000, outcome: 'win' },
+            { date: '2026-02-30', score: 5_000, outcome: 'win' },
+            { date: '2026-09-27', score: 1_200, outcome: 'win' },
+          ],
+          longestStreak: 1,
+          totalDaysPlayed: 1,
+          currentStreakStart: '2026-09-27',
+        },
+      },
+    });
+
+    const parsed = parseProgressResult(raw);
+    expect(
+      parsed.status,
+      'a hostile daily entry must degrade daily alone and never make the blob read as corrupt',
+    ).toBe('ok');
+
+    const keys = parsed.progress.telemetry.daily.history.map((e) => e.date);
+
+    // Half one — the entries are ABSENT. Dropped, not truncated and not repaired: no prefix
+    // of the 4 000-character key survives anywhere in the record, so nothing of it can reach
+    // the panel that renders a stored key verbatim.
+    expect(keys).toEqual(['2026-09-27']);
+    expect(JSON.stringify(parsed.progress.telemetry.daily)).not.toContain(hostile.slice(0, 32));
+
+    // Half two — the dates those entries named read as having NO stored result, so D-01
+    // reports them playable rather than closed.
+    expect(hasResultFor(keys, hostile)).toBe(false);
+    expect(hasResultFor(keys, '2026-02-30')).toBe(false);
+    // …while the one well-formed sibling is untouched and still closed.
+    expect(hasResultFor(keys, '2026-09-27')).toBe(true);
   });
 });
