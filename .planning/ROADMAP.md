@@ -211,7 +211,7 @@ Plans:
   4. An unlock is surfaced to the player at a point that does not interrupt a live rally
   5. The catalog covers the shipped verbs and all three modes (campaign, endless, daily), not just score thresholds
 
-**Plans:** 3/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 4/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
@@ -226,7 +226,7 @@ Plans:
 **Wave 3**
 
 - [x] 13-03-PLAN.md — The read path: `sanitizeAchievementRecord` drops an unknown id but defaults a malformed timestamp (D-15/D-17/D-21), bounds after the drop, and the reconcile keeps the earliest timestamp (D-22); plus the cold-start, independence and clone cases against both hand-mirrored stores (wave 3)
-- [ ] 13-04-PLAN.md — The same block on `DailyResultOverlay` above the countdown, the shared classifier's full battery under the node environment, and the two run-absent suppression states each proved beside a positive control (D-05/D-06/D-07) (wave 3)
+- [x] 13-04-PLAN.md — The same block on `DailyResultOverlay` above the countdown, the shared classifier's full battery under the node environment, and the two run-absent suppression states each proved beside a positive control (D-05/D-06/D-07) (wave 3)
 
 **Wave 4**
 
