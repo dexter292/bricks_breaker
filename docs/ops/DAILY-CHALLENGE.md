@@ -499,6 +499,20 @@ this phase degrades in:
   lossless (cost 5). A streak can therefore be shorter than the truth after a reconcile, and it
   self-repairs on the next close exactly as cost 4 does.
 
+**Nor does it fence `totalDaysPlayed` crossing devices, and that is a decision left open
+rather than taken here.** The merged count is `max(a, b, |union|)`, so a hand-written count on
+one copy becomes the merged count on the other — MEASURED: an honest 450-day copy reconciled
+with a copy carrying `totalDaysPlayed: 3000` comes away carrying 3000 itself. Its streak still
+reads **450** and the next close still writes **451**, because the start it carries is its own
+genuine one and no honest close can move a start backwards. What has changed is the CEILING on
+that record's future claims: 3000 instead of 450, raised by a record it merely met. Reaching an
+inflated streak from there needs a second hand-written field — the carried start — at which
+point it is T-12-05's tamper model again (a saturated window beside a hand-written count and a
+hand-written start reads **2709** on one device, with no merge involved at all). This is not
+patched here because `max` is load-bearing: it is the only reason a 450-day player's count
+survives a 400-entry window, which is D-16's whole purpose. Fencing it means first deciding
+whether a lifetime counter may cross devices at all, and that is a design decision, not a fix.
+
 **What this does NOT fence is `longestStreak` itself,** and that is unchanged rather than
 overlooked. It is an "ever" field merged by maximum with no evidence test, so a hand-written
 value survives a reconcile. MEASURED, and note this needs **no merge at all**: a single record
