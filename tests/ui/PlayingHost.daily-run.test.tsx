@@ -27,6 +27,11 @@
  *    controls, so `DailyResultOverlay`'s own markup is not exercised; the props the
  *    host hands it ARE asserted below, and the component's own cases are
  *    `tests/ui/DailyResultOverlay.test.tsx`.
+ *  - The unlock block's MARKUP. 13-01 adds the host half of the achievements path here —
+ *    that the ids `recordRunEnd` returns reach `GameScreen` as catalog display NAMES —
+ *    and nothing more. The rendered block, its two-line cap and its zero state are
+ *    `tests/ui/ResultOverlay.achievements.test.tsx`; the store half is
+ *    `tests/achievements.record.test.ts`.
  *
  * 12-05 EXPANDED this file with the run boundaries: the closed-date read path (D-02),
  * the four abandoned exits (D-07 / D-09), the same-board retry and the board-failure
@@ -66,6 +71,7 @@ import {
   nextLocalMidnightMs,
   previousDateKey,
 } from '../../src/services/daily';
+import { ACHIEVEMENT_CATALOG } from '../../src/services/achievements';
 
 // The entry is `__DEV__`-gated (N-UI-01), which is the point — so the harness has to
 // stand where a dev build stands. An undefined `__DEV__` renders no dev row at all.
@@ -253,6 +259,7 @@ type HostProps = {
   dailyNowMs?: unknown;
   dailyNextBoundaryMs?: unknown;
   dailyBoardFailed?: unknown;
+  unlockedAchievements?: unknown;
   levelError?: unknown;
   uiPhase?: unknown;
   onRetry?: () => void;
@@ -372,6 +379,12 @@ function seedClosedThrough(date: string, score: number): void {
   };
 }
 
+/**
+ * What the mocked `recordRunEnd` reports as newly unlocked by the next write (13-01 /
+ * D-19). Reset to empty in `beforeEach`; one case overrides it.
+ */
+let newlyUnlocked: readonly string[] = [];
+
 const recordRunEnd = vi.fn((args: RecordRunEndArgs) => {
   // D-07 is honoured in the fixture itself: an `abandoned` daily run accumulates
   // telemetry but gets NO history entry, so it does not close the date. That is what
@@ -394,6 +407,14 @@ const recordRunEnd = vi.fn((args: RecordRunEndArgs) => {
   return {
     bestByLevel: {},
     unlocked: [],
+    // 13-01 / D-19: the host reads this run's newly-unlocked ids off the same synchronous
+    // return. Supplied here for the MEASURED reason the `daily` field below is: widening
+    // `recordRunEnd`'s return type does NOT break this mock at compile time — it is a bare
+    // object literal inside a `vi.mock` factory and so is not contextually typed as
+    // `ProgressStore` — so a mock that omits the field silently exercises the host's
+    // fail-soft branch instead of the real one, and the case below would pass against a
+    // host that never read the delta at all.
+    newlyUnlocked,
     telemetry: {
       endless: { bestWave: 0, bestScore: 0 },
       // 12-01: the host's daily arm reads the POST-MERGE record off this synchronous
@@ -596,6 +617,7 @@ describe('PlayingHost daily run (behaviour)', () => {
     seq = 0;
     lastScreenProps = {};
     dailyFixture = emptyDaily();
+    newlyUnlocked = [];
     forceBoardFailure = false;
     generateCalls.length = 0;
     hostOnMenu.mockClear();
@@ -677,6 +699,62 @@ describe('PlayingHost daily run (behaviour)', () => {
     ).toHaveBeenCalledTimes(1);
   });
 
+  it('the ids recordRunEnd returns reach the panel as catalog display NAMES (13-01 / N-ACH-03 / D-08 / D-19)', async () => {
+    const entry = ACHIEVEMENT_CATALOG[0]!;
+    // Derived from the shipped catalog rather than written as a literal: a hand-written
+    // id/name pair would go on passing while plan 13-02's expansion moved either one.
+    newlyUnlocked = [entry.id];
+
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+    await deliverPhase(SIM.WON, { score: 1200 });
+    now.mockRestore();
+
+    expect(
+      lastScreenProps.unlockedAchievements,
+      'T-13-01: the panel receives the CATALOG NAME, never the stored id — that mapping in the `app` tier is the only thing between a hostile stored string and a `Text` inside a 320px panel',
+    ).toEqual([entry.name]);
+    expect(
+      entry.name,
+      'and the name it receives is not the id it was handed, or this case would pass against a host that threaded the ids straight through',
+    ).not.toBe(entry.id);
+    // The positive control: the rest of the panel's props are what the existing
+    // just-finished cases expect, so the assertion above is about the new prop and not
+    // about a render that happened to produce an array.
+    expect(lastScreenProps.mode).toBe('daily');
+    expect(lastScreenProps.dailyDateKey).toBe(localDateKey(DAY_A_NOON));
+    expect(lastScreenProps.score).toBe(1200);
+    expect(lastScreenProps.dailyTotalDaysPlayed).toBe(1);
+  });
+
+  it('a run that unlocks nothing hands the panel an empty array, not a stale one (D-02)', async () => {
+    const entry = ACHIEVEMENT_CATALOG[0]!;
+    newlyUnlocked = [entry.id];
+
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+    await deliverPhase(SIM.WON, { score: 1200 });
+    expect(
+      lastScreenProps.unlockedAchievements,
+      'the first run must actually have published a name, or the emptying below is vacuous',
+    ).toEqual([entry.name]);
+
+    // A second date, this time reporting no delta — the D-02 set difference on a repeat.
+    newlyUnlocked = [];
+    now.mockReturnValue(DAY_B_NOON);
+    await press('Panel Menu');
+    await pressDaily();
+    await deliverPhase(SIM.WON, { score: 900 });
+    now.mockRestore();
+
+    expect(
+      lastScreenProps.unlockedAchievements,
+      'a run that records always REPUBLISHES, with an empty array when nothing fired — which is why there is no reset in startDailyRun, startEndlessRun or the campaign start path',
+    ).toEqual([]);
+  });
+
   it('the same date gives the same board and a different date gives a different one (SC-1 / N-DAILY-01)', async () => {
     expect(
       localDateKey(DAY_A_NOON),
@@ -734,6 +812,7 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     seq = 0;
     lastScreenProps = {};
     dailyFixture = emptyDaily();
+    newlyUnlocked = [];
     forceBoardFailure = false;
     generateCalls.length = 0;
     hostOnMenu.mockClear();

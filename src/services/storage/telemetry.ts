@@ -15,10 +15,13 @@
  */
 import { isValidDateKey, previousDateKey, streakFrom } from '../daily';
 import {
+  ACHIEVEMENT_UNLOCK_BOUND,
   DAILY_HISTORY_BOUND,
   DAILY_STREAK_WALK_CAP,
   RECENT_RUNS_BOUND,
   defaultTelemetryAggregate,
+  type AchievementRecord,
+  type AchievementUnlock,
   type DailyHistoryEntry,
   type DailyRecord,
   type EndlessRecord,
@@ -71,6 +74,19 @@ export function cloneTelemetryBlob(t: TelemetryBlob): TelemetryBlob {
       longestStreak: t.daily.longestStreak,
       totalDaysPlayed: t.daily.totalDaysPlayed,
       currentStreakStart: t.daily.currentStreakStart,
+    },
+    // D-23's site, and the worst case in this file's three-site trap. `mergeEndlessRecord`
+    // and `mergeDailyRecord` both START here, so a field missing from this clone is
+    // dropped on EVERY other mode's run-end write — a campaign run would erase the unlock
+    // set, silently, with no test naming the function that did it.
+    //
+    // The compiler catches THIS one: adding a required `achievements` field to
+    // `TelemetryBlob` reds exactly this line, `mergeTelemetryBlobs` below and
+    // `defaultTelemetryBlob` in `types.ts`, all `error TS2741` (MEASURED against this tree
+    // before the field landed). The behavioural guard is the shipped endless deep-copy case
+    // in `tests/storage.progress-v4.test.ts`, which plan 13-03 copies for achievements.
+    achievements: {
+      unlocked: t.achievements.unlocked.map((e) => ({ ...e })),
     },
     recentRuns: t.recentRuns.map((e) => ({ ...e })),
   };
@@ -177,6 +193,68 @@ export function mergeDailyRecord(
     longestStreak: Math.max(safeCounter(next.daily.longestStreak), currentStreak),
     totalDaysPlayed,
     currentStreakStart,
+  };
+  return next;
+}
+
+/**
+ * Fold this run's newly-unlocked ids into the stored unlock set (N-ACH-02 / D-01 / D-14 /
+ * D-17).
+ *
+ * Same clone-then-mutate order as `mergeDailyRecord` above — clone first, mutate only the
+ * clone, never touch the input — and `atMs` is hardened through this file's `safeCounter`
+ * so a garbage clock read stores 0 rather than `NaN`.
+ *
+ * **An id already present keeps its existing entry and its existing timestamp, untouched.**
+ * D-17 makes an unlock one-way and its moment does not move; D-14 stores the moment
+ * precisely so Phase 14 can show a recency order, and a re-write that stamped `now` over it
+ * would destroy exactly that. The union is idempotent as a result: calling this twice with
+ * the same ids is a no-op on the second call.
+ *
+ * ## The placement inversion — this function is the OPPOSITE of its two neighbours
+ *
+ * `mergeEndlessRecord` and `mergeDailyRecord` are each fenced to ONE mode on purpose, and
+ * each says so at its own JSDoc: keeping the per-mode record on a separate entry point is
+ * what makes "a campaign run cannot close a daily date" a structural fact rather than a
+ * convention.
+ *
+ * **This record is the first in the blob that legitimately rides EVERY mode** (D-12). It
+ * therefore belongs structurally where `mergeRunIntoTelemetry` sits in the two stores —
+ * OUTSIDE every `args.mode === …` gate — and not where the endless and daily arms sit.
+ * Copying the daily arm's placement is the single most likely mistake in this file, which
+ * is why it is stated at the function and not only in the store. What holds it is
+ * behavioural: the *every mode unlocks the same achievement* case in
+ * `tests/achievements.record.test.ts` drives one qualifying run under each of the three
+ * modes, against both stores.
+ *
+ * Bounded on write by `ACHIEVEMENT_UNLOCK_BOUND`, keeping the EARLIEST entries — the same
+ * direction the merge below keeps, and for the same D-14 reason.
+ */
+export function mergeAchievementUnlocks(
+  telemetry: TelemetryBlob,
+  ids: readonly string[],
+  atMs: number,
+): TelemetryBlob {
+  const next = cloneTelemetryBlob(telemetry);
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return next;
+  }
+  const at = safeCounter(atMs);
+  const unlocked = [...next.achievements.unlocked];
+  const present = new Set(unlocked.map((e) => e.id));
+  for (const id of ids) {
+    if (typeof id !== 'string' || id === '' || present.has(id)) {
+      continue;
+    }
+    present.add(id);
+    unlocked.push({ id, at });
+  }
+  next.achievements = {
+    // Bound on write (D-15's direction, T-13-02's fence). `slice(0, …)` and NOT
+    // `slice(-…)`: the recent-run ring keeps the NEWEST because it is a window on recent
+    // activity, whereas an unlock is permanent (D-17) and dropping the oldest would
+    // un-earn the achievements the player has held longest.
+    unlocked: unlocked.slice(0, ACHIEVEMENT_UNLOCK_BOUND),
   };
   return next;
 }
@@ -741,6 +819,65 @@ function reconcileStreakStart(
   return admissible[0] ?? start;
 }
 
+/**
+ * Union two unlock sets BY ID, keeping the EARLIEST timestamp for a shared id (D-14 /
+ * D-17 / D-22).
+ *
+ * **The shape is `mergeDailyRecords`' `Map`-keyed union, copied deliberately: build a map
+ * keyed by the identity field and merge WHOLE entries.** Never two parallel arrays.
+ *
+ * ## The cross-wiring hazard, in the narrow form it takes here
+ *
+ * This file's own invariant, stated at `reconcileStreakStart` and enforced in the build by
+ * `scripts/assert-streak-evidence.mjs`: **a claim is evidence about the record that MADE
+ * it, so that record — and nothing else — must be able to account for it.**
+ *
+ * For the ID SET it does not recur. An id is its own evidence; the union of two id sets
+ * cannot inflate, and there is no claim/evidence pair to cross.
+ *
+ * For the TIMESTAMP it does. The hazard is a merge that unions the ids and then reduces
+ * over ALL the timestamps — a `Math.min` across the whole collection rather than per id —
+ * which stamps every achievement with the earliest unlock instant in either copy. That is
+ * structurally identical to the phase-12 defect: one record's evidence attached to
+ * another's claim. A signature of `mergeAchievements(ids: readonly string[], timestamps:
+ * readonly number[])` is the signature that LETS a caller cross them, and it must not be
+ * written. Union `{ id, at }` records, as below, and the crossing is unavailable.
+ *
+ * That banned signature is spelled out above deliberately, so the next reader recognises
+ * it rather than re-deriving it — which means a check for it must read DECLARATIONS and
+ * not file text, exactly as the eslint blocks in this tree read AST nodes and not
+ * comments. A grep for it matches this paragraph.
+ *
+ * ## The one shipped rule that is WRONG here and is inverted — an anti-pattern beside the
+ * copy
+ *
+ * `mergeDailyRecords`' JSDoc says: *"Where both sides carry the same date, `incoming`
+ * wins — it is the freshly-hydrated disk state, and D-06 makes a date's result write-once
+ * anyway."* For an unlock, last-writer-wins moves the timestamp FORWARD, and D-14 stores
+ * timestamps precisely so Phase 14 can show a recency order. **Earliest must win.** Copying
+ * the `byDate.set` loop without inverting this is a silent D-14 defect that no current test
+ * would catch — the ids would all be right, and only the order of a screen that does not
+ * exist yet would be wrong.
+ *
+ * Bounded like the write path, keeping the earliest entries (T-13-02): reconciling two full
+ * collections must not produce a longer one.
+ */
+function mergeAchievementRecords(
+  a: AchievementRecord,
+  b: AchievementRecord,
+): AchievementRecord {
+  const byId = new Map<string, AchievementUnlock>();
+  for (const e of [...a.unlocked, ...b.unlocked]) {
+    const prior = byId.get(e.id);
+    // Earliest wins — the inversion of `mergeDailyRecords`' incoming-wins tiebreak, for
+    // the D-14 reason above. Whole entries, never a per-field reduce across the set.
+    if (prior == null || safeCounter(e.at) < safeCounter(prior.at)) {
+      byId.set(e.id, { ...e, at: safeCounter(e.at) });
+    }
+  }
+  return { unlocked: [...byId.values()].slice(0, ACHIEVEMENT_UNLOCK_BOUND) };
+}
+
 /** Merge two telemetry blobs (memory ↔ freshly-hydrated disk). */
 export function mergeTelemetryBlobs(
   memory: TelemetryBlob,
@@ -763,6 +900,14 @@ export function mergeTelemetryBlobs(
     },
     endless: mergeEndlessRecords(memory.endless, incoming.endless),
     daily: mergeDailyRecords(memory.daily, incoming.daily),
+    // The second of D-23's three sites. Missing here, the unlock set is lost on every
+    // memory/disk reconcile — i.e. on every cold start that hydrates after a write. The
+    // compiler forces this line (`TS2741`), measured; the behavioural guard is plan
+    // 13-03's.
+    achievements: mergeAchievementRecords(
+      memory.achievements,
+      incoming.achievements,
+    ),
     recentRuns,
   };
 }

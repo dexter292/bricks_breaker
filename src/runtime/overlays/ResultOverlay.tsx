@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { achievementLines } from './achievementLines';
 
 type Props = {
   kind: 'win' | 'lose';
@@ -30,6 +31,20 @@ type Props = {
   waveBuildFailedWave?: number | null;
   /** Win only — merged best stars after handleRunEnded (D-10). */
   stars?: 1 | 2 | 3 | null;
+  /**
+   * Both modes — achievement DISPLAY NAMES newly unlocked by this run, in catalog
+   * declaration order (N-ACH-03 / D-08). Defaults to empty; empty renders NOTHING.
+   *
+   * Display-name strings and nothing else. Never an achievement id, never a catalog
+   * record, never an unlock record, never a `TelemetryBlob` field, never a timestamp. The
+   * host maps ids to names in the `app` tier because `eslint.config.js`
+   * `boundaries/dependencies` forbids `src/runtime` importing `src/services` — and
+   * `npm run lint` is the ONLY thing observing that boundary. No unit test does; do not
+   * add a comment claiming one does.
+   *
+   * The order is the host's and is never re-sorted here — see `achievementLines`.
+   */
+  unlockedAchievements?: readonly string[];
   onRetry: () => void;
   onMenu: () => void;
   /** Omit Next when null/undefined (D-11); do not show a gated-off control. */
@@ -106,6 +121,7 @@ export function ResultOverlay({
   isNewRecord,
   waveBuildFailedWave = null,
   stars,
+  unlockedAchievements = [],
   onRetry,
   onMenu,
   onNext,
@@ -202,6 +218,48 @@ export function ResultOverlay({
             <Text style={styles.badgeLabel}>New Record</Text>
           </View>
         ) : null}
+        {/*
+          13-UI-SPEC § Where the block sits: after the badge, before the controls. The
+          reading is *what happened → your numbers → your records → what you earned → the
+          way out*. No divider, no rule, no extra gap — the last line's `marginBottom: 8`
+          and `retrySpaced`'s own `marginTop: 16` are the existing rhythm, unchanged, and
+          this phase adds ZERO `StyleSheet` entries (the block reuses `styles.metric`
+          verbatim).
+
+          Gated on the EXISTING `showRunLines`, never on a new flag: the block describes a
+          RUN, and at Retry time there is none — which is the sentence already written
+          above `showRunLines`. A second flag meaning "is there a run" is a second place
+          for the answer to drift.
+
+          The single-line clamp below is a DELIBERATE DEVIATION from every other line in
+          both panels (measured: zero `numberOfLines` props across all five overlay files
+          before this one). Its prose is written WITHOUT the attribute form on purpose: the
+          gate that pins this to exactly one occurrence is a grep, and a grep — unlike the
+          eslint blocks elsewhere in this tree — cannot tell a comment from an AST node, so
+          naming the attribute here would self-invalidate the count.
+
+          It is the backstop, not the gate — the gate is the catalog-length
+          assertion over `ACHIEVEMENT_NAME_MAX`. What it buys is a strictly better failure:
+          a catalog authoring mistake becomes "a name is visibly truncated" rather than
+          "`Menu` is clipped off the bottom of a panel that cannot scroll".
+
+          `line.kind` is the discriminant and is READ, never re-derived from the text. The
+          key pairs it with the position because the two-name case renders two `'name'`
+          lines and `kind` alone would collide; the text is not usable as a key either,
+          since the classifier deliberately never de-duplicates its input.
+        */}
+        {showRunLines
+          ? achievementLines(unlockedAchievements).map((line, i) => (
+              <Text
+                key={`${line.kind}-${i}`}
+                style={styles.metric}
+                numberOfLines={1}
+                accessibilityLabel={line.label}
+              >
+                {line.text}
+              </Text>
+            ))
+          : null}
         <Pressable
           accessibilityRole="button"
           // 11-UI-SPEC § Accessibility labels, the endless `Retry` row. `Retry level`

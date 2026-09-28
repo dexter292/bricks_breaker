@@ -13,10 +13,12 @@ import {
 import { computeStars, mergeLevelBest } from './stars';
 import {
   cloneTelemetryBlob,
+  mergeAchievementUnlocks,
   mergeDailyRecord,
   mergeEndlessRecord,
   mergeRunIntoTelemetry,
 } from './telemetry';
+import { newlyUnlockedAchievements } from '../achievements';
 import { mergeHighWatermark } from './watermark';
 import {
   unlockAfterClear as unlockAfterClearPure,
@@ -37,6 +39,7 @@ import {
   type ProgressBlob,
   type ProgressStore,
   type RecordRunEndArgs,
+  type RecordRunEndResult,
 } from './types';
 import type { LevelId } from '../../core';
 
@@ -366,7 +369,7 @@ function createAsyncStorageProgressStoreFrom(
       applyLevelBest(id, mergeLevelBest(memory.bestByLevel[id], n, null));
       await persist(memory);
     },
-    recordRunEnd(args: RecordRunEndArgs): ProgressBlob {
+    recordRunEnd(args: RecordRunEndArgs): RecordRunEndResult {
       // Sync memory update first so Results can use returned blob (D-10 / F-26).
       // Hydration is best-effort fire-and-forget if not yet done — callers that
       // need disk state should await getSnapshot/getBest first (hosts do).
@@ -417,6 +420,16 @@ function createAsyncStorageProgressStoreFrom(
       // Nothing reads the SHAPE of the expression below, so an if/else chain, a switch or
       // a helper is a free refactor. Keep the daily branch reaching the constant and those
       // two cases will say so if it ever stops.
+      //
+      // ACHIEVEMENTS ARE THE SECOND MEMBER OF THAT CATEGORY (D-01 / D-12). The evaluation
+      // block at the tail of this function sits outside every `args.mode === …` gate for
+      // the same reason the telemetry write does: the catalog reads `lifetime`, all three
+      // `byMode` maps, the endless record and the daily record, so a mode-gated evaluation
+      // would satisfy the LETTER of SC-5 and not its point. Nothing reads the shape of that
+      // region either. What holds it is behavioural, and it is the *every mode unlocks the
+      // same achievement* case in `tests/achievements.record.test.ts`, which drives one
+      // qualifying run under campaign, endless AND daily and asserts each one unlocks —
+      // against this store and the memory store separately.
       const telemetryKey =
         args.mode === 'endless'
           ? ENDLESS_TELEMETRY_KEY
@@ -465,6 +478,37 @@ function createAsyncStorageProgressStoreFrom(
           };
         }
       }
+      // Achievements (N-ACH-02 / D-01 / D-02 / D-12 / D-14 / D-19), OUTSIDE every mode
+      // gate — see the paragraph above `telemetryKey`. Hand-mirrored with
+      // `memoryStore.ts`: the behaviour is identical and the MUTATION STYLE is not — this
+      // store rebuilds `memory` rather than mutating in place, which is exactly where a
+      // careless copy-paste of the sibling breaks. Every claim about this block is asserted
+      // separately for this store by the parameterised suite in
+      // `tests/achievements.record.test.ts`.
+      //
+      // `memory.telemetry` satisfies `AchievementSnapshot` STRUCTURALLY: the evaluator
+      // imports no storage type and declares its own read-only view (D-20), and this call
+      // site is where the compiler checks the two agree. The clock is read HERE, beside the
+      // `updatedAt = Date.now()` this store already does, which keeps the evaluator pure
+      // (D-03) while D-14 still gets a real unlock instant.
+      //
+      // Nothing in this block may reference `bestByLevel`, `unlocked` or `bestScore`
+      // (T-13-05): outside the campaign gate `args.levelId` does not narrow.
+      const newlyUnlocked = newlyUnlockedAchievements(
+        memory.telemetry,
+        memory.telemetry.achievements.unlocked.map((e) => e.id),
+      );
+      if (newlyUnlocked.length > 0) {
+        memory = {
+          ...memory,
+          telemetry: mergeAchievementUnlocks(
+            memory.telemetry,
+            newlyUnlocked,
+            Date.now(),
+          ),
+          updatedAt: Date.now(),
+        };
+      }
       const snapshot = cloneBlob(memory);
       if (wasHydrated) {
         void persist(memory);
@@ -478,7 +522,10 @@ function createAsyncStorageProgressStoreFrom(
         // just-ended run, not every run ever played.
         void ensureHydrated().then(() => persist(memory));
       }
-      return snapshot;
+      // D-19: the delta rides the return. `snapshot` is already a caller-owned clone, so
+      // the spread adds no aliasing. `newlyUnlocked` is `[]` and never `undefined` when
+      // nothing fired.
+      return { ...snapshot, newlyUnlocked };
     },
     async unlockAfterClear(id: LevelId): Promise<void> {
       await ensureHydrated();

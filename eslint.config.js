@@ -161,6 +161,73 @@ module.exports = [
     },
   },
   {
+    // N-ACH-01 / D-03 / D-20: the achievement catalog and evaluator are a pure function of
+    // (catalog, snapshot, unlocked set). No clock, no RNG, no storage import.
+    //
+    // D-03 is what makes SC-2's "evaluating the same snapshot twice yields the same set"
+    // testable WITHOUT a harness — a clock or an RNG read anywhere in this directory makes
+    // that claim untestable, not merely untidy. D-20 is the other half: no
+    // `src/services/<mode>/` module has ever imported a storage type, and the evaluator
+    // declares its own structurally-compatible read-only view instead (verified to compile
+    // with zero `tsc` errors). A storage import here would also put a value-level edge
+    // into a module `parseBlob.ts` imports in plan 13-03, which is a cycle.
+    //
+    // Comments are not AST nodes, so — exactly as for the `src/services/daily/` block
+    // below, which this copies in shape — `catalog.ts` and `evaluate.ts` may NAME all four
+    // banned constructs in prose to explain the ban without self-invalidating it. MEASURED:
+    // a probe file carrying all five violations plus a header naming every one of them
+    // draws exactly 5 errors, none of them from the comment.
+    //
+    // **This block's own presence is NOT observed by `npm run lint`.** Measured on this
+    // tree: `npm run lint` and `npx eslint src/services/achievements/` both exit 0 against
+    // a clean directory whether or not this block is configured, so a green lint is no
+    // evidence it exists. The `__purity_probe` gate in plan 13-01's verify block is the one
+    // command whose output moves with it — 5 errors with the block, 0 without, run in both
+    // directions. A named control that nothing observes is the defect this repo has now
+    // shipped four times.
+    files: ['src/services/achievements/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/storage', '**/storage/*', '../storage', '../storage/*'],
+              message:
+                'D-20: the achievement policy imports NO storage type — it declares its own structurally-compatible read-only snapshot view (`AchievementSnapshot`), checked by the compiler at each store call site. Importing storage here makes every catalog test need a storage harness, which is exactly what makes N-ACH-01\'s "pure predicate" untestable.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[object.name='Date'][property.name='now']",
+          message:
+            'D-03: the evaluator is a pure function of its arguments. The unlock timestamp is read in the STORE, beside the `updatedAt = Date.now()` it already does (D-14) — a clock read here would make SC-2 untestable without a harness.',
+        },
+        {
+          selector: "NewExpression[callee.name='Date']",
+          message:
+            'D-03: no clock construction in the achievement policy. A predicate that depends on when it runs is not a pure function of the snapshot, and SC-2 asserts exactly that it is.',
+        },
+        {
+          selector:
+            "MemberExpression[object.name='Math'][property.name='random']",
+          message:
+            'D-03: no randomness in the achievement policy. SC-2 requires the same snapshot to yield the same set every time it is evaluated.',
+        },
+        {
+          selector:
+            "MemberExpression[object.name='performance'][property.name='now']",
+          message:
+            'D-03: `performance.now` is a clock read like any other — same reason as `Date.now` above, and it is the one a later reader reaches for when the obvious clock is banned.',
+        },
+      ],
+    },
+  },
+  {
     // N-DAILY-01 / SC-1: the local date key must not come from a locale, from UTC, or from
     // a fixed-length day. Each of the three was MEASURED producing a wrong answer, not
     // merely suspected (12-RESEARCH § Findings 2, 3(c), 3(e)), and each failure is

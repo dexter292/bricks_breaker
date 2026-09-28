@@ -93,6 +93,21 @@ export type GameScreenProps = {
    * is NOT used here: it has no controls and would trap the player with no exit.
    */
   dailyBoardFailed?: boolean;
+  /**
+   * Achievement DISPLAY NAMES newly unlocked by this run, in catalog declaration order
+   * (N-ACH-03 / D-08). Empty renders no block at all.
+   *
+   * Declared OUTSIDE the `daily*` group on purpose: it is the only prop threaded to BOTH
+   * branches of the result route, so grouping it with the daily scalars would make the
+   * type read as if only the daily panel took it. Plain strings, like everything else
+   * that crosses this boundary — `src/runtime` never imports the storage layer, and the
+   * id-to-name mapping happens one tier up in `app/_components/PlayingHost.tsx`.
+   *
+   * `DailyResultOverlay` gains the prop in plan 13-04; until then only the
+   * `ResultOverlay` arm below receives it, because wiring an arm to a prop the component
+   * does not declare would not compile.
+   */
+  unlockedAchievements?: readonly string[];
   /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
   wave: number;
   /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
@@ -150,6 +165,7 @@ export function GameScreen({
   dailyNowMs,
   dailyNextBoundaryMs,
   dailyBoardFailed = false,
+  unlockedAchievements = [],
   wave,
   bestWave,
   waveBuildFailedWave = null,
@@ -292,6 +308,7 @@ export function GameScreen({
               bestWave={bestWave}
               waveBuildFailedWave={waveBuildFailedWave}
               isNewRecord={isNewRecord}
+              unlockedAchievements={unlockedAchievements}
               stars={stars}
               onRetry={onRetry}
               onMenu={onMenu}

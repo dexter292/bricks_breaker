@@ -263,6 +263,74 @@ export type DailyRecord = {
   currentStreakStart: string;
 };
 
+/**
+ * Hard cap on the stored unlock collection — a TAMPER FENCE, not a capacity estimate.
+ *
+ * The `DAILY_HISTORY_BOUND` framing is the wrong one here and a reader will reach for it,
+ * so: this bound is not sizing a window a legitimate player could fill. A legitimate
+ * record can never exceed the CATALOG's size, because an unknown id is dropped on read
+ * (D-15, `isKnownAchievementId`) and that drop IS the natural cap. 64 is more than five
+ * times D-09's largest catalog and leaves Phase 14 and beyond room without a bound edit,
+ * while capping a hostile blob at roughly `64 x 40` bytes of JSON, about 2.5KB, against
+ * the ~2MB Android CursorWindow practical ceiling the ring-buffer comment above names.
+ *
+ * **Why it exists at all, given the id check already caps it.** It is the fence that
+ * survives a future relaxation of that check — the "forward-compatible with a later
+ * catalog" edit that looks harmless and turns the collection into the unbounded map
+ * `DAILY_TELEMETRY_KEY`'s comment above exists to prevent. `13-PATTERNS.md`'s rule is that
+ * the collection must have the bound or the id validation and must not have neither.
+ */
+export const ACHIEVEMENT_UNLOCK_BOUND = 64 as const;
+
+/** One earned achievement (D-14) — which one, and when it was first earned. */
+export type AchievementUnlock = {
+  /**
+   * The catalog id (`src/services/achievements` `ACHIEVEMENT_CATALOG`). Minted there and
+   * validated there — `isKnownAchievementId` is the read-path gate (D-15). Never coerced:
+   * an id is not a counter and there is no nearest valid value.
+   */
+  id: string;
+  /**
+   * Unix ms at which this achievement was FIRST earned (D-14).
+   *
+   * Stored rather than derived because it cannot be reconstructed afterwards for anything
+   * already unlocked: the moment is gone once the run that produced it has ended, and
+   * Phase 14's Achievements screen wants a recency order. That irreversibility is exactly
+   * why D-14 is rated one-way for the data and why the field lands now rather than later.
+   *
+   * It never moves. An id already present keeps its existing timestamp on every subsequent
+   * write and on every merge (D-17 / D-22) — an unlock is one-way and its moment does not
+   * drift forward.
+   */
+  at: number;
+};
+
+/**
+ * Earned achievements (N-ACH-02 / D-13 / D-14 / D-15).
+ *
+ * Lives INSIDE `TelemetryBlob` for the reason `DailyRecord` does, which cites
+ * `EndlessRecord` for the same reason in turn: telemetry is the one sub-object whose
+ * parser is validated independently of its siblings (`parseBlob.ts` `sanitizeTelemetry`),
+ * so a corrupt unlock set degrades itself alone and can never take campaign unlocks,
+ * bests or the daily history with it (SC-5).
+ *
+ * The field is ADDITIVE and needs no `PROGRESS_VERSION` bump and no migration (D-13),
+ * because `sanitizeTelemetry` starts from `defaultTelemetryBlob()` and copies field by
+ * field, so an older v4 blob defaults it cleanly — exactly as the endless record needed
+ * none when it was added, and the daily record after it.
+ */
+export type AchievementRecord = {
+  /**
+   * Earned achievements, one entry per id. Bounded on write by
+   * `ACHIEVEMENT_UNLOCK_BOUND`; the read bound and the unknown-id drop are plan 13-03's.
+   *
+   * An ARRAY of entries, deliberately not a map keyed by id: `sanitizeAggregateMap`
+   * (`parseBlob.ts`) is the counter-example living one file away, copying every key it
+   * finds on read with no cap forever.
+   */
+  unlocked: AchievementUnlock[];
+};
+
 export type TelemetryBlob = {
   lifetime: TelemetryAggregate;
   byMode: {
@@ -274,6 +342,8 @@ export type TelemetryBlob = {
   endless: EndlessRecord;
   /** Daily per-date history (D-15) — written only by `mergeDailyRecord`. */
   daily: DailyRecord;
+  /** Earned achievements (D-14) — written only by `mergeAchievementUnlocks`. */
+  achievements: AchievementRecord;
   recentRuns: RunLogEntry[];
 };
 
@@ -308,12 +378,21 @@ export function defaultDailyRecord(): DailyRecord {
   return { history: [], longestStreak: 0, totalDaysPlayed: 0, currentStreakStart: '' };
 }
 
+/** Empty achievement record — nothing has been earned yet. */
+export function defaultAchievementRecord(): AchievementRecord {
+  return { unlocked: [] };
+}
+
 export function defaultTelemetryBlob(): TelemetryBlob {
   return {
     lifetime: defaultTelemetryAggregate(),
     byMode: { campaign: {}, endless: {}, daily: {} },
     endless: defaultEndlessRecord(),
     daily: defaultDailyRecord(),
+    // Reachable from here is what makes D-13's no-migration claim TRUE rather than
+    // intended: `sanitizeTelemetry` starts from this value, so a v4 blob written before
+    // the field existed parses with it defaulted and no `v` bump.
+    achievements: defaultAchievementRecord(),
     recentRuns: [],
   };
 }
@@ -447,6 +526,41 @@ export type RecordRunEndArgs =
       stats: RunStatsInput;
     };
 
+/**
+ * What `recordRunEnd` returns: the post-write blob, plus the ids this write newly
+ * unlocked (D-19).
+ *
+ * **Why the return type widens at all.** The delta D-02 computes cannot otherwise cross
+ * the store boundary. By the time `recordRunEnd` returns, the UNION has been persisted and
+ * the set difference is gone — it is not recoverable from the post-write blob. The store
+ * holds both sets at the moment it computes them, so returning the delta costs nothing and
+ * reads nothing extra.
+ *
+ * Rejected: the host pre-reading storage and diffing after. That needs an extra storage
+ * read, which D-01 explicitly avoided, and it opens a race between the read and the write.
+ *
+ * **The MEASURED blast radius, stated verbatim because it is smaller than it looks and the
+ * gap is a hazard.** Making `newlyUnlocked` a REQUIRED field reds exactly two lines —
+ * `memoryStore.ts(100,5)` and `asyncStorageStore.ts(369,5)`, both `TS2322` — and nothing
+ * else. The four mocked-store harnesses do NOT break, because each builds its store as a
+ * bare object literal inside a `vi.mock` factory and is therefore not contextually typed
+ * as `ProgressStore`. So three of them hand the host an `undefined` at runtime: **every
+ * consumer must fail soft on an absent `newlyUnlocked`**, and a harness that means to
+ * exercise the real path must SUPPLY the field or it silently exercises the fail-soft
+ * branch instead — the same trap `tests/ui/PlayingHost.endless-run.test.tsx` already warns
+ * about for its own `telemetry.endless` mock.
+ *
+ * `recordRunEnd`'s return has not changed since Phase 9. That is a reason to be
+ * deliberate, not a reason to take the worse option.
+ */
+export type RecordRunEndResult = ProgressBlob & {
+  /**
+   * Ids newly unlocked by THIS write, in catalog declaration order. Always an array —
+   * `[]` when nothing fired, never `undefined` from a real store.
+   */
+  readonly newlyUnlocked: readonly string[];
+};
+
 export interface ProgressStore {
   getBest(): Promise<number>;
   /** Returns nested `.score` (missing → 0). */
@@ -457,8 +571,11 @@ export interface ProgressStore {
    * Preferred end-of-run: sync memory merge score/stars/unlock; void persist;
    * return clone before awaiting disk (D-10 / F-26).
    * Telemetry rides this call rather than a parallel one (C2 lock).
+   *
+   * Returns `RecordRunEndResult` — the blob PLUS the newly-unlocked ids (D-19). See that
+   * type for why the delta rides the return and what fails soft on its absence.
    */
-  recordRunEnd(args: RecordRunEndArgs): ProgressBlob;
+  recordRunEnd(args: RecordRunEndArgs): RecordRunEndResult;
   unlockAfterClear(id: LevelId): Promise<void>;
   isUnlocked(id: LevelId): Promise<boolean>;
   getSnapshot(): Promise<ProgressBlob>;

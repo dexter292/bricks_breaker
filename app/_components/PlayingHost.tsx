@@ -31,6 +31,7 @@ import {
   difficultyForWave,
   seedForWave,
 } from '../../src/services/endless';
+import { ACHIEVEMENT_CATALOG } from '../../src/services/achievements';
 import {
   DAILY_DIFFICULTY,
   endedStreakLength,
@@ -373,6 +374,21 @@ export function PlayingHost({
   const [dailyEndedStreakLength, setDailyEndedStreakLength] = useState<
     number | null
   >(null);
+  /**
+   * The result panel's unlock block, as DISPLAY NAMES (13-01 / N-ACH-03 / D-08).
+   *
+   * Derived HERE, in the `app` tier, and threaded down as plain strings, for the reason
+   * the daily scalars above are: the overlay cannot import the storage layer at all, and
+   * that prohibition is what makes D-08 checkable at the panel's prop signature rather
+   * than by tracing a branch. `eslint.config.js` permits `app -> services` and forbids
+   * `runtime -> services`.
+   *
+   * Set from the ids `recordRunEnd` RETURNS (D-19), on every run end, from one site —
+   * `publishUnlockedAchievements` below.
+   */
+  const [unlockedAchievementNames, setUnlockedAchievementNames] = useState<
+    readonly string[]
+  >([]);
   /**
    * The instant the countdown is computed against, and the local midnight it counts to.
    *
@@ -973,6 +989,43 @@ export function PlayingHost({
     [],
   );
 
+  /**
+   * Publish the unlock block's display names from the ids this run's write returned
+   * (13-01 / N-ACH-03 / D-08 / T-13-01).
+   *
+   * **The single derivation site, and the only thing standing between a stored string and
+   * a `Text` inside a 320px panel.** Each id is mapped to its `ACHIEVEMENT_CATALOG`
+   * entry's `name`, and an id with no catalog entry is DROPPED — so the panel never
+   * receives the stored string, only a catalog-authored name bounded at
+   * `ACHIEVEMENT_NAME_MAX`. That is T-13-01's mitigation; `numberOfLines={1}` on the panel
+   * is the second, weaker control and is named as a backstop, not as the gate.
+   *
+   * Catalog declaration order, not the order the ids arrived in: the catalog is walked and
+   * the returned set is tested for membership, so the display order is authored rather
+   * than incidental (`13-UI-SPEC.md` § Ordering is contract).
+   *
+   * Defensive on every read, the way `publishDailyPanel`'s are: the storage rule for this
+   * phase is that a read failure or a sanitizer degrade renders NO BLOCK, never an error
+   * surface. There is no error copy anywhere in this phase.
+   *
+   * **Called unconditionally on every run end, which is why there is no reset anywhere
+   * else.** Stated as an absence, the way `publishDailyPanel`'s JSDoc states its inverse:
+   * a reset in `startEndlessRun`, in `startDailyRun` and on the campaign start path would
+   * be one rule in three places, and it is unnecessary because a run that records always
+   * republishes — with an empty array when nothing fired. A run that ends WITHOUT
+   * recording is the endless Retry-time wave-build failure, and the panel suppresses the
+   * block there structurally on its existing `showRunLines`.
+   */
+  const publishUnlockedAchievements = useCallback((ids: unknown) => {
+    const returned = Array.isArray(ids) ? ids : [];
+    const wanted = new Set(
+      returned.filter((id): id is string => typeof id === 'string'),
+    );
+    setUnlockedAchievementNames(
+      ACHIEVEMENT_CATALOG.filter((a) => wanted.has(a.id)).map((a) => a.name),
+    );
+  }, []);
+
   // Cold path only — never await inside useAnimatedReaction / frame callback.
   const handleRunEnded = useCallback(
     (
@@ -1000,6 +1053,23 @@ export function PlayingHost({
       // snapshotted by the caller at the run boundary — win, lose and abandon all land
       // on this single call site (C2).
       let record: boolean;
+      /**
+       * This write's newly-unlocked ids (D-19), captured from whichever arm ran.
+       *
+       * THREE value captures, ONE derivation — the mapping happens once after the chain
+       * closes, never inside an arm. The anti-pattern is one function away: the comment
+       * above is `handleRunEnded`'s own phase-11 post-mortem about the mode branch
+       * happening first, and putting the evaluation or the mapping into each arm "so each
+       * mode gets it" is D-01's rejected alternative wearing a third hat.
+       *
+       * Typed `unknown` and read defensively below. That is not belt-and-braces, it is
+       * MEASURED: widening `recordRunEnd`'s return reds only the two real stores, and the
+       * four mocked-store harnesses are bare object literals inside `vi.mock` factories
+       * that do not break at compile time — so three of them hand this code `undefined`
+       * at runtime. That is deliberate and is left that way; it keeps the fail-soft branch
+       * exercised by the existing suite.
+       */
+      let newlyUnlocked: unknown;
       if (modeRef.current === 'daily') {
         // 12-UI-SPEC § The panel is a pure function of the stored daily record: WRITE
         // FIRST, then render the panel FROM THE STORED RECORD — the same render path a
@@ -1021,6 +1091,7 @@ export function PlayingHost({
           livesRemaining,
           stats,
         });
+        newlyUnlocked = blob.newlyUnlocked;
         // The same synchronous post-merge read the endless arm does below — the blob
         // `recordRunEnd` RETURNS already carries the merged `telemetry.daily`, so this
         // reads the value the merge just produced rather than racing a second
@@ -1073,6 +1144,7 @@ export function PlayingHost({
           livesRemaining,
           stats,
         });
+        newlyUnlocked = blob.newlyUnlocked;
         // "Displayed values are post-merge" (11-UI-SPEC): `recordRunEnd` returns the
         // blob SYNCHRONOUSLY and that blob already carries the merged
         // `telemetry.endless` (`memoryStore.ts` `mergeEndlessRecord`), so this is a
@@ -1118,6 +1190,7 @@ export function PlayingHost({
           livesRemaining,
           stats,
         });
+        newlyUnlocked = blob.newlyUnlocked;
         setResultBest(best);
         setIsNewRecord(campaignRecord);
         if (campaignRecord) {
@@ -1141,6 +1214,12 @@ export function PlayingHost({
           setNextGateId(null);
         }
       }
+      // The unlock block, derived ONCE for all three modes, after the chain closes and
+      // before the platform payload (13-01 / D-01 / D-19). `Array.isArray` is the fail-soft
+      // guard the three mocked stores make necessary — see `newlyUnlocked`'s declaration.
+      publishUnlockedAchievements(
+        Array.isArray(newlyUnlocked) ? newlyUnlocked : [],
+      );
       // RunEndedPayload is deliberately a win/lose concept: abandoning to the Menu is
       // telemetry, not a monetization beat. Narrowing here keeps the existing platform
       // contract untouched and stops an interstitial firing on a Menu tap.
@@ -1151,7 +1230,12 @@ export function PlayingHost({
         platform.accounts.onRunEnded(payload);
       }
     },
-    [platform, store, levelId, publishDailyPanel],
+    // Kept on ONE line, and the first three kept in order: the source-contract extractor
+    // in `tests/ui/PlayingHost.endless-host.test.ts` anchors on `\n    [platform, store,
+    // levelId[^\]]*\],` to slice this callback's body out. It tolerates ADDITIVE growth
+    // by design; breaking the literal across lines reds five of its cases at once, none
+    // of which is about dependencies.
+    [platform, store, levelId, publishDailyPanel, publishUnlockedAchievements],
   );
 
   /**
@@ -2656,6 +2740,10 @@ export function PlayingHost({
         dailyNowMs={dailyNowMs}
         dailyNextBoundaryMs={dailyNextBoundaryMs}
         dailyBoardFailed={dailyBoardFailed}
+        // The unlock names as STATE, not a ref, for the reason the `mode` threading
+        // records: the overlay has to re-render when they arrive, and a ref read during
+        // render returns the pre-flip value.
+        unlockedAchievements={unlockedAchievementNames}
         wave={resultWave}
         bestWave={resultBestWave}
         waveBuildFailedWave={waveBuildFailedWave}

@@ -14,6 +14,7 @@ export {
   type ProgressBlobV2,
   type ProgressStore,
   type RecordRunEndArgs,
+  type RecordRunEndResult,
   type StarCount,
   type LevelBest,
   RECENT_RUNS_BOUND,
@@ -33,6 +34,10 @@ export {
   DAILY_TELEMETRY_KEY,
   DAILY_HISTORY_BOUND,
   DAILY_STREAK_WALK_CAP,
+  type AchievementRecord,
+  type AchievementUnlock,
+  defaultAchievementRecord,
+  ACHIEVEMENT_UNLOCK_BOUND,
   type RunLogEntry,
   type RunStatsInput,
 } from './types';
@@ -72,6 +77,7 @@ export {
   mergeTelemetryBlobs,
   mergeEndlessRecord,
   mergeDailyRecord,
+  mergeAchievementUnlocks,
   currentDailyStreak,
   cloneTelemetryBlob,
 } from './telemetry';
