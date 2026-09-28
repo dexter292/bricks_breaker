@@ -8,16 +8,26 @@ import type { LevelId } from '../../core';
 // that lives beside the derivation which MINTS it (`src/services/daily`), rather than by a
 // second opinion restated here that could drift from it (T-12-15 / D-15).
 import { isValidDateKey } from '../daily';
+// Same edge, same reason, one module over: the stored achievement id is validated by the
+// predicate that lives beside the catalog which MINTS it (`src/services/achievements`).
+// The parser must NOT restate that closed set — a catalog change would leave a stale copy
+// here, accepting an id the catalog had dropped and rejecting one it had gained, with
+// nothing to say so (D-15 / T-13-01).
+import { isKnownAchievementId } from '../achievements';
 import { PLAYABLE_LEVEL_ORDER } from './catalog';
 import {
+  ACHIEVEMENT_UNLOCK_BOUND,
   DAILY_HISTORY_BOUND,
   RECENT_RUNS_BOUND,
+  defaultAchievementRecord,
   defaultDailyRecord,
   defaultProgressBlob,
   defaultProgressBlobV3,
   defaultEndlessRecord,
   defaultTelemetryAggregate,
   defaultTelemetryBlob,
+  type AchievementRecord,
+  type AchievementUnlock,
   type DailyHistoryEntry,
   type DailyRecord,
   type EndlessRecord,
@@ -532,6 +542,131 @@ function sanitizeDailyRecord(raw: unknown): DailyRecord {
   return out;
 }
 
+/**
+ * One stored unlock, or `null` when the ID fails (D-15 / D-21 / T-13-01).
+ *
+ * The id is validated by `isKnownAchievementId` from `src/services/achievements`, imported
+ * across the module boundary exactly as `isValidDateKey` is imported from `'../daily'`
+ * above and for the identical reason: the predicate lives beside the derivation that MINTS
+ * the ids, so the parser cannot hold a stale copy of a closed set it does not own. An id is
+ * never coerced — an id is not a counter and there is no nearest valid id.
+ *
+ * This is the read-side half of the control the host carries on the write side. Together
+ * they mean no string the catalog has never minted can reach a rendered `Text`: AsyncStorage
+ * is plaintext, so on a rooted device this field is fully attacker-controllable, and a
+ * 4 000-character `id` would otherwise arrive at Phase 14's Achievements screen.
+ *
+ * ## The timestamp takes a DIFFERENT failure rule from the id, and that pair has no
+ * precedent in this file
+ *
+ * `sanitizeRunLogEntry` above DROPS the whole entry when its `timestamp` is not a finite
+ * number, and `sanitizeDailyHistoryEntry` has no timestamp at all — so the shipped
+ * drop-on-invalid rule is the WRONG analog here, and it is the one a later reader will reach
+ * for. D-15 says a malformed timestamp DEFAULTS and D-17 makes an unlock one-way: dropping
+ * the entry would **un-earn an achievement the player did earn**, which is the one thing
+ * this phase forbids. Degrading the timestamp costs a sort order (D-14's recency order,
+ * which only Phase 14 reads); degrading the id costs the achievement itself.
+ *
+ * So inside this one entry sanitizer: a bad id DROPS the entry, and a bad `at` takes this
+ * file's local `safeCounter` zero and KEEPS it. There is no in-repo precedent for two rules
+ * in one entry sanitizer, so the reason is written here rather than left to be inferred — a
+ * later reader who unifies them will do it silently, and the unification un-earns
+ * achievements on every corrupt clock read.
+ *
+ * `safeCounter` is the one LOCAL to this file (`raw: unknown`), not the same-named
+ * `safeCounter(n: number)` in `telemetry.ts`. Two functions, one name, two files.
+ */
+function sanitizeAchievementUnlock(raw: unknown): AchievementUnlock | null {
+  if (raw == null || typeof raw !== 'object') {
+    return null;
+  }
+  const entry = raw as { id?: unknown; at?: unknown };
+  if (!isKnownAchievementId(entry.id)) {
+    return null;
+  }
+  return { id: entry.id, at: safeCounter(entry.at) };
+}
+
+/**
+ * Validate the achievements record INDEPENDENTLY of its siblings (N-ACH-02 / D-13 / D-15),
+ * on exactly the terms `sanitizeDailyRecord` above is validated on.
+ *
+ * **Shape** copies it: start from `defaultAchievementRecord()`, return that unchanged on any
+ * structural failure, and never let a broken field reach a sibling. Because `out` starts
+ * from the default and `sanitizeTelemetry` assigns field by field, a v4 blob written before
+ * this record existed defaults cleanly — no `PROGRESS_VERSION` bump and no migration (D-13),
+ * exactly as the endless record needed none when it was added and the daily record after it.
+ *
+ * Three steps, IN THIS ORDER, and the order is contract:
+ *
+ *  1. **Drop** per entry — an unknown id is gone, a malformed timestamp is zeroed (D-21).
+ *  2. **De-duplicate** by id, keeping the EARLIEST `at`.
+ *  3. **Bound**, after both.
+ *
+ * **Why the bound comes last.** The daily record's own comment applies verbatim: trimming
+ * first would let padding garbage push real unlocks out of the window, which is the opposite
+ * of what the bound exists for. `mergeAchievementUnlocks` (`telemetry.ts`) holds the write
+ * side; this is what makes it hold against a blob written by an older build or edited on a
+ * rooted device.
+ *
+ * **Why the bound keeps the FIRST entries and not the last.** `slice(0, …)` matches
+ * `mergeAchievementUnlocks` and `mergeAchievementRecords`, both of which state the reason:
+ * the recent-run ring keeps the NEWEST because it is a window on recent activity, whereas an
+ * unlock is permanent under D-17 and dropping the oldest would un-earn the achievements the
+ * player has held longest. All three sites therefore trim in the same direction. (The plan
+ * for this task wrote `slice(-…)`; that is the ring's direction and it contradicts the two
+ * shipped sites — see this plan's SUMMARY.)
+ *
+ * **Why de-duplication is legitimate here where re-sorting is NOT legitimate for dates.**
+ * `sanitizeDailyRecord` refuses to re-sort because sorting would REPAIR a tampered blob into
+ * a longer streak than its own stored order can justify. There is no equivalent inflation
+ * here: an unlock set is unordered, D-14's timestamps are the recency key rather than a
+ * position, and `13-UI-SPEC.md` makes CATALOG DECLARATION ORDER the display order, derived
+ * in the host and not in storage. So there is no stored order to inflate. Earliest-wins is
+ * required for the same reason D-22 requires it in the merge: a later duplicate walking the
+ * timestamp forward destroys exactly the order D-14 stores it for.
+ *
+ * The de-duplication is also why step 3 is structurally unreachable while step 1 stands — a
+ * legitimate set cannot exceed the catalog's size — and that is precisely what the bound is
+ * for. See the note at the `slice` below.
+ */
+function sanitizeAchievementRecord(raw: unknown): AchievementRecord {
+  const out = defaultAchievementRecord();
+  if (raw == null || typeof raw !== 'object') {
+    return out;
+  }
+  const record = raw as { unlocked?: unknown };
+  if (!Array.isArray(record.unlocked)) {
+    return out;
+  }
+  const byId = new Map<string, AchievementUnlock>();
+  for (const item of record.unlocked) {
+    const entry = sanitizeAchievementUnlock(item);
+    if (entry == null) {
+      continue;
+    }
+    const prior = byId.get(entry.id);
+    // Earliest wins (D-22). Whole `{ id, at }` entries are keyed and merged as units —
+    // never two parallel collections, and never a reduce across ALL the timestamps, which
+    // would attach one entry's evidence to another's claim.
+    if (prior == null || entry.at < prior.at) {
+      byId.set(entry.id, entry);
+    }
+  }
+  // Bound on read as well as on write — a tampered blob cannot grow the collection —
+  // applied AFTER the drop loop, never before.
+  //
+  // The trap this bound is measured against lives in this same file: `sanitizeAggregateMap`
+  // below has NO key cap and copies every key it finds on every parse. WINDOWS #27 records
+  // 5 000 injected keys surviving `parseProgressResult` with `status: 'ok'`. This collection
+  // avoids that shape only because it is a bounded ARRAY whose ids are validated — the
+  // pattern map's rule is that it must have the bound or the id check and must not have
+  // neither. If a later change relaxes the unknown-id drop "to be forward-compatible with a
+  // later catalog", this line is the only remaining cap and must stay.
+  out.unlocked = [...byId.values()].slice(0, ACHIEVEMENT_UNLOCK_BOUND);
+  return out;
+}
+
 function sanitizeAggregateMap(
   raw: unknown,
 ): Partial<Record<string, TelemetryAggregate>> {
@@ -571,6 +706,18 @@ function sanitizeAggregateMap(
  * record does not — every stored date key is validated on read (`isValidDateKey`,
  * T-12-15) and the history is bounded on read as well as on write (D-15, T-12-16) —
  * both discharged by `sanitizeDailyRecord` above.
+ *
+ * The achievements record (`achievements`, N-ACH-02) is here on the same terms and is the
+ * whole of SC-3's read half: a corrupt or hand-edited unlock set degrades to
+ * `defaultAchievementRecord()` and cannot take campaign unlocks, bests, stars, the endless
+ * record or the daily history down with it. Because `out` starts from
+ * `defaultTelemetryBlob()`, an older v4 blob that predates the field defaults it cleanly —
+ * no `v` bump, no migration (D-13). It carries two obligations the daily record does not,
+ * both discharged by `sanitizeAchievementRecord` above: every stored id is validated against
+ * the CATALOG on read (`isKnownAchievementId`, T-13-01), so an id the catalog has never
+ * minted cannot reach the host let alone a rendered `Text`; and the timestamp DEGRADES where
+ * the id DROPS (D-21), because D-17 makes an unlock one-way and dropping an entry over a
+ * malformed clock read would un-earn an achievement the player did earn.
  */
 function sanitizeTelemetry(raw: unknown): TelemetryBlob {
   const out = defaultTelemetryBlob();
@@ -582,11 +729,13 @@ function sanitizeTelemetry(raw: unknown): TelemetryBlob {
     byMode?: unknown;
     endless?: unknown;
     daily?: unknown;
+    achievements?: unknown;
     recentRuns?: unknown;
   };
   out.lifetime = sanitizeAggregate(telemetry.lifetime);
   out.endless = sanitizeEndlessRecord(telemetry.endless);
   out.daily = sanitizeDailyRecord(telemetry.daily);
+  out.achievements = sanitizeAchievementRecord(telemetry.achievements);
   if (telemetry.byMode != null && typeof telemetry.byMode === 'object') {
     const byMode = telemetry.byMode as Record<string, unknown>;
     out.byMode.campaign = sanitizeAggregateMap(byMode.campaign);

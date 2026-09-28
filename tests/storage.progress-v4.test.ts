@@ -35,12 +35,15 @@ import {
   ENDLESS_TELEMETRY_KEY,
   DAILY_HISTORY_BOUND,
   defaultDailyRecord,
+  ACHIEVEMENT_UNLOCK_BOUND,
+  defaultAchievementRecord,
   cloneTelemetryBlob,
   v3ToV4,
   type ProgressBlob,
   type RunStatsInput,
 } from '../src/services/storage';
 import { __createAsyncStorageProgressStoreForTests } from '../src/services/storage/asyncStorageStore';
+import { ACHIEVEMENT_CATALOG } from '../src/services/achievements';
 
 /**
  * A realistic "existing player" v3 blob, shaped exactly like today's persisted
@@ -720,6 +723,329 @@ describe('sanitizeDailyRecord — bounded on read, every stored key validated (1
     expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
     expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
     expect(r.progress.bestScore).toBe(1_200);
+  });
+});
+
+/**
+ * The stored achievements set on the READ path (N-ACH-02 / SC-3 / D-13 / D-15 / D-17 / D-21).
+ *
+ * A SIBLING of `describe('sanitizeDailyRecord …')` above, deliberately not a rewrite of it:
+ * the harness shape, the fixture-not-derived rule, the trim-after-drop case, the
+ * independence case and the no-migration case are all copied from it, because the two
+ * records carry the same independence contract one level down inside `sanitizeTelemetry`.
+ *
+ * Two obligations this record carries that the daily one does not, and both are asserted
+ * here: every stored id is validated against the CATALOG on read, and the timestamp
+ * DEGRADES where the id DROPS (D-21) — two different failure rules inside one entry
+ * sanitizer, which no other sanitizer in `parseBlob.ts` has.
+ */
+describe('sanitizeAchievementRecord — the stored achievements set, bounded on read and validated against the catalog (13-03)', () => {
+  const first = PLAYABLE_LEVEL_ORDER[0] as string;
+
+  /**
+   * A v4 blob with a known campaign payload, a known endless record and a known daily
+   * record, plus a caller-supplied achievements field.
+   *
+   * Every case therefore asserts INDEPENDENCE as well as its own claim, rather than one
+   * case doing it for all of them — the `parseWithDaily` shape above, for its reason.
+   */
+  function parseWithAchievements(achievements: unknown) {
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    telemetry.endless = { bestWave: 14, bestScore: 8_400 };
+    telemetry.daily = {
+      history: [{ date: '2026-09-27', score: 700, outcome: 'win' }],
+      longestStreak: 3,
+      totalDaysPlayed: 5,
+      currentStreakStart: '2026-09-27',
+    };
+    return parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 500, stars: 1 } },
+        bestScore: 500,
+        updatedAt: 7,
+        telemetry: { ...telemetry, achievements },
+      }),
+    );
+  }
+
+  const unlockedIn = (r: ReturnType<typeof parseWithAchievements>) =>
+    r.progress.telemetry.achievements.unlocked;
+
+  /**
+   * KNOWN ids are DERIVED from the shipped catalog, so plan 13-02's expansion — and any
+   * later one — cannot silently shrink this block's coverage. `tests/ui/certLevelPlan.test.ts`'s
+   * argument, and the same rule `tests/achievements.record.test.ts` applies to its control id.
+   */
+  const KNOWN = ACHIEVEMENT_CATALOG.map((a) => a.id);
+
+  /**
+   * The UNKNOWN id is a hard LITERAL and goes the other way, which is the direction the
+   * daily block's `consecutiveKeys` comment states: deriving this fixture with the very
+   * data the validator guards (`KNOWN[0] + '-x'`) would let a broken pair agree by
+   * computing the same wrong answer twice. A catalog that ever mints this string would
+   * fail the case rather than pass it, which is the safe direction.
+   */
+  const NOT_AN_ID = 'not-an-achievement';
+
+  it('the fixtures are non-vacuous: the catalog mints ids, and the hostile id is not one of them', () => {
+    expect(
+      KNOWN.length,
+      'an empty catalog would make every "survives" assertion below pass by having nothing to keep',
+    ).toBeGreaterThan(2);
+    expect(
+      KNOWN,
+      `${NOT_AN_ID} must not be a real id, or the unknown-id case below is asserting that a REAL achievement is dropped`,
+    ).not.toContain(NOT_AN_ID);
+  });
+
+  it('drops a stored achievements entry whose id the catalog never minted, and keeps its siblings (T-13-01 / D-15)', () => {
+    const r = parseWithAchievements({
+      unlocked: [
+        { id: NOT_AN_ID, at: 1_700_000_000_000 },
+        { id: KNOWN[0], at: 1_700_000_000_001 },
+        { id: '9'.repeat(4_000), at: 1_700_000_000_002 },
+        { id: 42, at: 1 },
+        { id: '', at: 1 },
+        'nope',
+        null,
+        [],
+        { id: KNOWN[1], at: 1_700_000_000_003 },
+      ],
+    });
+
+    expect(r.status, 'a hostile achievements field must not make the enclosing blob corrupt').toBe(
+      'ok',
+    );
+    // The survivors are the positive control: without them this case would pass against a
+    // sanitizer that dropped everything.
+    expect(
+      unlockedIn(r).map((e) => e.id),
+      'an id the catalog never minted cannot reach the host, let alone a rendered Text — and the two real ids must survive it',
+    ).toEqual([KNOWN[0], KNOWN[1]]);
+    // Not truncated or coerced either: no prefix of the 4 000-character id survives.
+    expect(JSON.stringify(r.progress.telemetry.achievements)).not.toContain('99999999');
+    // …and the campaign payload beside it is untouched.
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+  });
+
+  it('KEEPS an achievements entry whose timestamp is malformed and defaults the timestamp to 0 — the id drops, the timestamp degrades (D-15 / D-17 / D-21)', () => {
+    const why =
+      'D-21: dropping the entry because its timestamp is malformed would un-earn an achievement the player did earn (D-17 makes an unlock one-way). Degrading the timestamp costs a sort order; degrading the id costs the achievement — so the two fields take DIFFERENT failure rules inside one entry sanitizer.';
+
+    for (const at of [Number.NaN, '1700000000000', -5, undefined, null, [], {}, true]) {
+      const r = parseWithAchievements({ unlocked: [{ id: KNOWN[0], at }] });
+      const entries = unlockedIn(r);
+      // BOTH halves in one case: the entry is KEPT…
+      expect(entries.map((e) => e.id), `at: ${String(at)} — ${why}`).toEqual([KNOWN[0]]);
+      // …and its timestamp defaulted rather than the entry being dropped.
+      expect(entries[0]?.at, `at: ${String(at)} — ${why}`).toBe(0);
+    }
+
+    // `Infinity` and `-Infinity` have no JSON form and arrive as `null`; asserted through
+    // the object path so the numeric non-finite cases are covered too, not just their wire
+    // shape. This is the shipped `safeCounter` contract, local to `parseBlob.ts`.
+    for (const at of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const r = parseProgressResult(
+        JSON.stringify({
+          v: 4,
+          unlocked: [],
+          bestByLevel: {},
+          bestScore: 0,
+          updatedAt: 7,
+          telemetry: { ...defaultTelemetryBlob(), achievements: { unlocked: [{ id: KNOWN[0], at }] } },
+        }),
+      );
+      expect(unlockedIn(r).map((e) => e.id), `at: ${String(at)} — ${why}`).toEqual([KNOWN[0]]);
+      expect(unlockedIn(r)[0]?.at, `at: ${String(at)} — ${why}`).toBe(0);
+    }
+
+    // The non-vacuity control: a WELL-FORMED timestamp is carried through unchanged, so the
+    // zeroes above are a degradation rather than a sanitizer that zeroes everything.
+    const ok = parseWithAchievements({ unlocked: [{ id: KNOWN[0], at: 1_700_000_000_123 }] });
+    expect(unlockedIn(ok)[0]?.at).toBe(1_700_000_000_123);
+  });
+
+  it('collapses duplicate achievements ids to one entry, keeping the EARLIEST timestamp (D-14 / D-22)', () => {
+    const r = parseWithAchievements({
+      unlocked: [
+        { id: KNOWN[0], at: 1_700_000_500_000 },
+        { id: KNOWN[1], at: 1_700_000_100_000 },
+        { id: KNOWN[0], at: 1_700_000_200_000 },
+        { id: KNOWN[0], at: 1_700_000_900_000 },
+      ],
+    });
+    const entries = unlockedIn(r);
+
+    expect(
+      entries.filter((e) => e.id === KNOWN[0]),
+      'one entry per id — the collection is a SET keyed by id, and a tampered blob cannot grow it by repeating one',
+    ).toHaveLength(1);
+    expect(
+      entries.find((e) => e.id === KNOWN[0])?.at,
+      'earliest wins: D-14 stores the moment the achievement was FIRST earned, and a later duplicate walking it forward destroys exactly the recency order it is stored for (D-22 inverts mergeDailyRecords incoming-wins for this reason)',
+    ).toBe(1_700_000_200_000);
+    // The inverse, stated explicitly — a last-writer-wins collapse would still hold one
+    // entry per id and would pass a cardinality-only assertion.
+    expect(
+      JSON.stringify(entries),
+      'no later duplicate timestamp may appear anywhere in the surviving collection',
+    ).not.toContain('1700000900000');
+    expect(entries.find((e) => e.id === KNOWN[1])?.at).toBe(1_700_000_100_000);
+  });
+
+  it('applies the achievements bound AFTER the drop loop, so padding garbage cannot push real unlocks out of the window (T-13-02)', () => {
+    const padding = Array.from({ length: ACHIEVEMENT_UNLOCK_BOUND + 6 }, (_, i) => ({
+      id: `${NOT_AN_ID}-${i}`,
+      at: 1_700_000_000_000 + i,
+    }));
+    const real = KNOWN.slice(0, 3).map((id, i) => ({ id, at: 1_800_000_000_000 + i }));
+    expect(
+      padding.length,
+      'the padding must exceed the bound, or trim-first and drop-first produce the same answer and the ordering is not falsifiable',
+    ).toBeGreaterThan(ACHIEVEMENT_UNLOCK_BOUND);
+
+    const r = parseWithAchievements({ unlocked: [...padding, ...real] });
+
+    // Trim-then-drop keeps the FIRST `ACHIEVEMENT_UNLOCK_BOUND` of 73 — all padding — and
+    // then drops every one of them, for zero survivors. Drop-then-trim keeps all three real
+    // unlocks. The difference is what makes the ordering falsifiable rather than asserted.
+    expect(
+      unlockedIn(r).map((e) => e.id),
+      'the three real unlocks survive 70 entries of padding garbage — trimming before the drop loop would evict them and leave nothing',
+    ).toEqual(real.map((e) => e.id));
+    // The fence itself: structurally unreachable while the unknown-id drop stands (a
+    // legitimate set cannot exceed the catalog's size), which is exactly why it exists —
+    // it is what survives a future relaxation of that check (WINDOWS #27's shape).
+    expect(unlockedIn(r).length).toBeLessThanOrEqual(ACHIEVEMENT_UNLOCK_BOUND);
+  });
+
+  it('a missing or non-object achievements record parses to the default without making the enclosing blob corrupt (D-15)', () => {
+    for (const broken of [undefined, null, 'nope', [], 42, true, { unlocked: 'nope' }, { unlocked: 7 }, { unlocked: null }, { unlocked: {} }]) {
+      const r = parseWithAchievements(broken);
+      expect(
+        r.status,
+        `achievements: ${JSON.stringify(broken) ?? 'undefined'} must not make the blob corrupt`,
+      ).toBe('ok');
+      expect(
+        r.progress.telemetry.achievements,
+        'a non-array in the `unlocked` position yields the empty record — never a throw, and never a coerced scalar',
+      ).toEqual(defaultAchievementRecord());
+      // …and every campaign field is untouched by it.
+      expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+      expect(r.progress.bestScore).toBe(500);
+    }
+  });
+
+  it('a fully corrupt achievements field leaves unlocked, bestByLevel, bestScore, the endless record and the daily history intact (D-15 / SC-5)', () => {
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    telemetry.endless = { bestWave: 14, bestScore: 8_400 };
+    telemetry.daily = {
+      history: [{ date: '2026-09-27', score: 700, outcome: 'win' }],
+      longestStreak: 3,
+      totalDaysPlayed: 5,
+      currentStreakStart: '2026-09-27',
+    };
+
+    // EVERY value this case claims to preserve is proved NON-DEFAULT first, in this same
+    // case. Without this the whole case passes on a blob whose siblings were empty to begin
+    // with — the vacuity trap phase 12 hit at this very function.
+    expect(telemetry.endless, 'the endless record must be non-default, or its survival is vacuous').not.toEqual(
+      defaultEndlessRecord(),
+    );
+    expect(telemetry.daily, 'and so must the daily record').not.toEqual(defaultDailyRecord());
+    expect(telemetry.lifetime, 'and so must the lifetime aggregate').not.toEqual(
+      defaultTelemetryAggregate(),
+    );
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: { ...telemetry, achievements: { unlocked: 'not-an-array', bogus: 9 } },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.achievements).toEqual(defaultAchievementRecord());
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 14, bestScore: 8_400 });
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-27']);
+    expect(r.progress.telemetry.daily.longestStreak).toBe(3);
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(6);
+  });
+
+  it('an existing v4 blob written before the achievements record existed parses with the field defaulted and every campaign, endless and daily field intact — no version bump, no migration (D-13)', () => {
+    // The exact old shape: a v4 telemetry object with no `achievements` key at all.
+    const oldTelemetry = {
+      lifetime: { ...defaultTelemetryAggregate(), runsPlayed: 4, bricksBroken: 120 },
+      byMode: {
+        campaign: { [first]: { ...defaultTelemetryAggregate(), runsPlayed: 4 } },
+        endless: {},
+        daily: {},
+      },
+      endless: { bestWave: 3, bestScore: 900 },
+      daily: {
+        history: [{ date: '2026-09-26', score: 400, outcome: 'win' }],
+        longestStreak: 1,
+        totalDaysPlayed: 1,
+        currentStreakStart: '2026-09-26',
+      },
+      recentRuns: [],
+    };
+    // This assertion is what makes the case about the ABSENCE rather than about a value —
+    // exactly as the shipped daily no-migration case above does it.
+    expect(Object.keys(oldTelemetry)).not.toContain('achievements');
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: oldTelemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(
+      r.progress.v,
+      'D-13: the field is ADDITIVE — an older v4 blob parses clean with no PROGRESS_VERSION bump and no migration step',
+    ).toBe(PROGRESS_VERSION);
+    expect(r.progress.telemetry.achievements).toEqual(defaultAchievementRecord());
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 3, bestScore: 900 });
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-26']);
+    expect(r.progress.telemetry.daily.longestStreak).toBe(1);
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(120);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+  });
+
+  it('round trip: a stored achievements entry parses back with its id and its timestamp intact — the read half of SC-3', () => {
+    const at = 1_700_000_321_000;
+    const r = parseWithAchievements({ unlocked: [{ id: KNOWN[0], at }] });
+
+    expect(r.status).toBe('ok');
+    expect(
+      unlockedIn(r),
+      'the positive control for every absence case above, and the whole of SC-3 at the parser: an unlock written before an app kill is still there after the next cold start. Before this plan `sanitizeTelemetry` started from `defaultTelemetryBlob()` and never looked at a stored achievements field, so this returned [].',
+    ).toEqual([{ id: KNOWN[0], at }]);
+    // A fractional stored timestamp floors rather than dropping the entry — `safeCounter`,
+    // local to `parseBlob.ts` and NOT the same-named function in `telemetry.ts`.
+    expect(unlockedIn(parseWithAchievements({ unlocked: [{ id: KNOWN[0], at: 12.7 }] }))[0]?.at).toBe(
+      12,
+    );
   });
 });
 
