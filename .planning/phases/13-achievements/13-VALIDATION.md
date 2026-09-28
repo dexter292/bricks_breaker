@@ -83,8 +83,8 @@ Task IDs are assigned by the planner.
 | TBD | TBD | TBD | N-ACH-02 (D-15) | **degrades alone** — campaign/endless/daily untouched | integration | `npx vitest run tests/achievements.record.test.ts -t "degrades alone"` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | N-ACH-02 (D-14) | timestamp persists | integration | `npx vitest run tests/achievements.record.test.ts -t "timestamp"` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | N-ACH-02 | **both hand-mirrored stores agree** | integration | `npx vitest run tests/achievements.record.test.ts --reporter=verbose` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | N-ACH-03 (D-05) | cap is a component property | unit (jsdom) | `npx vitest run tests/ui/achievementLines.test.ts -t "caps at two"` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | N-ACH-03 (D-05) | N/A | unit (jsdom) | `npx vitest run tests/ui/achievementLines.test.ts -t "and n more"` | ❌ W0 | ⬜ pending |
+| TBD | TBD | TBD | N-ACH-03 (D-05) | cap is a component property | unit (node) | `npx vitest run tests/ui/achievementLines.test.ts -t "caps at two"` | ❌ W0 | ⬜ pending |
+| TBD | TBD | TBD | N-ACH-03 (D-05) | N/A | unit (node) | `npx vitest run tests/ui/achievementLines.test.ts -t "and n more"` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | N-ACH-03 (D-06) | N/A | integration (jsdom) | `npx vitest run tests/ui/ResultOverlay.achievements.test.tsx` | ❌ W0 | ⬜ pending |
 | TBD | TBD | TBD | N-ACH-03 (D-06) | N/A | integration (jsdom) | `npx vitest run tests/ui/DailyResultOverlay.test.tsx -t "achievement"` | ✅ | ⬜ pending |
 | TBD | TBD | TBD | N-ACH-03 (D-08) | **panel takes scalars, not a storage type** | lint | `npm run lint` | ✅ | ⬜ pending |
@@ -108,7 +108,7 @@ Every file below is new. **No framework install is needed.**
 - [ ] `tests/achievements.catalog.test.ts` — N-ACH-01: data shape, purity, unique ids, the 16-char name budget, three-mode coverage
 - [ ] `tests/achievements.evaluate.test.ts` — N-ACH-02: determinism, idempotency as a set difference, retroactive unlock, hostile snapshot
 - [ ] `tests/achievements.record.test.ts` — the read/write path: unknown id dropped, timestamps, independent degradation, **both stores asserted separately**
-- [ ] `tests/ui/achievementLines.test.ts` — the shared pure classifier: cap at 2, the `and n more` form, ordering
+- [ ] `tests/ui/achievementLines.test.ts` — the shared pure classifier: cap at 2, the `and n more` form, ordering. **`.ts` under the node environment, not jsdom** — corrected 2026-09-28 from the `certLevelPlan` precedent the pattern map found: a pure classifier needs no DOM, and typing it jsdom would have bought a renderer it never uses
 - [ ] `tests/ui/ResultOverlay.achievements.test.tsx` — the campaign/endless panel block and its suppression states
 
 Extended rather than created:

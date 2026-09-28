@@ -155,6 +155,49 @@ account, no store), and any reward attached to an unlock (there is no currency a
   install time grants permanently under D-04. Named here so a later round finds a decision rather
   than a defect.
 
+### Resolved from Claude's Discretion by the pattern map
+
+Both were listed as discretionary above; the pattern map turned each into a real fork, so each is
+recorded as a decision rather than left to an executor.
+
+- **D-19: `recordRunEnd` widens its return to carry the newly-unlocked ids alongside the blob.**
+  The delta D-02 computes cannot otherwise cross the store boundary: `recordRunEnd` returns
+  `ProgressBlob` and nothing else (`types.ts`), and once the union is persisted the set difference
+  is gone. The store already holds both the old set and the new one at the moment it computes
+  them, so returning the delta costs nothing and reads nothing extra.
+  — Rejected: the host pre-reading storage and diffing. It needs an extra read, which D-01
+  explicitly avoided, and it opens a race between the read and the write.
+  — The change is additive and **compiler-enforced across both hand-mirrored stores**, which is
+  the same mechanism that made phase 12's `daily` arm safe. There has been no return-type change
+  since Phase 9; that is a reason to be deliberate, not a reason to take the worse option.
+  — **Reversibility:** costly — every caller of `recordRunEnd` sees the new shape.
+
+- **D-20: the evaluator declares its own structurally-compatible snapshot type and imports NO
+  storage type.** No `src/services/<mode>/` module has ever imported one — verified across every
+  import in `daily/` and `endless/`. The shipped precedent for exactly this situation is
+  `src/render/overlayMetrics.ts`, whose header reads *"Structurally compatible with `SpikeMetrics`
+  in runtime/ — no runtime import (LC-03)"*. Achievements copies that: a read-only view declared
+  locally, structural compatibility checked by the compiler at the call site.
+  — Keeps the catalog and evaluator pure and dependency-free, which is what makes N-ACH-01's
+  "pure predicate" testable without a storage harness.
+
+### Corrections the pattern map found, which bind the planner
+
+- **D-21: on an invalid stored unlock the ID drops but the TIMESTAMP defaults.** Two different
+  failure rules inside one entry sanitizer, and there is no precedent for the pair. The reason is
+  D-17: an unlock is one-way, so dropping an entry because its timestamp is malformed would
+  **un-earn an achievement the player did earn**. Degrading the timestamp costs a sort order;
+  degrading the id costs the achievement.
+- **D-22: the unlock merge keys whole entries and takes the EARLIEST timestamp, not "incoming
+  wins".** `mergeDailyRecords` resolves by incoming-wins; copying that here would silently
+  corrupt D-14's recency order on every reconcile. The cross-wiring hazard is narrower than
+  phase 12's — an id is its own evidence, so only the timestamp can be mispaired — but a merge
+  that unions ids and then reduces over all timestamps attaches one record's evidence to
+  another's claim, which is the phase-12 defect in a new place.
+- **D-23: the new field MUST be added to `cloneTelemetryBlob` as well as to the sanitizer and the
+  merge.** A field missing there is erased by every other mode's run-end write — a three-site
+  obligation, not two.
+
 ### Claude's Discretion
 
 - The catalog's exact membership and every threshold value, within D-09's 8–12 and D-11's
