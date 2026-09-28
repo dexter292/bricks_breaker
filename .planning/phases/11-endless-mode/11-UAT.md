@@ -40,36 +40,57 @@ reason: |
   Hermes ratio as UNMEASURED precisely because "that ratio itself came from an iOS simulator
   run, not a device". `Device digest` stays OPEN.
 
-  WHAT THE DRY RUN DID ESTABLISH — first time anyone has run the procedure at all:
+  WHAT THE DRY RUN ESTABLISHED — the procedure has now been run end to end, and ALL FOUR
+  WAVE TRANSITIONS W1->W2->W3->W4->W5 were reached, which is the full range the discharge
+  procedure asks for:
   1. Step 1 works. The `Endless` control in the `__DEV__` dev row starts an endless run and
-     the `W1` readout appears beside it.
-  2. The generated board renders — a visibly irregular lattice, distinct from campaign
-     level-01's uniform grid.
-  3. The run loop works end to end: launch, bricks break, score 0 -> 600 -> 660 -> 720 -> 730,
-     lives 3 -> 2 -> 1 -> 0, run ends cleanly.
-  4. The endless Results overlay is ENDLESS-SCOPED at the surface: `Wave · 1`, `Score · 730`,
+     the `W{n}` readout appears beside it and advances correctly at every transition.
+  2. Generated boards render and RAMP: wave 1 sparse, wave 5 dense with brick types absent
+     from wave 1 (magenta, and grey slashed armoured bricks). SC-2's ramp is visible.
+  3. The run loop is sound across ~4 minutes of continuous play: score 0 -> 33,110, combo
+     multiplier reaching x7, lives awarded on wave clear (3 -> 5), no crash.
+  4. Signature (a) black playfield: NOT OBSERVED, at any point, including on the screenshot
+     taken immediately after each of the four transitions.
+  5. Signature (c) `[audio] preload soft-fail`: ZERO occurrences across **62,081** captured
+     device-log lines spanning all four transitions. Zero JS errors, zero red boxes.
+  6. Signature (b) audio hiccup: audio queues start and stop normally per brick hit; not
+     judgeable on a simulator and not judged.
+  7. § Limits item 7's squashed glow halo: NOT ASSESSABLE at this render. Neither confirmed
+     nor denied — recorded as unassessed rather than as absent.
+  8. The endless Results overlay is ENDLESS-SCOPED at the surface: `Wave`, `Score`,
      `Best · 11090`, `Best wave · 2`, Retry + Menu. `Best · 11090` is the endless record, NOT
      the campaign `Best · 127420` the Title screen shows. SC-5's firewall is visible to the
      eye, not only to the firewall suite.
-  5. Signature (a) NOT observed — no black playfield at any point, including at run end.
-  6. Signature (c) NOT observed — 0 `preload soft-fail` lines in 6,498 captured device-log
-     lines; no JS error, no red box.
-  7. Signature (b) — audio queues start and stop normally per brick hit; not judgeable on a
-     simulator.
-  8. NEW, and it belongs to WINDOWS #18 rather than here: the dev row overflows at 402 pt,
-     clipped at the LEFT (`high` where `auto high` belongs) while `Cert WC`, `Endless`,
-     `Daily`, `W1` and `Crash` all stay fully visible and tappable. This confirms from the
-     opposite direction what phase 12's UAT item 7 note warned — the row already overflowed
-     before `Daily` existed. It also adds a fact nobody had: the `W1` readout ITSELF widens
-     the row while endless is active, so the overflow is worst during exactly the run SC-5
-     measures.
+  9. Belongs to WINDOWS #18, not here: the dev row overflows at 402 pt, clipped at the LEFT
+     (`high` where `auto high` belongs) while `Cert WC`, `Endless`, `Daily`, `W{n}` and
+     `Crash` stay fully visible and tappable. Confirms from the opposite direction what
+     phase 12's UAT item 7 note warned — the row already overflowed before `Daily` existed —
+     and adds a fact nobody had: the `W{n}` readout ITSELF widens the row while endless is
+     active, so the overflow is worst during exactly the run SC-5 measures.
 
-  WHAT IT DID NOT ESTABLISH, which is the point: NO WAVE TRANSITION WAS REACHED. The run
-  ended at wave 1. Signatures (a), (b) and (c) are defined AT A TRANSITION, so all three
-  remain unobserved where they matter. Two of the three lives were lost to automation
-  latency, not difficulty — a screenshot/decide/tap round trip is slower than the ball's
-  flight, so the paddle cannot track it. A human at the device would clear wave 1 without
-  difficulty; this instrument cannot.
+  HOW THE WAVES WERE REACHED, STATED PLAINLY. Manual play could not do it: the control loop
+  (screenshot -> decide -> tap) round-trips in ~1.3 s while the ball crosses the playfield in
+  ~1-1.8 s, so the paddle cannot track it; three runs ended on wave 1. The waves were reached
+  with a HARNESS AFFORDANCE — `PADDLE_WIDTH` and its three sibling assignment sites
+  (`allocate.ts`, `reset.ts`, and `rules/effects.ts`'s per-step `baseW`, which resets the
+  width every tick) temporarily widened 72 -> 360 logical, making the paddle span the full
+  playfield so the ball cannot be lost. Paddle width is not an input to the glow-bake path
+  (plan 11-05 re-keyed `loadKey` onto BRICK dimensions) nor to audio preload, so it does not
+  touch what signatures (a) and (c) are about. It IS nonetheless a modified build, and this
+  record says so rather than presenting the observation as coming from the shipped tree.
+  REVERTED immediately after: `git diff` over `src/ app/ tests/ scripts/` is EMPTY and the
+  full suite is green at 107 files / 798 tests on the restored tree.
+
+  A by-product worth keeping: the paddle has a MOVEMENT SPEED CAP. A slow continuous
+  `touch_path` tracks 1:1 (commanded 135 pt, reached 132) while a fast jump is clipped
+  (commanded 100 pt, reached 155). Anyone automating this surface needs to know that.
+
+  WHAT IS STILL MISSING, WHICH IS THE WHOLE POINT: signature (d), the frame-time budget
+  (p50 <= 16.7 ms, p95 <= 20 ms). A simulator cannot produce it — it runs on the Mac's CPU,
+  does not emulate the GPU, and has no thermal throttling, so it would read green whether or
+  not the defect exists. Signatures (a) and (c) are now observed-negative at four real
+  transitions, which narrows the risk but does not close it: they are the visible and logged
+  symptoms of the bake/preload cold path re-firing, and (d) is the measurement SC-5 is about.
 
   To discharge, the procedure in `docs/ops/ENDLESS-MODE.md` still has to be run by a person
   on hardware. Do not write a passing reading that was not taken.
