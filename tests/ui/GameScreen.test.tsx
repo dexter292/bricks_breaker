@@ -269,4 +269,80 @@ describe('GameScreen', () => {
       screen.queryByRole('button', { name: 'Play next level' }),
     ).toBeNull();
   });
+  /**
+   * 12-05 — the pause `Retry` says what it actually does during a daily run.
+   *
+   * The shipped precedent is `ResultOverlay`'s endless Retry: same VISIBLE label,
+   * mode-dependent SPOKEN label. `Retry level` is false in daily for a different reason
+   * than it is false in endless — here it restarts the SAME date-derived board, not a
+   * level and not a new seed (D-08 / SC-1).
+   */
+  it('the pause Retry says it restarts today BOARD during a daily run, and still says level in campaign', () => {
+    render(
+      createElement(
+        GameScreen,
+        baseProps({ uiPhase: 'paused', result: null, mode: 'daily' }),
+      ),
+    );
+    expect(
+      screen.getByRole('button', { name: "Restart today's board" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Retry level' }),
+      'describing a daily restart as retrying a level is false — there is no level',
+    ).toBeNull();
+    expect(
+      screen.getByText('Retry'),
+      'the VISIBLE label is unchanged; only what a screen reader announces differs',
+    ).toBeTruthy();
+
+    cleanup();
+    render(
+      createElement(
+        GameScreen,
+        baseProps({ uiPhase: 'paused', result: null, mode: 'campaign' }),
+      ),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Retry level' }),
+      'the positive control: campaign is unchanged byte for byte',
+    ).toBeTruthy();
+  });
+
+  /**
+   * 12-05 — the daily board-failure route keeps the date OPEN.
+   */
+  it('routes a daily board failure to the daily panel with Retry, not to the level-error overlay', () => {
+    render(
+      createElement(
+        GameScreen,
+        baseProps({
+          mode: 'daily',
+          result: 'lose',
+          dailyDateKey: '2026-09-28',
+          dailyStreak: 3,
+          dailyLongestStreak: 9,
+          dailyBoardFailed: true,
+          onRetry: () => {},
+        }),
+      ),
+    );
+    expect(screen.getByText('Daily')).toBeTruthy();
+    expect(
+      screen.getByText("Today's board could not be built — tap Retry"),
+      'the wording mirrors the shipped wave-build failure copy',
+    ).toBeTruthy();
+    expect(
+      screen.queryByText('Lose'),
+      'accent-white Daily, not the Lose red: nothing was lost',
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: "Retry today's daily board" }),
+    ).toBeTruthy();
+    expect(screen.getByText('Streak · 3')).toBeTruthy();
+    expect(
+      screen.queryByText(/New board in/),
+      'the countdown describes a CLOSED date and this one is open',
+    ).toBeNull();
+  });
 });

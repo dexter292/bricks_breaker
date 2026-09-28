@@ -23,8 +23,25 @@
  *  - The rendered panel. `GameScreen` is mocked down to its dev-row slot, so
  *    `DailyResultOverlay`'s own markup is not exercised; the props the host hands it
  *    ARE asserted below, and the component's own cases are plan 12-05's.
- *  - The closed-date read path, the abandoned boundaries, the streak block and the
- *    countdown. All plan 12-03…12-05, none of them stubbed here.
+ *  - The rendered panel's MARKUP. `GameScreen` is mocked down to its dev row and its
+ *    controls, so `DailyResultOverlay`'s own markup is not exercised; the props the
+ *    host hands it ARE asserted below, and the component's own cases are
+ *    `tests/ui/DailyResultOverlay.test.tsx`.
+ *
+ * 12-05 EXPANDED this file with the run boundaries: the closed-date read path (D-02),
+ * the four abandoned exits (D-07 / D-09), the same-board retry and the board-failure
+ * variant.
+ *
+ * **Do NOT call `vi.runAllTimers()` while the Daily Result panel is open.** The analog
+ * this file was copied from calls it inside its mount-and-start helper, and copying that
+ * by pattern is the likely move here — but 12-05 Task 2 mounts a 60-second interval that
+ * is live in exactly the state where the panel is showing, and a live recurring timer
+ * makes `runAllTimers()` non-terminating: MEASURED on this tree, inducing an
+ * unconditional interval throws `Aborting after running 10000 timers, assuming an
+ * infinite loop!` across four host specs. `vi.advanceTimersByTime` against the same live
+ * interval ticks exactly the expected number of times and returns cleanly. The helper
+ * below keeps `runAllTimers()` only for the PRE-panel mount sequence, where no interval
+ * exists yet.
  *
  * @vitest-environment jsdom
  */
@@ -40,7 +57,11 @@ import {
 } from '@testing-library/react';
 import type { LevelId } from '../../src/core';
 import type { RecordRunEndArgs } from '../../src/services/storage';
-import { localDateKey } from '../../src/services/daily';
+import {
+  localDateKey,
+  previousDateKey,
+} from '../../src/services/daily';
+import type { DailyRecord } from '../../src/services/storage';
 
 // The entry is `__DEV__`-gated (N-UI-01), which is the point — so the harness has to
 // stand where a dev build stands. An undefined `__DEV__` renders no dev row at all.
@@ -163,47 +184,222 @@ vi.mock('../../src/render/textures/bakeGlowSprites', () => ({
 }));
 
 /**
- * The props the host last handed `GameScreen`. Captured rather than rendered: the
- * mock below collapses the whole screen to its dev-row slot so the `__DEV__` daily
- * entry is pressable, which also means the real panel never mounts. Asserting the
- * props is what remains provable here about "the panel is rendered from the stored
- * record" — the markup itself is plan 12-05's component test.
+ * Every `generate` call the host makes, recorded by a PASSTHROUGH mock.
+ *
+ * Passthrough and not a stub: the boards below must stay the boards a device would get
+ * for those dates, which is what makes the same-date / different-date case mean
+ * anything. All this wrapper adds is a count, and the count is what the closed-date
+ * case needs — "no run started" is weaker than "no board was generated", and an
+ * implementation that generated a board and threw it away would satisfy the first
+ * while breaking D-02.
  */
-let lastScreenProps: { mode?: unknown; dailyDateKey?: unknown; score?: unknown } = {};
-
-/** Render the dev row so the `__DEV__` daily entry is pressable. */
-vi.mock('../../src/runtime/GameScreen', () => ({
-  GameScreen: (props: {
-    devLevelSwitch?: unknown;
-    mode?: unknown;
-    dailyDateKey?: unknown;
-    score?: unknown;
-  }) => {
-    lastScreenProps = props;
-    return (props.devLevelSwitch ?? null) as never;
-  },
-}));
-
-const recordRunEnd = vi.fn((args: RecordRunEndArgs) => ({
-  bestByLevel: {},
-  unlocked: [],
-  telemetry: {
-    endless: { bestWave: 0, bestScore: 0 },
-    // 12-01: the host's daily arm reads the POST-MERGE record off this synchronous
-    // return. A mock that omits `daily` silently exercises the fail-soft branch
-    // instead of the real one, which is exactly what the endless harness warns about
-    // for its own `endless` field. Echoing the args is what makes this the STORED
-    // record rather than a second copy of the in-memory run state — D-07 is honoured
-    // here too, so an abandoned daily run gets no entry and does not close the date.
-    daily: {
-      history:
-        args.mode === 'daily' &&
-        (args.outcome === 'win' || args.outcome === 'lose')
-          ? [{ date: args.date, score: args.score, outcome: args.outcome }]
-          : [],
+const generateCalls: (string | number)[] = [];
+vi.mock('../../src/levelgen', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/levelgen')>();
+  return {
+    ...actual,
+    generate: (seed: string | number, difficulty: number) => {
+      generateCalls.push(seed);
+      return actual.generate(seed, difficulty);
     },
-  },
-}));
+  };
+});
+
+/**
+ * A switch that forces today's board to fail compilation, for the board-failure variant.
+ *
+ * Also a passthrough: the campaign level load and every non-forced daily board still go
+ * through the real pipeline, so the failure case is the ONLY thing this changes.
+ */
+let forceBoardFailure = false;
+vi.mock('../../src/runtime/loadLevel', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/runtime/loadLevel')>();
+  return {
+    ...actual,
+    compileGeneratedLevel: (raw: Parameters<
+      typeof actual.compileGeneratedLevel
+    >[0]) =>
+      forceBoardFailure
+        ? ({
+            ok: false,
+            issues: [{ path: 'induced', message: 'induced board failure' }],
+          } as ReturnType<typeof actual.compileGeneratedLevel>)
+        : actual.compileGeneratedLevel(raw),
+  };
+});
+
+/**
+ * The props the host last handed `GameScreen`. Captured rather than rendered: the
+ * mock below collapses the whole screen to its dev-row slot plus the controls the host
+ * owns, which also means the real panel never mounts. Asserting the props is what
+ * remains provable here about "the panel is rendered from the stored record" — the
+ * markup itself is `tests/ui/DailyResultOverlay.test.tsx`.
+ */
+type HostProps = {
+  devLevelSwitch?: unknown;
+  mode?: unknown;
+  result?: unknown;
+  dailyDateKey?: unknown;
+  score?: unknown;
+  dailyStreak?: unknown;
+  dailyLongestStreak?: unknown;
+  dailyTotalDaysPlayed?: unknown;
+  dailyEndedStreakLength?: unknown;
+  dailyNowMs?: unknown;
+  dailyNextBoundaryMs?: unknown;
+  dailyBoardFailed?: unknown;
+  levelError?: unknown;
+  uiPhase?: unknown;
+  onRetry?: () => void;
+  onMenu?: () => void;
+  onPause?: () => void;
+};
+let lastScreenProps: HostProps = {};
+
+/**
+ * Render the dev row AND the controls the host owns.
+ *
+ * The 12-01 mock rendered only `devLevelSwitch`, which is why no case could press
+ * Pause, Retry or Menu — and the four abandoned boundaries all live behind those. The
+ * same `onRetry` is passed once by the host and serves both the pause panel and the
+ * result panel, so the two are distinctly labelled here: a case must say which panel it
+ * pressed even though the handler is one function.
+ */
+vi.mock('../../src/runtime/GameScreen', async () => {
+  const react = await import('react');
+  const { Pressable, Text } = await import('react-native');
+  return {
+    GameScreen: (props: HostProps) => {
+      lastScreenProps = props;
+      const children: ReturnType<typeof react.createElement>[] = [
+        react.createElement(
+          react.Fragment,
+          { key: 'dev' },
+          (props.devLevelSwitch ?? null) as never,
+        ),
+        react.createElement(
+          Pressable,
+          {
+            key: 'pause',
+            accessibilityRole: 'button',
+            accessibilityLabel: 'Pause game',
+            onPress: props.onPause,
+          },
+          react.createElement(Text, null, 'Pause'),
+        ),
+      ];
+      if (props.uiPhase === 'paused') {
+        children.push(
+          react.createElement(
+            Pressable,
+            {
+              key: 'pause-retry',
+              accessibilityRole: 'button',
+              accessibilityLabel: 'Pause panel Retry',
+              onPress: props.onRetry,
+            },
+            react.createElement(Text, null, 'Pause panel Retry'),
+          ),
+          react.createElement(
+            Pressable,
+            {
+              key: 'pause-menu',
+              accessibilityRole: 'button',
+              accessibilityLabel: 'Pause panel Menu',
+              onPress: props.onMenu,
+            },
+            react.createElement(Text, null, 'Pause panel Menu'),
+          ),
+        );
+      }
+      if (props.result != null) {
+        children.push(
+          react.createElement(
+            Pressable,
+            {
+              key: 'panel-menu',
+              accessibilityRole: 'button',
+              accessibilityLabel: 'Panel Menu',
+              onPress: props.onMenu,
+            },
+            react.createElement(Text, null, 'Panel Menu'),
+          ),
+        );
+      }
+      return react.createElement(react.Fragment, null, ...children) as never;
+    },
+  };
+});
+
+function emptyDaily(): DailyRecord {
+  return {
+    history: [],
+    longestStreak: 0,
+    totalDaysPlayed: 0,
+    currentStreakStart: '',
+  };
+}
+
+/**
+ * The STORED daily record the mocked store hands back from BOTH `getSnapshot` and
+ * `recordRunEnd`.
+ *
+ * One fixture behind both, deliberately. 12-UI-SPEC § The panel is a pure function of
+ * the stored daily record requires the just-finished path and the re-opened path to
+ * render from the same thing; a harness that fed them from two objects could not tell
+ * an implementation that renders from in-memory run state apart from one that does not.
+ */
+let dailyFixture: DailyRecord = emptyDaily();
+
+/** Seed three consecutive closed dates ending at `date` — a live 3-day streak. */
+function seedClosedThrough(date: string, score: number): void {
+  const d1 = previousDateKey(previousDateKey(date));
+  const d2 = previousDateKey(date);
+  dailyFixture = {
+    history: [
+      { date: d1, score: 100, outcome: 'win' },
+      { date: d2, score: 200, outcome: 'win' },
+      { date, score, outcome: 'win' },
+    ],
+    longestStreak: 3,
+    totalDaysPlayed: 3,
+    currentStreakStart: d1,
+  };
+}
+
+const recordRunEnd = vi.fn((args: RecordRunEndArgs) => {
+  // D-07 is honoured in the fixture itself: an `abandoned` daily run accumulates
+  // telemetry but gets NO history entry, so it does not close the date. That is what
+  // makes "the date stays open" a property of this harness rather than an assertion
+  // the harness could not falsify.
+  if (
+    args.mode === 'daily' &&
+    (args.outcome === 'win' || args.outcome === 'lose')
+  ) {
+    const history = dailyFixture.history.filter((e) => e.date !== args.date);
+    history.push({ date: args.date, score: args.score, outcome: args.outcome });
+    history.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    dailyFixture = {
+      history,
+      longestStreak: Math.max(dailyFixture.longestStreak, history.length),
+      totalDaysPlayed: history.length,
+      currentStreakStart: history[0]!.date,
+    };
+  }
+  return {
+    bestByLevel: {},
+    unlocked: [],
+    telemetry: {
+      endless: { bestWave: 0, bestScore: 0 },
+      // 12-01: the host's daily arm reads the POST-MERGE record off this synchronous
+      // return. A mock that omits `daily` silently exercises the fail-soft branch
+      // instead of the real one, which is exactly what the endless harness warns about
+      // for its own `endless` field.
+      daily: dailyFixture,
+    },
+  };
+});
 vi.mock('../../src/services/storage', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../src/services/storage')>();
@@ -217,7 +413,7 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
           unlocked: [],
           telemetry: {
             endless: { bestWave: 0, bestScore: 0 },
-            daily: { history: [] },
+            daily: dailyFixture,
           },
         }),
       recordRunEnd,
@@ -313,12 +509,21 @@ async function deliverPhase(
   });
 }
 
-async function mountAndStartDaily(): Promise<void> {
+const hostOnMenu = vi.fn();
+
+/**
+ * Mount the host and settle the cold path. Does NOT press `Daily`.
+ *
+ * `runAllTimers()` is correct HERE and only here: no daily panel exists yet, so no
+ * 60-second interval is live. See the file header for why that distinction is not a
+ * detail.
+ */
+async function mountHost(): Promise<void> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
   render(
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
-      onMenu: () => {},
+      onMenu: hostOnMenu,
     }),
   );
   await act(async () => {
@@ -335,6 +540,11 @@ async function mountAndStartDaily(): Promise<void> {
   retry.mockClear();
   advanceWave.mockClear();
   recordRunEnd.mockClear();
+  hostOnMenu.mockClear();
+  generateCalls.length = 0;
+}
+
+async function pressDaily(): Promise<void> {
   await act(async () => {
     fireEvent.click(
       screen.getByRole('button', { name: "Open today's daily challenge" }),
@@ -343,11 +553,37 @@ async function mountAndStartDaily(): Promise<void> {
   });
 }
 
+async function press(name: string): Promise<void> {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name }));
+    await Promise.resolve();
+  });
+}
+
+async function mountAndStartDaily(): Promise<void> {
+  await mountHost();
+  await pressDaily();
+}
+
+/** The daily arm calls to `recordRunEnd`, narrowed. */
+function dailyCalls(): { date: string; outcome: string; score: number }[] {
+  return recordRunEnd.mock.calls
+    .map((c) => c[0])
+    .filter((a): a is Extract<RecordRunEndArgs, { mode: 'daily' }> =>
+      a.mode === 'daily',
+    )
+    .map((a) => ({ date: a.date, outcome: a.outcome, score: a.score }));
+}
+
 describe('PlayingHost daily run (behaviour)', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     seq = 0;
     lastScreenProps = {};
+    dailyFixture = emptyDaily();
+    forceBoardFailure = false;
+    generateCalls.length = 0;
+    hostOnMenu.mockClear();
   });
 
   afterEach(() => {
@@ -465,5 +701,256 @@ describe('PlayingHost daily run (behaviour)', () => {
       firstB,
       'and the next date must give a different one — a board that ignored the date would be the same every day',
     ).not.toBe(firstA);
+  });
+});
+
+/**
+ * 12-05 Task 3 — the run boundaries (12-UI-SPEC § Run boundaries (daily)).
+ *
+ * Two assertions in here are the deliberate INVERSE of the adjacent endless code, and
+ * both say so where they sit, because copying the analog by pattern gets them backwards:
+ * the closed-date case asserts the generator was NOT called, and the retry case asserts
+ * the board fingerprint is the SAME across a restart where the endless harness asserts
+ * two runs DIFFER.
+ */
+describe('PlayingHost daily run boundaries (12-05)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    seq = 0;
+    lastScreenProps = {};
+    dailyFixture = emptyDaily();
+    forceBoardFailure = false;
+    generateCalls.length = 0;
+    hostOnMenu.mockClear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    sharedValues.length = 0;
+    reactions.length = 0;
+    setActive.mockClear();
+    retry.mockClear();
+    advanceWave.mockClear();
+    recordRunEnd.mockClear();
+  });
+
+  it('a closed date is READ-ONLY: it renders the stored panel, generates no board and writes nothing (D-02 / SC-2)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    const today = localDateKey(DAY_A_NOON);
+    seedClosedThrough(today, 4242);
+
+    await mountHost();
+    await pressDaily();
+    now.mockRestore();
+
+    expect(
+      generateCalls,
+      'D-02: a date with a stored result is read-only. Asserting only that no run started would pass against an implementation that generated a board and threw it away',
+    ).toEqual([]);
+    expect(
+      recordRunEnd,
+      'and nothing is written — a re-open must not touch the record it is reading',
+    ).not.toHaveBeenCalled();
+    expect(
+      compiledBoard(),
+      'no generated board reached compiledSv, so the campaign board behind the panel is untouched',
+    ).toBeNull();
+    expect(lastScreenProps.mode).toBe('daily');
+    expect(
+      lastScreenProps.result,
+      'the panel is showing, from the stored outcome for that date',
+    ).toBe('win');
+  });
+
+  it('the closed date panel renders the STORED scalars, through the same path the just-finished panel takes (SC-2)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    const today = localDateKey(DAY_A_NOON);
+    seedClosedThrough(today, 4242);
+
+    await mountHost();
+    await pressDaily();
+    now.mockRestore();
+
+    expect(lastScreenProps.dailyDateKey).toBe(today);
+    expect(
+      lastScreenProps.score,
+      'the score comes off the stored entry, not off live run state — there is no live run',
+    ).toBe(4242);
+    expect(lastScreenProps.dailyStreak).toBe(3);
+    expect(lastScreenProps.dailyLongestStreak).toBe(3);
+    expect(lastScreenProps.dailyTotalDaysPlayed).toBe(3);
+    expect(
+      lastScreenProps.dailyEndedStreakLength,
+      'the previous stored date is this one minus a day, so the streak CONTINUED and the line is omitted',
+    ).toBeNull();
+    expect(
+      lastScreenProps.dailyNextBoundaryMs,
+      'the countdown has a boundary to count to',
+    ).toBeGreaterThan(0);
+  });
+
+  it('an open date is still playable and still starts a run — the closed-date branch is not a blanket block', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    // Yesterday is closed; today is not.
+    seedClosedThrough(previousDateKey(localDateKey(DAY_A_NOON)), 900);
+
+    await mountHost();
+    await pressDaily();
+    now.mockRestore();
+
+    expect(
+      generateCalls,
+      'the generator ran exactly once, for TODAY — a non-vacuity control for the case above',
+    ).toEqual([localDateKey(DAY_A_NOON)]);
+    expect(compiledBoard()).not.toBeNull();
+  });
+
+  it('pause then Retry records the run as abandoned and restarts the SAME board, leaving the date open (D-08 / D-09)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+    const before = boardFingerprint();
+
+    await press('Pause game');
+    await press('Pause panel Retry');
+    now.mockRestore();
+
+    const calls = dailyCalls();
+    expect(calls.length, 'exactly one recorded run').toBe(1);
+    expect(calls[0]!.outcome).toBe('abandoned');
+    expect(calls[0]!.date).toBe(localDateKey(DAY_A_NOON));
+    expect(
+      dailyFixture.history,
+      'D-07: abandoning does not close the date — a real interruption must not cost the player their day',
+    ).toEqual([]);
+    expect(
+      boardFingerprint(),
+      'the DELIBERATE INVERSE of the endless harness, which asserts two runs differ because it re-mints the seed per run. The daily board is a pure function of the date key and of nothing else (SC-1)',
+    ).toBe(before);
+    expect(before).not.toBe('none');
+  });
+
+  it('pause then Menu records the run as abandoned and leaves the date open (D-07)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+
+    await press('Pause game');
+    await press('Pause panel Menu');
+    now.mockRestore();
+
+    const calls = dailyCalls();
+    expect(calls.length).toBe(1);
+    expect(calls[0]!.outcome).toBe('abandoned');
+    expect(dailyFixture.history).toEqual([]);
+    expect(hostOnMenu, 'and it still leaves to Title').toHaveBeenCalledTimes(1);
+  });
+
+  it('a dev-row level press during a live daily run records it as abandoned and exits daily (D-09)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+
+    await press('Switch level, current level-01');
+    now.mockRestore();
+
+    const calls = dailyCalls();
+    expect(
+      calls.length,
+      '11-VERIFICATION gap 1 for a third mode: a new entry point is a new caller with the same obligation',
+    ).toBe(1);
+    expect(calls[0]!.outcome).toBe('abandoned');
+    expect(dailyFixture.history).toEqual([]);
+    expect(lastScreenProps.mode, 'and the host has left daily').toBe(
+      'campaign',
+    );
+  });
+
+  it('a dev session remount during a live daily run records it as abandoned and exits daily (D-09)', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+
+    await press('Force quality tier, current Auto mid');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    now.mockRestore();
+
+    const calls = dailyCalls();
+    expect(calls.length).toBe(1);
+    expect(calls[0]!.outcome).toBe('abandoned');
+    expect(dailyFixture.history).toEqual([]);
+    expect(lastScreenProps.mode).toBe('campaign');
+  });
+
+  it("a board that cannot be built keeps the date OPEN and renders the failure variant, never the level-error overlay", async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    forceBoardFailure = true;
+
+    await mountHost();
+    await pressDaily();
+    now.mockRestore();
+
+    expect(
+      recordRunEnd,
+      'nothing was played, so nothing may be written — the date stays open',
+    ).not.toHaveBeenCalled();
+    expect(dailyFixture.history).toEqual([]);
+    expect(lastScreenProps.mode).toBe('daily');
+    expect(
+      lastScreenProps.dailyBoardFailed,
+      'the panel takes the board-failure variant: the accent-white Daily heading, Retry then Menu',
+    ).toBe(true);
+    expect(
+      lastScreenProps.result,
+      'the result chrome is raised so the panel is reachable, exactly as the shipped endless start-failure does it',
+    ).not.toBeNull();
+    expect(
+      lastScreenProps.levelError,
+      'LevelErrorOverlay has no controls and would trap the player with no exit',
+    ).toBeNull();
+  });
+
+  it('the countdown instant refreshes on the 60-second tick while the panel is open, and no interval runs while it is closed', async () => {
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+
+    // No panel yet: the interval must not exist. `advanceTimersByTime` rather than
+    // `runAllTimers` throughout — see the file header.
+    await act(async () => {
+      vi.advanceTimersByTime(180_000);
+      await Promise.resolve();
+    });
+    expect(
+      lastScreenProps.result,
+      'still mid-run, so no daily panel is open',
+    ).toBeNull();
+
+    await deliverPhase(SIM.WON, { score: 1200 });
+    const atPublish = lastScreenProps.dailyNowMs;
+    expect(atPublish).toBe(DAY_A_NOON);
+
+    now.mockReturnValue(DAY_A_NOON + 180_000);
+    await act(async () => {
+      vi.advanceTimersByTime(180_000);
+      await Promise.resolve();
+    });
+    now.mockRestore();
+
+    expect(
+      lastScreenProps.dailyNowMs,
+      'the countdown recomputes from a FRESH clock read — derived, never accumulated',
+    ).toBe(DAY_A_NOON + 180_000);
+    expect(
+      lastScreenProps.dailyNextBoundaryMs,
+      'and the boundary stays pinned to the shown date, so the remainder can actually reach zero',
+    ).toBe(lastScreenProps.dailyNextBoundaryMs);
   });
 });
