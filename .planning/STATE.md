@@ -2,11 +2,11 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-09-28T01:48:20.613Z"
-state_head: f880fd07e43eb4e26d5622961e98dca365aeb411
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-09-28T02:07:38.275Z"
+state_head: e225830db1dfdf8a6f892f0a1598b54ae78f8aeb
 progress:
   total_phases: 6
   completed_phases: 0
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 6
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
@@ -129,6 +129,7 @@ Total Plans in Phase: 6
 | Phase 11 P20 | 13 min | 3 tasks | 5 files |
 | Phase 11 P21 | 11 min | 3 tasks | 5 files |
 | Phase 12 P01 | 17 min | 1 tasks | 15 files |
+| Phase 12 P02 | 19 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,6 @@ Total Plans in Phase: 6
 
 ## Session Continuity
 
-Last session: 2026-09-28T01:48:12.821Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-09-28T02:07:38.241Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
