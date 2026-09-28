@@ -103,9 +103,9 @@ export type GameScreenProps = {
    * that crosses this boundary — `src/runtime` never imports the storage layer, and the
    * id-to-name mapping happens one tier up in `app/_components/PlayingHost.tsx`.
    *
-   * `DailyResultOverlay` gains the prop in plan 13-04; until then only the
-   * `ResultOverlay` arm below receives it, because wiring an arm to a prop the component
-   * does not declare would not compile.
+   * BOTH arms of the result route below receive it as of plan 13-04, which is what
+   * makes the sentence above true: a player finishing today's daily board is told what
+   * they earned on the panel they are actually looking at, not on the one they are not.
    */
   unlockedAchievements?: readonly string[];
   /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
@@ -295,6 +295,7 @@ export function GameScreen({
               endedStreakLength={dailyEndedStreakLength}
               nowMs={dailyNowMs}
               nextBoundaryMs={dailyNextBoundaryMs}
+              unlockedAchievements={unlockedAchievements}
               onRetry={dailyBoardFailed ? onRetry : null}
               onMenu={onMenu}
             />

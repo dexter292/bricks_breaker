@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { achievementLines } from './achievementLines';
 
 /**
  * The Daily Result panel (N-DAILY-02 / N-DAILY-03 / D-06 / D-10 / D-12 / D-17;
@@ -227,6 +228,22 @@ type Props = {
    * `onNext` precedent — the control is absent rather than gated off when it is absent,
    * because a control that cannot work must not render.
    */
+  /**
+   * Achievement DISPLAY NAMES newly unlocked by this run, in catalog declaration order
+   * (N-ACH-03 / D-06 / D-08). Defaults to empty; empty renders NOTHING.
+   *
+   * Display-name strings and nothing else. Never an achievement id, never a catalog
+   * record, never an unlock record, never a `TelemetryBlob` field, never a timestamp.
+   * The host maps ids to names in the `app` tier because `eslint.config.js`
+   * `boundaries/dependencies` forbids `src/runtime` importing `src/services` — and
+   * `npm run lint` is the ONLY thing observing that boundary. No unit test does; do not
+   * add a comment claiming one does.
+   *
+   * The order is the host's and is never re-sorted here — see `achievementLines`, which
+   * `ResultOverlay.tsx` renders from too. The block on the two panels is ONE block from
+   * ONE function, not two designs that happen to agree today.
+   */
+  unlockedAchievements?: readonly string[];
   onRetry?: (() => void) | null;
   onMenu: () => void;
 };
@@ -241,6 +258,7 @@ export function DailyResultOverlay({
   endedStreakLength,
   nowMs,
   nextBoundaryMs,
+  unlockedAchievements = [],
   onRetry = null,
   onMenu,
 }: Props) {
@@ -281,12 +299,18 @@ export function DailyResultOverlay({
     >
       <View style={styles.panel}>
         {/*
-          12-UI-SPEC § Daily Result panel, "line order is contract": heading → body →
-          `Daily ·` → `Score ·` → `Streak ·` → `Best streak ·` → `Days played ·` →
-          the streak-ended line → the badge → the countdown → `Menu`. The order reads
-          as what happened → to which date → what today scored → the streak block →
-          what was lost → what was gained → when the next one comes → the way out.
-          `·` is U+00B7 MIDDLE DOT, matching every shipped metric line.
+          12-UI-SPEC § Daily Result panel, "line order is contract", EXTENDED by
+          13-UI-SPEC § Where the block sits: heading → body → `Daily ·` → `Score ·` →
+          `Streak ·` → `Best streak ·` → `Days played ·` → the streak-ended line →
+          the badge → the unlock block → the countdown → `Menu`. The order reads as
+          what happened → to which date → what today scored → the streak block →
+          what was lost → what was gained → WHAT YOU EARNED → when the next one comes
+          → the way out. `·` is U+00B7 MIDDLE DOT, matching every shipped metric line.
+
+          The unlock block goes ABOVE the countdown, which is the one placement choice
+          in this row that was available to get wrong: 12-UI-SPEC put the countdown
+          last on purpose, "so it reads as a footnote", and an unlock is not a
+          footnote.
 
           Each optional line is a ternary to `null`, never a disabled or greyed
           variant — the shipped conditional-line pattern.
@@ -349,6 +373,58 @@ export function DailyResultOverlay({
             <Text style={styles.badgeLabel}>Best streak ever</Text>
           </View>
         ) : null}
+        {/*
+          13-UI-SPEC § Where the block sits and § When the block is suppressed. The
+          identical block `ResultOverlay.tsx` renders, from the identical call: if the
+          two panels' JSX bodies ever differ in anything but their surrounding
+          placement, one of them is wrong.
+
+          No divider, no rule, no extra gap at either seam, and ZERO new `StyleSheet`
+          entries — the lines take `styles.metric` verbatim, the last one's
+          `marginBottom: 8` and the countdown's own `marginBottom: 8` are the existing
+          rhythm, unchanged.
+
+          The lines may NEVER take `styles.streakEnded`'s `#E85D5D`: 12-UI-SPEC
+          extended destructive red to exactly one element on an explicitly semantic
+          argument, an unlock is the opposite of a loss, and on a real day a red
+          streak-ended line and a white unlock line co-render — colouring them alike
+          would misreport that day. They may never take the badge's `#F2CC8F` either;
+          the record slot is one slot.
+
+          Gated on the EXISTING `isClosed`, never on a new flag, per the one-flag rule
+          already written above it: the block describes a RUN, and on a board failure
+          nothing was played, nothing was written, `recordRunEnd` never ran and the
+          date is still open. A second flag meaning "is there a run" is a second place
+          for the answer to drift.
+
+          The single-line clamp on each line below is a DELIBERATE deviation from every
+          other line in both panels, and its prose is written WITHOUT the attribute form
+          on purpose: the gate that pins it to exactly one occurrence in this file is a
+          grep, and a grep — unlike the eslint blocks elsewhere in this tree — cannot
+          tell a comment from an AST node, so naming the attribute here would
+          self-invalidate the count. It is the BACKSTOP, not the gate; the gate is the
+          catalog-length assertion over `ACHIEVEMENT_NAME_MAX`. What it buys is a
+          strictly better failure: a catalog authoring mistake becomes "a name is
+          visibly truncated" rather than "`Menu` is clipped off a panel that cannot
+          scroll".
+
+          `line.kind` is the discriminant and is READ, never re-derived from the text.
+          The key pairs it with the position because the two-name case renders two
+          `'name'` lines and `kind` alone would collide; the text is not usable as a key
+          either, since the classifier deliberately never de-duplicates its input.
+        */}
+        {isClosed
+          ? achievementLines(unlockedAchievements).map((line, i) => (
+              <Text
+                key={`${line.kind}-${i}`}
+                style={styles.metric}
+                numberOfLines={1}
+                accessibilityLabel={line.label}
+              >
+                {line.text}
+              </Text>
+            ))
+          : null}
         {countdown.kind !== 'omit' ? (
           <Text style={styles.metric} accessibilityLabel={countdown.label}>
             {countdown.text}
