@@ -211,13 +211,13 @@ Plans:
   4. An unlock is surfaced to the player at a point that does not interrupt a live rally
   5. The catalog covers the shipped verbs and all three modes (campaign, endless, daily), not just score thresholds
 
-**Plans:** 5 plans in 4 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 1/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
 **Wave 1**
 
-- [ ] 13-01-PLAN.md — Tracer: one achievement end to end — catalog as data with a pure predicate over a structurally-compatible snapshot (D-20), evaluated once inside `recordRunEnd` outside every mode gate (D-01/D-12), persisted with its timestamp, and returned as a set difference on a widened `recordRunEnd` (D-19/D-02) to `Unlocked · {name}` on `ResultOverlay` (wave 1)
+- [x] 13-01-PLAN.md — Tracer: one achievement end to end — catalog as data with a pure predicate over a structurally-compatible snapshot (D-20), evaluated once inside `recordRunEnd` outside every mode gate (D-01/D-12), persisted with its timestamp, and returned as a set difference on a widened `recordRunEnd` (D-19/D-02) to `Unlocked · {name}` on `ResultOverlay` (wave 1)
 
 **Wave 2**
 

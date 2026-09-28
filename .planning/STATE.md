@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: Not started
+current_plan: 2
 status: in_progress
-stopped_at: Phase 12 complete, ready to plan Phase 11
-last_updated: "2026-09-28T13:09:29.449Z"
-state_head: 2c12dba2d299999dab9fab62850fe7b0f37372ed
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-09-28T13:40:28.597Z"
+state_head: 92302369f268089c559655df3bbebc609ef79f67
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 43
-  completed_plans: 38
-  percent: 0
+  completed_plans: 39
+  percent: 17
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
@@ -37,8 +37,8 @@ progress:
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
 last_activity: 2026-09-25
-current_phase_name: achievements
 current_phase: 13
+current_phase_name: Achievements
 ---
 
 # Project State
@@ -48,11 +48,11 @@ current_phase: 13
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** Phase 12 — Daily Challenge
+**Current focus:** Phase 13 — Achievements
 
 ## Current Position
 
-Current Plan: Not started
+Current Plan: 2
 Total Plans in Phase: 5
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
@@ -135,6 +135,7 @@ Total Plans in Phase: 5
 | Phase 12 P04 | 18 min | 2 tasks | 4 files |
 | Phase 12 P05 | 26 min | 3 tasks | 12 files |
 | Phase 12 P06 | 9 min | 2 tasks | 3 files |
+| Phase 13 P01 | 62 min | 1 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -274,6 +275,9 @@ Total Plans in Phase: 5
 - [Phase 12]: docs/ops/DAILY-CHALLENGE.md records the falsified midday-anchor rationale as a preserved measurement (38355 dates, 15 zones, 0 differences) so a later reader does not correct it back
 - [Phase 12]: max-and-union is documented as lossy with its worked under-count (500/10/410 -> 500 where the truth is 510), never as exact
 - [Phase 12]: Five device verifications that existed only in prose were appended to WINDOWS (20-24); entry 14 was marked fixed after verifying the close mechanically
+- [Phase 13]: 13-01: recordRunEnd widens its return to RecordRunEndResult, carrying this write's newly-unlocked ids (D-19) — The set difference cannot cross the store boundary any other way: once the union is persisted it is gone, and a host pre-read is the extra storage read D-01 avoided. Measured blast radius: exactly two lines, and the four mocked-store harnesses do NOT break, so every consumer must fail soft.
+- [Phase 13]: 13-01: the unlock merge keys whole {id, at} records and the EARLIEST timestamp wins (D-22) — The inversion of mergeDailyRecords' incoming-wins tiebreak. Last-writer-wins moves the timestamp forward and D-14 stores it precisely so Phase 14 can show a recency order. Reducing over all timestamps instead of per id is the phase-12 cross-wiring defect in a new place.
+- [Phase 13]: 13-01: a named control must have a command whose output MOVES with the control's presence — npm run lint exits 0 against a clean src/services/achievements/ whether or not the purity block exists, so the __purity_probe gate (5 with the block, 0 without) is the control and the lint run is not. Corollary found in execution: an AST-level gate tolerates prose naming the banned construct; a grep-level gate does not.
 
 ### Decisions (Post-MVP close)
 
@@ -310,6 +314,6 @@ Total Plans in Phase: 5
 
 ## Session Continuity
 
-Last session: 2026-09-28T04:17:59.800Z
-Stopped at: Phase 12 complete, ready to plan Phase 11
+Last session: 2026-09-28T13:40:04.697Z
+Stopped at: Completed 13-01-PLAN.md
 Resume file: None
