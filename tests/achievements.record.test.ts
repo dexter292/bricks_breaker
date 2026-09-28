@@ -42,6 +42,7 @@ import {
   PLAYABLE_LEVEL_ORDER,
   createMemoryProgressStore,
   defaultRunStatsInput,
+  defaultTelemetryAggregate,
   defaultTelemetryBlob,
   type ProgressStore,
   type RunStatsInput,
@@ -82,10 +83,28 @@ const TODAY = '2026-09-27';
  */
 const QUALIFYING_BRICKS = 1_000_000;
 
-/** The post-run telemetry a single `QUALIFYING_BRICKS` run produces, near enough. */
+/**
+ * The post-run telemetry a single `QUALIFYING_BRICKS` CAMPAIGN WIN produces, near enough.
+ *
+ * **The `byMode.campaign` region is modelled and must stay modelled (13-02).** Plan 13-01's
+ * catalog held one entry reading `lifetime` alone, so a fixture that set one lifetime
+ * counter described the whole evaluation. D-12 made the catalog mode-aware: a campaign win
+ * with no lives lost now qualifies for a campaign-only entry too, so a fixture naming only
+ * `lifetime` computes an `EXPECTED_IDS` SMALLER than the store's real result and the
+ * cardinality assertions below red on a plan that contains no defect. The fixture describes
+ * the run the cases actually drive — one win on `PLAYABLE_LEVEL_ORDER[0]`, no lives lost —
+ * and no id or threshold is named here either way.
+ */
 function qualifyingTelemetry() {
   const t = defaultTelemetryBlob();
   t.lifetime.bricksBroken = QUALIFYING_BRICKS;
+  t.lifetime.runsPlayed = 1;
+  t.lifetime.runsWon = 1;
+  const level = defaultTelemetryAggregate();
+  level.bricksBroken = QUALIFYING_BRICKS;
+  level.runsPlayed = 1;
+  level.runsWon = 1;
+  t.byMode.campaign[PLAYABLE_LEVEL_ORDER[0]!] = level;
   return t;
 }
 
@@ -270,13 +289,21 @@ function recordSuite(label: string, makeStore: () => ProgressStore): void {
       // NON-DEFAULT — the `tests/storage.daily-firewall.test.ts` idiom. Its bricks are
       // deliberately far below the threshold, so this run unlocks nothing and the daily
       // run below is unambiguously the write under test.
+      //
+      // **It loses one life, and that is load-bearing rather than incidental (13-02).**
+      // The catalog is mode-aware from plan 13-02: a campaign win with ZERO lives lost is
+      // itself a skill-gated achievement, so a spotless seeding run would unlock something
+      // and the guard below would red — correctly, since the case would then be measuring
+      // the seed rather than the daily run. Losing a life keeps the seed silent without
+      // naming an id or a threshold, and `stars` derives from `livesRemaining`, so the
+      // per-level best this case preserves is unchanged.
       const seed = store.recordRunEnd({
         mode: 'campaign',
         levelId: first,
         score: 100,
         outcome: 'win',
         livesRemaining: 2,
-        stats: runStats({ bricksBroken: 10 }),
+        stats: runStats({ bricksBroken: 10, livesLost: 1 }),
       });
       expect(
         seed.newlyUnlocked,
