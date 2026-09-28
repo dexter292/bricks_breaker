@@ -31,6 +31,7 @@ import {
   difficultyForWave,
   seedForWave,
 } from '../../src/services/endless';
+import { DAILY_DIFFICULTY, localDateKey } from '../../src/services/daily';
 import {
   UiPhaseNum,
   useGameLoop,
@@ -281,10 +282,26 @@ export function PlayingHost({
    * the callback was last built — the exact staleness `runEndedRef` already exists
    * to avoid (11-RESEARCH § Pitfall 5).
    */
-  const [mode, setMode] = useState<'campaign' | 'endless'>('campaign');
-  const modeRef = useRef<'campaign' | 'endless'>('campaign');
+  const [mode, setMode] = useState<'campaign' | 'endless' | 'daily'>('campaign');
+  const modeRef = useRef<'campaign' | 'endless' | 'daily'>('campaign');
   const [wave, setWave] = useState(1);
   const waveRef = useRef(1);
+  /**
+   * The local calendar date key of the daily run in flight (N-DAILY-01 / D-01).
+   *
+   * A ref for the reason stated above: `applyChrome` and `handleRunEnded` are memoised
+   * and reached from the memoised chrome reaction, so a `useState` read inside either
+   * is the value from whenever the callback was last built. It is written exactly once
+   * per daily start, in the press callback — never during render, because the clock
+   * read that produces it is impure and `react-hooks/purity` fails the build on one
+   * (the same constraint documented below at the wall-clock refs).
+   *
+   * Mirrored into state for the RENDER side (`dailyDateKey` on `GameScreen`): the panel
+   * has to re-render on the flip, and a ref read during render returns the pre-flip
+   * value.
+   */
+  const dailyDateRef = useRef('');
+  const [dailyDateKey, setDailyDateKey] = useState('');
   /** Minted per run in the APP tier — src/levelgen bans wall-clock reads (Pitfall 7). */
   const runSeedRef = useRef(0);
   /** Pitfall 5 idempotency guard: the WON mirror can arrive twice before the advance lands. */
@@ -688,6 +705,20 @@ export function PlayingHost({
     if (modeRef.current === 'endless') {
       return;
     }
+    // 12-01 / N-DAILY-01: the same prohibition, for the same reason, as its own
+    // statement. A daily board is generated from the date key and written straight into
+    // `compiledSv` by `startDailyRun`, so the level LOAD RESULT is not its source
+    // either — letting this effect run on an `fxReady` or `loadResult` change mid-run
+    // would overwrite the live daily board with the campaign level and call `retry()`.
+    //
+    // Deliberately NOT folded into the line above as `!== 'campaign'`: the endless
+    // guard's exact text is a SOURCE CONTRACT pinned by
+    // `tests/ui/PlayingHost.endless-host.test.ts` ("the compiled-push effect is a
+    // no-op during an endless run, gated by ref"), and collapsing the two would delete
+    // the anchor that test reads. One mode, one guard, each falsifiable on its own.
+    if (modeRef.current === 'daily') {
+      return;
+    }
     if (!loadResult.ok) {
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
         console.error('[level]', loadResult.issues);
@@ -748,7 +779,51 @@ export function PlayingHost({
       // snapshotted by the caller at the run boundary — win, lose and abandon all land
       // on this single call site (C2).
       let record: boolean;
-      if (modeRef.current === 'endless') {
+      if (modeRef.current === 'daily') {
+        // 12-UI-SPEC § The panel is a pure function of the stored daily record: WRITE
+        // FIRST, then render the panel FROM THE STORED RECORD — the same render path a
+        // re-open of the same date takes (that read path is plan 12-05's). A
+        // "just-finished" view reading in-memory run state would be a second renderer
+        // for one truth, and if the two can disagree, one of them is wrong and no test
+        // says which.
+        const runDate = dailyDateRef.current;
+        // No badge fires on a daily panel and none can: D-06 gives one attempt per
+        // date, so there is no per-date score to beat, and the lifetime scalars D-16
+        // reserves (longest streak, days played) are plan 12-03's. `record` exists only
+        // for the platform payload below.
+        record = false;
+        const blob = store.recordRunEnd({
+          mode: 'daily',
+          date: runDate,
+          score: runScore,
+          outcome,
+          livesRemaining,
+          stats,
+        });
+        // The same synchronous post-merge read the endless arm does below — the blob
+        // `recordRunEnd` RETURNS already carries the merged `telemetry.daily`, so this
+        // reads the value the merge just produced rather than racing a second
+        // `getSnapshot()`. Fail soft to the run's own values when the entry is absent:
+        // an `abandoned` daily run does not close the date (D-07), so it legitimately
+        // has no stored entry, and a storage failure renders the in-memory result
+        // rather than an error modal — there is no error modal anywhere in this phase.
+        const stored = blob.telemetry?.daily?.history?.find(
+          (e) => e.date === runDate,
+        );
+        setDailyDateKey(stored?.date ?? runDate);
+        setScore(stored?.score ?? runScore);
+        setIsNewRecord(false);
+        // `previousBestRef` is NOT assigned, for the reason the endless arm states
+        // below: it is the CAMPAIGN personal best and a daily run may not move it.
+        //
+        // N-DAILY-03 / SC-5: a daily run has no catalog level, so there is no
+        // `bestByLevel` entry to read stars from (D-12 bans them anyway) and no next
+        // level to unlock. Skipping the whole campaign follow-up is what keeps campaign
+        // state untouched by daily play — and the `daily` arm carries no `levelId`, so
+        // none of it is even reachable.
+        setResultStars(null);
+        setNextGateId(null);
+      } else if (modeRef.current === 'endless') {
         const runWave = waveRef.current;
         // N-END-02 / D-11: strict in BOTH watermarks, and either one is enough. A
         // deeper run at a lower score is unambiguously a new record; firing on only
@@ -1004,6 +1079,13 @@ export function PlayingHost({
       // run-ending WON: a cleared board is a WAVE boundary, so this branch goes
       // ahead of the campaign WON branch and returns in every path, which is what
       // keeps `handleRunEnded` and `setActive(false)` below unreachable on a win.
+      //
+      // 12-01 / D-10: the condition stays PINNED to endless, and that pin is the
+      // whole daily contract at this site. A cleared daily board ENDS the run — it is
+      // one board, not a wave sequence — so daily must fall through to the ordinary
+      // WON branch below. Reaching this intercept from daily would silently advance
+      // the board and leave the date open forever, which is the one way a date can
+      // never close.
       if (modeRef.current === 'endless' && mirror.phase === SIM.WON) {
         // 11-13 — `11-VERIFICATION.md` gap 3. THE missing term, and it is first.
         //
@@ -1426,6 +1508,115 @@ export function PlayingHost({
     advanceToWave,
     clearCountdown,
     failEndlessStart,
+    recordInFlightEndlessRun,
+    retry,
+    setActive,
+    levelReady,
+    levelError,
+    fxReady,
+  ]);
+
+  /**
+   * Start today's daily run (N-DAILY-01 / D-01 / D-10 / D-11).
+   *
+   * `startEndlessRun`-shaped MINUS THE SEED MINT, and that subtraction is the whole
+   * point. The two lines in `startEndlessRun` that re-derive `runSeedRef` from the wall
+   * clock are correct for endless, where a fresh run sequence IS the requirement
+   * (N-END-03), and an outright SC-1 / N-DAILY-01 break here: the daily board is a pure
+   * function of the date key and of nothing else, so the same date must yield the same
+   * board on every device and on every re-entry. `runSeedRef` is not touched.
+   *
+   * The clock is read ONCE, HERE, inside the press callback — never during render.
+   * `reactCompiler` is on and `react-hooks/purity` fails the build on an impure render
+   * call, which this file already documents at the wall-clock refs above. That single
+   * read serves both the date key and the run's wall-clock start, which is also why the
+   * comment-stripped body of this function contains exactly one `Date.now()`: a second
+   * clock read would be a second source of truth for "when is now".
+   *
+   * `generate` takes the key string STRAIGHT THROUGH. It accepts `number | string`
+   * specifically so this phase needs no hashing step (`src/levelgen/rng.ts:78-86`), and
+   * it clamps its own difficulty argument, so `DAILY_DIFFICULTY` cannot escape the
+   * table even if mis-set.
+   *
+   * SCOPE, stated so its absence is not read as an oversight: this is the OPEN-date
+   * entry only. The closed-date read path (D-02: a date with a stored result is
+   * read-only), the abandoned boundaries on Pause/Retry and the dev controls (D-07/D-09)
+   * and the on-screen board-failure variant are plan 12-05's, and none is stubbed here.
+   */
+  const startDailyRun = useCallback(() => {
+    // Same invariant, same position, as `startEndlessRun`'s first statement: FIRST,
+    // above every gate and every write. A no-op from campaign and from daily; from a
+    // LIVE endless run it records the in-flight wave as `abandoned` before this entry
+    // discards it. Without it, pressing `Daily` mid-endless-run silently drops that run
+    // — verbatim the `11-VERIFICATION.md` gap 1 defect, which was caused by wiring the
+    // funnel at some callers instead of at the function that means "a new run starts".
+    recordInFlightEndlessRun();
+    if (!levelReady || levelError != null || !fxReady) {
+      // Do NOT enter daily. Nothing is written, no board is swapped, `modeRef` is not
+      // flipped, and the date therefore stays OPEN (D-01) — the player can press again
+      // once the cold path has finished. The on-screen board-failure variant is plan
+      // 12-05's; fabricating a panel here would be stubbing it, which this plan's scope
+      // explicitly forbids.
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.error('[daily] entry blocked: level or fx not ready');
+      }
+      return;
+    }
+    const nowMs = Date.now();
+    const dateKey = localDateKey(nowMs);
+    const raw = generate(dateKey, DAILY_DIFFICULTY);
+    const compiled = compileGeneratedLevel(raw);
+    if (!compiled.ok) {
+      // Loud in a dev build and terminal for this attempt, exactly as `advanceToWave`
+      // treats the same failure. The generator's own sweep recorded every board
+      // compiling and clearing, which is what makes D-13's "the streak counts dates
+      // PLAYED" safe; this branch is the tripwire for that claim ceasing to hold.
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.error('[daily] generated board failed to compile', compiled.issues);
+      }
+      return;
+    }
+    /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
+    compiledSv.value = compiled.compiled;
+    /* eslint-enable react-hooks/immutability */
+    // The ref AND the state, in that order and both of them, for the reason
+    // `failEndlessStart` states: the compiled-push gate effect and `applyChrome` read
+    // the REF in this same commit, while the overlay re-renders on the STATE.
+    dailyDateRef.current = dateKey;
+    setDailyDateKey(dateKey);
+    modeRef.current = 'daily';
+    setMode('daily');
+    clearCountdown();
+    setCountdownNumeral(null);
+    setResult(null);
+    setWaveBuildFailedWave(null);
+    setIsNewRecord(false);
+    setResultStars(null);
+    setNextGateId(null);
+    runEndedRef.current = false;
+    // The endless in-flight advance guard is cleared for the same reason every path
+    // that BEGINS a run clears it: a latched guard inherited from a previous endless
+    // run would swallow a later boundary.
+    waveAdvanceInFlightRef.current = false;
+    // D-01: every run start is a NEW run — counters and wall clock both start at zero.
+    // `nowMs` is reused rather than re-read; see the single-clock-read note above.
+    runStartedAtRef.current = nowMs;
+    runWallClockMsRef.current = 0;
+    wallClockActiveRef.current = true;
+    setLives(3);
+    setScore(0);
+    setCombo(1);
+    setStallTier(0);
+    setSimPhaseNum(SIM.DOCKED);
+    setUiPhase('playing');
+    // `retry()` is correct HERE for the same reason it is in `startEndlessRun`: it
+    // resets lives, score and combo onto the already-pushed generated board, which is
+    // exactly what a new run is. Daily has no wave boundary to protect them at.
+    retry();
+    setActive(true);
+  }, [
+    clearCountdown,
+    compiledSv,
     recordInFlightEndlessRun,
     retry,
     setActive,
@@ -1986,6 +2177,31 @@ export function PlayingHost({
           <Text style={styles.devSwitchLabel}>Endless</Text>
         </Pressable>
         {/*
+          12-01 / N-UI-01: TEMPORARY, exactly like the `Endless` control it sits beside.
+          Daily has no production entry this phase — Phase 14 ships the real Title route
+          and DELETES this Pressable. Nothing else should grow a dependency on it.
+
+          NO readout beside it, and that is a measured decision rather than an omission:
+          the dev row is `flexDirection: 'row'` with no `flexWrap`, in a slot with a
+          `right` and no `left`, and it is already ~397-404px wide in the two tier states
+          a dev build launches in — past a 375pt viewport before this control is added.
+          `Daily` costs a further ~71px. A `D{n}` counterpart to `W{n}` would spend ~30px
+          more for a number the Daily Result panel already shows.
+
+          Position is contract too: immediately RIGHT OF `Endless` (12-UI-SPEC § Entry
+          point), which keeps the two mode entries adjacent and keeps this phase's own
+          control out of the group pushed past the left edge.
+        */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open today's daily challenge"
+          onPress={startDailyRun}
+          hitSlop={8}
+          style={styles.devSwitch}
+        >
+          <Text style={styles.devSwitchLabel}>Daily</Text>
+        </Pressable>
+        {/*
           11-UI-SPEC § Copywriting → Accessibility labels: a bare `W17` reads as
           nonsense to a screen reader. Visible text, style and the `mode` gate are
           deliberately unchanged — only the label is added.
@@ -2029,6 +2245,9 @@ export function PlayingHost({
         // The `mode` STATE, not `modeRef` — the overlay has to re-render on the flip,
         // and a ref read during render would hand it the pre-flip value.
         mode={mode}
+        // Likewise the `dailyDateKey` STATE, not `dailyDateRef` — the panel renders the
+        // date, so a ref read during render would hand it the pre-flip value.
+        dailyDateKey={dailyDateKey}
         wave={resultWave}
         bestWave={resultBestWave}
         waveBuildFailedWave={waveBuildFailedWave}

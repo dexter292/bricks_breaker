@@ -11,6 +11,7 @@ import { CountdownOverlay } from './overlays/CountdownOverlay';
 import { LevelErrorOverlay } from './overlays/LevelErrorOverlay';
 import { PauseOverlay } from './overlays/PauseOverlay';
 import { ResultOverlay } from './overlays/ResultOverlay';
+import { DailyResultOverlay } from './overlays/DailyResultOverlay';
 
 export type GameScreenUiPhase = 'playing' | 'paused' | 'countdown';
 
@@ -30,11 +31,22 @@ export type GameScreenProps = {
   score: number;
   best: number;
   /**
-   * Which record domain the Results overlay is reading (11-08 / gap 2).
-   * `src/runtime` receives plain numbers and a discriminant — it never imports the
-   * storage layer, so the boundaries matrix is unchanged (LC-05).
+   * Which record domain the Results overlay is reading (11-08 / gap 2; 12-01 adds
+   * `'daily'`). `src/runtime` receives plain numbers and a discriminant — it never
+   * imports the storage layer, so the boundaries matrix is unchanged (LC-05).
+   *
+   * `'daily'` routes to `DailyResultOverlay`, a SEPARATE component.
+   * `ResultOverlay.mode` keeps its two-value type and is never widened (12-UI-SPEC
+   * § A new component) — the route below narrows rather than widening.
    */
-  mode: 'campaign' | 'endless';
+  mode: 'campaign' | 'endless' | 'daily';
+  /**
+   * Daily only — the stored `YYYY-MM-DD` key of the date being shown, rendered
+   * verbatim with no formatting step (N-DAILY-01 / SC-1). Required rather than
+   * defaulted: a blank fallback would render `Daily · ` on a real panel, and the host
+   * always knows the date by the time a daily result exists.
+   */
+  dailyDateKey: string;
   /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
   wave: number;
   /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
@@ -84,6 +96,7 @@ export function GameScreen({
   score,
   best,
   mode,
+  dailyDateKey,
   wave,
   bestWave,
   waveBuildFailedWave = null,
@@ -185,21 +198,38 @@ export function GameScreen({
           <CountdownOverlay numeral={countdownNumeral} />
         ) : null}
 
+        {/*
+          12-UI-SPEC § A new component: daily gets its own overlay rather than a third
+          arm on `ResultOverlay`. The ternary NARROWS — inside the else branch `mode` is
+          `'campaign' | 'endless'`, which is what lets `ResultOverlay.mode` keep its
+          two-value type. Widening that prop instead would put a campaign/endless-shaped
+          `best`, `wave`, `bestWave`, `stars` and `onNext` on a panel for which every
+          one of them is meaningless.
+        */}
         {showResult ? (
-          <ResultOverlay
-            kind={result!}
-            mode={mode}
-            score={score}
-            best={best}
-            wave={wave}
-            bestWave={bestWave}
-            waveBuildFailedWave={waveBuildFailedWave}
-            isNewRecord={isNewRecord}
-            stars={stars}
-            onRetry={onRetry}
-            onMenu={onMenu}
-            onNext={onNext}
-          />
+          mode === 'daily' ? (
+            <DailyResultOverlay
+              kind={result!}
+              dateKey={dailyDateKey}
+              score={score}
+              onMenu={onMenu}
+            />
+          ) : (
+            <ResultOverlay
+              kind={result!}
+              mode={mode}
+              score={score}
+              best={best}
+              wave={wave}
+              bestWave={bestWave}
+              waveBuildFailedWave={waveBuildFailedWave}
+              isNewRecord={isNewRecord}
+              stars={stars}
+              onRetry={onRetry}
+              onMenu={onMenu}
+              onNext={onNext}
+            />
+          )
         ) : null}
 
         {hasLevelError ? <LevelErrorOverlay issues={levelError!} /> : null}

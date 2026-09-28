@@ -40,15 +40,20 @@ const TABLE_LEVELS: readonly LevelId[] = [
   'level-06',
 ];
 
-const MODES = ['campaign', 'endless'] as const;
+const MODES = ['campaign', 'endless', 'daily'] as const;
 const RUN_ENDED = [false, true] as const;
 
 /** The expected answer for every cell, written out rather than computed. */
 function expectedPlan(
-  mode: 'campaign' | 'endless',
+  mode: 'campaign' | 'endless' | 'daily',
   runEnded: boolean,
   levelId: LevelId,
 ): CertLevelPlan {
+  if (mode === 'daily') {
+    // 12-01 / D-10: a daily run is on a DATE-derived generated board, so `levelId`
+    // says nothing about it and no level move can make the deferral discharge.
+    return 'unreachable';
+  }
   if (mode === 'endless') {
     // 11-16 suppressed BOTH endless sub-branches, including the one already on
     // level-03 where the deferral genuinely used to discharge. The mode test comes
@@ -85,7 +90,7 @@ describe('certLevelPlanFor — the cert-level policy over its real domain', () =
     ).toEqual(fromCatalog);
   });
 
-  it('all 20 cells of mode x runEnded x levelId return the documented plan', () => {
+  it('all 30 cells of mode x runEnded x levelId return the documented plan', () => {
     const cells: string[] = [];
     for (const mode of MODES) {
       for (const runEnded of RUN_ENDED) {
@@ -104,8 +109,8 @@ describe('certLevelPlanFor — the cert-level policy over its real domain', () =
     }
     expect(
       cells.length,
-      '2 modes x 2 run states x 5 levels = 20 cells, every one driven. A smaller number means the loop stopped short and the pass above is partial',
-    ).toBe(20);
+      '3 modes x 2 run states x 5 levels = 30 cells, every one driven. A smaller number means the loop stopped short and the pass above is partial. MODES must stay the full GameMode set — 12-01 added daily, and a mode absent from this list slips past the truth table exactly as an absent level would',
+    ).toBe(30);
   });
 
   it('the two gap-relevant cells, by name and with their consequence', () => {

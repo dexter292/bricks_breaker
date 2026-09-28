@@ -331,9 +331,19 @@ describe('PlayingHost endless host (source contract)', () => {
       /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
     );
     const elseAt = runEnded.search(/\n {6}\} else \{\n/);
-    const endlessAt = runEnded.search(
-      /\n {6}if \(modeRef\.current === 'endless'\) \{\n/,
+    // 12-01 put the DAILY arm first, so the endless arm is now an `else if`. The
+    // branch-before-compare order is unchanged and is what both anchors encode: every
+    // mode arm sits ABOVE the campaign `else`, which is where `evaluatePersonalBest`
+    // lives. Re-anchoring rather than widening keeps each arm separately extractable,
+    // which is what lets the source rules below stay per-mode.
+    const dailyAt = runEnded.search(
+      /\n {6}if \(modeRef\.current === 'daily'\) \{\n/,
     );
+    const endlessAt = runEnded.search(
+      /\n {6}\} else if \(modeRef\.current === 'endless'\) \{\n/,
+    );
+    const runEndedDaily =
+      dailyAt < 0 || endlessAt < 0 ? '' : runEnded.slice(dailyAt, endlessAt);
     const runEndedEndless =
       endlessAt < 0 || elseAt < 0 ? '' : runEnded.slice(endlessAt, elseAt);
     const runEndedCampaign = elseAt < 0 ? '' : runEnded.slice(elseAt);
@@ -376,7 +386,18 @@ describe('PlayingHost endless host (source contract)', () => {
       ["remountDevSession's campaign branch", remountCampaign],
       ["toggleDevLevel's exit block", toggleExit],
     ];
-    const named = [...endlessOnly, ...campaignOnly];
+    /**
+     * 12-01 / N-DAILY-03. The daily arm publishes NOTHING to `resultBest`, and that
+     * emptiness is the contract rather than an omission: `DailyResultOverlay` renders
+     * no `Best ·` line at all (one attempt per date means there is no per-date score to
+     * beat), so any publication from this region would be a record belonging to another
+     * mode reaching a panel that has nowhere honest to put it — prohibition 3 of 11-08,
+     * which SC-5 restates for daily.
+     */
+    const dailyOnly = [
+      ["handleRunEnded's daily arm", runEndedDaily] as const,
+    ] as const;
+    const named = [...endlessOnly, ...dailyOnly, ...campaignOnly];
 
     // NON-EMPTY FIRST (11-09 Pattern 2). An anchor that drifts must make this case
     // RED, never vacuously green — a silently-empty region would zero its own counts
@@ -419,6 +440,13 @@ describe('PlayingHost endless host (source contract)', () => {
           `${label} is endless-only, so it may publish only an ENDLESS source — publishing a campaign value here renders a campaign record as the player's endless Best`,
         ).toMatch(ENDLESS_SOURCE);
       }
+    }
+
+    for (const [label, region] of dailyOnly) {
+      expect(
+        sourcesOf(region),
+        `${label} must publish NO setResultBest at all — the daily panel has no Best line, so a publication here is a cross-mode record with nowhere honest to land (N-DAILY-03 / SC-5)`,
+      ).toEqual([]);
     }
 
     // A CAMPAIGN-only region may publish only the campaign cache, the resolved
@@ -1397,7 +1425,7 @@ describe('PlayingHost endless host (source contract)', () => {
    * THE DERIVATION, and a reader can re-run both halves of it against
    * `app/_components/PlayingHost.tsx` after stripping comment lines:
    *
-   *     grep -c 'setActive(true);'   ->  5
+   *     grep -c 'setActive(true);'   ->  6
    *     grep -c 'setLevelId('        ->  3
    *
    * Strip first, always: measured on the round-5 base tree the UNFILTERED re-arm
@@ -1408,11 +1436,19 @@ describe('PlayingHost endless host (source contract)', () => {
    * A level writer arms the loop INDIRECTLY, because the compiled-push gate effect
    * fires on any campaign `levelId` change and ends in `retry(); setActive(true);`.
    *
-   * THE EIGHT MEMBERS, each classified, each naming the assertion below that BINDS
-   * the classification rather than merely claiming it:
+   * THE NINE MEMBERS (eight, plus 12-01's `startDailyRun`), each classified, each
+   * naming the assertion below that BINDS the classification rather than merely
+   * claiming it:
    *
    *  1. `startEndlessRun`          — clears the latch on its own synchronous path,
    *                                  above its own arm. ASSERTION 4.
+   *  1b. `startDailyRun` (12-01)   — the same shape and the same classification: it
+   *                                  begins a run on a generated board, so it clears
+   *                                  the latch above its own arm. Numbered 1b rather
+   *                                  than renumbering the seven below it, so every
+   *                                  cross-reference in this file and in the plans that
+   *                                  cite it still points at the same member.
+   *                                  ASSERTION 4.
    *  2. `onRetry` (campaign)       — same shape, below its endless early return.
    *                                  ASSERTION 4.
    *  3. `remountDevSession` (camp.)— same shape, below its endless early return.
@@ -1485,8 +1521,8 @@ describe('PlayingHost endless host (source contract)', () => {
     // ---- ASSERTION 1: the direct re-arm sites -------------------------------
     expect(
       (src.match(/setActive\(true\)/g) ?? []).length,
-      'FIVE statements arm the frame loop: the compiled-push gate effect, onResume’s countdown terminal timeout, startEndlessRun, onRetry’s campaign branch and remountDevSession’s campaign branch. A SIXTH means a new path re-arms the loop — come here and prove it either clears the run-ended latch on its own synchronous path or is guarded by it',
-    ).toBe(5);
+      'SIX statements arm the frame loop: the compiled-push gate effect, onResume’s countdown terminal timeout, startEndlessRun, startDailyRun, onRetry’s campaign branch and remountDevSession’s campaign branch. 12-01 added startDailyRun and DISCHARGED this message’s obligation the way it asks: it clears the run-ended latch on its own synchronous path, above its own arm, and assertion 4 below binds that rather than taking it on trust. A SEVENTH carries the same obligation',
+    ).toBe(6);
 
     // ---- ASSERTION 2: the indirect re-arm sites ------------------------------
     expect(
@@ -1551,6 +1587,7 @@ describe('PlayingHost endless host (source contract)', () => {
     // clear is the falsification that proves the binding is real.
     for (const name of [
       'startEndlessRun',
+      'startDailyRun',
       'onRetry',
       'remountDevSession',
     ] as const) {

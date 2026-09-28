@@ -144,6 +144,46 @@ export type EndlessRecord = {
  */
 export const ENDLESS_TELEMETRY_KEY = 'endless' as const;
 
+/**
+ * The `byMode.daily` map key (Phase 12 D-15). A plain constant string for the same
+ * reason `ENDLESS_TELEMETRY_KEY` is one — a generated board has no catalog id — and,
+ * additionally, because keying that map by anything that VARIES PER DATE creates a map
+ * with no cap: `sanitizeAggregateMap` (`parseBlob.ts:383-399`) copies every key it
+ * finds on read with no bound, so a per-date key would never be trimmed by anything
+ * downstream. The per-date history belongs in `TelemetryBlob.daily`, which is a bounded
+ * collection.
+ */
+export const DAILY_TELEMETRY_KEY = 'daily' as const;
+
+/** One closed date (D-01) — the date, what it scored, and how it ended. */
+export type DailyHistoryEntry = {
+  /** Local calendar date as `YYYY-MM-DD` (`src/services/daily` `localDateKey`). */
+  date: string;
+  score: number;
+  /**
+   * Deliberately NOT `RunOutcome`: an `abandoned` run accumulates telemetry (D-09) but
+   * does not CLOSE the date (D-07), so it never reaches this history at all.
+   */
+  outcome: 'win' | 'lose';
+};
+
+/**
+ * Daily per-date history (N-DAILY-02 / D-01 / D-15).
+ *
+ * Lives INSIDE `TelemetryBlob` for the same reason `EndlessRecord` does: telemetry is
+ * the one sub-object whose parser is validated independently of its siblings
+ * (`parseBlob.ts` `sanitizeTelemetry`), so a corrupt daily history degrades itself alone
+ * and can never take campaign unlocks or bests with it (SC-5).
+ *
+ * D-16's two unbounded scalars — longest streak ever, total dates played — are additive
+ * to this same record and land with plan 12-03 behind its decision checkpoint. They need
+ * no version bump, exactly as the endless record needed none when it was added to an
+ * existing v4 blob.
+ */
+export type DailyRecord = {
+  history: DailyHistoryEntry[];
+};
+
 export type TelemetryBlob = {
   lifetime: TelemetryAggregate;
   byMode: {
@@ -153,6 +193,8 @@ export type TelemetryBlob = {
   };
   /** Endless running maxima (N-END-02) — written only by `mergeEndlessRecord`. */
   endless: EndlessRecord;
+  /** Daily per-date history (D-15) — written only by `mergeDailyRecord`. */
+  daily: DailyRecord;
   recentRuns: RunLogEntry[];
 };
 
@@ -182,11 +224,17 @@ export function defaultEndlessRecord(): EndlessRecord {
   return { bestWave: 0, bestScore: 0 };
 }
 
+/** Empty daily record — no date has been closed yet. */
+export function defaultDailyRecord(): DailyRecord {
+  return { history: [] };
+}
+
 export function defaultTelemetryBlob(): TelemetryBlob {
   return {
     lifetime: defaultTelemetryAggregate(),
     byMode: { campaign: {}, endless: {}, daily: {} },
     endless: defaultEndlessRecord(),
+    daily: defaultDailyRecord(),
     recentRuns: [],
   };
 }
@@ -273,8 +321,8 @@ export function defaultProgressBlobV3(): ProgressBlobV3 {
  * unlocks, bests or stars") is a property of the type, not of a caller
  * convention that one careless edit can drop.
  *
- * Phase 12 adds the `daily` arm when daily runs exist. Until then `daily` is
- * deliberately excluded rather than silently treated as campaign.
+ * Phase 12 added the `daily` arm below — this union is now the whole mode set, and
+ * `GameMode` no longer has a member that `recordRunEnd` cannot express.
  */
 export type RecordRunEndArgs =
   | {
@@ -295,6 +343,25 @@ export type RecordRunEndArgs =
   | {
       mode: 'endless';
       wave: number;
+      score: number;
+      outcome: RunOutcome;
+      livesRemaining: number;
+      stats: RunStatsInput;
+    }
+  /**
+   * The daily arm carries `date` where the endless arm carries `wave`, and has NO
+   * `levelId` — a generated board has no catalog id (D-12), and that absence is what
+   * makes the campaign write unreachable rather than merely unwritten. `date` and
+   * `score` fold into `telemetry.daily` (N-DAILY-02); nothing on this arm may reach
+   * `bestByLevel`, `unlocked` or `bestScore` (N-DAILY-03 / SC-5).
+   *
+   * `outcome` stays the full `RunOutcome`: an `abandoned` daily run still accumulates
+   * telemetry (D-09), it just does not close the date (D-07), so the narrowing to
+   * win-or-lose happens at the record write, not at this boundary.
+   */
+  | {
+      mode: 'daily';
+      date: string;
       score: number;
       outcome: RunOutcome;
       livesRemaining: number;

@@ -6,9 +6,14 @@ import type {
   ProgressStore,
   RecordRunEndArgs,
 } from './types';
-import { ENDLESS_TELEMETRY_KEY, defaultProgressBlob } from './types';
+import {
+  DAILY_TELEMETRY_KEY,
+  ENDLESS_TELEMETRY_KEY,
+  defaultProgressBlob,
+} from './types';
 import {
   cloneTelemetryBlob,
+  mergeDailyRecord,
   mergeEndlessRecord,
   mergeRunIntoTelemetry,
 } from './telemetry';
@@ -113,10 +118,25 @@ export function createMemoryProgressStore(
         }
       }
       // Telemetry is mode-keyed BY DESIGN and stays OUTSIDE the gate — every mode
-      // accumulates runs/bricks/ticks. A generated endless board has no catalog id,
-      // so it keys on the D-12 constant instead of a LevelId.
+      // accumulates runs/bricks/ticks. A generated endless or daily board has no
+      // catalog id, so each keys on its own constant instead of a LevelId.
+      //
+      // T-12-01 / D-15: the daily branch MUST reach the constant. Keying this map by
+      // anything that varies per calendar day makes it unbounded — `sanitizeAggregateMap`
+      // (parseBlob.ts:383-399) copies every key it finds on read with no cap, so nothing
+      // downstream would ever trim it. The per-day history rides `telemetry.daily`,
+      // which is a bounded collection.
+      //
+      // Keep this ONE `const telemetryKey = …;` expression. Splitting it into an
+      // if/else chain, a switch or a helper moves the decision outside the only place
+      // plan 12-01's D-15 gate can see it (it extracts from `const telemetryKey =` to
+      // the first line ending in `;`).
       const telemetryKey =
-        args.mode === 'endless' ? ENDLESS_TELEMETRY_KEY : args.levelId;
+        args.mode === 'endless'
+          ? ENDLESS_TELEMETRY_KEY
+          : args.mode === 'daily'
+            ? DAILY_TELEMETRY_KEY
+            : args.levelId;
       blob.telemetry = mergeRunIntoTelemetry(blob.telemetry, {
         mode: args.mode,
         levelId: telemetryKey,
@@ -132,6 +152,23 @@ export function createMemoryProgressStore(
           score: args.score,
         });
         blob.updatedAt = Date.now();
+      }
+      if (args.mode === 'daily') {
+        // The daily history is the ONLY record a daily run may write. Nothing in here
+        // may reference bestByLevel, unlocked or bestScore (N-DAILY-03 / SC-5) — and
+        // the daily arm carries no levelId, so none of them is even reachable.
+        //
+        // D-07: win or lose CLOSES the date; abandoning does not. An abandoned daily
+        // run has already accumulated its telemetry above (D-09) and stops here, so a
+        // real interruption does not cost the day.
+        if (args.outcome === 'win' || args.outcome === 'lose') {
+          blob.telemetry = mergeDailyRecord(blob.telemetry, {
+            date: args.date,
+            score: args.score,
+            outcome: args.outcome,
+          });
+          blob.updatedAt = Date.now();
+        }
       }
       return cloneBlob(blob);
     },

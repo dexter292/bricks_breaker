@@ -51,6 +51,10 @@ function baseProps(
     score: 100,
     best: 200,
     mode: 'campaign',
+    // 12-01 widened `GameScreenProps` with `dailyDateKey`, required for the same
+    // reason `mode`/`wave`/`bestWave` are: a defaulted blank would render `Daily · `
+    // on a real panel. Unused in campaign, which is the point — overridden per case.
+    dailyDateKey: '',
     wave: 0,
     bestWave: 0,
     isNewRecord: false,

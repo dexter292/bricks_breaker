@@ -16,6 +16,8 @@
 import {
   RECENT_RUNS_BOUND,
   defaultTelemetryAggregate,
+  type DailyHistoryEntry,
+  type DailyRecord,
   type EndlessRecord,
   type GameMode,
   type RunLogEntry,
@@ -61,6 +63,7 @@ export function cloneTelemetryBlob(t: TelemetryBlob): TelemetryBlob {
       daily: cloneAggregateMap(t.byMode.daily),
     },
     endless: { ...t.endless },
+    daily: { history: t.daily.history.map((e) => ({ ...e })) },
     recentRuns: t.recentRuns.map((e) => ({ ...e })),
   };
 }
@@ -86,6 +89,45 @@ export function mergeEndlessRecord(
     bestWave: Math.max(next.endless.bestWave, safeCounter(run.wave)),
     bestScore: Math.max(next.endless.bestScore, safeCounter(run.score)),
   };
+  return next;
+}
+
+/**
+ * Fold one CLOSED date into the daily history (N-DAILY-02 / D-01 / D-06).
+ *
+ * Deliberately NOT part of `mergeRunIntoTelemetry`, for exactly the reason
+ * `mergeEndlessRecord` is not: that function is the mode-keyed aggregate/log path every
+ * mode shares, and keeping the per-date record on a separate entry point is what makes
+ * "a campaign run cannot close a daily date" a structural fact rather than a
+ * convention. Same clone-then-mutate order — the input blob is never touched.
+ *
+ * A date already present is REPLACED IN PLACE rather than appended twice (D-06: one
+ * attempt per date). That also makes the write idempotent, which is what makes a
+ * repeated close of the same date benign rather than a history that grows a duplicate
+ * every time.
+ *
+ * No write-time history bound here: `DAILY_HISTORY_BOUND` belongs to plan 12-03, the
+ * first plan that both declares it and overshoots it in a test. No history reachable on
+ * this path is long enough to trim.
+ */
+export function mergeDailyRecord(
+  telemetry: TelemetryBlob,
+  run: { date: string; score: number; outcome: 'win' | 'lose' },
+): TelemetryBlob {
+  const next = cloneTelemetryBlob(telemetry);
+  const entry: DailyHistoryEntry = {
+    date: run.date,
+    score: safeCounter(run.score),
+    outcome: run.outcome,
+  };
+  const at = next.daily.history.findIndex((e) => e.date === entry.date);
+  const history = [...next.daily.history];
+  if (at >= 0) {
+    history[at] = entry;
+  } else {
+    history.push(entry);
+  }
+  next.daily = { history };
   return next;
 }
 
@@ -210,6 +252,38 @@ function mergeEndlessRecords(a: EndlessRecord, b: EndlessRecord): EndlessRecord 
   };
 }
 
+/**
+ * Union two daily histories BY DATE, then sort by the key (N-DAILY-02 / D-14).
+ *
+ * A union, not a per-field max: two sides can hold entries for dates the other has
+ * never seen, and dropping either side's dates would break a streak that really was
+ * played. Where both sides carry the same date, `incoming` wins — it is the
+ * freshly-hydrated disk state, and D-06 makes a date's result write-once anyway, so the
+ * two can only differ if one of them is stale or tampered.
+ *
+ * The sort is lexicographic on the key and that is chronological ON PURPOSE: the key is
+ * ISO-8601 local `YYYY-MM-DD` (`src/services/daily` `localDateKey`), zero-padded to a
+ * fixed width, which is the whole reason D-14's streak walk needs no date parsing.
+ *
+ * D-16's two scalars are not here yet. When plan 12-03 adds them this function gains
+ * the max-vs-sum reconcile its blocking checkpoint decides — `longestStreak` is a max
+ * and `totalDaysPlayed` is a count, and this record will be the first structure in the
+ * blob needing both in one object.
+ */
+function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
+  const byDate = new Map<string, DailyHistoryEntry>();
+  for (const e of a.history) {
+    byDate.set(e.date, { ...e });
+  }
+  for (const e of b.history) {
+    byDate.set(e.date, { ...e });
+  }
+  const history = [...byDate.values()].sort((x, y) =>
+    x.date < y.date ? -1 : x.date > y.date ? 1 : 0,
+  );
+  return { history };
+}
+
 /** Merge two telemetry blobs (memory ↔ freshly-hydrated disk). */
 export function mergeTelemetryBlobs(
   memory: TelemetryBlob,
@@ -231,6 +305,7 @@ export function mergeTelemetryBlobs(
       daily: mergeAggregateMaps(memory.byMode.daily, incoming.byMode.daily),
     },
     endless: mergeEndlessRecords(memory.endless, incoming.endless),
+    daily: mergeDailyRecords(memory.daily, incoming.daily),
     recentRuns,
   };
 }

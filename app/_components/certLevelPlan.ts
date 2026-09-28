@@ -62,11 +62,20 @@ import type { LevelId } from '../../src/runtime/loadLevel';
 export type CertLevelPlan = 'force' | 'ready' | 'unreachable';
 
 export function certLevelPlanFor(args: {
-  mode: 'campaign' | 'endless';
+  mode: 'campaign' | 'endless' | 'daily';
   runEnded: boolean;
   levelId: LevelId;
 }): CertLevelPlan {
   if (args.mode === 'endless') {
+    return 'unreachable';
+  }
+  // 12-01 / D-10: daily is `unreachable` for the same reason endless is, and it gets
+  // its own statement rather than being folded into the line above. A daily run is on a
+  // DATE-derived generated board, not on a catalog level, so `levelId` says nothing
+  // about it — forcing the session to `level-03` to discharge a cert arm would destroy
+  // the live daily board, and arming a one-shot that can never discharge is the exact
+  // stranding round-5 gap 1 was about.
+  if (args.mode === 'daily') {
     return 'unreachable';
   }
   if (args.levelId === 'level-03') {

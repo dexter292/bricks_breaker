@@ -27,6 +27,10 @@ export {
   type EndlessRecord,
   defaultEndlessRecord,
   ENDLESS_TELEMETRY_KEY,
+  type DailyRecord,
+  type DailyHistoryEntry,
+  defaultDailyRecord,
+  DAILY_TELEMETRY_KEY,
   type RunLogEntry,
   type RunStatsInput,
 } from './types';
@@ -65,6 +69,7 @@ export {
   mergeRunIntoTelemetry,
   mergeTelemetryBlobs,
   mergeEndlessRecord,
+  mergeDailyRecord,
   cloneTelemetryBlob,
 } from './telemetry';
 export {
