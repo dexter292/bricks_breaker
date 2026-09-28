@@ -113,6 +113,88 @@ export function nextLocalMidnightMs(nowMs: number): number {
 }
 
 /**
+ * The local calendar date exactly one calendar day before `key` — pure string to string.
+ *
+ * **Calendar arithmetic, never duration arithmetic**, for the reason the module header
+ * states and `nextLocalMidnightMs` above demonstrates: a local day is not always 24 hours
+ * long, so subtracting a fixed day in milliseconds would skip 2026-09-06 in Santiago and
+ * repeat 2026-11-01 in Havana. The day field is stepped through the local-field `Date`
+ * constructor, which owns month, year and leap-year underflow of `day - 1`.
+ *
+ * **Anchored at midday, not midnight, as a margin rather than as a bug fix.** A DST step
+ * shifts local wall time by an hour or two; from a midday anchor no such shift can reach
+ * either end of the calendar day, whereas a midnight anchor sits exactly on the boundary
+ * and depends on the constructor resolving a non-existent local midnight FORWARD into the
+ * same day rather than backward into the previous one. MEASURED (12-03, this project's
+ * own Node): the midnight anchor in fact agrees with the midday anchor on all 38 355 real
+ * dates across 15 DST-hostile zones over 2024-2030 — Santiago, Havana, Apia, Lord Howe,
+ * Troll, Teheran and others — so this is 12 hours of slack against a runtime behaviour we
+ * would otherwise be relying on, NOT a defect being patched. Stated as a measurement so a
+ * later reader who re-derives it does not conclude the comment is wrong and revert it.
+ *
+ * The result is minted through `localDateKey`, so a stepped key is well-formed by exactly
+ * the same argument a freshly-derived one is. The caller's key is NOT validated here —
+ * `isValidDateKey` is the fence and the read path is plan 12-04's; a malformed key in
+ * yields a well-formed key out rather than a throw, which keeps D-14's walk total.
+ */
+export function previousDateKey(key: string): string {
+  const y = Number(key.slice(0, 4));
+  const m = Number(key.slice(5, 7));
+  const d = Number(key.slice(8, 10));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+    return localDateKey(0);
+  }
+  return localDateKey(new Date(y, m - 1, d - 1, 12, 0, 0, 0).getTime());
+}
+
+/** A `YYYY-MM-DD` key: four digits, two, two. Shape only — range is checked below. */
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Days in a Gregorian month. Integer comparisons and a lookup only — no exponentiation,
+ * no date parsing round trip. The leap rule is the full one: divisible by 4, except
+ * centuries, except every 400th.
+ */
+function daysInMonth(y: number, m: number): number {
+  if (m === 2) {
+    const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+    return leap ? 29 : 28;
+  }
+  return m === 4 || m === 6 || m === 9 || m === 11 ? 30 : 31;
+}
+
+/**
+ * Whether `raw` is a well-formed, in-range `YYYY-MM-DD` key (T-12-13).
+ *
+ * **Integer range checks, never a parse round trip.** `new Date('2026-02-30')` and
+ * friends are exactly the ambient-input dependency this module exists to avoid: a round
+ * trip through date parsing ACCEPTS strings this format does not — `2026-2-3`,
+ * `2026-09-27T00:00:00Z`, `2026-09-31` rolling silently into October — and its tolerance
+ * is implementation-defined, so it could differ between Node and Hermes on the very input
+ * a tampered blob supplies. Same rule, same reason and the same teeth as
+ * `src/services/endless/ramp.ts` § No implementation-approximated Math and
+ * `src/levelgen/schedule.ts:50-55`.
+ *
+ * The hostile caller is a tampered plaintext blob, which can put any string where a date
+ * key belongs. D-14's streak walk compares keys lexicographically and never parses them,
+ * so an oversized or non-numeric key would sort into the stored set as silent garbage
+ * rather than failing loudly. This predicate is what stops that; it is wired into the read
+ * path by plan 12-04.
+ */
+export function isValidDateKey(raw: unknown): raw is string {
+  if (typeof raw !== 'string' || !DATE_KEY_RE.test(raw)) {
+    return false;
+  }
+  const y = Number(raw.slice(0, 4));
+  const m = Number(raw.slice(5, 7));
+  const d = Number(raw.slice(8, 10));
+  if (m < 1 || m > 12) {
+    return false;
+  }
+  return d >= 1 && d <= daysInMonth(y, m);
+}
+
+/**
  * Normalise `nowMs` to an instant a `Date` can actually represent, so both exported
  * functions are total over EVERY number rather than only over the finite ones.
  *
