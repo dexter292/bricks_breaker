@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 24
+open_count: 23
 waived_count: 0
-fixed_count: 3
+fixed_count: 4
 total_count: 27
-last_updated: 2026-09-28T17:05:00.000Z
+last_updated: 2026-09-28T19:05:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -32,7 +32,7 @@ last_updated: 2026-09-28T17:05:00.000Z
 | 15 | 12 | unrun-verify | src/services/storage/telemetry.ts |  | mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts) | fixed |  | 2026-09-28T01:48:07.463Z | 2026-09-28T03:08:57.659Z |
 | 16 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06. | open |  | 2026-09-28T03:58:52.704Z |  |
 | 17 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06. | open |  | 2026-09-28T03:59:12.456Z |  |
-| 18 | 12 | unrun-verify | app/_components/PlayingHost.tsx |  | 12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06. | open |  | 2026-09-28T03:59:12.560Z |  |
+| 18 | 12 | unrun-verify | app/_components/PlayingHost.tsx |  | 12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06.  RESOLVED 2026-09-28 by commit eec2137: the backstop came back POSITIVE on an iPhone 17 simulator at 402pt — the row clipped at the LEFT, cutting off Lv and the tier button, while Daily stayed reachable. Root cause was the one 12-UI-SPEC E5 already named: the slot had no left bound, so an absolutely-positioned box with right alone grew leftwards off-screen. Fixed by bounding the slot left as well and letting the row wrap, so every control is reachable at any width. Verified on the simulator in both campaign and endless. Three sibling display defects found in the same session are fixed in the same commit: the metrics overlay drew under the dev row, had no backdrop over bricks, and the W{n} readout was a bare label on the brick field. | fixed |  | 2026-09-28T03:59:12.560Z |  |
 | 19 | 12 | deviation | app/_components/PlayingHost.tsx |  | The daily panel's Streak line is derived by currentDailyStreak (the write side's own exact derivation) rather than by streakFrom over the trimmed window, which plan 12-05 and 12-03's handoff both prescribed. MEASURED: streakFrom returns 400 against a stored longestStreak of 450, which both misreports the streak and silently stops the record badge firing for a player on their best-ever run. | open |  | 2026-09-28T03:59:12.664Z |  |
 | 20 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 1 (12-VALIDATION Manual-Only): Android Hermes date-key + nextLocalMidnightMs on a 23h DST day. Only the Apple slice of the SDK 57 Hermes artifact was executable; the Android engine is a separate compilation against bionic tzdata and was NEVER executed. Routed to a device check by plan 12-06. | open |  | 2026-09-28T04:15:32.571Z |  |
 | 21 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 2: Android Intl/ICU4J locale invariance. The five-locale measurement was taken on the Apple Hermes slice; the ICU4J layer was read, not executed. Routed to a physical Android device by plan 12-06. | open |  | 2026-09-28T04:15:32.685Z |  |
@@ -272,11 +272,11 @@ last_updated: 2026-09-28T17:05:00.000Z
     "phase": "12",
     "file": "app/_components/PlayingHost.tsx",
     "line": null,
-    "description": "12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 \u2014 owned by 12-06.",
-    "status": "open",
+    "description": "12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 \u2014 owned by 12-06. RESOLVED 2026-09-28 by commit eec2137: the backstop came back POSITIVE on an iPhone 17 simulator at 402pt \u2014 the row clipped at the LEFT, cutting off Lv and the tier button, while Daily stayed reachable. Root cause was the one 12-UI-SPEC E5 already named: the slot had no left bound, so an absolutely-positioned box with right alone grew leftwards off-screen. Fixed by bounding the slot left as well and letting the row wrap, so every control is reachable at any width. Verified on the simulator in both campaign and endless. Three sibling display defects found in the same session are fixed in the same commit: the metrics overlay drew under the dev row, had no backdrop over bricks, and the W{n} readout was a bare label on the brick field.",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-28T03:59:12.560Z",
-    "resolved_at": null,
+    "resolved_at": "2026-09-28T19:05:00.000Z",
     "milestone": "v1.2"
   },
   {

@@ -120,6 +120,32 @@ reason: |
   establish `p50 <= 16.7 ms, p95 <= 20 ms` ON DEVICE. The measurement narrows the risk
   substantially; it does not close it. `Device digest` stays OPEN and N-END-03 stays `[ ]`.
 
+  FOUR DEV-TOOL DISPLAY DEFECTS FOUND AND FIXED (commit `eec2137`, 2026-09-28). All four
+  were in the way of the very procedure this item is waiting on, so they are fixed rather
+  than only logged:
+  1. **The dev-row slot had no left bound.** Absolutely positioned with `right` alone it
+     sized to its content and grew leftwards off-screen, clipping `Lv` and the tier button
+     while `Daily` stayed reachable. 12-UI-SPEC E5 had already named this exact cause — "the
+     slot has no left bound" — and routed the fit to a device backstop. **That backstop is
+     now positive and closed: WINDOWS #18 is marked fixed.** Bounded left and wrapped, the
+     row is reachable at any width.
+  2. **The metrics overlay drew from canvas y=28, under the dev row.** Its first two lines
+     (`ms/frame  fps`, `substeps`) were legible only as fragments through the gaps between
+     buttons — which is what the stray characters in the first pass's screenshots were.
+     Re-anchored to the bottom of the surface rather than below the row, because the row's
+     height now varies with wrapping.
+  3. **The overlay had no backdrop**, so `#00ffaa` text on brick fills was unreadable exactly
+     where the bricks are. Added, deliberately translucent so the ball stays visible.
+  4. **The `W{n}` readout was a bare label** with no chrome, squeezed between two opaque
+     buttons and rendered onto the brick field — unreadable during an endless run, which is
+     the only time it shows and the run SC-5 measures. Given the row's chrome.
+
+  Nothing production changed: the row is `__DEV__`-gated and the overlay sits behind
+  `EXPO_PUBLIC_PERF_OVERLAY`. Suite 107 files / 798 tests green, typecheck and lint clean,
+  all four verified on the simulator in both campaign and endless. **A person running the
+  SC-5 procedure on hardware now gets a legible instrument**, which is the practical value
+  of this whole dry run.
+
   A by-product worth keeping: the paddle has a MOVEMENT SPEED CAP. A slow continuous
   `touch_path` tracks 1:1 (commanded 135 pt, reached 132) while a fast jump is clipped
   (commanded 100 pt, reached 155). Anyone automating this surface needs to know that.
