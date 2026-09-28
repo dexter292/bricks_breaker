@@ -525,7 +525,12 @@ export const ACHIEVEMENT_CATALOG: readonly Achievement[] = [
   {
     id: 'campaign-25',
     name: '25 Clears',
-    description: 'Win 25 campaign levels',
+    // 13 code review WR-04: was "Win 25 campaign levels", which the predicate does not
+    // do and a player cannot do — `PLAYABLE_LEVEL_ORDER` holds five, so 25 DISTINCT
+    // levels do not exist. The JSDoc below already argues correctly for summed wins
+    // ("replaying one level twenty-five times IS persistence"); only the player-facing
+    // string was never moved to match it. The copy now says what the predicate counts.
+    description: 'Win 25 campaign runs',
     /**
      * Why 25, as the cumulative companion to `flawless-clear`.
      *
