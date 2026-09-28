@@ -250,6 +250,36 @@ function streakLengthFrom(sortedKeys: readonly string[], start: string): number 
   return span > 0 ? span : streakFrom(sortedKeys);
 }
 
+/**
+ * The current daily streak of a STORED record — the read-side counterpart of the number
+ * `mergeDailyRecord` computes on write, and deliberately the SAME derivation (12-05).
+ *
+ * **Why this exists rather than the panel calling `streakFrom` over the stored keys.**
+ * `streakFrom` walks the TRIMMED window, so it saturates at `DAILY_HISTORY_BOUND`.
+ * MEASURED against this module over 450 consecutive closes: the stored record reads
+ * `longestStreak: 450` and `totalDaysPlayed: 450`, while `streakFrom` over the surviving
+ * 400-key window returns **400**. A panel rendering that would state a streak the player
+ * does not have, and — because the record badge fires on `streak === longestStreak` — it
+ * would also stop congratulating a player who is, right now, on their best-ever run and
+ * extending it every day. That is the very failure D-16 was re-opened at plan 12-03's
+ * blocking checkpoint to eliminate, re-entering through the read side.
+ *
+ * One function, one answer: the write side's `longestStreak` and the read side's
+ * `Streak · {n}` are now the same computation over the same inputs, so they cannot
+ * disagree. The self-correction contract in `resolveStreakStart` applies unchanged —
+ * every discard path falls back to the window-derived start, which under-reports and
+ * never inflates.
+ *
+ * Note what this does NOT change: `endedStreakLength` (D-17) still walks the window and
+ * still returns nothing at the floor. That omission is correct and is not the same
+ * question — an ENDED run has no stored start to carry, so the window is genuinely all
+ * the evidence there is.
+ */
+export function currentDailyStreak(record: DailyRecord): number {
+  const keys = record.history.map((e) => e.date);
+  return streakLengthFrom(keys, resolveStreakStart(keys, record.currentStreakStart));
+}
+
 /** Fold one finished run into an aggregate (cumulative sums, running maxes). */
 function bumpAggregate(
   prev: TelemetryAggregate,

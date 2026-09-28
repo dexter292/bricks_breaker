@@ -47,6 +47,39 @@ export type GameScreenProps = {
    * always knows the date by the time a daily result exists.
    */
   dailyDateKey: string;
+  /**
+   * Daily only — the streak block and the countdown, as SCALARS (12-05).
+   *
+   * Seven flat props rather than one object, following the shipped `wave` /
+   * `bestWave` / `waveBuildFailedWave` precedent. Flatness is what makes SC-5
+   * checkable by READING this type: there is no per-level best, no campaign personal
+   * best, no endless record and no star count anywhere in the daily group, and an
+   * object prop would put that guarantee one indirection away.
+   *
+   * Required rather than optional-with-a-default, for the reason 12-01 gave for
+   * `dailyDateKey`: a zero default is a silent path to rendering `Streak · 0`, a state
+   * `12-UI-SPEC.md § Empty and zero states` marks UNREACHABLE on this panel.
+   */
+  dailyStreak: number;
+  /** Daily only — `DailyRecord.longestStreak`, the lifetime maximum (D-16). */
+  dailyLongestStreak: number;
+  /** Daily only — `DailyRecord.totalDaysPlayed` (D-16). */
+  dailyTotalDaysPlayed: number;
+  /**
+   * Daily only — the already-derived length of the streak that just ended, or null
+   * (D-17). Null means OMIT the line; the panel never substitutes the lifetime
+   * longest streak for a length it could not derive.
+   */
+  dailyEndedStreakLength: number | null;
+  /**
+   * Daily only — the instant the countdown is computed against, INJECTED from the
+   * host (`12-UI-SPEC.md` § Clock policy). `src/runtime` receives an instant, never a
+   * clock: the panel reading one during its own render would fail
+   * `react-hooks/purity` and would make the rollover and sub-minute cases untestable.
+   */
+  dailyNowMs: number;
+  /** Daily only — the next local-midnight instant, calendar arithmetic in the host. */
+  dailyNextBoundaryMs: number;
   /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
   wave: number;
   /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
@@ -97,6 +130,12 @@ export function GameScreen({
   best,
   mode,
   dailyDateKey,
+  dailyStreak,
+  dailyLongestStreak,
+  dailyTotalDaysPlayed,
+  dailyEndedStreakLength,
+  dailyNowMs,
+  dailyNextBoundaryMs,
   wave,
   bestWave,
   waveBuildFailedWave = null,
@@ -212,6 +251,12 @@ export function GameScreen({
               kind={result!}
               dateKey={dailyDateKey}
               score={score}
+              streak={dailyStreak}
+              longestStreak={dailyLongestStreak}
+              totalDaysPlayed={dailyTotalDaysPlayed}
+              endedStreakLength={dailyEndedStreakLength}
+              nowMs={dailyNowMs}
+              nextBoundaryMs={dailyNextBoundaryMs}
               onMenu={onMenu}
             />
           ) : (

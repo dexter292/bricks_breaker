@@ -110,10 +110,19 @@ describe('PlayingHost endless host (source contract)', () => {
    * claims below are re-expressed against the branch structure: the arm is still
    * chosen by `modeRef`, the endless arm still carries the wave reached, and the
    * campaign arm still carries `levelId`.
+   *
+   * 12-05: the five body extractors below now close on `[platform, store, levelId…],`
+   * rather than on that dependency array VERBATIM. The regex's job is to BOUND the
+   * function body, not to pin the dependency list — and pinning it meant that adding a
+   * dependency (12-05 added `publishDailyPanel`, the single daily-panel derivation
+   * site) red five cases at once, none of which is about dependencies. The first three
+   * dependencies are still anchored in order, so the extractor cannot silently latch
+   * onto a different callback; what it tolerates is exactly the additive growth it
+   * should never have been measuring.
    */
   it('the endless run records through the endless arm of the union, with the wave (N-END-02)', () => {
     const runEnded = code.match(
-      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
     );
     expect(runEnded?.[1], 'handleRunEnded must be extractable').toBeTruthy();
     const body = runEnded![1];
@@ -163,7 +172,7 @@ describe('PlayingHost endless host (source contract)', () => {
    */
   it('the campaign comparison is unreachable from the endless arm (gap 2)', () => {
     const runEnded = code.match(
-      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
     );
     const body = runEnded![1];
     const gateAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
@@ -235,7 +244,7 @@ describe('PlayingHost endless host (source contract)', () => {
     })();
     const campaignArm = (() => {
       const runEnded = code.match(
-        /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+        /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
       );
       const body = runEnded?.[1] ?? '';
       const elseAt = body.search(/\n {6}\} else \{\n/);
@@ -328,7 +337,7 @@ describe('PlayingHost endless host (source contract)', () => {
       /void store\s*\.getBestForLevel\(levelId\)([\s\S]*?)\n {2}\}, \[store, levelId\]\);/,
     );
     const runEnded = one(
-      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
     );
     const elseAt = runEnded.search(/\n {6}\} else \{\n/);
     // 12-01 put the DAILY arm first, so the endless arm is now an `else if`. The
@@ -494,7 +503,7 @@ describe('PlayingHost endless host (source contract)', () => {
 
   it('an endless run skips the campaign star / next-gate follow-up (SC-3)', () => {
     const runEnded = code.match(
-      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId\],/,
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
     );
     expect(runEnded?.[1], 'handleRunEnded must be extractable').toBeTruthy();
     const body = runEnded![1];

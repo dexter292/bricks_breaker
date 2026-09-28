@@ -31,7 +31,12 @@ import {
   difficultyForWave,
   seedForWave,
 } from '../../src/services/endless';
-import { DAILY_DIFFICULTY, localDateKey } from '../../src/services/daily';
+import {
+  DAILY_DIFFICULTY,
+  endedStreakLength,
+  localDateKey,
+  nextLocalMidnightMs,
+} from '../../src/services/daily';
 import {
   UiPhaseNum,
   useGameLoop,
@@ -59,9 +64,11 @@ import { triggerTestCrash } from '../../src/services/crashReporting';
 import {
   PLAYABLE_LEVEL_ORDER,
   createDefaultProgressStore,
+  currentDailyStreak,
   evaluatePersonalBest,
   isUnlocked,
   nextLevelId,
+  type DailyRecord,
   type RunStatsInput,
 } from '../../src/services/storage';
 import {
@@ -302,6 +309,34 @@ export function PlayingHost({
    */
   const dailyDateRef = useRef('');
   const [dailyDateKey, setDailyDateKey] = useState('');
+  /**
+   * The Daily Result panel's scalars (12-05).
+   *
+   * Derived HERE, in the `app` tier, and threaded down as plain numbers, because the
+   * overlay cannot import the storage layer at all — that prohibition is what makes
+   * SC-5 checkable at the panel's prop signature rather than by tracing a branch.
+   *
+   * They are set from the STORED record on both paths that can raise the panel: the
+   * one that has just closed the date, and (12-05 Task 3) the one that re-opens a date
+   * already closed. One derivation site, one renderer, so the two cannot disagree.
+   */
+  const [dailyStreak, setDailyStreak] = useState(0);
+  const [dailyLongestStreak, setDailyLongestStreak] = useState(0);
+  const [dailyTotalDaysPlayed, setDailyTotalDaysPlayed] = useState(0);
+  const [dailyEndedStreakLength, setDailyEndedStreakLength] = useState<
+    number | null
+  >(null);
+  /**
+   * The instant the countdown is computed against, and the local midnight it counts to.
+   *
+   * Derived, NEVER accumulated: the remainder is `boundary - now` computed from a
+   * single clock read each time the value is refreshed, with no stored deadline, no
+   * elapsed-time accumulator and no ticking counter to decrement. A clock jump
+   * therefore changes only the next computed value and can make nothing else go stale,
+   * because there is no second piece of state to disagree with it.
+   */
+  const [dailyNowMs, setDailyNowMs] = useState(0);
+  const [dailyNextBoundaryMs, setDailyNextBoundaryMs] = useState(0);
   /** Minted per run in the APP tier — src/levelgen bans wall-clock reads (Pitfall 7). */
   const runSeedRef = useRef(0);
   /** Pitfall 5 idempotency guard: the WON mirror can arrive twice before the advance lands. */
@@ -752,6 +787,52 @@ export function PlayingHost({
     },
   );
 
+  /**
+   * Publish the Daily Result panel's scalars from a STORED daily record (12-05).
+   *
+   * **The single derivation site**, and that is the point. `12-UI-SPEC.md` § The panel
+   * is a pure function of the stored daily record requires the just-finished path and
+   * the re-opened-today path to be ONE render path; the way to make that true rather
+   * than merely intended is to have one function compute the numbers for both. A
+   * separate "just finished" publication reading in-memory run state would be a second
+   * renderer for one truth, and if two can disagree, one is wrong and no test says
+   * which.
+   *
+   * `currentDailyStreak` rather than `streakFrom` over the stored keys — see that
+   * function's own header for the measurement. The short version: `streakFrom` walks
+   * the TRIMMED window and saturates at the bound, so past 400 consecutive closes it
+   * reports a streak the player does not have and silently stops the record badge
+   * firing for someone on their best-ever run.
+   *
+   * Defensive over a degraded record rather than trusting the shape: the storage rule
+   * for this phase is that a read failure or a sanitiser degrade renders zeros, never
+   * an error modal. There is no error modal anywhere in this phase.
+   *
+   * The clock is read ONCE here, in a callback — never during render, which
+   * `react-hooks/purity` fails the build on. The countdown is DERIVED from that single
+   * read and never accumulated.
+   */
+  const publishDailyPanel = useCallback(
+    (record: DailyRecord | null | undefined, date: string) => {
+      const history = Array.isArray(record?.history) ? record.history : null;
+      const keys = history != null ? history.map((e) => e.date) : [];
+      setDailyStreak(
+        history != null && record != null ? currentDailyStreak(record) : 0,
+      );
+      setDailyLongestStreak(
+        typeof record?.longestStreak === 'number' ? record.longestStreak : 0,
+      );
+      setDailyTotalDaysPlayed(
+        typeof record?.totalDaysPlayed === 'number' ? record.totalDaysPlayed : 0,
+      );
+      setDailyEndedStreakLength(endedStreakLength(keys, date));
+      const at = Date.now();
+      setDailyNowMs(at);
+      setDailyNextBoundaryMs(nextLocalMidnightMs(at));
+    },
+    [],
+  );
+
   // Cold path only — never await inside useAnimatedReaction / frame callback.
   const handleRunEnded = useCallback(
     (
@@ -812,6 +893,12 @@ export function PlayingHost({
         );
         setDailyDateKey(stored?.date ?? runDate);
         setScore(stored?.score ?? runScore);
+        // 12-05: the panel's streak block and countdown, derived HERE from the SAME
+        // returned blob and threaded down as scalars, because the overlay cannot reach
+        // storage. `publishDailyPanel` is the single derivation site — the closed-date
+        // re-open path calls it too, which is what makes the two paths one renderer
+        // rather than two that can disagree.
+        publishDailyPanel(blob.telemetry?.daily, runDate);
         setIsNewRecord(false);
         // `previousBestRef` is NOT assigned, for the reason the endless arm states
         // below: it is the CAMPAIGN personal best and a daily run may not move it.
@@ -918,7 +1005,7 @@ export function PlayingHost({
         platform.accounts.onRunEnded(payload);
       }
     },
-    [platform, store, levelId],
+    [platform, store, levelId, publishDailyPanel],
   );
 
   /**
@@ -2248,6 +2335,12 @@ export function PlayingHost({
         // Likewise the `dailyDateKey` STATE, not `dailyDateRef` — the panel renders the
         // date, so a ref read during render would hand it the pre-flip value.
         dailyDateKey={dailyDateKey}
+        dailyStreak={dailyStreak}
+        dailyLongestStreak={dailyLongestStreak}
+        dailyTotalDaysPlayed={dailyTotalDaysPlayed}
+        dailyEndedStreakLength={dailyEndedStreakLength}
+        dailyNowMs={dailyNowMs}
+        dailyNextBoundaryMs={dailyNextBoundaryMs}
         wave={resultWave}
         bestWave={resultBestWave}
         waveBuildFailedWave={waveBuildFailedWave}

@@ -412,17 +412,18 @@ describe('DailyResultOverlay — the board-failure variant keeps the date OPEN (
       screen.queryByText('Win'),
       'nothing was lost and nothing was won — the date is still open',
     ).toBeNull();
-    expectInOrder([
-      'Daily · 2026-09-28',
-      'Streak · 3',
-      'Best streak · 9',
-      'Retry',
-      'Menu',
-    ]);
+    expectInOrder(['Daily · 2026-09-28', 'Streak · 3', 'Best streak · 9']);
+    // The two controls are ordered by ROLE, not by `indexOf` over the body text: the
+    // failure body literally contains the word "Retry" ("… — tap Retry"), so a
+    // text-position check would match the sentence rather than the control and
+    // assert the wrong thing in the right-looking way.
+    const controls = screen
+      .getAllByRole('button')
+      .map((el) => el.getAttribute('aria-label'));
     expect(
-      screen.getByRole('button', { name: "Retry today's daily board" }),
-      '`Retry level` is false here — there is no level',
-    ).toBeTruthy();
+      controls,
+      'Retry (primary) THEN Menu, while the date is still open',
+    ).toEqual(["Retry today's daily board", 'Return to title']);
   });
 
   it('suppresses every line that describes a CLOSED date: score, days played, the streak-ended line, the badge and the countdown', () => {

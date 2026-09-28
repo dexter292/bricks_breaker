@@ -55,6 +55,15 @@ function baseProps(
     // reason `mode`/`wave`/`bestWave` are: a defaulted blank would render `Daily · `
     // on a real panel. Unused in campaign, which is the point — overridden per case.
     dailyDateKey: '',
+    // 12-05 widened it again with the streak block and the countdown, required for the
+    // same reason: a defaulted `0` would render `Streak · 0`, a state 12-UI-SPEC
+    // § Empty and zero states marks UNREACHABLE on this panel. Unused in campaign.
+    dailyStreak: 0,
+    dailyLongestStreak: 0,
+    dailyTotalDaysPlayed: 0,
+    dailyEndedStreakLength: null,
+    dailyNowMs: 0,
+    dailyNextBoundaryMs: 0,
     wave: 0,
     bestWave: 0,
     isNewRecord: false,

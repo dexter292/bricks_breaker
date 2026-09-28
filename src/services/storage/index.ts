@@ -72,6 +72,7 @@ export {
   mergeTelemetryBlobs,
   mergeEndlessRecord,
   mergeDailyRecord,
+  currentDailyStreak,
   cloneTelemetryBlob,
 } from './telemetry';
 export {
