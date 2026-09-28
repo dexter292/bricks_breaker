@@ -425,3 +425,19 @@ human has played a daily board at the point this phase completes.
 `__DEV__` `Daily` control in the dev row on the playing HUD, beside `Endless`. It must not
 appear in a production build. Phase 14 (Meta Shell) owns the real Title entry, its zero state,
 and the deletion of the dev row; the Daily Result panel itself is production and stays.
+
+**8. Clock-policy rule 5 shipped by halves — the omission half, not the re-derivation half.**
+When the local date rolls over with the Daily Result panel open, the countdown correctly omits
+itself: `dailyNextBoundaryMs` is pinned to the shown date's midnight at publish time, so the
+remainder really does go non-positive and stay there. Nothing re-derives the date or swaps the
+read-only panel for the now-playable entry state, so a player who sits on that panel across
+midnight sees yesterday's result with no countdown until they press Menu and re-enter. It
+degrades rather than traps, and Phase 14 owns the Title entry surface where a stale panel would
+actually mislead (N-UI-01).
+
+This is recorded here because it is a **decision, not an oversight**: the ref that would have
+driven the re-derivation had three write sites and zero reads and was deleted by review fix
+WR-04 rather than wired up, on the grounds that re-deriving is Phase 14's surface. It is also
+recorded in `.planning/WINDOWS.md` #23 and at the ref's former site in `PlayingHost.tsx`, and
+**the device-verification row for the midnight rollover must not ask a tester to confirm it** —
+that row checks the countdown's omission only.
