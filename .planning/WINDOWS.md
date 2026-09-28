@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 21
+open_count: 23
 waived_count: 0
 fixed_count: 3
-total_count: 24
-last_updated: 2026-09-28T04:15:33.124Z
+total_count: 26
+last_updated: 2026-09-28T14:20:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -40,6 +40,7 @@ last_updated: 2026-09-28T04:15:33.124Z
 | 23 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | Device item 4: a real local-midnight rollover with the Daily Result panel open. No test can advance a device wall clock across midnight while the runtime lives. Confirm the countdown never renders a negative value and omits at or below zero. The re-derivation half of clock-policy rule 5 is UNIMPLEMENTED: the review fix for WR-04 deleted the write-only localTodayRef, so nothing re-derives the local date on rollover while the panel is open. Wiring it means swapping a read-only panel out from under the player, which is a design decision on the Phase 14 Title surface, not a review fix. Do not check for it here. | open |  | 2026-09-28T04:15:32.904Z |  |
 | 24 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 8: NO HUMAN HAS PLAYED A DAILY BOARD. Nothing in docs/ops/DAILY-CHALLENGE.md was calibrated by one, and its front matter says so. Play a full daily board to a win and to a loss on consecutive days and confirm the streak, best-streak and days-played figures move as the policy states. | open |  | 2026-09-28T04:15:33.015Z |  |
 | 25 | 12 | accepted-cost | src/services/storage/telemetry.ts |  | Accepted cost 4 (docs/ops/DAILY-CHALLENGE.md): a carried currentStreakStart is credible only when the surviving window is saturated at DAILY_HISTORY_BOUND. Sub-saturated means never trimmed, so the stored dates are the whole evidence. Consequence: a SATURATED window damaged at its oldest end becomes sub-saturated and under-reports a genuine long streak until the next close (measured 450 -> 399 -> 451, self-repairing). Under-report is the chosen direction; the rule refuses nothing a legitimate write can produce, only what damage produces. Residual inside the accepted T-12-05 tamper model: 399 genuine consecutive dates beside a hand-written totalDaysPlayed of 3000 reads 399, then the next close writes longestStreak 2710. | open |  | 2026-09-28T13:40:00.000Z |  |
+| 26 | 12 | false-gate-claim | scripts/assert-streak-evidence.mjs |  | assert-streak-evidence.mjs reaches only a consumer's OWN BODY. It reads the consumer region's text, not the provenance of the identifier that region receives, so a cross-wire performed one function away is invisible. MEASURED (phase-12 verification round 3): two plants walked past it, both typechecking cleanly and both fully restoring the 2592-streak defect - a non-consumer helper building the frankenrecord and handing over a bare identifier, and a non-consumer helper mutating both records in place. The property still held: both red the behavioural case 'judges each copy's claim on that copy's own evidence, never on the union's' in tests/daily.record.test.ts, and vitest runs before the assert scripts, so npm test fails either way. Open work: extend the guard to the claimant's provenance. The script's own header and docs/ops/DAILY-CHALLENGE.md Limit 9 were narrowed to claim only what the guard reaches. | open |  | 2026-09-28T14:20:00.000Z |  |
 
 ````json
 [
@@ -365,6 +366,19 @@ last_updated: 2026-09-28T04:15:33.124Z
     "status": "open",
     "reason": null,
     "recorded_at": "2026-09-28T13:40:00.000Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 26,
+    "kind": "false-gate-claim",
+    "phase": 12,
+    "file": "scripts/assert-streak-evidence.mjs",
+    "line": null,
+    "description": "assert-streak-evidence.mjs reaches only a consumer's OWN BODY. It reads the consumer region's text, not the provenance of the identifier that region receives, so a cross-wire performed one function away is invisible. MEASURED (phase-12 verification round 3): two plants walked past it, both typechecking cleanly and both fully restoring the 2592-streak defect - a non-consumer helper building the frankenrecord and handing over a bare identifier, and a non-consumer helper mutating both records in place. The property still held: both red the behavioural case 'judges each copy's claim on that copy's own evidence, never on the union's' in tests/daily.record.test.ts, and vitest runs before the assert scripts, so npm test fails either way. Open work: extend the guard to the claimant's provenance. The script's own header and docs/ops/DAILY-CHALLENGE.md Limit 9 were narrowed to claim only what the guard reaches.",
+    "status": "open",
+    "reason": null,
+    "recorded_at": "2026-09-28T14:20:00.000Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }

@@ -479,7 +479,15 @@ read **2709** — where A alone reads 450 and B alone reads 2 — and the next c
 written 2709 into `longestStreak`, which is one-way under **D-16**. B cleared the saturation
 question by borrowing A's full window and the day-count question with its own inflated counter:
 each guard defeated by a different side. It now reads **450**, carrying A's genuine start.
-`scripts/assert-streak-evidence.mjs` fails the build if a call site re-crosses them.
+`scripts/assert-streak-evidence.mjs` fails the build if a call site re-crosses them **within a
+consumer's own body**. It is not a total guard, and the phase-12 verification measured exactly
+where it ends: it reads the consumer region's text, not the provenance of the identifier that
+region receives, so a cross-wire performed one function away — a helper that builds the
+frankenrecord, or one that mutates both records in place — walks past it while typechecking
+cleanly and fully restoring the defect. What held the property under both plants is the
+behavioural case in `tests/daily.record.test.ts`, which reds on each; vitest runs before the
+assert scripts, so `npm test` fails either way. Extending the guard to the claimant's
+provenance is named, deferred work, not a thing already done.
 
 **The cost is question 2, and it is a real one.** A copy that stopped syncing can be telling the
 truth about a run its partner never saw, and `totalDaysPlayed` under-counts on exactly that

@@ -18,8 +18,26 @@
  * `longestStreak`, which no later release can repair.
  *
  * A shape is only a convention until something fails when it is broken. This is that
- * something. It fails the build if a future edit gives the predicate a second evidence
- * source, or hands one record's window beside another record's scalars.
+ * something — but know exactly what it reaches. It fails the build if a future edit gives
+ * the predicate a second evidence source, or hands one record's window beside another
+ * record's scalars, WITHIN A CONSUMER'S OWN BODY.
+ *
+ * ## What this guard does NOT catch (MEASURED, phase-12 verification round 3)
+ *
+ * It inspects the consumer region's text, not the PROVENANCE of the identifier that region
+ * receives. A cross-wire performed one function away is invisible to it. Two plants walked
+ * straight past, both typechecking cleanly and both fully restoring the 2592-streak defect:
+ * a non-consumer helper that builds the frankenrecord and hands the consumer a bare
+ * identifier, and a non-consumer helper that mutates both records in place leaving the call
+ * site textually pristine.
+ *
+ * What actually held the property in both escapes is the BEHAVIOURAL case
+ * `judges each copy's claim on that copy's own evidence, never on the union's` in
+ * tests/daily.record.test.ts — it reds on each, and vitest runs before this script, so
+ * `npm test` fails either way. Do not read this guard as the thing that makes the rule safe;
+ * read it as the thing that catches the cheap in-body regression early and names why. The
+ * generalisation this file already made once for consumers (discovered, not listed) stops
+ * one level short, at producers. Extending it to the claimant's provenance is the open work.
  *
  * Exit 1 on any violation. `npm test` runs it.
  */
