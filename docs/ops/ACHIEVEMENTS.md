@@ -143,6 +143,48 @@ Reaching wave 10 therefore means having survived the ramp to one step below a bo
 already knows. That relationship is real and re-derivable. Whether that depth is *worth* an
 achievement is still a judgement, and the table cannot answer it.
 
+### Before you re-tune: four questions for the owner
+
+**D-11 requires these thresholds be routed to human verification rather than presented as
+calibrated.** This is that route. Four questions, answerable in one pass, in front of the catalog
+table above:
+
+1. **Is any threshold so LOW that crossing it is not worth telling the player about?** A cheap
+   achievement costs a row on the result panel and teaches the player that the block does not mean
+   much. `runs-50` is the entry most likely to be wrong in this direction.
+2. **Is any so HIGH that no real player reaches it?** An invisible achievement is dead data in the
+   v4 blob. The three to look at hardest, and why:
+   - **`rally-60`** — it rests on a *second* unmeasured judgement, a paddle-contact cadence of
+     roughly one return a second, which nothing in the repo records. If a minute of unbroken play
+     turns out to be trivial or impossible, this is the first number that should move.
+   - **`daily-perfect`** — the hardest entry in the catalog, and harder than it reads:
+     `byMode.daily` is ONE aggregate spanning every date the player has ever played, so **one lost
+     life on any daily, ever, closes it permanently.**
+   - **`flawless-clear`** — deliberately under-reports. "Never lost a life on this level" across
+     the player's whole history, not "cleared it cleanly once".
+3. **Does the DECLARATION ORDER put the right achievement first?** The order is the panel's order,
+   and the `n ≥ 3` case names **only the first** — so the order decides what a player who unlocks
+   four at once actually hears. Today it is lifetime, then campaign, then endless, then daily, most
+   worth naming first inside each group.
+4. **Does any display name read badly at 16 characters or fewer?** The budget is 16 and the longest
+   shipped name is `Flawless Clear` at 14, so there are two characters of margin. Note that the
+   budget itself has **never been observed on a rendered panel** (WINDOWS #16) and the shipped
+   catalog does not exercise it — a check at 14 does not verify 16.
+
+**The scope of a `yes`.** Re-tuning a threshold or renaming an entry is a **one-file edit with no
+code change and no migration** (SC-1, the catalog is data) and it is free. No test pins a threshold
+value or a display name: both suites quantify over the export and name no id, no name and no
+number, precisely so this review is cheap enough to actually happen.
+
+**Changing an `id` is NOT free, and it is the one answer that has a deadline.** A shipped id is
+permanent: the read path drops an unknown id (D-15) and D-17 says nothing un-earns an unlock, so a
+rename silently un-earns that achievement for every player who had it, on their next cold start,
+with no error anywhere. **If any id is to change, it must change before any build ships.** That is
+the only item in this review with a hard cut-off.
+
+**Record the outcome with a date even if nothing moves.** "Reviewed 20XX-XX-XX, no change" is a
+fact; its absence is indistinguishable from the review never having happened.
+
 ## Where evaluation happens, and why only there
 
 **One call site: inside `recordRunEnd`, in both hand-mirrored stores
@@ -416,6 +458,16 @@ the two vitest cases in `tests/achievements.record.test.ts` and nothing else.
 Recorded here rather than only in the planning artifacts, so an open question is visible where
 the work gets picked up.
 
+**No device check was run in this phase, and all four device and layout claims are OUTSTANDING.**
+No physical iOS device was available, and the iOS Simulator is explicitly not acceptable evidence
+for these claims — phase 11 established that on the record for its own frame-timing claim. Every
+one of the four stays OPEN in `.planning/WINDOWS.md`, each with the exact reproduction recipe and
+the consequence of a negative answer attached: **#28** (`ResultOverlay` vertical fit and the
+insets — the binding one), **#17** (`DailyResultOverlay` vertical fit with the block), **#16** (a
+16-character name on one line at 320px) and **#29** (Dynamic Type at iOS xLarge, an owner decision
+due at Phase 14). They are routed to the end-of-phase human batch. **A passing `npm test` is not
+evidence for any of them and must never be recorded as having closed one.**
+
 - **The safe-area insets at 320×568 are device-supplied and were ASSUMED, not measured, and they
   are still unmeasured as this phase closes.** The usable-height figure of 548 is
   `568 − top inset 20 − bottom inset 0`. The top inset of 20 is reasoned from a measured fact
@@ -425,6 +477,14 @@ the work gets picked up.
   negative *regardless of how the panel looked*, and `ACHIEVEMENT_LINES_MAX` must drop from 2 to
   1. **Unverified as of Phase 13.** Tracked as WINDOWS #28 (new and binding) with the
   reproduction recipe and the consequence attached.
+  **Exactly what changes if the answer is no, named here so nobody has to work it out under
+  pressure:** `ACHIEVEMENT_LINES_MAX` in `src/runtime/overlays/achievementLines.ts` drops from 2 to
+  1, and **two test cases move with it in the same change** — the `caps at two` case in
+  `tests/ui/achievementLines.test.ts` and the three-name panel case in
+  `tests/ui/ResultOverlay.achievements.test.tsx`. Nothing else moves: the copy shape is unchanged,
+  because one name plus `and {n − 1} more` simply begins applying at `n ≥ 2` instead of `n ≥ 3`.
+  The constant is left at **2** in this phase because 2 is what the arithmetic says on the stated
+  assumption, and a reading is not in hand — not because the question was settled.
 - **320×568 is not a native viewport for this build, and the check needs Display Zoom.**
   `IPHONEOS_DEPLOYMENT_TARGET` is 16.4, and iOS 16 will not install on any natively-320×568
   device, so the viewport is reachable only through Display Zoom on a 375×667 device (iPhone 8 /
