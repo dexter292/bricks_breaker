@@ -57,7 +57,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint .",
-    "test": "vitest run && node scripts/assert-worklet-closures.mjs && node scripts/assert-level-solvability.mjs && node scripts/assert-eas-profiles.mjs && node scripts/assert-brand-name.mjs && node scripts/assert-streak-evidence.mjs && node scripts/assert-purity.mjs",
+    "test": "vitest run && node scripts/assert-worklet-closures.mjs && node scripts/assert-level-solvability.mjs && node scripts/assert-eas-profiles.mjs && node scripts/assert-brand-name.mjs && node scripts/assert-streak-evidence.mjs && node scripts/assert-purity.mjs && node scripts/assert-levelgen-thread.mjs",
     "typecheck": "tsc --noEmit",
     "test:core": "vitest run src/core tests",
     "assert:skia": "node scripts/assert-skia-version.mjs",
