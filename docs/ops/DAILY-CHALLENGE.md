@@ -243,14 +243,21 @@ owns (`endless-run`, `endless-record`, `endless-retry`, `next-bake`). Specs that
 panel use `advanceTimersByTime`, never `runAllTimers`. A later change that lifts the interval
 out of the panel's lifetime will take those four files down with it.
 
-**Two refs answer two different questions about dates, and must not be collapsed into one.**
-`dailyDateRef` is *the date of the run in flight* — the board was generated from it and the
-result is recorded under it. `localTodayRef` is *what local calendar date it is now*, the sole
-D-01 input, written by the two events that can answer it from a fresh clock read (the entry
-press and the OS foreground). Moving the first on a midnight rollover — which is what the
+**One ref answers one question about dates, and “what date is it now” is deliberately not one
+of them.** `dailyDateRef` is *the date of the run in flight* — the board was generated from it
+and the result is recorded under it. Moving it on a midnight rollover — which is what the
 foreground instruction said literally — would record a run against a date whose board it was
 not, and repaint a mounted panel's `Daily · {date}` with a date the score does not belong to.
-Both are outright SC-1 breaks. Each ref carries a doc comment naming the question it answers.
+Both are outright SC-1 breaks. The ref carries a doc comment naming the question it answers.
+
+**There is no `localTodayRef`, and this document said there was.** One existed through 12-05
+with three write sites and zero reads, and its declaration claimed to be *the sole D-01 input*.
+It was not: D-01 is evaluated inside `startDailyRun` against a `const dateKey` computed there
+from that function's own single clock read — the decision and the clock read that justifies it
+are one statement apart and cannot drift, which is the shape that makes SC-1 hold. The ref
+carried no decision. Review fix WR-04 deleted it; `PlayingHost.tsx` keeps a comment at its
+former site recording what it was and why it went, and `.planning/WINDOWS.md` #23 records what
+its deletion leaves unimplemented (Limit 8 below).
 
 ## The two discretionary numbers
 
