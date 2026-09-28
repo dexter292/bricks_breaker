@@ -123,14 +123,20 @@ export function createMemoryProgressStore(
       //
       // T-12-01 / D-15: the daily branch MUST reach the constant. Keying this map by
       // anything that varies per calendar day makes it unbounded — `sanitizeAggregateMap`
-      // (parseBlob.ts:383-399) copies every key it finds on read with no cap, so nothing
+      // (`parseBlob.ts`) copies every key it finds on read with no cap, so nothing
       // downstream would ever trim it. The per-day history rides `telemetry.daily`,
       // which is a bounded collection.
       //
-      // Keep this ONE `const telemetryKey = …;` expression. Splitting it into an
-      // if/else chain, a switch or a helper moves the decision outside the only place
-      // plan 12-01's D-15 gate can see it (it extracts from `const telemetryKey =` to
-      // the first line ending in `;`).
+      // What holds that is BEHAVIOURAL, and it is in `tests/storage.daily-firewall.test.ts`:
+      // “the same daily win DOES land… under the constant key” and “the daily aggregate
+      // map still holds exactly one key after 40 distinct dates (T-12-08 / D-15)”.
+      // MEASURED: keying this branch per calendar date reds both of them, in THIS store
+      // only, with the sibling store's copies still green — the two hand-mirrored stores
+      // are parameterised separately and gated independently.
+      //
+      // Nothing reads the SHAPE of the expression below, so an if/else chain, a switch or
+      // a helper is a free refactor. Keep the daily branch reaching the constant and those
+      // two cases will say so if it ever stops.
       const telemetryKey =
         args.mode === 'endless'
           ? ENDLESS_TELEMETRY_KEY
