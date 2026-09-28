@@ -4,14 +4,22 @@
  */
 
 import type { LevelId } from '../../core';
+// Services may import services: the stored date key is validated by the very predicate
+// that lives beside the derivation which MINTS it (`src/services/daily`), rather than by a
+// second opinion restated here that could drift from it (T-12-15 / D-15).
+import { isValidDateKey } from '../daily';
 import { PLAYABLE_LEVEL_ORDER } from './catalog';
 import {
+  DAILY_HISTORY_BOUND,
   RECENT_RUNS_BOUND,
+  defaultDailyRecord,
   defaultProgressBlob,
   defaultProgressBlobV3,
   defaultEndlessRecord,
   defaultTelemetryAggregate,
   defaultTelemetryBlob,
+  type DailyHistoryEntry,
+  type DailyRecord,
   type EndlessRecord,
   type GameMode,
   type LevelBest,
@@ -380,6 +388,140 @@ function sanitizeRunLogEntry(raw: unknown): RunLogEntry | null {
   };
 }
 
+/**
+ * The two outcomes that CLOSE a date. Deliberately not `RunOutcome`: an `abandoned` run
+ * accumulates telemetry (D-09) but does not close the date (D-07), so it can never
+ * legitimately reach this history at all.
+ */
+const DAILY_OUTCOME_SET = new Set<string>(['win', 'lose']);
+
+/**
+ * One stored daily result, or `null` when any field fails (T-12-15).
+ *
+ * Same shape and same contract as `sanitizeRunLogEntry` above: validate each field against
+ * a closed set, return nothing on any failure, and let the caller SKIP the entry. Dropping
+ * rather than repairing is what `12-UI-SPEC.md` § Storage-failure asks for — an entry that
+ * cannot be read means "this date has no stored result", which is the PLAYABLE direction.
+ * The cost is named and accepted there in writing: a transient read failure can hand a
+ * player a second attempt at the day, whereas treating unreadable as CLOSED would lock a
+ * player out of their day on a transient fault, which is strictly worse.
+ *
+ * The date is validated by `isValidDateKey` from `src/services/daily` — integer range
+ * checks with no parse round trip, living beside the derivation it guards. This is the
+ * ASVS V5 control for the daily phase: AsyncStorage is plaintext, so on a rooted device the
+ * blob is fully attacker-controllable and is the only externally-influenced input the phase
+ * has. `12-UI-SPEC.md` renders the stored key VERBATIM with no formatting step, so a
+ * 4 000-character `date` would otherwise reach a `Text` inside a 320px panel.
+ */
+function sanitizeDailyHistoryEntry(raw: unknown): DailyHistoryEntry | null {
+  if (raw == null || typeof raw !== 'object') {
+    return null;
+  }
+  const entry = raw as { date?: unknown; score?: unknown; outcome?: unknown };
+  if (!isValidDateKey(entry.date)) {
+    return null;
+  }
+  if (typeof entry.outcome !== 'string' || !DAILY_OUTCOME_SET.has(entry.outcome)) {
+    return null;
+  }
+  return {
+    date: entry.date,
+    score: safeCounter(entry.score),
+    outcome: entry.outcome as 'win' | 'lose',
+  };
+}
+
+/**
+ * The start of the run in progress, or `''` — always in the UNDER-reporting direction.
+ *
+ * `currentStreakStart` is the one member of this record that can INFLATE a lifetime number:
+ * the current streak is a calendar walk from the newest stored date back to this key, so a
+ * hostile `0001-01-01` would claim two millennia of daily play. Every rejection here
+ * therefore falls back to `''`, which carries nothing and leaves the streak to whatever the
+ * stored window can derive on its own — short, and never longer than the truth. Same
+ * direction `resolveStreakStart` and `DAILY_STREAK_WALK_CAP` chose in `telemetry.ts`, for
+ * the same reason: a lifetime achievement invented out of a tampered blob is a worse
+ * failure than one that stopped growing.
+ *
+ * Three rejections:
+ *  1. Not a well-formed, in-range key — the same `isValidDateKey` fence the history uses.
+ *  2. No surviving stored dates — there is no run in progress for a start to name.
+ *  3. Later than the newest surviving date — a run cannot start after its own newest proven
+ *     date. Mirrors `resolveStreakStart`'s rule 4 rather than inventing a second opinion.
+ *
+ * Deliberately NOT rejected: a start OLDER than the oldest surviving date. That is the whole
+ * reason the field is stored rather than derived (D-16 as amended at plan 12-03's decision
+ * checkpoint) — the window is bounded at `DAILY_HISTORY_BOUND`, so a run longer than the
+ * window can only be expressed by a key reaching back past it. The walk-cap fence for a
+ * start reaching absurdly far belongs to `telemetry.ts`, which is where the walk lives; this
+ * body's obligation is shape and ordering.
+ *
+ * The newest key is taken as a MAXIMUM rather than as the last element, because a tampered
+ * blob need not be sorted and this predicate must not depend on an order it cannot trust.
+ */
+function sanitizeStreakStart(raw: unknown, history: readonly DailyHistoryEntry[]): string {
+  if (!isValidDateKey(raw) || history.length === 0) {
+    return '';
+  }
+  let newest = '';
+  for (const entry of history) {
+    if (entry.date > newest) {
+      newest = entry.date;
+    }
+  }
+  return raw <= newest ? raw : '';
+}
+
+/**
+ * Validate the daily record INDEPENDENTLY of its siblings (N-DAILY-02 / N-DAILY-03 / SC-5),
+ * on exactly the terms the endless record above is validated on.
+ *
+ * **Shape** copies `sanitizeEndlessRecord`: start from `defaultDailyRecord()`, copy only the
+ * keys the default declares, and coerce each field on its own — so a broken `longestStreak`
+ * cannot discard a good history, and an existing v4 blob written before this record existed
+ * defaults cleanly with no `v` bump and no migration. The independence contract stated for
+ * `telemetry` at `sanitizeTelemetry` below is inherited here verbatim, one level down.
+ *
+ * **Bound on read** copies the recent-run ring's trim, and is applied AFTER invalid entries
+ * are dropped — never before. Trimming first would let padding garbage push real dates out
+ * of the window, which is the opposite of what the bound exists for. The write-side bound
+ * (`mergeDailyRecord`, D-15) is what the decision asks for; this one is what makes it hold
+ * against a blob written by an older build or edited on a rooted device.
+ *
+ * The surviving history is NOT re-sorted and NOT de-duplicated. `mergeDailyRecord` sorts on
+ * write, so out-of-order entries are evidence of tampering; the streak walk simply ends
+ * early on them, which under-reports. Sorting here would REPAIR a tampered blob into a
+ * longer streak than its own stored order can justify — an inflation, in the one direction
+ * this phase refuses.
+ */
+function sanitizeDailyRecord(raw: unknown): DailyRecord {
+  const out = defaultDailyRecord();
+  if (raw == null || typeof raw !== 'object') {
+    return out;
+  }
+  const record = raw as {
+    history?: unknown;
+    longestStreak?: unknown;
+    totalDaysPlayed?: unknown;
+    currentStreakStart?: unknown;
+  };
+  out.longestStreak = safeCounter(record.longestStreak);
+  out.totalDaysPlayed = safeCounter(record.totalDaysPlayed);
+  if (Array.isArray(record.history)) {
+    const entries: DailyHistoryEntry[] = [];
+    for (const item of record.history) {
+      const entry = sanitizeDailyHistoryEntry(item);
+      if (entry != null) {
+        entries.push(entry);
+      }
+    }
+    // Bound on read as well as on write — a tampered blob cannot grow the window.
+    out.history = entries.slice(-DAILY_HISTORY_BOUND);
+  }
+  out.currentStreakStart = sanitizeStreakStart(record.currentStreakStart, out.history);
+  return out;
+}
+
 function sanitizeAggregateMap(
   raw: unknown,
 ): Partial<Record<string, TelemetryAggregate>> {
@@ -411,6 +553,14 @@ function sanitizeAggregateMap(
  * degrades on its own too — a broken `bestWave` does not discard a good
  * `bestScore`. Because `out` starts from `defaultTelemetryBlob()`, a v4 blob
  * written before the record existed defaults cleanly: no `v` bump, no migration.
+ *
+ * The daily record (`daily`, N-DAILY-02) is here for the same reason and on the same
+ * terms, and that is the whole of SC-5's read half: a corrupt or hand-edited daily
+ * history degrades to `defaultDailyRecord()` and cannot take campaign unlocks, bests,
+ * stars or the endless record down with it. It carries two obligations the endless
+ * record does not — every stored date key is validated on read (`isValidDateKey`,
+ * T-12-15) and the history is bounded on read as well as on write (D-15, T-12-16) —
+ * both discharged by `sanitizeDailyRecord` above.
  */
 function sanitizeTelemetry(raw: unknown): TelemetryBlob {
   const out = defaultTelemetryBlob();
@@ -421,10 +571,12 @@ function sanitizeTelemetry(raw: unknown): TelemetryBlob {
     lifetime?: unknown;
     byMode?: unknown;
     endless?: unknown;
+    daily?: unknown;
     recentRuns?: unknown;
   };
   out.lifetime = sanitizeAggregate(telemetry.lifetime);
   out.endless = sanitizeEndlessRecord(telemetry.endless);
+  out.daily = sanitizeDailyRecord(telemetry.daily);
   if (telemetry.byMode != null && typeof telemetry.byMode === 'object') {
     const byMode = telemetry.byMode as Record<string, unknown>;
     out.byMode.campaign = sanitizeAggregateMap(byMode.campaign);
