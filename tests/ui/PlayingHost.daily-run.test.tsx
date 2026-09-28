@@ -56,12 +56,11 @@ import {
   waitFor,
 } from '@testing-library/react';
 import type { LevelId } from '../../src/core';
-import type { RecordRunEndArgs } from '../../src/services/storage';
-import {
-  localDateKey,
-  previousDateKey,
-} from '../../src/services/daily';
-import type { DailyRecord } from '../../src/services/storage';
+import type {
+  DailyRecord,
+  RecordRunEndArgs,
+} from '../../src/services/storage';
+import { localDateKey, previousDateKey } from '../../src/services/daily';
 
 // The entry is `__DEV__`-gated (N-UI-01), which is the point — so the harness has to
 // stand where a dev build stands. An undefined `__DEV__` renders no dev row at all.
@@ -742,6 +741,12 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     seedClosedThrough(today, 4242);
 
     await mountHost();
+    // The CAMPAIGN board the cold path pushed. Captured before the press so the
+    // assertion below is about what the press did, not about what was already there —
+    // `compiledBoard()` is non-null from mount, so a bare not-null check would be
+    // green against an implementation that swapped in a daily board.
+    const beforePress = boardFingerprint();
+    expect(beforePress).not.toBe('none');
     await pressDaily();
     now.mockRestore();
 
@@ -754,9 +759,9 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
       'and nothing is written — a re-open must not touch the record it is reading',
     ).not.toHaveBeenCalled();
     expect(
-      compiledBoard(),
+      boardFingerprint(),
       'no generated board reached compiledSv, so the campaign board behind the panel is untouched',
-    ).toBeNull();
+    ).toBe(beforePress);
     expect(lastScreenProps.mode).toBe('daily');
     expect(
       lastScreenProps.result,

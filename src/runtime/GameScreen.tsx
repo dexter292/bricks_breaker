@@ -80,6 +80,19 @@ export type GameScreenProps = {
   dailyNowMs: number;
   /** Daily only — the next local-midnight instant, calendar arithmetic in the host. */
   dailyNextBoundaryMs: number;
+  /**
+   * Daily only — today's board could not be generated (12-05).
+   *
+   * The date stays OPEN: nothing was played and nothing was written. The panel takes
+   * the board-failure variant — the accent-white `Daily` heading rather than the
+   * `Lose` red, `Retry` then `Menu`, and every closed-date line suppressed.
+   *
+   * Shaped exactly like the shipped endless start-failure, which also raises `result`
+   * to reach the result chrome and carries the failure as a separate field
+   * (`waveBuildFailedWave`) rather than as a third `result` value. `LevelErrorOverlay`
+   * is NOT used here: it has no controls and would trap the player with no exit.
+   */
+  dailyBoardFailed?: boolean;
   /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
   wave: number;
   /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
@@ -136,6 +149,7 @@ export function GameScreen({
   dailyEndedStreakLength,
   dailyNowMs,
   dailyNextBoundaryMs,
+  dailyBoardFailed = false,
   wave,
   bestWave,
   waveBuildFailedWave = null,
@@ -227,6 +241,7 @@ export function GameScreen({
 
         {showPauseOverlay ? (
           <PauseOverlay
+            mode={mode}
             onResume={onResume}
             onRetry={onRetry}
             onMenu={onMenu}
@@ -248,7 +263,7 @@ export function GameScreen({
         {showResult ? (
           mode === 'daily' ? (
             <DailyResultOverlay
-              kind={result!}
+              kind={dailyBoardFailed ? 'board-failure' : result!}
               dateKey={dailyDateKey}
               score={score}
               streak={dailyStreak}
@@ -257,6 +272,7 @@ export function GameScreen({
               endedStreakLength={dailyEndedStreakLength}
               nowMs={dailyNowMs}
               nextBoundaryMs={dailyNextBoundaryMs}
+              onRetry={dailyBoardFailed ? onRetry : null}
               onMenu={onMenu}
             />
           ) : (

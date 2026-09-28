@@ -34,6 +34,7 @@ import {
 import {
   DAILY_DIFFICULTY,
   endedStreakLength,
+  hasResultFor,
   localDateKey,
   nextLocalMidnightMs,
 } from '../../src/services/daily';
@@ -65,6 +66,7 @@ import {
   PLAYABLE_LEVEL_ORDER,
   createDefaultProgressStore,
   currentDailyStreak,
+  defaultDailyRecord,
   evaluatePersonalBest,
   isUnlocked,
   nextLevelId,
@@ -328,6 +330,28 @@ export function PlayingHost({
    */
   const localTodayRef = useRef('');
   /**
+   * The STORED daily record, as last read or last written (12-05).
+   *
+   * A ref and not state: nothing renders it directly — the panel renders the SCALARS
+   * derived from it — and it is read inside the memoised daily entry callback, where a
+   * `useState` value would be whatever it was when that callback was last built.
+   *
+   * Seeded once at mount from the snapshot and refreshed from the blob every write
+   * returns, so D-01 is evaluated against the record the store actually holds.
+   *
+   * Fail-soft to an EMPTY record, which is the playable direction. 12-UI-SPEC
+   * § Storage-failure policy: an unreadable record is treated as "no stored result", so
+   * a transient fault hands a player a second attempt at the day rather than locking
+   * them out of it. That cost is named and accepted there; the reverse failure is
+   * strictly worse.
+   */
+  const dailyRecordRef = useRef<DailyRecord>(defaultDailyRecord());
+  /**
+   * Today's board could not be generated (12-05). The date stays OPEN — nothing was
+   * played, so nothing is written and nothing closes it.
+   */
+  const [dailyBoardFailed, setDailyBoardFailed] = useState(false);
+  /**
    * The Daily Result panel's scalars (12-05).
    *
    * Derived HERE, in the `app` tier, and threaded down as plain numbers, because the
@@ -588,11 +612,24 @@ export function PlayingHost({
         const record = blob.telemetry?.endless;
         endlessBestScoreRef.current = safeWatermark(record?.bestScore);
         endlessBestWaveRef.current = safeWatermark(record?.bestWave);
+        // 12-05 / D-01: the stored daily record, on the same single read. It is the
+        // sole input to "is this local date playable", and it rides this effect rather
+        // than a second one because it is the same global sub-object read at the same
+        // moment — a second `getSnapshot()` would be a second answer to one question.
+        const daily = blob.telemetry?.daily;
+        dailyRecordRef.current = Array.isArray(daily?.history)
+          ? daily
+          : defaultDailyRecord();
       })
       .catch(() => {
         if (cancelled) return;
         endlessBestScoreRef.current = 0;
         endlessBestWaveRef.current = 0;
+        // Treat an unreadable record as NO stored result, which leaves every date
+        // playable. The named cost (12-UI-SPEC § Storage-failure) is that a transient
+        // fault can hand a player a second attempt at the day; the alternative locks
+        // them out of it on the same fault, which is strictly worse.
+        dailyRecordRef.current = defaultDailyRecord();
       });
     return () => {
       cancelled = true;
@@ -985,7 +1022,13 @@ export function PlayingHost({
         // storage. `publishDailyPanel` is the single derivation site — the closed-date
         // re-open path calls it too, which is what makes the two paths one renderer
         // rather than two that can disagree.
-        publishDailyPanel(blob.telemetry?.daily, runDate);
+        // Refresh the D-01 input from the record the write just produced, so a second
+        // entry on this date sees it as closed without a storage round trip.
+        const merged = blob.telemetry?.daily;
+        if (Array.isArray(merged?.history)) {
+          dailyRecordRef.current = merged;
+        }
+        publishDailyPanel(merged, runDate);
         setIsNewRecord(false);
         // `previousBestRef` is NOT assigned, for the reason the endless arm states
         // below: it is the CAMPAIGN personal best and a daily run may not move it.
@@ -1400,9 +1443,21 @@ export function PlayingHost({
    * Two no-ops, both deliberate: campaign mode (the campaign resets keep their
    * existing behaviour byte for byte) and a run that already ended (reached from the
    * lose overlay, `runEndedRef.current` is true, so a Retry cannot double-record).
+   *
+   * 12-05 admits DAILY to the same funnel rather than building a second one, because a
+   * daily run has the identical obligation: D-07 and D-09 say an interrupted daily run
+   * is recorded as `abandoned` and that abandoning does NOT close the date. Widening
+   * the one funnel is what wires all four daily exits at once — pause Menu, pause
+   * Retry, a dev-row control and a dev session remount — and it is why none of them
+   * needed its own detection site. The name is kept: renaming it would rewrite four
+   * shipped source contracts for a word.
+   *
+   * Note what daily does NOT inherit: the campaign treatment of an abandoned outcome.
+   * The run is recorded in telemetry, and the date stays open — a real interruption
+   * must not cost the player their day.
    */
   const recordInFlightEndlessRun = useCallback(() => {
-    if (modeRef.current !== 'endless') {
+    if (modeRef.current !== 'endless' && modeRef.current !== 'daily') {
       return;
     }
     if (runEndedRef.current) {
@@ -1691,6 +1746,50 @@ export function PlayingHost({
   ]);
 
   /**
+   * Today's board could not be built — the date stays OPEN (12-05).
+   *
+   * Modelled on `failEndlessStart` and deliberately the same SHAPE: raise the result
+   * chrome so the panel is reachable, and carry the failure as its own field rather
+   * than as a third `result` value. What differs is which panel reads it — the daily
+   * panel renders the accent-white `Daily` heading, not the `Lose` red, because nothing
+   * was lost. Nothing is written, so nothing closes the date and `Retry` is legitimate:
+   * that is the same D-01 rule which forbids a Retry once a date HAS closed, not an
+   * exception to it.
+   *
+   * `LevelErrorOverlay` is deliberately NOT used. It has no controls and `showResult`
+   * is suppressed while `levelError` is set, so a player would face a live sim behind a
+   * modal with no exit — the rule 11-UI-SPEC already set for a wave-build failure.
+   *
+   * The streak lines still render and are still true: they are read from storage and
+   * describe dates already closed, not this one.
+   */
+  const failDailyBoard = useCallback(
+    (dateKey: string) => {
+      modeRef.current = 'daily';
+      setMode('daily');
+      dailyDateRef.current = dateKey;
+      setDailyDateKey(dateKey);
+      setDailyBoardFailed(true);
+      publishDailyPanel(dailyRecordRef.current, dateKey);
+      clearCountdown();
+      setCountdownNumeral(null);
+      setWaveBuildFailedWave(null);
+      setIsNewRecord(false);
+      setResultStars(null);
+      setNextGateId(null);
+      // No run began, so there is nothing to record — and the latch is what guarantees
+      // it stays that way if a stray phase mirror arrives from the campaign board still
+      // sitting in `compiledSv`.
+      runEndedRef.current = true;
+      waveAdvanceInFlightRef.current = false;
+      setUiPhase('playing');
+      setResult('lose');
+      setActive(false);
+    },
+    [clearCountdown, publishDailyPanel, setActive],
+  );
+
+  /**
    * Start today's daily run (N-DAILY-01 / D-01 / D-10 / D-11).
    *
    * `startEndlessRun`-shaped MINUS THE SEED MINT, and that subtraction is the whole
@@ -1725,19 +1824,66 @@ export function PlayingHost({
     // — verbatim the `11-VERIFICATION.md` gap 1 defect, which was caused by wiring the
     // funnel at some callers instead of at the function that means "a new run starts".
     recordInFlightEndlessRun();
+    // 12-05: the clock is read ONCE, here, and the key it produces answers D-01 before
+    // anything else happens. `localTodayRef` is the "what date is it now" value the
+    // foreground refresh also writes; `dailyDateRef` below is the run's own date and is
+    // a different question (see both refs' declarations).
+    const nowMs = Date.now();
+    const dateKey = localDateKey(nowMs);
+    localTodayRef.current = dateKey;
+
+    /*
+     * D-02 / SC-2 — a date with a stored result is READ-ONLY.
+     *
+     * This branch is ABOVE the readiness gate and above the generator on purpose:
+     * re-opening a closed date needs neither. It renders the panel from the STORED
+     * record, and that is the same render path the just-finished case takes — one
+     * `publishDailyPanel`, one set of scalars, one renderer. A separate "just
+     * finished" view reading in-memory run state would be a second renderer for one
+     * truth, which is the defect family the endless UI contract was written to repair:
+     * if the two can disagree then one is wrong and no test says which.
+     *
+     * No board is generated and nothing is written. Generating one and discarding it
+     * would satisfy "no run started" while still breaking D-02, which is why the
+     * paired test asserts the GENERATOR call count and not merely the run state.
+     */
+    if (hasResultFor(dailyRecordRef.current.history.map((e) => e.date), dateKey)) {
+      const record = dailyRecordRef.current;
+      const stored = record.history.find((e) => e.date === dateKey);
+      dailyDateRef.current = dateKey;
+      setDailyDateKey(dateKey);
+      setDailyBoardFailed(false);
+      publishDailyPanel(record, dateKey);
+      setScore(stored?.score ?? 0);
+      setIsNewRecord(false);
+      setResultStars(null);
+      setNextGateId(null);
+      setWaveBuildFailedWave(null);
+      clearCountdown();
+      setCountdownNumeral(null);
+      modeRef.current = 'daily';
+      setMode('daily');
+      // The run is already over — it happened on whatever day closed this date. The
+      // latch keeps a stray WON/LOST mirror from the campaign board still sitting in
+      // `compiledSv` from recording anything against it.
+      runEndedRef.current = true;
+      setUiPhase('playing');
+      setResult(stored?.outcome ?? 'win');
+      setActive(false);
+      return;
+    }
+
     if (!levelReady || levelError != null || !fxReady) {
       // Do NOT enter daily. Nothing is written, no board is swapped, `modeRef` is not
       // flipped, and the date therefore stays OPEN (D-01) — the player can press again
-      // once the cold path has finished. The on-screen board-failure variant is plan
-      // 12-05's; fabricating a panel here would be stubbing it, which this plan's scope
-      // explicitly forbids.
+      // once the cold path has finished. This is a NOT-YET rather than a failure: the
+      // board-failure variant below states that today's board could not be built, and
+      // saying that while the cold path is simply still running would be false.
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
         console.error('[daily] entry blocked: level or fx not ready');
       }
       return;
     }
-    const nowMs = Date.now();
-    const dateKey = localDateKey(nowMs);
     const raw = generate(dateKey, DAILY_DIFFICULTY);
     const compiled = compileGeneratedLevel(raw);
     if (!compiled.ok) {
@@ -1748,6 +1894,7 @@ export function PlayingHost({
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
         console.error('[daily] generated board failed to compile', compiled.issues);
       }
+      failDailyBoard(dateKey);
       return;
     }
     /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
@@ -1758,6 +1905,7 @@ export function PlayingHost({
     // the REF in this same commit, while the overlay re-renders on the STATE.
     dailyDateRef.current = dateKey;
     setDailyDateKey(dateKey);
+    setDailyBoardFailed(false);
     modeRef.current = 'daily';
     setMode('daily');
     clearCountdown();
@@ -1791,6 +1939,8 @@ export function PlayingHost({
   }, [
     clearCountdown,
     compiledSv,
+    failDailyBoard,
+    publishDailyPanel,
     recordInFlightEndlessRun,
     retry,
     setActive,
@@ -1823,6 +1973,23 @@ export function PlayingHost({
     // in-flight wave is recorded `abandoned` before the reset discards it.
     if (modeRef.current === 'endless') {
       startEndlessRun();
+      return;
+    }
+    // 12-05 / D-08: route a daily Retry to `startDailyRun`, which regenerates the board
+    // from the SAME stored date key. The endless branch above re-mints its run seed
+    // from the wall clock, which is correct for endless (N-END-03) and an outright
+    // SC-1 break here — the daily board is a pure function of the date and of nothing
+    // else, so a re-minted seed would make the day un-replayable.
+    //
+    // The funnel inside `startDailyRun` makes ONE branch satisfy TWO contract rows, the
+    // same way the endless branch does: reached from the result panel `runEndedRef` is
+    // already true so it no-ops, and reached from Pause mid-run it is false, so the
+    // in-flight run is recorded `abandoned` before the restart discards it. No
+    // confirmation dialog on this path either — it restarts the same board and the date
+    // stays open, so nothing is destroyed and a confirmation would claim a commitment
+    // that does not exist.
+    if (modeRef.current === 'daily') {
+      startDailyRun();
       return;
     }
     if (!levelReady || levelError != null || !fxReady) {
@@ -1858,6 +2025,7 @@ export function PlayingHost({
     levelError,
     fxReady,
     startEndlessRun,
+    startDailyRun,
   ]);
 
   /**
@@ -1971,6 +2139,10 @@ export function PlayingHost({
     // latched in-flight advance cannot swallow the next campaign WON.
     modeRef.current = 'campaign';
     setMode('campaign');
+    // 12-05: the daily board-failure flag is cleared on every EXIT from daily, not just
+    // on the next daily entry. Left set, it would decide the panel variant the moment a
+    // later daily result raised the result chrome.
+    setDailyBoardFailed(false);
     // 11-REVIEW.md IN-03, and 11-12 Task 1's guard is what makes it necessary. The
     // preload effect no longer publishes while endless, and its re-run on the
     // `levelId` change THIS function triggers is asynchronous — so without this line
@@ -2010,6 +2182,34 @@ export function PlayingHost({
     });
   }, []);
 
+  /**
+   * Leave a live daily run for campaign, recording it as `abandoned` (12-05 / D-09).
+   *
+   * A NAMED function for the same reason `startEndlessRun` is the endless one: the
+   * abandon invariant lives in exactly one place per exit shape, and its callers route
+   * to it rather than keeping a second copy. `11-VERIFICATION.md` gap 1 is the
+   * post-mortem of what happens when that rule is relaxed — the funnel gets wired at
+   * some callers instead of at the function that means "this run is over", and the ones
+   * it misses drop runs silently.
+   *
+   * The date stays OPEN. Abandoning is not closing (D-07), so a dev control pressed
+   * mid-run must not cost the player their day — and no write happens here at all
+   * beyond the telemetry the funnel itself records.
+   *
+   * `modeRef` is written directly AS WELL AS calling `setMode`, for the reason
+   * `toggleDevLevel` states: the mirroring effect runs after render while the
+   * compiled-push gate effect reads the REF in this same commit, so without the direct
+   * write the campaign level being returned to never re-arms the loop.
+   */
+  const exitDailyToCampaign = useCallback(() => {
+    // FIRST, above the mode writes, because the funnel reads `modeRef.current` to
+    // decide whether there is a daily run to record at all.
+    recordInFlightEndlessRun();
+    modeRef.current = 'campaign';
+    setMode('campaign');
+    setDailyBoardFailed(false);
+  }, [recordInFlightEndlessRun]);
+
   const remountDevSession = useCallback(() => {
     // 11-07 gap 1, second half. A DEV tier change during a live endless run used to
     // reset lives/score/combo while leaving `waveRef`, `runSeedRef` and
@@ -2023,6 +2223,16 @@ export function PlayingHost({
     if (modeRef.current === 'endless') {
       startEndlessRun();
       return;
+    }
+    // 12-05 / D-09: a dev session remount during a live daily run EXITS daily rather
+    // than restarting it, which is the same treatment Phase 11's controls gave endless
+    // — these are development instruments, and silently re-entering the mode a tier
+    // change was meant to leave would make them lie. FIRST, above the readiness gate
+    // and above every reset below, because the funnel latches `runEndedRef` and the
+    // `runEndedRef.current = false` further down must not un-latch a run it just
+    // recorded. The run is recorded `abandoned` and the date stays OPEN.
+    if (modeRef.current === 'daily') {
+      exitDailyToCampaign();
     }
     if (!levelReady || levelError != null || !fxReady) {
       return;
@@ -2056,6 +2266,7 @@ export function PlayingHost({
     levelError,
     fxReady,
     startEndlessRun,
+    exitDailyToCampaign,
   ]);
 
   // When DEV tier override changes, remount play session (pools reallocated via useGameLoop).
@@ -2428,6 +2639,7 @@ export function PlayingHost({
         dailyEndedStreakLength={dailyEndedStreakLength}
         dailyNowMs={dailyNowMs}
         dailyNextBoundaryMs={dailyNextBoundaryMs}
+        dailyBoardFailed={dailyBoardFailed}
         wave={resultWave}
         bestWave={resultBestWave}
         waveBuildFailedWave={waveBuildFailedWave}

@@ -1422,10 +1422,36 @@ describe('PlayingHost endless host (source contract)', () => {
     // The claim that makes A-02 worth closing beyond this control: before it, nothing
     // in the file ever wrote modeRef back to campaign, so the compiled-push gate effect
     // was dead for the life of the mount after the first endless entry.
+    //
+    // 12-05 makes it TWO, and the A-02 note is rewritten here as this assertion's own
+    // message instructed. The second writer is `exitDailyToCampaign`, which a dev tier
+    // change routes to during a live DAILY run — a third mode needs a way back to
+    // campaign for exactly the reason endless did, and the alternative was a second
+    // copy of the abandon invariant inside `remountDevSession`, which the contract
+    // above forbids in terms.
+    //
+    // Counting is not the property, so the count no longer stands alone: every writer
+    // returning the REF to campaign must be PAIRED with a `setMode('campaign')`. That
+    // pairing is the whole of A-02 — the ref is what the compiled-push gate effect
+    // reads in the same commit, the state is what re-renders, and a writer moving one
+    // without the other is precisely the divergence this contract exists to catch.
+    const refWriters = (code.match(/modeRef\.current = 'campaign';/g) ?? [])
+      .length;
+    const stateWriters = (code.match(/setMode\('campaign'\);/g) ?? []).length;
     expect(
-      (code.match(/modeRef\.current = 'campaign';/g) ?? []).length,
-      'toggleDevLevel is the ONLY writer returning modeRef to campaign — if a second appears, the A-02 note above needs rewriting',
-    ).toBe(1);
+      refWriters,
+      'the writers returning modeRef to campaign are toggleDevLevel and exitDailyToCampaign — if a third appears, say why here rather than raising the number',
+    ).toBe(2);
+    expect(
+      stateWriters,
+      'each ref writer must be paired with a setMode — the gate effect reads the ref in this commit, the render reads the state, and moving one without the other is the A-02 divergence itself',
+    ).toBe(refWriters);
+    expect(
+      code,
+      'and the pairing must be ADJACENT, so a reader sees both at once rather than trusting a count',
+    ).not.toMatch(
+      /modeRef\.current = 'campaign';(?![\s\S]{0,80}setMode\('campaign'\);)/,
+    );
   });
 
   /**
