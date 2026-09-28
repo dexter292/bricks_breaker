@@ -88,8 +88,10 @@ const HAVANA_DAY_LENGTH_MS = 90_000_000;
 
 /**
  * The banned fixed-day step, present ONLY here as the control the real function must
- * differ from. It is banned in `src/services/daily/*.ts` and enforced there by plan
- * 12-01's comment-stripped grep gate; a test may name it to prove it is wrong.
+ * differ from. It is banned inside every `.ts` file under `src/services/daily/`, enforced by the
+ * `no-restricted-syntax` block in `eslint.config.js`, which `npm run lint` runs. This file
+ * is a test and sits outside that block's `files` glob, so it may hold the banned step as
+ * the control that proves the shipped one differs.
  */
 const FIXED_DAY_MS = 24 * 60 * 60 * 1000;
 

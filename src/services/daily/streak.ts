@@ -39,8 +39,13 @@
  * Same rule as `src/services/endless/ramp.ts` § No implementation-approximated Math and
  * `src/services/daily/dateKey.ts` § No locale, no UTC, no fixed-length day, for the same
  * reason and with the same teeth: no date parsing, no exponentiation, no duration
- * subtraction, and no wall-clock read anywhere in this file. Plan 12-01's
- * comment-stripped grep gate over `src/services/daily/*.ts` enforces the first two.
+ * subtraction, and no wall-clock read anywhere in this file.
+ *
+ * The locale/UTC/fixed-day half is enforced by the `src/services/daily/` block in
+ * `eslint.config.js`, so `npm run lint` fails on it — including the `86_400_000` named in
+ * prose above, which is safe precisely because a comment is not an AST node. The "no
+ * wall-clock read" half has NO automated gate: nothing in this repo fails on a `Date.now()`
+ * added to this file, and it holds by review only.
  *
  * SECURITY: nothing here protects anything. The streak is a display value derived from a
  * plaintext, attacker-writable blob (AsyncStorage). A rooted device can write any history

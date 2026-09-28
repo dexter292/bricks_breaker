@@ -114,8 +114,14 @@ local day is 23 or 25 hours on a DST boundary. Adding a fixed 24 hours therefore
 the short day, so that date's board is never reachable at all; on the long day it lands back
 inside the same date, so "tomorrow's board" is today's. The shipped form is **calendar
 arithmetic** — take the local date, add one day, set `00:00:00.000` local — and it is correct
-on both. The module bans `Intl.`, `toLocale*`, `toISOString` and the literal `86400000` by a
-comment-stripped grep gate that was red-proved against a scratch file carrying them.
+on both. The module bans `Intl.`, `toLocale*`, `toISOString` and the literal `86400000`, and
+the ban is enforced by an ESLint block in `eslint.config.js` scoped to
+`src/services/daily/**/*.ts` — so `npm run lint` fails on all four, in either numeric-separator
+spelling. Red-proved against a scratch module in that directory carrying all four: 6 errors,
+exit 1; removing it returns the tree to its baseline of 0 errors / 3 warnings. Plan 12-01 used
+a one-shot comment-stripped grep in a verify block, which nothing re-ran; the linter block
+replaces it. Comments are not AST nodes, so `streak.ts` may still name `86_400_000` in prose
+to explain why it is wrong, and `tests/daily.date-key.test.ts` may keep it as a control.
 
 **`Intl` is present on Hermes and is deliberately unused.** It exists on iOS and Android, in
 debug and release, but as a *partial* ECMA-402 implementation backed by the **platform's**

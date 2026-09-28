@@ -53,8 +53,15 @@
  *
  * `nextLocalMidnightMs` below is the day-step that rule exists for. It landed in plan
  * 12-02, written test-first beside the two real 2026 DST days that are the only thing
- * able to falsify it (`tests/daily.date-key.test.ts`), and it inherits the ban together
- * with plan 12-01's comment-stripped grep gate over `src/services/daily/*.ts`.
+ * able to falsify it (`tests/daily.date-key.test.ts`).
+ *
+ * All four are enforced by a standing gate, and `npm run lint` is the thing that runs it:
+ * `eslint.config.js` carries a `no-restricted-globals` / `no-restricted-syntax` block
+ * scoped to every `.ts` file under `src/services/daily/`, in the same shape as the `src/core` and
+ * `src/levelgen` blocks above it. Plan 12-01 ran a comment-stripped grep in a verify block
+ * instead; that was a one-shot and nothing re-ran it, which is why the rule moved into the
+ * linter. Comments are not AST nodes, so no stripping step is needed and prose below may
+ * still name a banned primitive in order to explain why it is wrong.
  *
  * SECURITY: the date key is a difficulty/board input, not a secret. It feeds
  * `generate`, whose PRNG is explicitly not a CSPRNG (`src/levelgen/rng.ts:15-18`) —

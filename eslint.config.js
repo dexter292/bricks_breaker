@@ -161,6 +161,54 @@ module.exports = [
     },
   },
   {
+    // N-DAILY-01 / SC-1: the local date key must not come from a locale, from UTC, or from
+    // a fixed-length day. Each of the three was MEASURED producing a wrong answer, not
+    // merely suspected (12-RESEARCH § Findings 2, 3(c), 3(e)), and each failure is
+    // INVISIBLE on an en-US simulator in a UTC-adjacent zone — which is why the ban needs a
+    // standing gate rather than a review habit. Plan 12-01 ran this as a one-shot grep in a
+    // verify block; nothing re-ran it, so it lives here now, beside the src/core and
+    // src/levelgen blocks above that it copies in shape.
+    //
+    // Comments are not AST nodes, so unlike a grep this needs no comment-stripping step:
+    // `streak.ts` may name `86_400_000` in prose to explain why it is wrong, and
+    // `tests/daily.date-key.test.ts` may hold the banned step as a control the real
+    // function must differ from — tests are outside these `files` anyway.
+    files: ['src/services/daily/**/*.ts'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'Intl',
+          message:
+            'N-DAILY-01: ECMA-402 gave five different keys across five device locales under this project\'s own Hermes — a Thai and a US device would draw different boards on the same date (SC-1).',
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.name='Intl']",
+          message:
+            'N-DAILY-01: no ECMA-402 anywhere in the daily date policy — the key must be the same string on every device.',
+        },
+        {
+          selector: "CallExpression[callee.property.name=/^toLocale/]",
+          message:
+            'N-DAILY-01: no locale-formatting Date method — it resolves through the platform locale data and is a different calendar entirely in Bangkok.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='toISOString']",
+          message:
+            'N-DAILY-01: UTC serialisation is a calendar day wrong for a third of every day in Santiago — use the local-field derivation in dateKey.ts.',
+        },
+        {
+          selector: 'Literal[value=86400000]',
+          message:
+            'N-DAILY-01: a local day is 23 or 25 hours on a DST boundary — a fixed-day step SKIPS 2026-09-06 in Santiago and REPEATS 2026-11-01 in Havana. Step the day through the local-field Date constructor, never by a fixed duration.',
+        },
+      ],
+    },
+  },
+  {
     // LC-07: no cross-runtime hops on the per-frame hot path (D-14)
     files: [
       'src/runtime/**/*.{ts,tsx}',
