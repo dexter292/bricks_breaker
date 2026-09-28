@@ -149,11 +149,21 @@ export function mergeDailyRecord(
   // INCLUDES the date being closed right now — otherwise the 450th consecutive close would
   // have its own legitimate 450-day start rejected by a bound of 449.
   const totalDaysPlayed = safeCounter(next.daily.totalDaysPlayed) + (at >= 0 ? 0 : 1);
-  const currentStreakStart = resolveStreakStart(
-    keys,
-    next.daily.currentStreakStart,
+  // The admissibility question is asked about the record being WRITTEN, handed over as one
+  // object. There is no arrangement of arguments available here that could hold this claim
+  // to some other record's window or counter — that is the whole of the shape fix; see
+  // `carriedStartIsCredible`.
+  //
+  // `history` is deliberately the UNTRIMMED array. The run start is derived from it, and
+  // trimming first would move that start one day forward on the close that crosses the
+  // bound — a visible discontinuity in the streak exactly at `DAILY_HISTORY_BOUND`.
+  const pending: DailyRecord = {
+    history,
+    longestStreak: safeCounter(next.daily.longestStreak),
     totalDaysPlayed,
-  );
+    currentStreakStart: next.daily.currentStreakStart,
+  };
+  const currentStreakStart = resolveStreakStart(pending);
   const currentStreak = streakLengthFrom(keys, currentStreakStart);
 
   next.daily = {
@@ -172,6 +182,22 @@ export function mergeDailyRecord(
 }
 
 /**
+ * A run start DERIVED from stored dates, as opposed to one a record merely CLAIMS.
+ *
+ * Nominal on purpose, and the reason is the fifth leak of D-16's one rule. A carried claim
+ * is admissible only if it beats a floor that stored dates actually prove, and the two
+ * values are both `YYYY-MM-DD` strings — so nothing but a convention stopped a call site
+ * passing a claim where the floor belongs, which would admit every claim. `runStartInWindow`
+ * is the only producer of this type, so that mistake is now a compile error.
+ */
+type DerivedStart = string & { readonly __derivedFromStoredDates: unique symbol };
+
+/** A record's OWN stored date keys, in stored order. Never re-sorted — see `sanitizeStreakStart`. */
+function dateKeysOf(record: DailyRecord): readonly string[] {
+  return record.history.map((e) => e.date);
+}
+
+/**
  * The oldest key of the consecutive run ending at the newest stored key, and whether that
  * walk ran out of window rather than meeting a real gap.
  *
@@ -181,14 +207,17 @@ export function mergeDailyRecord(
  * further than anything stored, and the window is silent on how much further.
  */
 function runStartInWindow(sortedKeys: readonly string[]): {
-  start: string;
+  start: DerivedStart;
   floored: boolean;
 } {
   if (sortedKeys.length === 0) {
-    return { start: '', floored: false };
+    return { start: '' as DerivedStart, floored: false };
   }
   const n = streakFrom(sortedKeys);
-  return { start: sortedKeys[sortedKeys.length - n]!, floored: n === sortedKeys.length };
+  return {
+    start: sortedKeys[sortedKeys.length - n]! as DerivedStart,
+    floored: n === sortedKeys.length,
+  };
 }
 
 /**
@@ -219,6 +248,36 @@ function inclusiveDaySpan(start: string, end: string): number {
 /**
  * Is a CARRIED start credible against the record that carries it?
  *
+ * ## The shape, and why it is the shape (the fifth leak)
+ *
+ * **The claimant arrives as ONE `DailyRecord`, and the only other argument is a
+ * `DerivedStart` that only `runStartInWindow` can mint.** That is not a style choice; it is
+ * the fix for the fifth escape of this rule. The predicate used to take the window keys,
+ * the day counter and the claimed start as three loose strings-and-numbers, and
+ * `reconcileStreakStart` — reconciling two devices — passed the UNIONED keys for both
+ * records while passing each record's own counter. A record with two stored dates therefore
+ * borrowed its partner's saturated window to clear question 3, then cleared question 4 with
+ * its own inflated counter: each guard defeated by a different side. MEASURED on the shipped
+ * code: a legitimate 450-day copy A merged with a 2-date copy B carrying
+ * `totalDaysPlayed: 3000` and a start of `2020-01-01` read `Streak · 2709`, where A alone
+ * reads 450 and B alone reads 2.
+ *
+ * Four earlier patches of this same rule were each a correct new condition at a new site
+ * (write, read, sanitize, the bound itself). The fifth is not another condition: **a record's
+ * window, counter and claim can no longer be separated at a call site, so no call site can
+ * cross them.** The evidence and the claim travel as one object or not at all. Everything
+ * below is asked of `claimant` and of nothing else, and `scripts/assert-streak-evidence.mjs`
+ * fails the build if a future edit reintroduces a second evidence source.
+ *
+ * The floor is the one value that legitimately comes from the surrounding context — the
+ * merge asks about the UNIONED history, which is what the merged record's dates will be.
+ * That direction is safe and deliberate: a floored union spans at least every date each side
+ * holds, so its derived start is never LATER than a side's own, and a floor moving earlier
+ * can only reject claims, never admit them. It is branded so that the one catastrophic
+ * mis-call — handing a carried claim in as its own floor — cannot be written.
+ *
+ * ## The rule
+ *
  * **This is the single home of the carried-start admissibility rule.** Both
  * `resolveStreakStart` (which serves the write path via `mergeDailyRecord` and the read
  * path via `currentDailyStreak`) and `reconcileStreakStart` (which serves the two-device
@@ -230,12 +289,14 @@ function inclusiveDaySpan(start: string, end: string): number {
  *
  * Four questions, all of which a carried key must answer:
  *  1. Well-formed and in range (`isValidDateKey` — integer checks, no parse round trip).
- *  2. Strictly older than the window-derived start. A carried value that is not older
- *     carries nothing the stored window does not already prove.
- *  3. The stored window is SATURATED at `DAILY_HISTORY_BOUND`, so trimming is available to
- *     explain the days the window does not hold.
- *  4. Reachable from the newest stored date within `DAILY_STREAK_WALK_CAP`, **and within
- *     the record's own `totalDaysPlayed`**.
+ *  2. Strictly older than the derived start. A carried value that is not older carries
+ *     nothing stored dates do not already prove.
+ *  3. **The claimant's OWN window** is SATURATED at `DAILY_HISTORY_BOUND`, so trimming is
+ *     available to explain the days that window does not hold. Not the union's, not a
+ *     partner's — see the shape note above; asking this of anything but the claimant is
+ *     exactly the defect that shape exists to prevent.
+ *  4. Reachable from **the claimant's own newest stored date** within
+ *     `DAILY_STREAK_WALK_CAP`, **and within the claimant's own `totalDaysPlayed`**.
  *
  * ## Question 3 — the saturation gate
  *
@@ -302,22 +363,19 @@ function inclusiveDaySpan(start: string, end: string): number {
  * derived value too would read `Streak · 0` off any older blob that has real history but
  * never wrote a `totalDaysPlayed`.
  */
-function carriedStartIsCredible(
-  candidate: string,
-  sortedKeys: readonly string[],
-  derivedStart: string,
-  totalDaysPlayed: number,
-): boolean {
+function carriedStartIsCredible(claimant: DailyRecord, derivedStart: DerivedStart): boolean {
+  const candidate = claimant.currentStreakStart;
   if (!isValidDateKey(candidate) || candidate >= derivedStart) {
     return false;
   }
   // The saturation gate. Asked before the walk because it is the cheaper question and
   // because it is the one that does not depend on a number the record supplied about itself.
-  if (sortedKeys.length < DAILY_HISTORY_BOUND) {
+  const ownKeys = dateKeysOf(claimant);
+  if (ownKeys.length < DAILY_HISTORY_BOUND) {
     return false;
   }
-  const span = inclusiveDaySpan(candidate, sortedKeys[sortedKeys.length - 1]!);
-  return span > 0 && span <= safeCounter(totalDaysPlayed);
+  const span = inclusiveDaySpan(candidate, ownKeys[ownKeys.length - 1]!);
+  return span > 0 && span <= safeCounter(claimant.totalDaysPlayed);
 }
 
 /**
@@ -332,7 +390,9 @@ function carriedStartIsCredible(
  *     derived start, reaching back past a window that was never full enough to have been
  *     trimmed, unreachable within the walk cap, or claiming a run longer than the record's
  *     own `totalDaysPlayed`. Discard it. That predicate is the ONLY statement of the rule;
- *     do not restate any part of it here.
+ *     do not restate any part of it here, and do not take its inputs apart — it is handed
+ *     the whole record precisely so that no caller can choose which record each input
+ *     comes from.
  *  4. Otherwise the window is consecutive end to end and cannot contradict the stored
  *     value, so carry it: this is the only path on which a streak longer than
  *     `DAILY_HISTORY_BOUND` survives, and it is exactly what D-16 exists to protect.
@@ -341,22 +401,21 @@ function carriedStartIsCredible(
  * streak and never inflates it. That direction is deliberate: a lifetime best invented
  * out of a tampered blob is a worse failure than one that stopped growing.
  *
- * `totalDaysPlayed` must be the count AFTER the date being written is counted — see the
- * hoist in `mergeDailyRecord`. Passing the pre-increment count would reject the legitimate
- * carried start of a player closing the newest day of their own longest run.
+ * `record.totalDaysPlayed` must be the count AFTER the date being written is counted — see
+ * the `pending` record in `mergeDailyRecord`. Passing the pre-increment count would reject
+ * the legitimate carried start of a player closing the newest day of their own longest run.
+ *
+ * Takes the whole record rather than its parts: the window, the counter and the claim are
+ * all evidence ABOUT ONE RECORD, so a signature that let a caller supply them separately is
+ * a signature that lets a caller supply them from different records. That is how the rule
+ * escaped a fifth time; see `carriedStartIsCredible`.
  */
-function resolveStreakStart(
-  sortedKeys: readonly string[],
-  storedStart: string,
-  totalDaysPlayed: number,
-): string {
-  const { start, floored } = runStartInWindow(sortedKeys);
+function resolveStreakStart(record: DailyRecord): string {
+  const { start, floored } = runStartInWindow(dateKeysOf(record));
   if (start === '' || !floored) {
     return start;
   }
-  return carriedStartIsCredible(storedStart, sortedKeys, start, totalDaysPlayed)
-    ? storedStart
-    : start;
+  return carriedStartIsCredible(record, start) ? record.currentStreakStart : start;
 }
 
 /** The current run's length: the calendar span back to its start, or the derivable walk. */
@@ -394,11 +453,7 @@ function streakLengthFrom(sortedKeys: readonly string[], start: string): number 
  * the evidence there is.
  */
 export function currentDailyStreak(record: DailyRecord): number {
-  const keys = record.history.map((e) => e.date);
-  return streakLengthFrom(
-    keys,
-    resolveStreakStart(keys, record.currentStreakStart, record.totalDaysPlayed),
-  );
+  return streakLengthFrom(dateKeysOf(record), resolveStreakStart(record));
 }
 
 /** Fold one finished run into an aggregate (cumulative sums, running maxes). */
@@ -584,13 +639,45 @@ function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
     safeCounter(b.totalDaysPlayed),
     keys.length,
   );
+  // TWO questions, asked in order, because they are genuinely different questions and
+  // collapsing them is what this rule keeps escaping through:
+  //
+  //  1. `reconcileStreakStart` — is a claim credible ABOUT THE COPY THAT MADE IT? That is
+  //     each copy's own window, own counter, own claim, and it is what keeps a two-date
+  //     copy's "on a run since 2020" out of the merge.
+  //  2. `resolveStreakStart` — can the record we are about to WRITE account for the claim
+  //     that survived? A copy that stopped syncing can be telling the truth about a run its
+  //     partner never saw, and `totalDaysPlayed` under-counts on exactly that topology
+  //     (accepted cost 5), so the merged record may be unable to support a true claim.
+  //
+  // Question 2 can only ever move the start LATER — it chooses between the surviving claim
+  // and the union-derived start, and a claim is admitted only if it is strictly older — so
+  // this composition is downward-only, and it is the SAME function the read path and the
+  // write path use. It is not a sixth restatement of the rule; it is the rule being asked
+  // once more, about the record it is now about to be written into.
+  //
+  // Without it the merge could store a start the record's own read path immediately
+  // refuses, and that refusal is not free: the surviving claim DISPLACES the union-derived
+  // start, which would have survived. MEASURED on a device that stopped syncing 150 days
+  // into a 600-day run and then reconciled: storing the unsupportable claim reads 400,
+  // asking this second question reads 550 (the union-derived run, every day of it backed by
+  // a stored date). The truth is 600; both under-report, and 550 is the one backed by dates.
+  //
+  // `pending` deliberately carries the UNTRIMMED union for the same reason `mergeDailyRecord`
+  // does: trimming first would throw away the very dates that prove the longer run.
+  const pending: DailyRecord = {
+    history,
+    longestStreak: Math.max(safeCounter(a.longestStreak), safeCounter(b.longestStreak)),
+    totalDaysPlayed,
+    currentStreakStart: reconcileStreakStart(keys, a, b),
+  };
   return {
     // Bound on merge as well as on write — reconciling two full windows must not produce
     // a longer one, exactly as the recent-run ring is re-bounded below.
     history: history.slice(-DAILY_HISTORY_BOUND),
-    longestStreak: Math.max(safeCounter(a.longestStreak), safeCounter(b.longestStreak)),
+    longestStreak: pending.longestStreak,
     totalDaysPlayed,
-    currentStreakStart: reconcileStreakStart(keys, a, b),
+    currentStreakStart: resolveStreakStart(pending),
   };
 }
 
@@ -609,33 +696,46 @@ function mergeDailyRecords(a: DailyRecord, b: DailyRecord): DailyRecord {
  *    — the same predicate `resolveStreakStart` uses, and not restated here.
  *  - With no admissible claim, the derived start stands.
  *
- * **Each claim is held to the `totalDaysPlayed` of the record that CARRIED it, never to the
- * merged total.** The merged total is `max(a, b, |union|)`, so asking both claims against it
- * lets one copy's large count vouch for the other copy's claim — a record that closed two
- * dates could have its "on a run since 2020" claim admitted because the copy it met had a
- * big number. MEASURED before this fix: copy A (2 dates, `totalDaysPlayed: 2`, carried
- * `2020-01-01`) reads 2 alone, copy B (2 dates, `totalDaysPlayed: 3000`) reads 2 alone, and
- * `mergeTelemetryBlobs(A, B)` read 2463. A claim is only ever evidence about the record that
- * made it, so the record that made it is what must be able to account for it.
+ * ## The invariant this site exists to hold
+ *
+ * **A claim is evidence about the record that MADE it, so that record — and nothing else —
+ * must be able to account for it.** The union decides the merged HISTORY. It is never
+ * evidence for a claim that did not come from it.
+ *
+ * This has been got wrong twice here, each time by handing the predicate one record's
+ * evidence beside another record's scalar:
+ *
+ *  - The merged total is `max(a, b, |union|)`, so asking both claims against it let one
+ *    copy's large count vouch for the other's claim. MEASURED: copy A (2 dates,
+ *    `totalDaysPlayed: 2`, carried `2020-01-01`) reads 2 alone, copy B (2 dates,
+ *    `totalDaysPlayed: 3000`) reads 2 alone, and `mergeTelemetryBlobs(A, B)` read 2463.
+ *  - Then this site passed the UNIONED keys for BOTH records while passing each record's own
+ *    counter — so a sub-saturated claimant borrowed its partner's saturated window to clear
+ *    the saturation question and its own inflated counter to clear the total question.
+ *    MEASURED: a wholly legitimate 450-day copy A merged with that same copy B read
+ *    `Streak · 2709`, and the next close would have persisted it into the one-way
+ *    `longestStreak`.
+ *
+ * Both were a correct guard defeated by the wrong evidence reaching it. The fix is not a
+ * third guard: `carriedStartIsCredible` now takes the claimant as ONE record and reads its
+ * window, its counter and its claim off that object alone, so this loop has nothing left to
+ * cross. The union is passed for the one thing it is actually for — deriving the floor, which
+ * a floored union can only move EARLIER than either side's own and therefore can only reject.
+ *
+ * `scripts/assert-streak-evidence.mjs` fails the build if this loop regrows a second
+ * evidence source, and `tests/daily.record.test.ts` states the invariant as a case.
  */
 function reconcileStreakStart(
-  sortedKeys: readonly string[],
+  unionKeys: readonly string[],
   a: DailyRecord,
   b: DailyRecord,
 ): string {
-  const { start, floored } = runStartInWindow(sortedKeys);
+  const { start, floored } = runStartInWindow(unionKeys);
   if (start === '' || !floored) {
     return start;
   }
   const admissible = [a, b]
-    .filter((record) =>
-      carriedStartIsCredible(
-        record.currentStreakStart,
-        sortedKeys,
-        start,
-        record.totalDaysPlayed,
-      ),
-    )
+    .filter((record) => carriedStartIsCredible(record, start))
     .map((record) => record.currentStreakStart)
     .sort();
   return admissible[0] ?? start;

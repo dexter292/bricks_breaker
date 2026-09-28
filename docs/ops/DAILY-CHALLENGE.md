@@ -298,7 +298,7 @@ extraordinary run.
 
 ## Accepted costs
 
-Four named, bounded, deliberately unmitigated things. Each is a **decision a later reader will
+Nine named, bounded, deliberately unmitigated things. Each is a **decision a later reader will
 find**, not a defect they should file.
 
 **1. The practice hole (D-08).** Because the board is derived from the date, exiting before the
@@ -462,3 +462,47 @@ WR-04 rather than wired up, on the grounds that re-deriving is Phase 14's surfac
 recorded in `.planning/WINDOWS.md` #23 and at the ref's former site in `PlayingHost.tsx`, and
 **the device-verification row for the midnight rollover must not ask a tester to confirm it** —
 that row checks the countdown's omission only.
+
+**9. A reconciled record can refuse a TRUE carried start, because its own day count
+under-counts.** The two-device merge asks two questions about a carried `currentStreakStart`,
+and it asks them in that order on purpose:
+
+1. **Is the claim credible about the copy that MADE it?** Each copy is judged on its own
+   window, its own `totalDaysPlayed` and its own newest stored date — never on the union's.
+2. **Can the record about to be WRITTEN account for the claim that survived?** The same
+   `resolveStreakStart` the read path and the write path use, asked once more.
+
+Question 1 exists because it was got wrong twice, each time by pairing one copy's evidence with
+the other copy's scalar. MEASURED on the code before it: a wholly legitimate 450-day copy A,
+reconciled with a copy B holding two dates, `totalDaysPlayed: 3000` and a carried `2020-01-01`,
+read **2709** — where A alone reads 450 and B alone reads 2 — and the next close would have
+written 2709 into `longestStreak`, which is one-way under **D-16**. B cleared the saturation
+question by borrowing A's full window and the day-count question with its own inflated counter:
+each guard defeated by a different side. It now reads **450**, carrying A's genuine start.
+`scripts/assert-streak-evidence.mjs` fails the build if a call site re-crosses them.
+
+**The cost is question 2, and it is a real one.** A copy that stopped syncing can be telling the
+truth about a run its partner never saw, and `totalDaysPlayed` under-counts on exactly that
+topology (accepted cost 5 above) — so the merged record can be unable to support a claim that is
+true. MEASURED: a device that stopped syncing 150 days into a genuine 600-day run, reconciled
+against the device that kept playing, reads **550** — every day of it backed by a stored date in
+the union — not 600. Storing the unsupportable claim instead reads **400**, because the
+surviving claim displaces the union-derived start that would have survived. So the choice is
+between two under-reports, and this takes the larger one that stored dates actually prove.
+
+Two consequences follow, and both are **under-reports**, which is the direction every fence in
+this phase degrades in:
+
+- Accepted cost 4 now applies **per copy** at the merge. A copy whose own window is
+  sub-saturated contributes no carried start at all, even when its partner's window is full.
+- A reconciled streak is bounded by the merged `totalDaysPlayed`, and that number is not
+  lossless (cost 5). A streak can therefore be shorter than the truth after a reconcile, and it
+  self-repairs on the next close exactly as cost 4 does.
+
+**What this does NOT fence is `longestStreak` itself,** and that is unchanged rather than
+overlooked. It is an "ever" field merged by maximum with no evidence test, so a hand-written
+value survives a reconcile. MEASURED, and note this needs **no merge at all**: a single record
+carrying `longestStreak: 3000` beside two stored dates still reads `longestStreak: 3000` after
+closing another date, while the streak the panel shows reads **2**. That is T-12-05's accepted
+tamper model — both scalars hand-written on a plaintext blob — not a reconcile defect, and the
+displayed streak is derived and fenced independently of it.

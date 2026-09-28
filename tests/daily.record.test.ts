@@ -721,6 +721,84 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
     ).toBe(window[0]);
   });
 
+  it('judges each copy’s claim on that copy’s own evidence, never on the union’s', () => {
+    // THE INVARIANT, stated rather than the implementation tested: a record's claim is
+    // judged on THAT RECORD'S OWN evidence. The union decides the merged HISTORY; it is
+    // never evidence for a claim that did not come from it.
+    //
+    // Why this case and not the one above it. That case gives BOTH copies the same
+    // saturated window, so it is structurally unable to fail on the union: there is no
+    // difference between "the claimant's window" and "the union" for it to detect. Here the
+    // two copies have DIFFERENT windows, and the copy making the outrageous claim has the
+    // small one.
+    //
+    // MEASURED on the code before the fix: A alone reads 450, B alone reads 2, and merged
+    // they read 2709 — the merge admitted B's claim because B borrowed A's saturated window
+    // to clear the saturation question while clearing the day-count question with its own
+    // inflated counter. Each guard was defeated by a different side. The next close would
+    // then have persisted 2709 into `longestStreak`, which is one-way (D-16) and repairable
+    // only by a migration.
+    //
+    // A is a wholly legitimate, undamaged 450-day player, so unlike the accepted costs in
+    // `docs/ops/DAILY-CHALLENGE.md` there is no reading in which the inflated number is
+    // correct: the true streak is 450 and nothing about B can change that.
+    const full = consecutiveEndingAt('2027-06-01', OVERSHOOT);
+    const window = full.slice(-DAILY_HISTORY_BOUND);
+    const genuineStart = full[0]!;
+
+    const a = blobWithDaily(
+      recordOf(window, {
+        currentStreakStart: genuineStart,
+        totalDaysPlayed: inclusiveSpan(genuineStart, '2027-06-01'),
+        longestStreak: OVERSHOOT,
+      }),
+    );
+    // Exactly the shape the saturation rule rejects on its own: a claim reaching back years
+    // behind a window of two dates, propped up by a hand-written day count.
+    const b = blobWithDaily(
+      recordOf(window.slice(-2), { currentStreakStart: '2020-01-01', totalDaysPlayed: 3_000 }),
+    );
+
+    expect(
+      currentDailyStreak(a.daily),
+      'fixture sanity: A is a legitimate 450-day player and reads its true streak alone',
+    ).toBe(OVERSHOOT);
+    expect(
+      currentDailyStreak(b.daily),
+      'fixture sanity: B’s claim is refused alone — its own window is nowhere near full',
+    ).toBe(2);
+    expect(
+      b.daily.history.length,
+      'fixture sanity: and B’s window is sub-saturated, which is what it must borrow past',
+    ).toBeLessThan(DAILY_HISTORY_BOUND);
+
+    const merged = mergeTelemetryBlobs(a, b);
+    expect(
+      merged.daily.currentStreakStart,
+      'B’s claim is judged on B’s two dates, so it dies; A’s genuine start is what carries',
+    ).toBe(genuineStart);
+    expect(
+      currentDailyStreak(merged.daily),
+      'meeting a liar cannot lengthen an honest streak, nor shorten it',
+    ).toBe(OVERSHOOT);
+    expect(
+      currentDailyStreak(mergeTelemetryBlobs(b, a).daily),
+      'and the answer cannot depend on which copy is the memory side',
+    ).toBe(OVERSHOOT);
+
+    // The write path is where an inflated streak becomes permanent, so trace it: closing the
+    // next date on the merged record must not persist anything past the honest run.
+    const closed = mergeDailyRecord(merged, {
+      date: '2027-06-02',
+      score: 500,
+      outcome: 'win',
+    });
+    expect(
+      closed.daily.longestStreak,
+      'the one-way scalar takes the honest run plus the day just closed, and nothing more',
+    ).toBe(OVERSHOOT + 1);
+  });
+
   it('under-counts rather than inflates when a trimmed copy meets one holding exclusive dates', () => {
     // The documented limit of max-and-union, asserted rather than only described. Copy A
     // has played 500 dates but its window holds the newest 400; copy B holds 10 dates A
