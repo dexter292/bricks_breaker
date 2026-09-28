@@ -208,6 +208,24 @@ note: |
   not run.
 result: pass
 
+## Evidence provenance
+
+Recorded after the phase-11 verifier flagged the asymmetry, and recorded rather than quietly
+fixed because the imbalance was the orchestrator's.
+
+| Test | Result | Kind of evidence |
+|---|---|---|
+| 1 | blocked | **Not taken.** A simulator dry run is transcribed in full under the item and is explicitly not a reading. |
+| 2 | pass | **Owner testimony.** No observation record attached — no device, no command output, no screenshot. The item is one the report itself calls unobservable in this repo. |
+| 3 | pass | **Owner testimony.** Same: jsdom computes no layout, so nothing here observed wrap or clipping. |
+| 4 | pass | **Owner decision**, Option A, plus a measurement the orchestrator ran and attached (dead expression 0 across `docs/`, `certLevelPlan` 3 where it was 0). |
+| 5 | pass | **Owner judgement** confirming a verifier judgement that is itself recorded as non-authoritative. |
+
+Four ticks are not four measurements. Tests 2 and 3 rest on the owner's word alone; if either is
+later contradicted on a device, the correct conclusion is that the testimony was wrong, not that
+something regressed. The phase-11 verifier noted that truth 15 sits one attached observation away
+from 27/28 — it declined to bank that, and so does this record.
+
 ## Summary
 
 total: 5
