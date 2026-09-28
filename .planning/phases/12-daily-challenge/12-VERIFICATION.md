@@ -1,6 +1,6 @@
 ---
 phase: 12-daily-challenge
-verified: 2026-09-28T15:10:00Z
+verified: 2026-09-28T15:45:00Z
 status: human_needed
 score: 5/5 must-haves verified
 covered_files:
@@ -49,14 +49,14 @@ covered_files:
   - "tests/storage.progress-v4.test.ts"
   - "tests/ui/DailyResultOverlay.test.tsx"
   - "tests/ui/PlayingHost.daily-run.test.tsx"
-covered_digest: "v1:sha256:143812de818c4ac1086854855e0099f40f7e5479789635a02eda6c8b7e411dbf"
+covered_digest: "v1:sha256:b26925c793c82550116d70a66cbe089ec404e6a8dbf10d9ff6e4398419251efc"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   previous_status: gaps_found
   previous_score: 4/5
   previous_head: 4c4b25f
-  current_head: cd74b73
+  current_head: 11f507a
   gaps_closed:
     - >-
       SC-3 fifth site — the merge judged a carried claim on the UNION's window while
@@ -68,75 +68,35 @@ re_verification:
       sweep, both clean. merge(A,B) and merge(B,A) both read 450.
   gaps_remaining: []
   regressions: []
+  round_4_at_11f507a:
+    scope: >-
+      Documentary only. `git diff cd74b73..11f507a` touches four files: the guard script
+      (every changed line a comment or blank — VERIFIED by filtering the diff),
+      `docs/ops/DAILY-CHALLENGE.md`, `.planning/WINDOWS.md`, and this report. NO file
+      under `src/`, `app/`, `tests/`, `eslint.config.js` or `package.json` changed, so no
+      behavioural change was possible. Confirmed anyway: all five `assert-*.mjs` green,
+      the behavioural case that holds the rule passes, daily suites **7 files / 132
+      tests** — byte-identical to the `cd74b73` measurement.
+    advisories_closed:
+      - >-
+        Guard claim narrowed rather than extended. The script header now carries a
+        `## What this guard does NOT catch (MEASURED, phase-12 verification round 3)`
+        section naming both escapes, that they typecheck cleanly and fully restore the
+        2592 defect, that the behavioural case is what held the property, and that
+        vitest runs before the assert scripts. `docs/ops/DAILY-CHALLENGE.md` Limit 9
+        carries the same narrowing in the doc's voice. VERDICT UNCHANGED — see below.
+      - >-
+        `WINDOWS.md` entry 26 records the boundary as `false-gate-claim`, with both
+        escapes, the measurement, what held the property, and the open work. Entry 25
+        untouched, correctly.
+      - >-
+        Frontmatter counters recomputed. VERIFIED independently from three sources —
+        frontmatter, the rendered table, and the JSON array — all agree at
+        total 26 / open 23 / waived 0 / fixed 3; ids 1..26 contiguous with no duplicates;
+        `last_updated` equals the latest `recorded_at`. The arithmetic is right.
 gaps: []
 deferred: []
-advisory:
-  - finding: >-
-      `scripts/assert-streak-evidence.mjs` is walk-past-able by the exact class of edit
-      it exists to catch, and its own stated claim — "fails the build if a call site
-      re-crosses them" (`docs/ops/DAILY-CHALLENGE.md` Limit 9) — is therefore
-      overstated. I planted three cross-wires; the gate caught one and waved through
-      two, and BOTH escapes fully reintroduced the fifth-site defect (merge(A,B) read
-      2592 instead of 450, carrying `2020-01-01`). The gate inspects the CONSUMER
-      region's text — bare-identifier argument, and evidence fields reached only through
-      that identifier. It does not constrain the PROVENANCE of that identifier, so any
-      cross-wire performed one function away is invisible. ESCAPE 1: a non-consumer
-      helper `evidenceFor(claimant, windowKeys)` returning `{ ...claimant, history:
-      windowKeys.map(...) }`, consumed as
-      `.map((record) => evidenceFor(record, unionKeys)).filter((claimant) =>
-      carriedStartIsCredible(claimant, start)).map((claimant) =>
-      claimant.currentStreakStart)` — bare identifier, single-identifier field access,
-      gate exit 0, typechecks clean. ESCAPE 2: a non-consumer helper mutating both
-      records' `history` in place before a textually pristine call site — gate exit 0.
-      CONTROL: the coordinator's own shape (frankenrecord assembled INSIDE the consumer,
-      `const claimant = { ...record, history: a.history }`) is CAUGHT, with a precise
-      diagnostic — so the gate is not useless, its boundary is just narrower than
-      claimed.
-    category: other
-    reason: >-
-      This is the same lesson the gate's own source records having learned once — "a
-      guard that watched only `reconcileStreakStart` waved through the identical
-      cross-wiring planted one function up ... So the consumers are discovered rather
-      than listed." The generalisation stopped one level short: consumers are
-      discovered, but the producers of the values they pass are not. Either extend the
-      gate to the provenance of the claimant identifier, or narrow the claim in Limit 9
-      and in the gate's own header to what it actually enforces.
-    evidence_status: >-
-      NOT BLOCKING, and deliberately filed as advisory rather than a gap. Both escapes
-      are caught by the behavioural regression case `tests/daily.record.test.ts >
-      mergeDailyRecords reconcile > judges each copy's claim on that copy's own
-      evidence, never on the union's`, which reds in each case. `npm test` runs vitest
-      BEFORE the assert scripts, so the build still fails. The structural fix is sound;
-      the weaker of its two guards is weaker than advertised.
-  - finding: >-
-      `.planning/WINDOWS.md` frontmatter counters are stale relative to its own rows.
-      Counted directly: 25 rows, 22 `open`, 3 `fixed`. Frontmatter claims
-      `total_count: 24`, `open_count: 21`, `fixed_count: 3`, and `last_updated:
-      2026-09-28T04:15:33.124Z` predates entry 25's own `recorded_at` of
-      `2026-09-28T13:40:00.000Z`. Entry 25 was appended without bumping the counters.
-      With `workflow.windows_enforce` enabled, `/gsd-ship` blocks on `open_count`, so a
-      counter that under-reports by one is a gate reading a stale number.
-    category: other
-    reason: >-
-      Reported rather than fixed — I was instructed not to edit `WINDOWS.md`. Re-run
-      `gsd-tools windows` so the counters and `last_updated` match the rows.
-    evidence_status: "counted directly from the table at cd74b73"
-  - finding: >-
-      The `totalDaysPlayed` ceiling laundering is documented as Limit 9's closing
-      paragraph in `docs/ops/DAILY-CHALLENGE.md` but has no `WINDOWS.md` row, where the
-      file's own convention is that a named permanent residual gets one — entry 25
-      ledgers accepted cost 4 on exactly that convention. This is a newly named,
-      permanent, deliberately unfenced residual carrying a deferred design decision
-      ("whether a lifetime counter may cross devices at all"), which is precisely what
-      the ledger is for.
-    category: other
-    reason: >-
-      Confirming the coordinator's question: entry 25 is NOT superseded — Limit 9
-      extends it ("Accepted cost 4 now applies per copy at the merge") rather than
-      replacing it, and its 450 -> 399 -> 451 measurement still reproduces exactly. But
-      "nothing needs changing there" is not quite right: the counters are stale, and by
-      the file's own convention Limit 9's residual is a missing row.
-    evidence_status: "cross-read WINDOWS.md entry 25 against DAILY-CHALLENGE.md Limit 9"
+advisory: []  # all three from round 3 closed in 11f507a — see re_verification.round_4_at_11f507a
 unverified_prohibitions:
   - statement: >-
       The clock policy MUST NOT become an anti-cheat mechanism — no accusation copy, no
@@ -255,10 +215,10 @@ human_verification:
 # Phase 12: Daily Challenge Verification Report
 
 **Phase Goal:** Every player gets the same board on the same day, once, and has a streak they would be annoyed to lose
-**Verified:** 2026-09-28T15:10:00Z
+**Verified:** 2026-09-28T15:45:00Z
 **Status:** human_needed
-**Re-verification:** Yes — round 3. `gaps_found` 4/5 at `8576958` → `gaps_found` 4/5 at `4c4b25f` → **`human_needed` 5/5 at `cd74b73`**.
-**Tree verified:** HEAD `cd74b73`, working tree unchanged (`git status` identical before and after; all mutation and gate-plant work ran in a disposable `git worktree` under the scratchpad, since removed)
+**Re-verification:** Yes — round 4 (documentary re-stamp). `gaps_found` 4/5 at `8576958` → `gaps_found` 4/5 at `4c4b25f` → `human_needed` 5/5 at `cd74b73` → **`human_needed` 5/5 at `11f507a`**, verdict unchanged.
+**Tree verified:** HEAD `11f507a`, working tree unchanged (`git status` identical before and after; all mutation and gate-plant work ran in a disposable `git worktree` under the scratchpad, since removed)
 
 ## Verdict
 
@@ -336,7 +296,19 @@ Both escapes typecheck cleanly and fully reintroduce the fifth-site defect.
 
 The generalisation stopped one level short. Consumers are discovered; the *producers* of what they pass are not.
 
-**Why this is an advisory and not a gap.** Both escapes are caught by the behavioural regression case `judges each copy's claim on that copy's own evidence, never on the union's`, which reds in each case — and `npm test` runs vitest before the assert scripts, so the build fails first. Defence in depth holds. The structural fix is sound; what is wrong is the *claim* made for the weaker guard, in Limit 9 and in the script's own header. Narrow the claim or extend the gate to the claimant's provenance.
+**Why this was an advisory and not a gap.** Both escapes are caught by the behavioural regression case `judges each copy's claim on that copy's own evidence, never on the union's`, which reds in each case — and `npm test` runs vitest before the assert scripts, so the build fails first. Defence in depth holds. The structural fix is sound; what was wrong was the *claim* made for the weaker guard.
+
+### Resolved at `11f507a` — narrowed, not extended, and that is the right call
+
+I offered two acceptable resolutions: narrow the claim, or extend the gate to the claimant's provenance. `11f507a` took the first. **My verdict is unchanged, and I want to be explicit that this is not tolerance.**
+
+The advisory was never that the guard was too weak — it was that the guard *claimed more than it reached*. A guard with an honest boundary is not a defect; a guard with a false boundary is, because the next reader trusts it and stops looking. What shipped records the boundary in three places, in my own measurements' terms:
+
+- The script header's new `## What this guard does NOT catch (MEASURED, phase-12 verification round 3)` section names both plants, states that they typecheck cleanly and fully restore the 2592 defect, identifies the behavioural case as what actually held the property, and notes that vitest runs first so `npm test` fails either way. It says in terms: *do not read this guard as the thing that makes the rule safe; read it as the thing that catches the cheap in-body regression early.*
+- `docs/ops/DAILY-CHALLENGE.md` Limit 9 carries the same narrowing — `fails the build if a call site re-crosses them **within a consumer's own body**` — and closes with "Extending the guard to the claimant's provenance is named, deferred work, not a thing already done."
+- `WINDOWS.md` entry 26 ledgers it as `false-gate-claim` with the open work attached.
+
+Extending the gate to provenance is real design work — it means following a value backwards across function boundaries — and doing it on a phase that is otherwise finished would be the riskier choice. Deferring it *with the boundary written down and ledgered* is what the phase's own posture calls for everywhere else, and it is what I would have chosen.
 
 ---
 
@@ -352,17 +324,17 @@ Asked to say if any is corruption rather than T-12-05 tampering. **I agree with 
 
 ---
 
-## Gates re-measured at `cd74b73`
+## Gates re-measured at `cd74b73`, re-confirmed at `11f507a`
 
 | Gate | Mutation | Result |
 |------|----------|--------|
-| Daily suites baseline | — | **7 files / 132 tests passing** |
+| Daily suites baseline | — | **7 files / 132 tests passing** — byte-identical at `cd74b73` and `11f507a` |
 | SC-1 local-date derivation | `localDateKey` → UTC getters | **8 RED** |
 | SC-2 write-first | `mergeDailyRecord` → no-op | **6 RED** |
 | SC-3 saturation gate | delete the `ownKeys.length < DAILY_HISTORY_BOUND` check | **3 RED** (was 2 last round — the new merge case adds one) |
 | SC-5 firewall | daily write touches `bestScore`, memoryStore only | **3 RED**, store-scoped |
 | WR-01 eslint banned primitives | `toISOString` + `86400000` in a daily file | **2 errors, exit 1** |
-| All five assert scripts | — | worklet-closures, level-solvability, eas-profiles, brand-name, streak-evidence — **all OK** |
+| All five assert scripts | — | worklet-closures, level-solvability, eas-profiles, brand-name, streak-evidence — **all OK**, re-run at `11f507a` |
 
 Coordinator-reported and consistent with the above: `npm test` exit 0 at 107 files / 798 tests; typecheck exit 0; lint exit 0 at `✖ 3 problems (0 errors, 3 warnings)`.
 
@@ -394,7 +366,17 @@ Carried forward from previous rounds, still open and now the last piece of bookk
 
 `12-VALIDATION.md` unchanged and still judged **honest** — `status: draft` with `nyquist_compliant: true` is the conservative reading of two fields that mean different things, documented in its own frontmatter, and its sign-off ends with an explicit "What this sign-off does NOT claim".
 
-**On `WINDOWS.md`, which I was asked to confirm:** entry 25 is **not** superseded — Limit 9 extends it ("Accepted cost 4 now applies per copy at the merge") rather than replacing it, and its `450 → 399 → 451` measurement reproduces exactly. But "nothing needs changing there" is not quite right, on two counts, both filed as advisories above: the frontmatter counters are stale against the file's own rows (25/22/3 counted vs 24/21/3 claimed, with `last_updated` predating entry 25's `recorded_at`), and by the file's own convention Limit 9's newly named permanent residual — the `totalDaysPlayed` ceiling laundering with its deferred design decision — is a missing row.
+**On `WINDOWS.md`** — both round-3 findings are resolved at `11f507a`, and I re-checked the arithmetic rather than taking it on report. Counted independently from three places that could disagree:
+
+| Source | total | open | waived | fixed |
+|--------|-------|------|--------|-------|
+| frontmatter | 26 | 23 | 0 | 3 |
+| the rendered table | 26 | 23 | 0 | 3 |
+| the JSON array (authoritative) | 26 | 23 | 0 | 3 |
+
+Ids run 1..26 contiguous with no duplicates, and `last_updated` (`2026-09-28T14:20:00.000Z`) equals the latest `recorded_at` rather than trailing it. **The arithmetic is right**, and since `/gsd-ship` gates on `open_count`, that now reads a true number.
+
+Entry 25 is **not** superseded — Limit 9 extends it ("Accepted cost 4 now applies per copy at the merge") rather than replacing it, and its `450 → 399 → 451` measurement reproduces exactly. Entry 26 is new and correctly scoped: it ledgers the guard's boundary as a `false-gate-claim`, names both escapes and the measurement, records that the behavioural case is what held the property, and attaches the open work.
 
 All eight manual items remain `open` `unrun-verify` (#16-18, #20-24), none credited to a passing `render()` assertion.
 
@@ -404,11 +386,13 @@ All eight manual items remain `open` `unrun-verify` (#16-18, #20-24), none credi
 
 Three rounds, five sites, one rule. The first four were each patched as a new condition at a new place; this round stopped patching and changed the signature so the evidence and the claim cannot be separated at a call site. That is the right shape of fix, and it survived every sweep I could aim at it — 192,080 instrumented composition shapes, 98,000 merge shapes, 320 read-path shapes, all clean, plus the full probe table matching the coordinator's independent measurements.
 
-The one thing I would not let stand as written is the claim made for the anti-drift gate. It is a real guard with a real diagnostic, and it catches the shape it was red-proofed against — but I walked past it twice in three attempts, and both escapes put the 2592-streak defect back. It watches consumers and not the producers that feed them. The behavioural test is what actually holds the line, and the documentation should say so.
+The one thing I would not let stand as written was the claim made for the anti-drift gate. It is a real guard with a real diagnostic, and it catches the shape it was red-proofed against — but I walked past it twice in three attempts, and both escapes put the 2592-streak defect back. It watches consumers and not the producers that feed them. The behavioural test is what actually holds the line, and the documentation now says so, in the script header, in Limit 9 and in `WINDOWS.md` entry 26. The guard was narrowed rather than extended, which is the right call and which I would have made the same way: the finding was a false boundary, not a weak one, and a boundary written down and ledgered is the phase's own posture everywhere else.
+
+**Round 4 changed nothing behavioural and could not have.** The diff is one comment block, one doc section, one ledger row and four integers; no file under `src/`, `app/`, `tests/`, `eslint.config.js` or `package.json` moved, and every changed line in the guard script is a comment or blank — verified by filtering the diff, not by reading the commit message. Re-confirmed regardless: five assert scripts green, 7 files / 132 tests, identical to `cd74b73`.
 
 **What I could not verify:** the same eight device and human items, carried forward verbatim. jsdom performs no layout, no test can advance a device wall clock across midnight, the Android engine slice was never executed, and no human has played a daily board. Honestly declared, correctly routed, and not held against the phase. Three judgment-tier prohibitions remain flagged rather than absorbed.
 
 ---
 
-_Verified: 2026-09-28T15:10:00Z_
+_Verified: 2026-09-28T15:45:00Z_
 _Verifier: Claude (gsd-verifier)_
