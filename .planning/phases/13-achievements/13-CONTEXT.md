@@ -64,6 +64,23 @@ account, no store), and any reward attached to an unlock (there is no currency a
   telling them what, which is the silent option wearing one extra line.
   — **Reversibility:** reversible — the cap is a single constant and the panel rows are already
   a bounded list.
+  — **AMENDED 2026-09-28, on measured grounds, following the phase-12 `AMENDED D-16` precedent
+  (commit `39d709e`). The cap is TWO, not three.** `13-UI-SPEC.md` summed both shipped panels
+  from their `StyleSheet.create` values and the `gsd-ui-checker` re-derived every figure
+  independently: the binding case is a **campaign win** on `ResultOverlay` (48 pad + 40 heading +
+  40 body + 32 Score + 32 Best + 32 stars + 44 badge + 64 Retry + 64 Next + 62 Menu = **458px**)
+  against **548px usable** at 320x568pt. Three added rows is `458 + 3x32 = 554` — over by
+  exactly 6px, which clips `Menu`, and 12-UI-SPEC forbids scrolling. Two rows is 522 with 26px
+  spare. D-05's shape survives intact — name some, count the rest, never a bare count, never a
+  scroll — only the number moves, and D-05's own reversibility clause anticipated exactly this.
+  — **The binding panel is `ResultOverlay`, not `DailyResultOverlay`.** The orchestrator briefed
+  the UI researcher that the daily panel was the risk, on the strength of WINDOWS #17. That was
+  wrong: daily's contracted maximum is 426px and only reaches 458 through a defensive bound.
+  No prior phase ever registered a backstop for the campaign-win panel, which is also the run
+  most likely to unlock something.
+  — **The 26px of spare rests on an UNVERIFIED inset assumption.** 548 usable assumes a bottom
+  safe-area inset of zero at 320x568. If it is not zero, the spare goes negative and the cap is
+  ONE. The device backstop must confirm the insets, not merely the fit.
 
 ### Where an unlock is surfaced
 
@@ -123,6 +140,17 @@ account, no store), and any reward attached to an unlock (there is no currency a
   — Rejected: refusing to build on them and deriving everything from the trimmed history. A streak
   longer than the 400-entry window would then read as the window length — **precisely the failure
   D-16 of phase 12 was re-opened mid-phase to eliminate**, reappearing on a new surface.
+- **D-18: The Dynamic Type ceiling is an OWNER DECISION with a due point, not an open note.**
+  `allowFontScaling` defaults to `true` in React Native and an explicit `lineHeight` scales with
+  it, both measured in the installed tree. Adding two rows drops the campaign-win panel's text
+  multiplier ceiling from **1.433 to 1.102** — from clipping at the first accessibility size to
+  clipping one step above default, since iOS xLarge is approximately 1.118. The lever is
+  `maxFontSizeMultiplier` and it touches three shipped components, so it is not this phase's to
+  pull. It is deferred deliberately, and the deferral is bounded: the exposure exists only at
+  320x568, reachable only through Display Zoom, which is itself correlated with a raised text
+  size. **Due at Phase 14**, which owns the shell those three components live in.
+  — **Reversibility:** reversible — `maxFontSizeMultiplier` is a prop.
+
 - **D-17: An unlock is itself one-way.** Nothing un-earns an achievement, so a tampered blob at
   install time grants permanently under D-04. Named here so a later round finds a decision rather
   than a defect.

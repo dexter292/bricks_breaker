@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 23
+open_count: 25
 waived_count: 0
 fixed_count: 4
-total_count: 27
-last_updated: 2026-09-28T19:05:00.000Z
+total_count: 29
+last_updated: 2026-09-28T19:40:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -30,8 +30,8 @@ last_updated: 2026-09-28T19:05:00.000Z
 | 13 | 11 | deviation | app/_components/PlayingHost.tsx |  | 11-20 base disagreement: plan measured the falsified clause at 1 here on 6bb18bf; wave 9 (07907f3) had already deleted it, so the phase-wide enumeration is 5 on the executed tree, not 6 | open |  | 2026-09-26T15:20:54.201Z |  |
 | 14 | 12 | stub | src/services/storage/parseBlob.ts |  | sanitizeTelemetry does not read telemetry.daily from the raw blob, so a stored daily history is discarded on hydrate (closed by plan 12-04's sanitizeDailyRecord) | fixed |  | 2026-09-28T01:48:07.356Z | 2026-09-28T04:15:33.124Z |
 | 15 | 12 | unrun-verify | src/services/storage/telemetry.ts |  | mergeDailyRecord and mergeDailyRecords have no executing test — the jsdom harness mocks the storage module (guard is plan 12-03's tests/daily.record.test.ts) | fixed |  | 2026-09-28T01:48:07.463Z | 2026-09-28T03:08:57.659Z |
-| 16 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06. | open |  | 2026-09-28T03:58:52.704Z |  |
-| 17 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06. | open |  | 2026-09-28T03:59:12.456Z |  |
+| 16 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it — device verification, owned by 12-06.  EXTENDED 2026-09-28 by phase 13: the same horizontal budget now also bounds every achievement DISPLAY NAME at 16 characters. Derived and re-derived: 320 - 48 padding = 272px; SpaceMono advance 0.612 em at 16px = 9.792px; floor(272 / 9.792) = 27 chars; the 'Unlocked . ' prefix is 11. A wrong budget here silently reshapes the catalog D-09 defines. | open |  | 2026-09-28T03:58:52.704Z |  |
+| 17 | 12 | unrun-verify | src/runtime/overlays/DailyResultOverlay.tsx |  | 12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device — owned by 12-06.  ANNOTATED 2026-09-28 by phase 13's UI pass, NOT superseded: (a) the 456px figure is 2px LOW — the CTA was counted at 60 (16 + minHeight 44) when menuButton carries borderWidth 1 on all edges, making it 62; the corrected figure is 458. (b) The '11-row' premise is a defensive bound, not the real maximum: showBadge requires streak >= 2 while the streak-ended line renders only where the current streak is 1, so they are mutually exclusive and the contracted maximum is 10 rows. The component would still render both, because DailyResultOverlay folds endedStreakLength and streak independently — which is why 11 is budgeted against rather than claimed away. Both corrections verified independently by gsd-ui-checker. | open |  | 2026-09-28T03:59:12.456Z |  |
 | 18 | 12 | unrun-verify | app/_components/PlayingHost.tsx |  | 12-UI-SPEC E5 overflow: the __DEV__ dev row must be fully on-screen and tappable on a 375pt viewport. Computed at ~431-475px with Daily added; the row already clipped at its two default tier states BEFORE this phase. Dev-only surface, deleted by Phase 14 — owned by 12-06.  RESOLVED 2026-09-28 by commit eec2137: the backstop came back POSITIVE on an iPhone 17 simulator at 402pt — the row clipped at the LEFT, cutting off Lv and the tier button, while Daily stayed reachable. Root cause was the one 12-UI-SPEC E5 already named: the slot had no left bound, so an absolutely-positioned box with right alone grew leftwards off-screen. Fixed by bounding the slot left as well and letting the row wrap, so every control is reachable at any width. Verified on the simulator in both campaign and endless. Three sibling display defects found in the same session are fixed in the same commit: the metrics overlay drew under the dev row, had no backdrop over bricks, and the W{n} readout was a bare label on the brick field. | fixed |  | 2026-09-28T03:59:12.560Z |  |
 | 19 | 12 | deviation | app/_components/PlayingHost.tsx |  | The daily panel's Streak line is derived by currentDailyStreak (the write side's own exact derivation) rather than by streakFrom over the trimmed window, which plan 12-05 and 12-03's handoff both prescribed. MEASURED: streakFrom returns 400 against a stored longestStreak of 450, which both misreports the streak and silently stops the record badge firing for a player on their best-ever run. | open |  | 2026-09-28T03:59:12.664Z |  |
 | 20 | 12 | unrun-verify | docs/ops/DAILY-CHALLENGE.md |  | Device item 1 (12-VALIDATION Manual-Only): Android Hermes date-key + nextLocalMidnightMs on a 23h DST day. Only the Apple slice of the SDK 57 Hermes artifact was executable; the Android engine is a separate compilation against bionic tzdata and was NEVER executed. Routed to a device check by plan 12-06. | open |  | 2026-09-28T04:15:32.571Z |  |
@@ -42,6 +42,8 @@ last_updated: 2026-09-28T19:05:00.000Z
 | 25 | 12 | accepted-cost | src/services/storage/telemetry.ts |  | Accepted cost 4 (docs/ops/DAILY-CHALLENGE.md): a carried currentStreakStart is credible only when the surviving window is saturated at DAILY_HISTORY_BOUND. Sub-saturated means never trimmed, so the stored dates are the whole evidence. Consequence: a SATURATED window damaged at its oldest end becomes sub-saturated and under-reports a genuine long streak until the next close (measured 450 -> 399 -> 451, self-repairing). Under-report is the chosen direction; the rule refuses nothing a legitimate write can produce, only what damage produces. Residual inside the accepted T-12-06 tamper model: 399 genuine consecutive dates beside a hand-written totalDaysPlayed of 3000 reads 399, then the next close writes longestStreak 2710. | open |  | 2026-09-28T13:40:00.000Z |  |
 | 26 | 12 | false-gate-claim | scripts/assert-streak-evidence.mjs |  | assert-streak-evidence.mjs reaches only a consumer's OWN BODY. It reads the consumer region's text, not the provenance of the identifier that region receives, so a cross-wire performed one function away is invisible. MEASURED (phase-12 verification round 3): two plants walked past it, both typechecking cleanly and both fully restoring the 2592-streak defect - a non-consumer helper building the frankenrecord and handing over a bare identifier, and a non-consumer helper mutating both records in place. The property still held: both red the behavioural case 'judges each copy's claim on that copy's own evidence, never on the union's' in tests/daily.record.test.ts, and vitest runs before the assert scripts, so npm test fails either way. Open work: extend the guard to the claimant's provenance. The script's own header and docs/ops/DAILY-CHALLENGE.md Limit 9 were narrowed to claim only what the guard reaches. | open |  | 2026-09-28T14:20:00.000Z |  |
 | 27 | 12 | unregistered-threat | src/services/storage/parseBlob.ts |  | sanitizeAggregateMap is UNCAPPED ON READ. MEASURED by the phase-12 security audit: 5000 keys injected into telemetry.byMode.daily of a hostile blob survive parseProgressResult with status: ok. Phase 12's write-side fence (byMode.daily keyed on the single constant DAILY_TELEMETRY_KEY) is real and mutation-proved, but nothing trims the map on read. PROVENANCE: parseBlob.ts sanitizeAggregateMap was authored in ddbbec3 (phase 09-02) and applies identically to campaign and endless - inherited, NOT a phase-12 regression. Note the asymmetry inside the same file: recentRuns IS re-bounded on read, and so is daily.history; byMode.* is not. Self-inflicted on a rooted device, so it sits inside T-12-06's accepted posture - but no threat register ever made that call, and T-12-01's own text names this sanitizer as the amplifier. Decide it explicitly rather than by inheritance. | open |  | 2026-09-28T17:05:00.000Z |  |
+| 28 | 13 | backstop | src/runtime/overlays/ResultOverlay.tsx |  | Phase-13 UI-SPEC backstop 1, NEW AND BINDING: ResultOverlay vertical fit at 320x568pt in the campaign-win worst case (3 stars + New Record + Retry + Next + Menu) with 2 achievement rows added = 522px against 548 usable, 26px spare. This panel binds the whole phase-13 row budget and NO PRIOR PHASE EVER REGISTERED A BACKSTOP FOR IT — every prior layout backstop targeted the daily panel, whose contracted maximum is 426px. CRITICAL: the 548 usable figure assumes a BOTTOM SAFE-AREA INSET OF ZERO, which is unverified. The device check must confirm the INSETS, not merely that it fits — if the bottom inset is non-zero the 26px spare goes negative and ACHIEVEMENT_LINES_MAX must drop to 1. | open |  | 2026-09-28T19:40:00.000Z |  |
+| 29 | 13 | owner-decision | src/runtime/overlays/ResultOverlay.tsx |  | Phase-13 UI-SPEC: Dynamic Type ceiling. allowFontScaling defaults to true and an explicit lineHeight scales with it (both measured in the installed RN tree), so adding two rows drops the campaign-win panel's text-multiplier ceiling from 1.433 to 1.102 - from clipping at the first accessibility size to clipping one step above default, since iOS xLarge is about 1.118. PRE-EXISTING in kind (the panel already clips at AX1 today) and confined to 320x568, reachable only via Display Zoom. Lever is maxFontSizeMultiplier across three shipped components, so it is not phase 13's to pull. Recorded as decision D-18 with a DUE POINT: Phase 14, which owns those components. Do not let this sit as an open note without an owner. | open |  | 2026-09-28T19:40:00.000Z |  |
 
 ````json
 [
@@ -246,7 +248,7 @@ last_updated: 2026-09-28T19:05:00.000Z
     "phase": "12",
     "file": "src/runtime/overlays/DailyResultOverlay.tsx",
     "line": null,
-    "description": "12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it \u2014 device verification, owned by 12-06.",
+    "description": "12-UI-SPEC E1 overflow (horizontal): a 7-digit score, 4-digit streak and 5-digit days-played must show no wrap and no clipping in the shipped 320px panel. jsdom performs no layout, so no test in this phase is evidence for it \u2014 device verification, owned by 12-06. EXTENDED 2026-09-28 by phase 13: the same horizontal budget now also bounds every achievement DISPLAY NAME at 16 characters. Derived and re-derived: 320 - 48 padding = 272px; SpaceMono advance 0.612 em at 16px = 9.792px; floor(272 / 9.792) = 27 chars; the 'Unlocked . ' prefix is 11. A wrong budget here silently reshapes the catalog D-09 defines.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T03:58:52.704Z",
@@ -259,7 +261,7 @@ last_updated: 2026-09-28T19:05:00.000Z
     "phase": "12",
     "file": "src/runtime/overlays/DailyResultOverlay.tsx",
     "line": null,
-    "description": "12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device \u2014 owned by 12-06.",
+    "description": "12-UI-SPEC E1 overflow (vertical): the fully-populated 11-row Daily Result panel must fit inside the safe area on a 320x568pt viewport with the Menu CTA visible without scrolling. Computed at 456px, never observed on a device \u2014 owned by 12-06. ANNOTATED 2026-09-28 by phase 13's UI pass, NOT superseded: (a) the 456px figure is 2px LOW \u2014 the CTA was counted at 60 (16 + minHeight 44) when menuButton carries borderWidth 1 on all edges, making it 62; the corrected figure is 458. (b) The '11-row' premise is a defensive bound, not the real maximum: showBadge requires streak >= 2 while the streak-ended line renders only where the current streak is 1, so they are mutually exclusive and the contracted maximum is 10 rows. The component would still render both, because DailyResultOverlay folds endedStreakLength and streak independently \u2014 which is why 11 is budgeted against rather than claimed away. Both corrections verified independently by gsd-ui-checker.",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-28T03:59:12.456Z",
@@ -393,6 +395,32 @@ last_updated: 2026-09-28T19:05:00.000Z
     "status": "open",
     "reason": null,
     "recorded_at": "2026-09-28T17:05:00.000Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 28,
+    "kind": "backstop",
+    "phase": 13,
+    "file": "src/runtime/overlays/ResultOverlay.tsx",
+    "line": null,
+    "description": "Phase-13 UI-SPEC backstop 1, NEW AND BINDING: ResultOverlay vertical fit at 320x568pt in the campaign-win worst case (3 stars + New Record + Retry + Next + Menu) with 2 achievement rows added = 522px against 548 usable, 26px spare. This panel binds the whole phase-13 row budget and NO PRIOR PHASE EVER REGISTERED A BACKSTOP FOR IT \u2014 every prior layout backstop targeted the daily panel, whose contracted maximum is 426px. CRITICAL: the 548 usable figure assumes a BOTTOM SAFE-AREA INSET OF ZERO, which is unverified. The device check must confirm the INSETS, not merely that it fits \u2014 if the bottom inset is non-zero the 26px spare goes negative and ACHIEVEMENT_LINES_MAX must drop to 1.",
+    "status": "open",
+    "reason": null,
+    "recorded_at": "2026-09-28T19:40:00.000Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 29,
+    "kind": "owner-decision",
+    "phase": 13,
+    "file": "src/runtime/overlays/ResultOverlay.tsx",
+    "line": null,
+    "description": "Phase-13 UI-SPEC: Dynamic Type ceiling. allowFontScaling defaults to true and an explicit lineHeight scales with it (both measured in the installed RN tree), so adding two rows drops the campaign-win panel's text-multiplier ceiling from 1.433 to 1.102 - from clipping at the first accessibility size to clipping one step above default, since iOS xLarge is about 1.118. PRE-EXISTING in kind (the panel already clips at AX1 today) and confined to 320x568, reachable only via Display Zoom. Lever is maxFontSizeMultiplier across three shipped components, so it is not phase 13's to pull. Recorded as decision D-18 with a DUE POINT: Phase 14, which owns those components. Do not let this sit as an open note without an owner.",
+    "status": "open",
+    "reason": null,
+    "recorded_at": "2026-09-28T19:40:00.000Z",
     "resolved_at": null,
     "milestone": "v1.2"
   }
