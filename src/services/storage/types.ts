@@ -186,11 +186,14 @@ export const ENDLESS_TELEMETRY_KEY = 'endless' as const;
 /**
  * The `byMode.daily` map key (Phase 12 D-15). A plain constant string for the same
  * reason `ENDLESS_TELEMETRY_KEY` is one — a generated board has no catalog id — and,
- * additionally, because keying that map by anything that VARIES PER DATE creates a map
- * with no cap: `sanitizeAggregateMap` (`parseBlob.ts:383-399`) copies every key it
- * finds on read with no bound, so a per-date key would never be trimmed by anything
- * downstream. The per-date history belongs in `TelemetryBlob.daily`, which is a bounded
- * collection.
+ * additionally, because keying that map by anything that VARIES PER DATE would grow a map
+ * whose only cap is a blanket one: `sanitizeAggregateMap` (in `parseBlob.ts` — cited by
+ * SYMBOL because this comment carried `parseBlob.ts:383-399` while the function sat near
+ * line 670, the citation drift this repo has now hit four times) bounds the map at
+ * `AGGREGATE_MAP_BOUND` and nothing downstream trims it further, so a per-date key would
+ * survive until it hit that blanket cap and then silently lose dates. The per-date history
+ * belongs in `TelemetryBlob.daily`, which is a bounded collection with a policy about
+ * WHICH entries it keeps.
  */
 export const DAILY_TELEMETRY_KEY = 'daily' as const;
 
@@ -281,6 +284,39 @@ export type DailyRecord = {
  * the collection must have the bound or the id validation and must not have neither.
  */
 export const ACHIEVEMENT_UNLOCK_BOUND = 64 as const;
+
+/**
+ * The per-map key cap for the three `byMode` aggregate maps (WINDOWS #27 / T-09-A1).
+ *
+ * **Why this exists, and why it did not until now.** `sanitizeAggregateMap` in
+ * `parseBlob.ts` copied EVERY key it found on every parse, with no bound — and it does not
+ * merely copy, it EXPANDS: a stored `{}` cell becomes a full sixteen-field
+ * `TelemetryAggregate`. MEASURED 2026-09-29 on a valid v4 blob: 20 000 empty campaign
+ * cells at **229 KB stored** parse to **5.79 MB in memory**, a **25x inflation**, with all
+ * 20 000 keys surviving and `status: 'ok'`. The ratio rises as stored key names shorten.
+ * The phase-09 audit measured the same shape at 11.2x with longer keys; both are the one
+ * defect. Against the ~2MB Android CursorWindow ceiling the ring-buffer comment above
+ * names, the parsed side had no ceiling at all.
+ *
+ * This was WINDOWS #27, open since plan 09-02 (`ddbbec3`), and phases 11, 12 and 13 each
+ * *transferred* a threat to it — `13-SECURITY.md`'s `T-13-07`/`T-13-02` row among them — on
+ * the understanding that it was tracked. Tracked is not bounded.
+ *
+ * **Why 64 does not cost anything real.** Every legitimate key comes from a closed domain:
+ * `byMode.campaign` is keyed by `LevelId`, which has exactly FIVE members
+ * (`src/core/levels/levelIds.ts`); `byMode.endless` holds the single
+ * `ENDLESS_TELEMETRY_KEY`; `byMode.daily` the single `DAILY_TELEMETRY_KEY` — and
+ * `DAILY_TELEMETRY_KEY`'s own comment above explains that it is a constant precisely so
+ * this map cannot grow per date. So a real blob carries at most five keys in the largest
+ * of the three maps. 64 is thirteen times that, leaves room for a campaign several times
+ * its present size without a bound edit, and can only ever discard keys a tampered blob
+ * invented.
+ *
+ * Applied **keep-first**, matching `ACHIEVEMENT_UNLOCK_BOUND`'s direction and for the same
+ * reason: the entries a real player accumulated come first, and dropping the oldest would
+ * discard the levels they have played longest.
+ */
+export const AGGREGATE_MAP_BOUND = 64 as const;
 
 /** One earned achievement (D-14) — which one, and when it was first earned. */
 export type AchievementUnlock = {

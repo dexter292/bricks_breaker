@@ -17,6 +17,7 @@ import { isKnownAchievementId } from '../achievements';
 import { PLAYABLE_LEVEL_ORDER } from './catalog';
 import {
   ACHIEVEMENT_UNLOCK_BOUND,
+  AGGREGATE_MAP_BOUND,
   DAILY_HISTORY_BOUND,
   RECENT_RUNS_BOUND,
   defaultAchievementRecord,
@@ -675,12 +676,27 @@ function sanitizeAggregateMap(
     return out;
   }
   const map = raw as Record<string, unknown>;
+  // Bounded on READ (WINDOWS #27 / T-09-A1), and the bound is applied to the SURVIVING
+  // keys — after the non-object drop below, never to `Object.keys(map)` before it, so
+  // padding garbage cannot push a real level's aggregate out of the window. Same
+  // drop-then-trim order, for the same reason, as `sanitizeAchievementRecord` above.
+  //
+  // This function does not merely copy, it EXPANDS: `sanitizeAggregate` turns a stored
+  // `{}` into a full sixteen-field aggregate. Measured before the bound existed: 20 000
+  // empty cells at 229KB stored parsed to 5.79MB, a 25x inflation, all keys surviving at
+  // `status: 'ok'`. See `AGGREGATE_MAP_BOUND` for why 64 cannot cost a real player
+  // anything — every legitimate key comes from a five-member or one-member domain.
+  let kept = 0;
   for (const key of Object.keys(map)) {
     const entry = map[key];
     if (entry == null || typeof entry !== 'object') {
       continue;
     }
+    if (kept >= AGGREGATE_MAP_BOUND) {
+      break;
+    }
     out[key] = sanitizeAggregate(entry);
+    kept += 1;
   }
   return out;
 }

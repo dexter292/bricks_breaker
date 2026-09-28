@@ -19,6 +19,7 @@ import {
   PROGRESS_KEY,
   PROGRESS_KEY_V3,
   PROGRESS_VERSION,
+  AGGREGATE_MAP_BOUND,
   RECENT_RUNS_BOUND,
   createMemoryProgressStore,
   defaultProgressBlob,
@@ -739,6 +740,94 @@ describe('sanitizeDailyRecord — bounded on read, every stored key validated (1
  * DEGRADES where the id DROPS (D-21) — two different failure rules inside one entry
  * sanitizer, which no other sanitizer in `parseBlob.ts` has.
  */
+/**
+ * `sanitizeAggregateMap` — bounded on read (WINDOWS #27 / T-09-A1, closed 2026-09-29).
+ *
+ * WHY THIS BLOCK EXISTS. This map was the one unbounded stored collection in the v4 read
+ * path, open since plan 09-02 (`ddbbec3`), and phases 11, 12 and 13 each *transferred* a
+ * threat to WINDOWS #27 on the understanding it was tracked. Tracked is not bounded.
+ *
+ * The function does not merely copy keys, it EXPANDS them: `sanitizeAggregate` turns a
+ * stored `{}` cell into a full sixteen-field aggregate. MEASURED before the bound existed,
+ * on a valid v4 blob: 20 000 empty campaign cells at 229KB stored parsed to **5.79MB** in
+ * memory — a 25x inflation — with all 20 000 keys surviving at `status: 'ok'`, against the
+ * ~2MB Android CursorWindow ceiling the ring buffer is sized for. After the bound: 18.9KB
+ * and 64 keys, the same `status: 'ok'`.
+ *
+ * The bound cannot cost a real player anything. Every legitimate key comes from a closed
+ * domain — `byMode.campaign` is keyed by `LevelId` (five members), and the other two maps
+ * hold a single constant key each — so a real blob carries at most five keys in the largest
+ * of the three. That is asserted below rather than only argued, because it is the whole
+ * reason 64 is safe.
+ */
+describe('sanitizeAggregateMap — bounded on read, and the bound is above every legitimate key domain (09-A1)', () => {
+  const bigCampaign = (n: number): Record<string, unknown> => {
+    const m: Record<string, unknown> = {};
+    for (let i = 0; i < n; i += 1) {
+      m[`pad-${i}`] = { runsPlayed: 1 };
+    }
+    return m;
+  };
+
+  it('a tampered map cannot grow the parsed record — 20000 keys in, AGGREGATE_MAP_BOUND out, and the blob still parses ok', () => {
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).byMode = {
+      campaign: bigCampaign(20000),
+      endless: {},
+      daily: {},
+    };
+    const res = parseProgressResult(JSON.stringify(blob));
+
+    expect(
+      res.status,
+      'the bound must TRIM, never reject — a hostile blob that makes the app refuse to load its own progress is a worse outcome than one that loses invented keys (C1 D-09: parse is fail-soft)',
+    ).toBe('ok');
+    expect(
+      Object.keys(res.progress.telemetry.byMode.campaign).length,
+      'WINDOWS #27: before this bound, every one of the 20000 keys survived and each was EXPANDED to a sixteen-field aggregate — 229KB stored became 5.79MB parsed',
+    ).toBe(AGGREGATE_MAP_BOUND);
+  });
+
+  it('the bound is applied AFTER the non-object drop, so padding garbage cannot push a real level out of the window', () => {
+    const real = PLAYABLE_LEVEL_ORDER[0] as string;
+    const campaign: Record<string, unknown> = {};
+    // Garbage FIRST, and enough of it to overrun the window on its own if it counted.
+    for (let i = 0; i < AGGREGATE_MAP_BOUND * 2; i += 1) {
+      campaign[`junk-${i}`] = i % 2 === 0 ? null : 'not-an-object';
+    }
+    campaign[real] = { runsPlayed: 7 };
+
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).byMode = {
+      campaign,
+      endless: {},
+      daily: {},
+    };
+    const res = parseProgressResult(JSON.stringify(blob));
+    const out = res.progress.telemetry.byMode.campaign;
+
+    expect(
+      Object.keys(out).length,
+      'none of the 128 non-object cells may consume a slot — they are dropped, and only survivors are counted toward the bound',
+    ).toBe(1);
+    expect(
+      out[real]?.runsPlayed,
+      'THE POINT: the one real aggregate sits behind 128 junk keys and must still arrive. Counting before the drop — bounding Object.keys(map) instead of the survivors — would silently discard it, which is the trim-then-drop defect this ordering exists to prevent',
+    ).toBe(7);
+  });
+
+  it('every legitimate key domain is far below the bound — which is why 64 costs nothing', () => {
+    expect(
+      PLAYABLE_LEVEL_ORDER.length,
+      'byMode.campaign is keyed by LevelId. If the campaign ever grows past AGGREGATE_MAP_BOUND this assertion reds FIRST, before a player silently loses a level aggregate — that is what it is for',
+    ).toBeLessThan(AGGREGATE_MAP_BOUND);
+    expect(
+      AGGREGATE_MAP_BOUND,
+      'and the headroom is real, not nominal: the largest legitimate map is five keys',
+    ).toBeGreaterThanOrEqual(PLAYABLE_LEVEL_ORDER.length * 4);
+  });
+});
+
 describe('sanitizeAchievementRecord — the stored achievements set, bounded on read and validated against the catalog (13-03)', () => {
   const first = PLAYABLE_LEVEL_ORDER[0] as string;
 

@@ -38,6 +38,7 @@ export {
   type AchievementUnlock,
   defaultAchievementRecord,
   ACHIEVEMENT_UNLOCK_BOUND,
+  AGGREGATE_MAP_BOUND,
   type RunLogEntry,
   type RunStatsInput,
 } from './types';
