@@ -36,7 +36,7 @@ Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outsid
 - [x] **Phase 9: Run Telemetry & Storage v4** - Every run records what happened, persisted through a lossless v3→v4 migration
 - [x] **Phase 10: Seeded Board Generator** - Deterministic (seed, difficulty) → playable board that passes the solvability lint
 - [ ] **Phase 11: Endless Mode** - A run that never runs out of board, escalating until the player misses
-- [ ] **Phase 12: Daily Challenge** - One shared board per local date, with a streak worth keeping
+- [x] **Phase 12: Daily Challenge** - One shared board per local date, with a streak worth keeping (completed 2026-09-28)
 - [ ] **Phase 13: Achievements** - Local, deterministic unlocks earned from telemetry
 - [ ] **Phase 14: Meta Shell — Mode Select, Stats & Achievements** - The new modes and records become reachable and readable
 
@@ -171,7 +171,7 @@ Plans:
   4. Device clock changes are handled by an explicit, written policy — the behaviour on a backwards clock jump is a decision recorded in the phase, not an accident
   5. Daily results never touch campaign progress or endless records
 
-**Plans:** 6/6 plans executed in 5 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 6/6 plans complete
 
 Plans:
 
