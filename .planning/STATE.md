@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 3
+current_plan: 4
 status: in_progress
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-09-28T14:05:30.058Z"
-state_head: 9bdbb66a43dcc642e5aece7405290a8b52793a84
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-09-28T14:30:12.817Z"
+state_head: 67161104330b5896d873ade55b079d5dc1b450ba
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 43
-  completed_plans: 40
+  completed_plans: 41
   percent: 17
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 5
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
@@ -137,6 +137,7 @@ Total Plans in Phase: 5
 | Phase 12 P06 | 9 min | 2 tasks | 3 files |
 | Phase 13 P01 | 62 min | 1 tasks | 16 files |
 | Phase 13 P02 | 18 min | 2 tasks | 4 files |
+| Phase 13 P03 | 13 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -281,6 +282,9 @@ Total Plans in Phase: 5
 - [Phase 13]: 13-01: a named control must have a command whose output MOVES with the control's presence — npm run lint exits 0 against a clean src/services/achievements/ whether or not the purity block exists, so the __purity_probe gate (5 with the block, 0 without) is the control and the lint run is not. Corollary found in execution: an AST-level gate tolerates prose naming the banned construct; a grep-level gate does not.
 - [Phase 13]: All twelve achievement predicates read through one set of total readers, including the entry plan 13-01 shipped: a degradation direction must be uniform across a data table or the table has an over-reporting hole in exactly one row
 - [Phase 13]: Exactly one of the twelve achievement thresholds claims a published anchor (Wave 10, against DAILY_DIFFICULTY and the generator table); the other eleven state outright that no anchor exists rather than inventing one
+- [Phase 13]: The achievements read bound keeps the FIRST entries (slice(0, ACHIEVEMENT_UNLOCK_BOUND)), not the last — the plan specified the recent-run ring direction — Both shipped write sites already trim this collection with slice(0, ...), and mergeAchievementUnlocks explicitly rejects slice(-...) for it: under D-17 an unlock is permanent, so dropping the oldest un-earns the achievements the player has held longest. The plan trim-after-drop fixture (leading garbage, trailing real) also only discriminates drop-first from trim-first under keep-first.
+- [Phase 13]: D-22 is asserted as COMMUTATIVITY over both merge argument orders, not as a single merge — MEASURED: the case exactly as the plan specified it PASSED against a deliberately inverted incoming-wins mergeAchievementRecords. mergeTelemetryBlobs iterates memory-then-incoming, so incoming-wins returns whichever copy is passed second — which, with the earlier copy as incoming, is the earliest. Earliest-wins is commutative and incoming-wins is not; requiring the same answer in both orders is what binds the rule.
+- [Phase 13]: vitest -t filters are case-SENSITIVE — a filtered gate can match nothing and still exit 0 — MEASURED: -t "earliest" against a case named EARLIEST printed Test Files 1 skipped (1) / Tests 24 skipped (24) and exited 0. This is the phase already-recorded non-matching-filter-exits-0 trap arriving through CASE rather than through a wrong word. Every -t row in 13-VALIDATION.md must match the case its test name actually uses.
 
 ### Decisions (Post-MVP close)
 
@@ -317,6 +321,6 @@ Total Plans in Phase: 5
 
 ## Session Continuity
 
-Last session: 2026-09-28T14:05:23.179Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-09-28T14:29:46.011Z
+Stopped at: Completed 13-03-PLAN.md
 Resume file: None
