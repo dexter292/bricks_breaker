@@ -29,9 +29,22 @@
  * over by 6px and CLIPS `Menu` — and `12-UI-SPEC.md` forbids scrolling on this panel.
  *
  * The 26px of spare rests on a bottom safe-area inset of zero, which is UNVERIFIED. The
- * device check (WINDOWS #28, discharged by plan 13-05) must confirm the INSETS and not
- * merely the fit: if the bottom inset is non-zero the spare goes negative and this
- * constant drops to 1.
+ * device check (WINDOWS #28, still OPEN) must confirm the INSETS and not merely the fit:
+ * if the bottom inset is non-zero the spare goes negative and this constant drops to 1.
+ *
+ * ## This constant CLAMPS the output — downward only
+ *
+ * It is applied as a `slice` on the returned array, not merely described by the branch
+ * table below, because the phase-13 code review found it was read by nothing in
+ * production: the cap was the branch structure alone, so WINDOWS #28's recorded
+ * remedy — "this constant drops to 1" — would have changed no rendered row. It now does.
+ *
+ * **Downward only, and the asymmetry is deliberate.** Lowering it to 1 genuinely reduces
+ * the block to one row, and the row kept is the first NAME line, which is what D-05 asks
+ * for: it rejected a bare count because that tells the player something happened without
+ * telling them what. RAISING it above 2 changes nothing on its own — the branch table
+ * below tops out at two lines — and raising it would also invalidate the 458/548
+ * arithmetic above, so a third row is a UI-SPEC change and not a constant edit.
  */
 export const ACHIEVEMENT_LINES_MAX = 2;
 
@@ -70,7 +83,9 @@ const PREFIX = 'Unlocked · ';
  * the cap is a property of the component and not a promise by the host.** A host bug must
  * not be able to push `Menu` off the bottom of a non-scrolling panel — see the constant
  * above for the measured 554-against-548 that makes this load-bearing rather than
- * defensive.
+ * defensive. The final `slice` is what makes that sentence true of the CONSTANT and not
+ * merely of the branch table: at the shipped value of 2 it removes nothing, which is
+ * exactly why its absence went unnoticed until the phase-13 code review.
  *
  * ## Order is preserved, never sorted and never de-duplicated
  *
@@ -113,28 +128,32 @@ export function achievementLines(
     text: `${PREFIX}${clean[0]!}`,
     label: `Achievement unlocked: ${clean[0]!}`,
   };
-  if (n === 1) {
-    return [first];
-  }
-  if (n === 2) {
-    return [
-      first,
-      {
-        kind: 'name',
-        text: `${PREFIX}${clean[1]!}`,
-        label: `Achievement unlocked: ${clean[1]!}`,
-      },
-    ];
-  }
-  const rest = n - 1;
-  return [
-    first,
-    {
-      kind: 'overflow',
-      text: `and ${rest} more`,
-      // Not a sentence on its own when read aloud, so the label states what the count is
-      // a count OF.
-      label: `And ${rest} more achievements unlocked`,
-    },
-  ];
+  const laid: readonly AchievementLine[] =
+    n === 1
+      ? [first]
+      : n === 2
+        ? [
+            first,
+            {
+              kind: 'name',
+              text: `${PREFIX}${clean[1]!}`,
+              label: `Achievement unlocked: ${clean[1]!}`,
+            },
+          ]
+        : [
+            first,
+            {
+              kind: 'overflow',
+              text: `and ${n - 1} more`,
+              // Not a sentence on its own when read aloud, so the label states what the
+              // count is a count OF.
+              label: `And ${n - 1} more achievements unlocked`,
+            },
+          ];
+  // The constant, applied. A no-op at the shipped value of 2 — every branch above already
+  // lays out at most two — and that is the point: WINDOWS #28's remedy is "drop this to 1",
+  // and before this slice existed that edit changed no rendered row. Trailing lines are
+  // what a lower cap drops, so at 1 the surviving row is the first NAME line rather than a
+  // bare count (D-05).
+  return laid.slice(0, ACHIEVEMENT_LINES_MAX);
 }

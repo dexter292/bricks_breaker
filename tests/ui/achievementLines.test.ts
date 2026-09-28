@@ -35,6 +35,7 @@
  * nothing about a catalog (D-08); importing `src/services` here to derive them would
  * assert a coupling neither it nor either panel has.
  */
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
   achievementLines,
@@ -150,6 +151,45 @@ describe('achievementLines (13-UI-SPEC § One shared pure classifier)', () => {
       achievementLines(['a', 'b', 'c']).length,
       'and the bound is REACHED, so the loop above is not vacuously green on a function that returns nothing',
     ).toBe(ACHIEVEMENT_LINES_MAX);
+  });
+
+  it('the constant CLAMPS the output — a source-level scan, because at 2 the clamp is a no-op', () => {
+    // WHY THIS IS A SOURCE SCAN AND NOT A BEHAVIOURAL CASE.
+    //
+    // The phase-13 code review found `ACHIEVEMENT_LINES_MAX` was read by NOTHING in
+    // production: the cap was the branch table alone, so WINDOWS #28's recorded remedy —
+    // "if the bottom safe-area inset is non-zero this constant drops to 1" — would have
+    // changed no rendered row. The constant was documentation wearing a constant's
+    // clothes.
+    //
+    // The clamp is now applied, and it is UNOBSERVABLE from outside at the shipped value:
+    // every branch lays out at most two lines, so `slice(0, 2)` removes nothing and no
+    // input distinguishes its presence from its absence. That is not a reason to skip the
+    // guard — it is the exact reason the omission survived four plans and two checker
+    // rounds. So this reads the source, on the precedent of
+    // `tests/achievements.catalog.test.ts -t "no clock no storage"`, and for the same
+    // stated reason: a text-level reader is the only reader available for this property.
+    //
+    // Comments are STRIPPED before matching, because the module's own JSDoc explains the
+    // clamp and names `slice` in prose several times. Not stripping them is how plan
+    // 13-01 shipped a `numberOfLines` gate that counted its own explanation.
+    const src = readFileSync(
+      'src/runtime/overlays/achievementLines.ts',
+      'utf8',
+    );
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+
+    expect(
+      code,
+      'the clamp must be applied to the RETURNED array from the constant itself. A literal `slice(0, 2)` is not acceptable here: it would re-create the defect this case exists for, because lowering the constant would again change nothing',
+    ).toMatch(/\.slice\(\s*0\s*,\s*ACHIEVEMENT_LINES_MAX\s*\)/);
+
+    expect(
+      /ACHIEVEMENT_LINES_MAX/.test(code),
+      'and the constant is named in code rather than only in the prose that explains it — this assertion is what proves the strip above did not delete the only match and leave the one before it passing on a comment',
+    ).toBe(true);
   });
 
   it('preserves input order and never sorts — an unsorted pair comes back unsorted', () => {
