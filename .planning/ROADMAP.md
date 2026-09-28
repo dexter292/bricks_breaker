@@ -211,7 +211,7 @@ Plans:
   4. An unlock is surfaced to the player at a point that does not interrupt a live rally
   5. The catalog covers the shipped verbs and all three modes (campaign, endless, daily), not just score thresholds
 
-**Plans:** 1/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 2/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
@@ -221,7 +221,7 @@ Plans:
 
 **Wave 2**
 
-- [ ] 13-02-PLAN.md — The catalog filled to twelve entries across campaign, endless and daily, five cumulative and seven skill-gated, every threshold carrying its stated reasoning as a judgement (D-09/D-10/D-11/D-12); plus the catalog and evaluator suites (wave 2)
+- [x] 13-02-PLAN.md — The catalog filled to twelve entries across campaign, endless and daily, five cumulative and seven skill-gated, every threshold carrying its stated reasoning as a judgement (D-09/D-10/D-11/D-12); plus the catalog and evaluator suites (wave 2)
 
 **Wave 3**
 

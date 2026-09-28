@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-09-28T13:40:28.597Z"
-state_head: 92302369f268089c559655df3bbebc609ef79f67
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-09-28T14:05:30.058Z"
+state_head: 9bdbb66a43dcc642e5aece7405290a8b52793a84
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 43
-  completed_plans: 39
+  completed_plans: 40
   percent: 17
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -52,7 +52,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 5
 
 **Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
@@ -136,6 +136,7 @@ Total Plans in Phase: 5
 | Phase 12 P05 | 26 min | 3 tasks | 12 files |
 | Phase 12 P06 | 9 min | 2 tasks | 3 files |
 | Phase 13 P01 | 62 min | 1 tasks | 16 files |
+| Phase 13 P02 | 18 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -278,6 +279,8 @@ Total Plans in Phase: 5
 - [Phase 13]: 13-01: recordRunEnd widens its return to RecordRunEndResult, carrying this write's newly-unlocked ids (D-19) — The set difference cannot cross the store boundary any other way: once the union is persisted it is gone, and a host pre-read is the extra storage read D-01 avoided. Measured blast radius: exactly two lines, and the four mocked-store harnesses do NOT break, so every consumer must fail soft.
 - [Phase 13]: 13-01: the unlock merge keys whole {id, at} records and the EARLIEST timestamp wins (D-22) — The inversion of mergeDailyRecords' incoming-wins tiebreak. Last-writer-wins moves the timestamp forward and D-14 stores it precisely so Phase 14 can show a recency order. Reducing over all timestamps instead of per id is the phase-12 cross-wiring defect in a new place.
 - [Phase 13]: 13-01: a named control must have a command whose output MOVES with the control's presence — npm run lint exits 0 against a clean src/services/achievements/ whether or not the purity block exists, so the __purity_probe gate (5 with the block, 0 without) is the control and the lint run is not. Corollary found in execution: an AST-level gate tolerates prose naming the banned construct; a grep-level gate does not.
+- [Phase 13]: All twelve achievement predicates read through one set of total readers, including the entry plan 13-01 shipped: a degradation direction must be uniform across a data table or the table has an over-reporting hole in exactly one row
+- [Phase 13]: Exactly one of the twelve achievement thresholds claims a published anchor (Wave 10, against DAILY_DIFFICULTY and the generator table); the other eleven state outright that no anchor exists rather than inventing one
 
 ### Decisions (Post-MVP close)
 
@@ -314,6 +317,6 @@ Total Plans in Phase: 5
 
 ## Session Continuity
 
-Last session: 2026-09-28T13:40:04.697Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-09-28T14:05:23.179Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None
