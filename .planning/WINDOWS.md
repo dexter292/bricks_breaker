@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 30
+open_count: 31
 waived_count: 0
-fixed_count: 4
-total_count: 34
-last_updated: 2026-09-28T15:10:38.059Z
+fixed_count: 6
+total_count: 37
+last_updated: 2026-09-28T15:38:11.605Z
 ---
 
 # Broken Windows Ledger
@@ -49,6 +49,9 @@ last_updated: 2026-09-28T15:10:38.059Z
 | 32 | 13 | unmet-truth | src/runtime/GameScreen.tsx |  | COVERAGE GAP, named not papered over. The achievements prop threaded to BOTH arms of the showResult route has NO behavioural test. MEASURED by plan 13-05 T2: grep -cin achiev tests/ui/GameScreen.test.tsx prints 0. The only automated observers are npm run typecheck (the prop must exist on ResultOverlay and DailyResultOverlay and both arms must accept it - a real gate, since 13-01 could not wire an arm to a prop the component did not declare) and npm run lint (the runtime -> services boundary). Both panel suites render the overlays DIRECTLY, not through GameScreen. So the claim 'the prop reaches both arms' is compiler-checked and behaviourally unobserved, and 13-VALIDATION.md's row for it is marked with a qualified status for that reason rather than a green tick. Closing it means a GameScreen-level render case, which no plan in phase 13 owned. | open |  | 2026-09-28T15:10:37.830Z |  |
 | 33 | 13 | unmet-truth | .planning/phases/13-achievements/13-VALIDATION.md |  | GATES THAT COULD NOT FAIL, found and corrected at phase close. Two of the twenty seeded per-task map rows named cases in the WRONG FILE: 'npx vitest run tests/achievements.record.test.ts -t "unknown id"' and the same with -t "degrades alone". Neither case name exists in that file - the unknown-id drop and the independent-degradation claim both live in tests/storage.progress-v4.test.ts, where plan 13-03 T1 put the sanitizer battery. As written each would have printed Tests 24 skipped (24) at EXIT 0: the same silent non-binding plan 13-03 measured through wrong CASE, reached here through wrong FILE. A third row (-t "achievements" for the D-13 no-migration claim) matched a whole describe body rather than the claim, and a fourth (-t "timestamp") swept in three unrelated cases. All four corrected to the EXECUTED commands with the correction noted in the file. Open work: no gate anywhere in this repo checks that a -t filter in a planning artifact actually binds to a case that exists. | open |  | 2026-09-28T15:10:37.944Z |  |
 | 34 | 13 | deviation | .planning/phases/13-achievements/13-05-PLAN.md |  | Plan 13-05 Task 3's presence gate invokes 'gsd-tools windows list', which DOES NOT EXIST - the windows verb offers status, append, waive, fixed only. As written the command errored to stderr (suppressed by 2>/dev/null), printed 0, and so FAILED the gate it was written to pass. Executed instead against 'windows status --raw', asserting both presence and open-ness of #16/#17/#28/#29 (4/4 present, 4/4 open), which is strictly more than the gate asked for. Recorded because a planning artifact naming a non-existent subcommand is the same defect family as a -t filter that does not bind. | open |  | 2026-09-28T15:10:38.059Z |  |
+| 35 | 13 | deviation | app/_components/PlayingHost.tsx |  | 13 code review WR-03: an unlock earned on an ABANDONED run is persisted and never announced. handleMenuPress records outcome 'abandoned' (which evaluates and stores the unlock) then calls onMenu() and navigates away, so no panel remains to show it; D-02's delta is one-shot so it cannot fire later. NOT fixed in phase 13 — the fix is a placement decision and there is no Menu-route surface that states run outcomes. Belongs with Phase 14's Achievements screen. Recorded in docs/ops/ACHIEVEMENTS.md Limit 2b, including why the alternative (suppressing the unlock so it can be re-earned) is worse: it contradicts D-17's one-way rule. | open |  | 2026-09-28T15:37:47.196Z |  |
+| 36 | 13 | deviation | src/runtime/overlays/achievementLines.ts |  | 13 code review WR-02 (FIXED in phase 13): ACHIEVEMENT_LINES_MAX was read by nothing in production — the cap was the branch table alone, so WINDOWS #28's recorded remedy ('this constant drops to 1') would have changed no rendered row. The constant now clamps the returned array via slice(0, ACHIEVEMENT_LINES_MAX). Red-proved three ways: clamp removed reds 1 case; a literal slice(0, 2) reds the source scan; the constant set to 1 reds 8 cases where before the fix only the assertion naming the number moved. The clamp is DOWNWARD ONLY by design — at 1 the surviving row is the first name line, per D-05's rejection of a bare count; raising it above 2 changes nothing because the branch table tops out at two and would invalidate the 458/548 arithmetic. Because the clamp is a no-op at the shipped value no black-box case can observe it, so the guard is a comment-stripping source scan in tests/ui/achievementLines.test.ts, on the precedent of the catalog purity scan. | fixed |  | 2026-09-28T15:37:58.783Z | 2026-09-28T15:38:11.494Z |
+| 37 | 13 | deviation | src/services/achievements/catalog.ts |  | 13 code review WR-04 (FIXED in phase 13): campaign-25's player-facing description said 'Win 25 campaign levels', which the predicate does not do and a player cannot do — PLAYABLE_LEVEL_ORDER holds five, so 25 distinct levels do not exist. The entry's own JSDoc already argued correctly for summed runsWon ('replaying one level twenty-five times IS persistence'); only the copy was never moved. Now reads 'Win 25 campaign runs'. No test pinned the string, which is why it survived four plans and two checker rounds; descriptions are asserted only for uniqueness. | fixed |  | 2026-09-28T15:37:58.893Z | 2026-09-28T15:38:11.605Z |
 
 ````json
 [
@@ -492,6 +495,45 @@ last_updated: 2026-09-28T15:10:38.059Z
     "reason": "",
     "recorded_at": "2026-09-28T15:10:38.059Z",
     "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 35,
+    "kind": "deviation",
+    "phase": "13",
+    "file": "app/_components/PlayingHost.tsx",
+    "line": null,
+    "description": "13 code review WR-03: an unlock earned on an ABANDONED run is persisted and never announced. handleMenuPress records outcome 'abandoned' (which evaluates and stores the unlock) then calls onMenu() and navigates away, so no panel remains to show it; D-02's delta is one-shot so it cannot fire later. NOT fixed in phase 13 — the fix is a placement decision and there is no Menu-route surface that states run outcomes. Belongs with Phase 14's Achievements screen. Recorded in docs/ops/ACHIEVEMENTS.md Limit 2b, including why the alternative (suppressing the unlock so it can be re-earned) is worse: it contradicts D-17's one-way rule.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-28T15:37:47.196Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 36,
+    "kind": "deviation",
+    "phase": "13",
+    "file": "src/runtime/overlays/achievementLines.ts",
+    "line": null,
+    "description": "13 code review WR-02 (FIXED in phase 13): ACHIEVEMENT_LINES_MAX was read by nothing in production — the cap was the branch table alone, so WINDOWS #28's recorded remedy ('this constant drops to 1') would have changed no rendered row. The constant now clamps the returned array via slice(0, ACHIEVEMENT_LINES_MAX). Red-proved three ways: clamp removed reds 1 case; a literal slice(0, 2) reds the source scan; the constant set to 1 reds 8 cases where before the fix only the assertion naming the number moved. The clamp is DOWNWARD ONLY by design — at 1 the surviving row is the first name line, per D-05's rejection of a bare count; raising it above 2 changes nothing because the branch table tops out at two and would invalidate the 458/548 arithmetic. Because the clamp is a no-op at the shipped value no black-box case can observe it, so the guard is a comment-stripping source scan in tests/ui/achievementLines.test.ts, on the precedent of the catalog purity scan.",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-28T15:37:58.783Z",
+    "resolved_at": "2026-09-28T15:38:11.494Z",
+    "milestone": "v1.2"
+  },
+  {
+    "id": 37,
+    "kind": "deviation",
+    "phase": "13",
+    "file": "src/services/achievements/catalog.ts",
+    "line": null,
+    "description": "13 code review WR-04 (FIXED in phase 13): campaign-25's player-facing description said 'Win 25 campaign levels', which the predicate does not do and a player cannot do — PLAYABLE_LEVEL_ORDER holds five, so 25 distinct levels do not exist. The entry's own JSDoc already argued correctly for summed runsWon ('replaying one level twenty-five times IS persistence'); only the copy was never moved. Now reads 'Win 25 campaign runs'. No test pinned the string, which is why it survived four plans and two checker rounds; descriptions are asserted only for uniqueness.",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-28T15:37:58.893Z",
+    "resolved_at": "2026-09-28T15:38:11.605Z",
     "milestone": "v1.2"
   }
 ]

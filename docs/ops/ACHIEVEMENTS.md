@@ -357,11 +357,27 @@ unavailable: under D-04's retroactive flood every unlock carries the same timest
 recency sort would make the NAMED achievement vary between two evaluations of one snapshot,
 breaking SC-2 at the surface the player actually sees.
 
-Two suppression states, both reusing a **shipped** flag and adding none: the block is absent at
-endless Retry time (`showRunLines`, the `'start'` wave-build failure — no run has happened yet,
-so any names still in props belong to the previous run) and on a daily board failure (`isClosed`
-— nothing was played and `recordRunEnd` never ran). A `'mid'` wave-build failure is **not**
-suppressed: that run ended and saved, so the unlocks are real.
+**Three** run-absent states, not two. Two of them are suppressed by reusing a **shipped** flag
+and adding none: the block is absent at endless Retry time (`showRunLines`, the `'start'`
+wave-build failure — no run has happened yet, so any names still in props belong to the previous
+run) and on a daily board failure (`isClosed` — nothing was played and `recordRunEnd` never ran).
+A `'mid'` wave-build failure is **not** suppressed: that run ended and saved, so the unlocks are
+real.
+
+The third was **missed** until the phase-13 code review (WR-01): `startDailyRun`'s read-only
+closed-date branch. No run happens there, so `recordRunEnd` never fires and
+`publishUnlockedAchievements` is never called — while `isClosed` *is* true, so the block's gate is
+satisfied and it renders whatever the last recorded run left in host state. The leak is
+cross-**mode**, not cross-date: unlock something in campaign, press `Daily` on an already-closed
+date, and the campaign unlock appeared on the daily panel. `startDailyRun` derives its date from
+`Date.now()` and can only ever open today, so no cross-date variant exists.
+
+That branch is the one place a reset is written, and it resets to the **absence**: the stored
+record carries no per-day unlock list to show instead, and it should not — the date is read-only.
+Guarded by `tests/ui/PlayingHost.daily-run.test.tsx -t "WR-01"`, which plays a real campaign run
+for its positive control rather than injecting names. The general rule the enumeration now states:
+**a reset is needed on exactly those paths where no run records**, and a fourth such path must be
+checked against this list rather than assumed covered.
 
 ### The measured arithmetic behind the two-row cap
 
@@ -383,6 +399,21 @@ The binding case is a **campaign win** with three stars, `New Record`, `Retry`, 
 `12-UI-SPEC.md` forbids scrolling on this panel, so a clipped `Menu` is a *control the player
 cannot reach*, not a cosmetic overflow. That is why the cap is two and not D-05's original three,
 and D-05's own reversibility clause anticipated exactly this ("the cap is a single constant").
+
+**That clause was not true when it was written.** The phase-13 code review (WR-02) found
+`ACHIEVEMENT_LINES_MAX` was read by nothing in production — the cap was the branch table alone, so
+the remedy recorded in WINDOWS #28 ("this constant drops to 1") would have changed no rendered
+row. The constant now clamps the returned array, so lowering it genuinely reduces the block.
+Measured both ways: with the clamp removed one case reds, and with the constant set to 1 **eight**
+cases red, where before the fix only the assertion naming the number did.
+
+The clamp is **downward only**, and the asymmetry is deliberate: at 1 the surviving row is the
+first *name* line rather than a bare count, which is what D-05 asks for. Raising it above 2 changes
+nothing on its own — the branch table tops out at two — and would invalidate the 458/548
+arithmetic anyway, so a third row is a UI-SPEC change and not a constant edit. Because the clamp
+is a no-op at the shipped value, no black-box case can observe it; the guard is a
+comment-stripping source scan in `tests/ui/achievementLines.test.ts`, on the precedent of the
+catalog's own purity scan.
 
 The 26px of spare rests on a **bottom safe-area inset of zero**, which is an assumption. See
 *Flagged assumptions from this round*.
@@ -517,7 +548,23 @@ reasoning as inherited and every number as re-openable.
 
 **2. The device half of the row budget is unmeasured, and one number can still change shipped
 code.** See *Flagged assumptions*. `ACHIEVEMENT_LINES_MAX` is 2 on the stated zero-inset
-assumption; a non-zero bottom inset drops it to 1, and two test cases move with it.
+assumption; a non-zero bottom inset drops it to 1, and two test cases move with it. That remedy is
+only real as of the phase-13 code review's WR-02 fix — see *The measured arithmetic* — and the
+number of cases that move on the edit is now **eight**, not two.
+
+**2b. An unlock earned on an ABANDONED run is persisted and never announced.** `handleMenuPress`
+records the run as `abandoned`, which evaluates and stores the unlock, and then calls `onMenu()`
+and navigates away — so there is no panel left to show it on. Under D-02 the delta is one-shot, so
+it can never fire later either: the player earns it, it is theirs, and nothing ever tells them.
+
+This is a real gap and it is **not** fixed here. The fix is a placement decision, not a
+one-liner — there is no surface on the Menu route that states run outcomes, and inventing a
+toast or a modal for it would be the phase's first notification-shaped UI, which D-05 and the
+whole § What the player sees were written against. It belongs with Phase 14's Achievements screen,
+where a newly-unlocked marker has somewhere to live. Recorded as WINDOWS #35. Noted here because
+the alternative — suppressing the unlock on an abandoned run so it can be re-earned later —
+would be worse: it contradicts D-17's one-way rule and would make the same play produce different
+results depending on how the player left the screen.
 
 **3. This document does not cover the Achievements screen.** Phase 14 owns it. This phase writes
 the data it reads — `telemetry.achievements.unlocked`, every id minted by the catalog, every `at`
