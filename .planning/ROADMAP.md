@@ -211,7 +211,7 @@ Plans:
   4. An unlock is surfaced to the player at a point that does not interrupt a live rally
   5. The catalog covers the shipped verbs and all three modes (campaign, endless, daily), not just score thresholds
 
-**Plans:** 4/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
+**Plans:** 5/5 plans executed in 4 waves (tracer-first: one end-to-end slice, then expansion)
 
 Plans:
 
@@ -230,7 +230,7 @@ Plans:
 
 **Wave 4**
 
-- [ ] 13-05-PLAN.md — `docs/ops/ACHIEVEMENTS.md`, the v4 field written into `PROGRESS-STORAGE.md`, the phase's only tree-wide gate, `13-VALIDATION.md` closed out, and the four device/layout claims routed to end-of-phase human verification with WINDOWS #16/#17/#28/#29 left open (wave 4)
+- [x] 13-05-PLAN.md — `docs/ops/ACHIEVEMENTS.md`, the v4 field written into `PROGRESS-STORAGE.md`, the phase's only tree-wide gate, `13-VALIDATION.md` closed out, and the four device/layout claims routed to end-of-phase human verification with WINDOWS #16/#17/#28/#29 left open (wave 4)
 
 **UI hint**: yes
 

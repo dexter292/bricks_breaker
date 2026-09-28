@@ -390,3 +390,46 @@ the planning and ledger layer (W1, W3, W4, W5), and every one of them errs in th
 
 *Verified: 2026-09-28*
 *Verifier: Claude (gsd-verifier)*
+
+---
+
+## Disposition of this report's five findings (orchestrator, after the report was written)
+
+Recorded here because acting on W1–W5 edited files inside this verification's own `covered_files`,
+which mechanically re-stales it. That is expected and is not a second round: these are this
+report's own consequences. Commits `fa29be1` and `3143bc4`.
+
+**W1 — my figure was wrong, and the verifier's is right.** I recorded the blast radius of setting
+`ACHIEVEMENT_LINES_MAX` to 1 as eight cases. I had run only
+`tests/ui/achievementLines.test.ts`. Re-measured across the whole suite: **11 failures in 3
+files** — 8 in `achievementLines.test.ts`, 2 in `ResultOverlay.achievements.test.tsx`, 1 in
+`DailyResultOverlay.test.tsx`. WINDOWS #28 said *two* and omitted the daily panel entirely.
+Corrected in #28, in #36 and in `docs/ops/ACHIEVEMENTS.md`, both the *measured arithmetic*
+section and Limit 2. #28 is the entry a maintainer executes the change from, so it was the one
+that mattered most.
+
+**W2 — accepted; the deferral named a mitigation nothing requires.** Phase 14's SC-3 as written
+requires only locked/unlocked entries with descriptions, so a Phase 14 satisfying its own criteria
+verbatim leaves an abandon-earned unlock indistinguishable. Recorded in #35 and the ops document
+as an **inherited obligation on Phase 14's discuss stage**, not something that phase provides. The
+verifier's quantification — **7 of the 12 entries** crossable on an abandon, all three modes,
+because `mergeRunIntoTelemetry` increments `runsPlayed` unconditionally — is now in both, since no
+artifact carried it.
+
+**W3 — fixed.** `endless.bestScore` removed from `AchievementSnapshot`; four fixture sites updated.
+The view's rule that it names only what is read is the rule that justified dropping
+`daily.history` in 13-02, and a rule applied to one field and not the one beside it is not a rule.
+
+**W4 / W5 — fixed.** `13-VALIDATION.md`'s suite figure and the 13-case row updated. On the
+deviation count: the verifier's **17** is correct as a count of recorded deviations; the *fourteen*
+in the dispatch excluded the three Rule-3 blocking ones. The dispatch figure was the narrower one
+and was not labelled as such.
+
+**WR-03 / #35 stays open** and remains the one substantive gap in the phase.
+
+### Post-disposition gates
+
+`npm test` exit **0** at **112 files / 870 passed | 1 skipped (871)**. `npm run typecheck` exit 0.
+`npm run lint` exit 0 at `✖ 3 problems (0 errors, 3 warnings)`. `windows status` → `ok: true`,
+31 open / 0 waived / 6 fixed / 37 total. Verdict **unchanged: `human_needed`** — nothing here
+touched the five human items, and nothing here could.
