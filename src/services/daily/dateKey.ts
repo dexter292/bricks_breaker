@@ -51,11 +51,10 @@
  *    24 hours long (12-RESEARCH § Finding 3(c)). Stepping a day is calendar arithmetic
  *    through the local-wall-time Date constructor, never duration arithmetic.
  *
- * That last clause is forward-stated on purpose: nothing in this module steps a day
- * yet. `nextLocalMidnightMs` arrives in plan 12-02, written test-first beside the two
- * real 2026 DST days that are the only thing able to falsify it. The rule is written
- * here because it is a property of the module, and 12-02 inherits it together with this
- * plan's comment-stripped grep gate over `src/services/daily/*.ts`.
+ * `nextLocalMidnightMs` below is the day-step that rule exists for. It landed in plan
+ * 12-02, written test-first beside the two real 2026 DST days that are the only thing
+ * able to falsify it (`tests/daily.date-key.test.ts`), and it inherits the ban together
+ * with plan 12-01's comment-stripped grep gate over `src/services/daily/*.ts`.
  *
  * SECURITY: the date key is a difficulty/board input, not a secret. It feeds
  * `generate`, whose PRNG is explicitly not a CSPRNG (`src/levelgen/rng.ts:15-18`) —
@@ -73,11 +72,70 @@
  * and passed in.
  */
 export function localDateKey(nowMs: number): string {
-  const d = new Date(nowMs);
+  const d = new Date(representableInstant(nowMs));
   const y = d.getFullYear();
   const m = d.getMonth() + 1;
   const day = d.getDate();
   return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * The first instant of the local calendar day AFTER the one containing `nowMs`
+ * (N-DAILY-01 / D-02 / 12-UI-SPEC § Clock policy rule 3).
+ *
+ * **Calendar arithmetic, never duration arithmetic.** The local-field `Date` constructor
+ * interprets its arguments as local wall time, so `getDate() + 1` asks the runtime's own
+ * tz database for "the same wall-clock midnight, one calendar day on" — which is a
+ * different number of milliseconds away on every DST day. The banned alternative is not
+ * merely inelegant, it is measured wrong (12-RESEARCH § Finding 3(c)): adding a fixed day
+ * in milliseconds SKIPS 2026-09-06 outright in America/Santiago, where that local day has
+ * no 00:00–00:59 at all, and REPEATS 2026-11-01 in America/Havana, where that local day is
+ * 90 000 000 ms long. A player in Santiago would never be served one of the boards; a
+ * player in Havana would be served today's board as "tomorrow's".
+ *
+ * The constructor also resolves a local midnight that does not exist to the first instant
+ * that DOES exist on that local day — measured as `2026-09-06T04:00:00.000Z` in Santiago
+ * under both Hermes and Node — rather than yielding `NaN` or falling back a day. Month,
+ * year and leap-year overflow of `getDate() + 1` are the constructor's job too, verified
+ * across all four boundaries in 12-RESEARCH § Finding 3(d).
+ *
+ * Total, like its sibling: see `representableInstant`. A boundary is always a finite
+ * integer, so a countdown built on it can read `expired` but can never render `NaN`.
+ */
+export function nextLocalMidnightMs(nowMs: number): number {
+  const from = representableInstant(nowMs);
+  const d = new Date(from);
+  const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0).getTime();
+  // At the very top of the representable range there is no next local midnight. Degrade
+  // to the instant itself — a remaining-time of zero reads as `expired`, which is the safe
+  // direction; `NaN` would reach the UI as a rendered literal.
+  return Number.isFinite(next) ? next : from;
+}
+
+/**
+ * Normalise `nowMs` to an instant a `Date` can actually represent, so both exported
+ * functions are total over EVERY number rather than only over the finite ones.
+ *
+ * Without this, `NaN`, `±Infinity` and any magnitude past the ECMA-262 time-value range
+ * all propagate: every local getter returns `NaN`, and the key formatter then MINTS
+ * `0NaN-NaN-NaN` — a string that would sort into D-14's stored date set as garbage,
+ * silently, because that walk compares keys lexicographically and never parses them.
+ * A malformed key is exactly the class of corruption SC-1 exists to prevent, so the
+ * module refuses to mint one at all.
+ *
+ * The range check is the runtime's own — `new Date(x).getTime()` is `NaN` for anything
+ * out of range — rather than a restated `8.64e15`, for the same reason `DAILY_DIFFICULTY`
+ * refuses to restate the generator's `D_MAX`: a bound that belongs to someone else is not
+ * ours to copy. The fallback is the epoch, which is deterministic and pure; reading the
+ * wall clock here would make these functions impure and is what the `nowMs` argument
+ * exists to avoid.
+ *
+ * This is a floor, not a fence. The hostile caller — a tampered plaintext blob — is
+ * fenced by the read-side sanitizer in plan 12-04; this body's obligation is only that a
+ * key or boundary it MINTS is always well-formed.
+ */
+function representableInstant(nowMs: number): number {
+  return Number.isFinite(new Date(nowMs).getTime()) ? nowMs : 0;
 }
 
 /**
