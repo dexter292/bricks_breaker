@@ -313,24 +313,27 @@ export function PlayingHost({
    */
   const dailyDateRef = useRef('');
   const [dailyDateKey, setDailyDateKey] = useState('');
-  /**
-   * What local calendar date it is RIGHT NOW — the sole input to D-01 (12-05).
+  /*
+   * There is deliberately NO `localTodayRef` here any more.
    *
-   * Distinct from `dailyDateRef`, and the distinction is load-bearing. `dailyDateRef`
-   * is the date of the run in flight or of the panel being shown; it is written once
-   * per daily start and must NEVER be re-derived from a later clock read, because the
-   * board was generated from it and the result must be recorded under it. Moving it on
-   * a rollover would record a run against a date whose board it was not — an outright
-   * SC-1 break. This ref is the other question: what date is it now, for deciding
-   * whether today is playable. Two questions, two values, neither pretending to be the
-   * other.
+   * One existed through 12-05 with three write sites and zero reads, and its declaration
+   * claimed to be "the sole input to D-01". It was not: D-01 is evaluated in
+   * `startDailyRun` against a `const dateKey` computed there from that function's own
+   * single clock read, which is the right shape — the decision and the clock read that
+   * justifies it are one statement apart and cannot drift. The ref carried no decision,
+   * so it was dead state that `no-unused-vars` could not see because it WAS used, as an
+   * assignment target.
    *
-   * Written by the two events that can answer it from a fresh clock read: the daily
-   * entry press, and the app returning to the foreground (12-UI-SPEC § Clock policy
-   * rule 1 — the playability decision is re-derived from a fresh local-date read on
-   * every foreground, and it is evaluated only by D-01).
+   * What that leaves unimplemented is the re-derivation half of `12-UI-SPEC.md` § Clock
+   * policy rule 5: when the local date rolls over with the Daily Result panel open, the
+   * countdown correctly omits itself (the boundary is pinned at publish, see
+   * `publishDailyPanel`), but nothing re-derives the date or swaps the read-only panel
+   * for the now-playable entry state. A player recovers by pressing Menu and re-entering,
+   * so it degrades rather than traps. Recorded rather than silently carried: the honest
+   * statement is that the phase shipped the omission half of rule 5 and not the
+   * re-derivation half, and Phase 14 owns the Title entry surface where the stale panel
+   * would mislead (N-UI-01).
    */
-  const localTodayRef = useRef('');
   /**
    * The STORED daily record, as last read or last written (12-05).
    *
@@ -679,15 +682,16 @@ export function PlayingHost({
    * and `react-hooks/purity` fails the build on an impure call during render, which
    * this file already documents at the wall-clock refs.
    *
-   * Two things, both read-only with respect to stored state:
+   * ONE thing, read-only with respect to stored state: bump the injected instant the
+   * panel computes its countdown against. DERIVED, never accumulated — one clock read,
+   * no stored deadline, no elapsed-time accumulator, no counter to decrement, so a clock
+   * jump changes only the next computed value and there is no second piece of state to
+   * disagree with it.
    *
-   *  - re-derive what local calendar date it is, into `localTodayRef`. That is the
-   *    D-01 input; `dailyDateRef` is deliberately NOT touched, for the SC-1 reason
-   *    stated at that ref's declaration.
-   *  - bump the injected instant the panel computes its countdown against. DERIVED,
-   *    never accumulated: one clock read, no stored deadline, no elapsed-time
-   *    accumulator, no counter to decrement — so a clock jump changes only the next
-   *    computed value and there is no second piece of state to disagree with it.
+   * It does NOT re-derive the local date. It used to write one into a ref nothing read;
+   * see the note where that ref was declared for what rule 5 therefore does not do on a
+   * foreground. `dailyDateRef` is untouched here either way, for the SC-1 reason stated
+   * at its declaration: the run's own date must never move under a later clock read.
    *
    * `dailyNextBoundaryMs` is deliberately NOT re-derived here. It is pinned to the
    * local midnight that ends the date the PANEL is showing, set once when the panel is
@@ -697,9 +701,7 @@ export function PlayingHost({
    * omits itself rather than counting down to a second tomorrow.
    */
   const onOsForeground = useCallback(() => {
-    const at = Date.now();
-    localTodayRef.current = localDateKey(at);
-    setDailyNowMs(at);
+    setDailyNowMs(Date.now());
   }, []);
 
   /**
@@ -727,9 +729,7 @@ export function PlayingHost({
       return;
     }
     const id = setInterval(() => {
-      const at = Date.now();
-      localTodayRef.current = localDateKey(at);
-      setDailyNowMs(at);
+      setDailyNowMs(Date.now());
     }, 60_000);
     return () => {
       clearInterval(id);
@@ -1841,12 +1841,12 @@ export function PlayingHost({
     // funnel at some callers instead of at the function that means "a new run starts".
     recordInFlightEndlessRun();
     // 12-05: the clock is read ONCE, here, and the key it produces answers D-01 before
-    // anything else happens. `localTodayRef` is the "what date is it now" value the
-    // foreground refresh also writes; `dailyDateRef` below is the run's own date and is
-    // a different question (see both refs' declarations).
+    // anything else happens — the decision and the clock read that justifies it are one
+    // statement apart, which is why D-01 reads this local and not a ref written earlier
+    // from some other read. `dailyDateRef` below is the RUN's own date and is a different
+    // question (see its declaration).
     const nowMs = Date.now();
     const dateKey = localDateKey(nowMs);
-    localTodayRef.current = dateKey;
 
     /*
      * D-02 / SC-2 — a date with a stored result is READ-ONLY.
