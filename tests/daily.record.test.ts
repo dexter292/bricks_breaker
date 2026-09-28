@@ -452,6 +452,104 @@ describe('currentStreakStart self-correction (D-16 amendment, 12-03)', () => {
       'one day short of accounting for the claim, and the window-derived start stands',
     ).toBe(DAILY_HISTORY_BOUND);
   });
+
+  it('never reports a run longer than the evidence, when the day COUNT is the thing that was raised', () => {
+    // THE INVARIANT, stated rather than the implementation tested: a record whose window
+    // was never full has never been trimmed, so the dates it holds are the whole of its
+    // evidence and no claim may reach back past them — whatever number the record reports
+    // about itself.
+    //
+    // The sibling case above holds the claim to `totalDaysPlayed`. This one holds
+    // `totalDaysPlayed` to something, because it is a carried scalar with nothing behind
+    // it: `sanitizeDailyRecord` copies it WHOLE through `safeCounter` while it drops
+    // history ENTRY BY ENTRY. Raise it and the bound above opens. MEASURED before the
+    // saturation gate, at the same numbers the case above reports: read side 2463, and the
+    // next close persisted `longestStreak: 2464` — one-way under D-16.
+    const window = consecutiveEndingAt('2026-09-28', 3);
+    const record = recordOf(window, {
+      currentStreakStart: '2020-01-01',
+      longestStreak: 3,
+      totalDaysPlayed: 3_000,
+    });
+
+    expect(
+      currentDailyStreak(record),
+      'a window that was never full is all the evidence there is, so the three dates it proves',
+    ).toBe(3);
+    expect(
+      record.history.length,
+      'fixture sanity: the window is nowhere near the bound, so nothing was ever trimmed from it',
+    ).toBeLessThan(DAILY_HISTORY_BOUND);
+
+    // The write side independently — `longestStreak` is the permanent one, and a fix that
+    // only calmed the display would still burn the number into storage.
+    const next = mergeDailyRecord(blobWithDaily(record), {
+      date: '2026-09-29',
+      score: 500,
+      outcome: 'win',
+    });
+    expect(
+      next.daily.longestStreak,
+      'the one-way lifetime best must not be raised from a claim only a counter vouches for',
+    ).toBe(4);
+    expect(
+      next.daily.currentStreakStart,
+      'and the discard falls back to the window-derived start, as every other discard does',
+    ).toBe(window[0]);
+  });
+
+  it('holds that line across the parse boundary, where the evidence was DAMAGED rather than absent', () => {
+    // The end-to-end shape the fence exists for, and the one a unit fixture cannot claim to
+    // have covered: entries dropped by `sanitizeDailyHistoryEntry` — a truncated write, a
+    // malformed field, a field an older build never wrote — leave a SHORT but consecutive
+    // window beside scalars that survived whole. That is the floored condition the carried
+    // start is trusted on, reached by corruption rather than by tampering.
+    const window = consecutiveEndingAt('2026-09-28', 3);
+    const unreadable = Array.from({ length: 100 }, () => ({
+      date: '2026-02-30',
+      score: 1,
+      outcome: 'win',
+    }));
+    const parsed = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: [],
+        bestByLevel: {},
+        bestScore: 0,
+        updatedAt: 0,
+        telemetry: {
+          ...defaultTelemetryBlob(),
+          daily: {
+            history: [...unreadable, ...window.map((date) => ({ date, score: 10, outcome: 'win' }))],
+            longestStreak: 3,
+            totalDaysPlayed: 3_000,
+            currentStreakStart: '2020-01-01',
+          },
+        },
+      }),
+    );
+
+    expect(parsed.status, 'a damaged daily record degrades daily alone').toBe('ok');
+    const daily = parsed.progress.telemetry.daily;
+    expect(
+      daily.history.length,
+      'fixture sanity: 100 entries really were dropped, leaving three consecutive dates',
+    ).toBe(3);
+    expect(
+      currentDailyStreak(daily),
+      'the panel shows what survived, not what the undamaged scalars still claim',
+    ).toBe(3);
+
+    const next = mergeDailyRecord(blobWithDaily(daily), {
+      date: '2026-09-29',
+      score: 500,
+      outcome: 'win',
+    });
+    expect(
+      next.daily.longestStreak,
+      'and the close after the damage writes four, not a number no later release could repair',
+    ).toBe(4);
+  });
 });
 
 describe('mergeDailyRecord does not mutate its input (12-03)', () => {
@@ -521,19 +619,26 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
   });
 
   it('carries the earlier stored start only when the union is consecutive end to end', () => {
-    const window = consecutiveEndingAt('2026-09-26', 4);
-    // Both copies have closed enough dates for the older claim to be possible. Stated
-    // explicitly because `reconcileStreakStart` now holds a carried claim to the merged
-    // `totalDaysPlayed`: a record whose window is four dates and whose scalar says four
-    // dates cannot also have been on a run since January, and the sibling case below is
-    // the one that pins that. Here the scalars are consistent, so the bound is silent and
-    // the case tests what it says it tests — earliest-admissible-claim-wins.
-    const played = inclusiveSpan('2026-01-01', '2026-09-26');
+    // The union is SATURATED at the bound, so trimming is available to explain the days it
+    // does not hold and a claim reaching back past it is admissible at all — otherwise the
+    // case would pass on the saturation gate rather than on the thing it names. Both
+    // copies have also closed enough dates for their own claim, so the length bound is
+    // silent too and the case tests what it says it tests: earliest-admissible-claim-wins.
+    const full = consecutiveEndingAt('2027-06-01', OVERSHOOT);
+    const window = full.slice(-DAILY_HISTORY_BOUND);
+    const earlier = full[0]!;
+    const later = full[25]!;
     const a = blobWithDaily(
-      recordOf(window, { currentStreakStart: '2026-01-01', totalDaysPlayed: played }),
+      recordOf(window, {
+        currentStreakStart: earlier,
+        totalDaysPlayed: inclusiveSpan(earlier, '2027-06-01'),
+      }),
     );
     const b = blobWithDaily(
-      recordOf(window, { currentStreakStart: '2026-05-01', totalDaysPlayed: played }),
+      recordOf(window, {
+        currentStreakStart: later,
+        totalDaysPlayed: inclusiveSpan(later, '2027-06-01'),
+      }),
     );
     const merged = mergeTelemetryBlobs(a, b);
 
@@ -542,21 +647,27 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
       'fixture sanity: the union is consecutive end to end, so it can contradict nothing',
     ).toBe(window.length);
     expect(
+      window.length,
+      'fixture sanity: and it is full, so a claim reaching back past it is admissible at all',
+    ).toBe(DAILY_HISTORY_BOUND);
+    expect(
       merged.daily.currentStreakStart,
       'with the union silent, the earlier surviving claim is carried',
-    ).toBe('2026-01-01');
+    ).toBe(earlier);
   });
 
-  it('discards BOTH claims when the merged totalDaysPlayed cannot support them', () => {
-    // The same fixture as above with one number changed: four dates closed, four days
-    // played, and two claims reaching back to January. Neither copy can have been on that
-    // run, so the union-derived start stands for both — the under-reporting direction.
-    const window = consecutiveEndingAt('2026-09-26', 4);
+  it('discards BOTH claims when neither copy has closed enough dates to support its own', () => {
+    // The same fixture as above with one number changed on each copy: a full window, two
+    // claims reaching back past it, and day counts that stop at the window. Neither copy
+    // can have been on that run, so the union-derived start stands for both — the
+    // under-reporting direction.
+    const full = consecutiveEndingAt('2027-06-01', OVERSHOOT);
+    const window = full.slice(-DAILY_HISTORY_BOUND);
     const a = blobWithDaily(
-      recordOf(window, { currentStreakStart: '2026-01-01', totalDaysPlayed: 4 }),
+      recordOf(window, { currentStreakStart: full[0], totalDaysPlayed: DAILY_HISTORY_BOUND }),
     );
     const b = blobWithDaily(
-      recordOf(window, { currentStreakStart: '2026-05-01', totalDaysPlayed: 4 }),
+      recordOf(window, { currentStreakStart: full[25], totalDaysPlayed: DAILY_HISTORY_BOUND }),
     );
     const merged = mergeTelemetryBlobs(a, b);
 
@@ -568,6 +679,46 @@ describe('mergeDailyRecords reconcile — max-and-union (12-03 checkpoint decisi
       currentDailyStreak(merged.daily),
       'and the streak is the window, never the claim',
     ).toBe(window.length);
+  });
+
+  it('does not let one copy’s day count vouch for the other copy’s claim', () => {
+    // THE INVARIANT, stated rather than the implementation tested: a claim is evidence
+    // about the record that MADE it, so the record that made it is what must be able to
+    // account for it. The merged total is `max(a, b, |union|)`, so holding both claims to
+    // it launders an incredible claim through whichever copy happens to carry a big number.
+    //
+    // The window is deliberately SATURATED, so the saturation gate is silent here and the
+    // only thing that can reject A's claim is A's own day count. A sub-saturated fixture
+    // would pass on the gate and pin nothing about whose total is asked. `mergeTelemetryBlobs`
+    // is live on the hydrate path (`watermark.ts`), so this is not a dead helper.
+    const full = consecutiveEndingAt('2027-06-01', OVERSHOOT);
+    const window = full.slice(-DAILY_HISTORY_BOUND);
+    // A reaches back past its own window but has only ever closed the window's worth of
+    // dates, so it cannot account for its claim. B makes no old claim and carries a large
+    // count. Neither record, alone, reads more than the window.
+    const a = blobWithDaily(
+      recordOf(window, { currentStreakStart: full[0], totalDaysPlayed: DAILY_HISTORY_BOUND }),
+    );
+    const b = blobWithDaily(recordOf(window, { totalDaysPlayed: 3_000 }));
+
+    expect(
+      currentDailyStreak(a.daily),
+      'fixture sanity: A alone cannot account for its own claim, so it reads its window',
+    ).toBe(DAILY_HISTORY_BOUND);
+    expect(
+      currentDailyStreak(b.daily),
+      'fixture sanity: B alone makes no claim past its window, so it reads its window',
+    ).toBe(DAILY_HISTORY_BOUND);
+
+    const merged = mergeTelemetryBlobs(a, b);
+    expect(
+      currentDailyStreak(merged.daily),
+      'merging two records that each read the window cannot produce a run neither was on',
+    ).toBe(DAILY_HISTORY_BOUND);
+    expect(
+      merged.daily.currentStreakStart,
+      'A’s claim is held to A’s own closed dates, not to B’s three thousand',
+    ).toBe(window[0]);
   });
 
   it('under-counts rather than inflates when a trimmed copy meets one holding exclusive dates', () => {
