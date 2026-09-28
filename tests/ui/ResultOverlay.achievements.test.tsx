@@ -16,7 +16,17 @@
  * passing `render()` here must NOT be recorded as having verified one of them.
  * `13-UI-SPEC.md` § Measurement Provenance says so in those terms.
  *
- * The suppression states and the classifier's own exhaustive battery are plan 13-04's.
+ * The suppression states below are plan 13-04's, added to this file rather than a new one
+ * so the present and the absent cases of one rule are read side by side. The classifier's
+ * own exhaustive battery is `tests/ui/achievementLines.test.ts`, under the node
+ * environment — nothing here re-asserts what that file proves about the return value.
+ *
+ * EVERY ABSENCE CASE BELOW CARRIES A POSITIVE CONTROL IN THE SAME CASE, and that is not
+ * decoration: without one, "the component rendered nothing at all" passes as "the
+ * suppression fired", which is the failure mode `tests/ui/DailyResultOverlay.test.tsx`'s
+ * `base`-with-everything-suppressed idiom exists to close. The `'mid'` case is the paired
+ * opposite of the `'start'` case for the same reason — it is what stops the rule from
+ * degenerating into "absent whenever anything went wrong".
  *
  * The names below are LITERALS on purpose: this panel takes display-name strings and
  * knows nothing about a catalog (D-08), so importing `src/services` here to derive them
@@ -177,5 +187,156 @@ describe('ResultOverlay unlock block (N-ACH-03 / D-06)', () => {
       screen.getByLabelText('And 2 more achievements unlocked'),
       'the bare visible string is not a sentence on its own',
     ).toBeTruthy();
+  });
+});
+
+/**
+ * The endless base: `kind` is forced to the lose variant inside the component (SC-1 — an
+ * endless run never ends on a cleared wave), so only the wave-build failure prop moves
+ * between the two cases below.
+ */
+const endlessBase = {
+  ...base,
+  mode: 'endless' as const,
+  kind: 'lose' as const,
+  score: 2400,
+  best: 5000,
+  wave: 7,
+  bestWave: 12,
+};
+
+describe('ResultOverlay unlock block — suppression and determinism (SC-4 / D-07, 13-04)', () => {
+  it('at endless Retry time there is no run yet, so the block is absent under the failure copy', () => {
+    render(
+      createElement(ResultOverlay, {
+        ...endlessBase,
+        // `waveBuildFailureKind` classifies 1 as `'start'`: `startEndlessRun` calls
+        // `advanceToWave(1)`, so a start that cannot build is by construction a wave-1
+        // failure.
+        waveBuildFailedWave: 1,
+        unlockedAchievements: ['1000 Bricks', 'Wave 20'],
+      }),
+    );
+
+    expect(
+      screen.queryByText(/^Unlocked · /),
+      'at Retry time no run has happened yet, so any names still in props belong to the PREVIOUS run and would be re-announced under failure copy — the block describes a run, and here there is none',
+    ).toBeNull();
+    expect(
+      screen.queryByText(/and \d+ more/),
+      'and no overflow line either — the whole block is gone, not thinned',
+    ).toBeNull();
+    expect(blockLineCount(), 'nothing of the block rendered').toBe(0);
+
+    // The positive control, in this same case: the panel DID mount and DID render, so
+    // the three absences above are the suppression and not a failed render.
+    expect(
+      screen.getByText('Wave 1 could not be built — tap Retry'),
+      'the positive control: the Retry-time failure copy is on screen, which is only reachable through a successful render of this panel',
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Best · 5000'),
+      'and the watermark line renders too — `Best ·` is read from `telemetry.endless` rather than from a run, so it stays meaningful when no run exists',
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Return to title' }),
+      'and `Menu` is reachable, which is the way out this panel must always offer',
+    ).toBeTruthy();
+  });
+
+  it('a mid-run wave-build failure saved the run, so the block IS present', () => {
+    render(
+      createElement(ResultOverlay, {
+        ...endlessBase,
+        // 2 classifies as `'mid'`: a mid-run failure is `waveRef.current + 1` and
+        // `waveRef` is at or above 1 from the first successful build.
+        waveBuildFailedWave: 2,
+        unlockedAchievements: ['1000 Bricks', 'Wave 20'],
+      }),
+    );
+
+    expect(
+      screen.getByText('Wave 2 could not be built — run saved'),
+      'the mid-run copy, which is the state this case is about',
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Unlocked · 1000 Bricks'),
+      'the run ENDED and was SAVED, `recordRunEnd` ran, and the unlocks are real — absence here would be a bug, not a suppression. This case is the paired opposite of the Retry-time one and it is what stops the rule becoming "absent whenever anything went wrong"',
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Unlocked · Wave 20'),
+      'both names, because the suppression is all-or-nothing and never thins the block',
+    ).toBeTruthy();
+    expect(blockLineCount(), 'two unlocks, two lines').toBe(2);
+  });
+
+  it('the same array renders identical lines twice — SC-2 determinism at the surface', () => {
+    const names = ['1000 Bricks', 'Wave 20', 'Seven Days'];
+
+    render(createElement(ResultOverlay, { ...base, unlockedAchievements: names }));
+    const first = document.body.textContent ?? '';
+    expect(
+      first.includes('Unlocked · 1000 Bricks'),
+      'the snapshot must contain the block, or the comparison below is vacuous over two empty strings',
+    ).toBe(true);
+
+    cleanup();
+
+    render(createElement(ResultOverlay, { ...base, unlockedAchievements: names }));
+    expect(
+      document.body.textContent ?? '',
+      'the classifier is pure and the panel injects no clock for this block, so nothing about it may depend on mount order or on how many times the panel has rendered. This is SC-2 reaching the surface the player actually reads, not just the evaluator',
+    ).toBe(first);
+  });
+
+  it('the block carries no prohibited framing, and adds no control', () => {
+    render(
+      createElement(ResultOverlay, {
+        ...base,
+        unlockedAchievements: ['1000 Bricks', 'Wave 20', 'Seven Days'],
+      }),
+    );
+    const text = document.body.textContent ?? '';
+
+    // `Locked` is capitalised on purpose and lowercase `locked` is deliberately NOT in
+    // this list: `Unlocked` contains it, so banning the lowercase form would fail on the
+    // block's own contract copy. The list is the shapes 13-UI-SPEC § Standing
+    // Prohibitions names, each of which an achievement surface actively invites.
+    for (const banned of [
+      '%',
+      '!',
+      'Claim',
+      'claim',
+      'Locked',
+      'Share',
+      'share',
+      'Invite',
+      'Leaderboard',
+      'Compare',
+      'compare',
+      'Progress',
+      'progress',
+      'so close',
+      'to go',
+      'Congratulations',
+      'limited',
+      'expires',
+    ]) {
+      expect(
+        text.includes(banned),
+        `13-UI-SPEC § Standing Prohibitions: "${banned}" is a progress teaser, a locked-achievement preview, a claim action, a share or compare affordance, or scarcity framing — and an achievement surface is exactly where that pressure reappears`,
+      ).toBe(false);
+    }
+
+    expect(
+      screen.getByText('Unlocked · 1000 Bricks'),
+      'the block itself must still be there — the prohibition is on the framing, not on the report',
+    ).toBeTruthy();
+
+    const controls = screen.getAllByRole('button');
+    expect(
+      controls.map((c) => c.textContent),
+      'the block adds NO control: the lines are `Text` and never `Pressable`, because Phase 14 owns the screen a line would want to link to and a control that has nowhere to go must not render. Only the panel\u2019s own two controls are here',
+    ).toEqual(['Retry', 'Menu']);
   });
 });

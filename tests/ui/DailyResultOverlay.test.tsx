@@ -8,12 +8,22 @@
  * `:244`; the exported-pure-classifier cases on its `:166-198`.
  *
  * WHAT THIS FILE IS NOT EVIDENCE ABOUT, stated so its silence is not read as coverage.
- * jsdom performs NO layout. Nothing here is evidence that the panel FITS, that a line
- * does not WRAP, or that a value does not CLIP. Those three claims are `backstop` rows
- * in `12-UI-SPEC.md § UI Considerations` (E1 overflow horizontal, E1 overflow vertical,
- * E5 overflow) and are routed to device verification in plan 12-06. A passing
- * `render()` assertion in this file must NOT be recorded as having verified one of
- * them — `12-UI-SPEC.md § Measurement Provenance` says so in those terms.
+ * **jsdom performs NO layout and supplies NO safe-area insets.** Nothing here is evidence
+ * that the panel FITS, that a line does not WRAP, or that a value does not CLIP. Those
+ * three claims are `backstop` rows in `12-UI-SPEC.md § UI Considerations` (E1 overflow
+ * horizontal, E1 overflow vertical, E5 overflow) and are routed to device verification in
+ * plan 12-06. A passing `render()` assertion in this file must NOT be recorded as having
+ * verified one of them — `12-UI-SPEC.md § Measurement Provenance` says so in those terms.
+ *
+ * Plan 13-04 EXTENDED this file with the unlock block, and extends that paragraph with it.
+ * Nothing in the achievement cases below is evidence that this panel plus a two-line block
+ * fits at 320x568pt with `Menu` reachable without scrolling (490px contracted / 522px
+ * against the defensive 11-row bound, against 548 usable), that a 16-character name in
+ * `Unlocked · {name}` renders on one line with no wrap and no truncation, or that the
+ * bottom inset is zero — and that last one is what the whole two-row budget rests on.
+ * Those are `WINDOWS.md` #16, #17, #28 and #29; a human discharges them in plan 13-05.
+ * The single-line clamp is asserted below as a PROP ON A NODE, which is all jsdom can
+ * see; whether it ever has to do anything is #16 and stays owed.
  *
  * @vitest-environment jsdom
  */
@@ -391,6 +401,109 @@ describe('DailyResultOverlay — the closed-date panel (12-05)', () => {
       'the statement of fact itself must still be there — the prohibition is on the framing, not on the report',
     ).toBeTruthy();
   });
+
+  /**
+   * The unlock block (N-ACH-03 / D-06, plan 13-04). The SAME block `ResultOverlay`
+   * renders, from the same `achievementLines` call — 13-UI-SPEC § One shared pure
+   * classifier makes S1 and S2 one block rendered by one function, not two designs.
+   * What the return value itself guarantees is `tests/ui/achievementLines.test.ts`'s;
+   * these cases are the render-level claims only.
+   */
+  it('renders the achievement unlock block after the badge and above the countdown', () => {
+    render(
+      createElement(DailyResultOverlay, {
+        ...base,
+        streak: 9,
+        longestStreak: 9,
+        unlockedAchievements: ['1000 Bricks', 'Wave 20'],
+      }),
+    );
+
+    // The ordering claim goes through the shipped independent-`indexOf` helper. Its
+    // construction is load-bearing here: a moving cursor would make the array
+    // monotonic by construction and this assertion green whatever order rendered.
+    expectInOrder([
+      'Best streak · 9',
+      'Best streak ever',
+      'Unlocked · 1000 Bricks',
+      'Unlocked · Wave 20',
+      'New board in 7h 12m',
+      'Menu',
+    ]);
+    expect(
+      screen.getByLabelText('Achievement unlocked: 1000 Bricks'),
+      'each line carries the spoken form produced by the same classifier call as the visible text, so the two cannot disagree about which case they are in',
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText('Achievement unlocked: Wave 20'),
+      'both lines, both labels',
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByText('Unlocked · 1000 Bricks')
+        .getAttribute('class')
+        ?.includes('textOverflow'),
+      'the single-line clamp is ON THE NODE, which is the whole of what jsdom can see about it. This is NOT evidence that any name fits or that none wraps — that is WINDOWS #16 and it stays owed to a human in plan 13-05',
+    ).toBe(true);
+  });
+
+  it('no unlocks render no achievement block — an absence, not an empty state', () => {
+    render(
+      createElement(DailyResultOverlay, {
+        ...base,
+        unlockedAchievements: [],
+      }),
+    );
+
+    expect(
+      screen.queryByText(/^Unlocked · /),
+      'the zero state is an ABSENCE: no block, no divider, no reserved space, no placeholder, and no `No achievements this run` line — that would cost 32px on every result panel forever to say nothing, and phrased at all it becomes a small reproach at the end of a run the player just lost',
+    ).toBeNull();
+    expect(
+      screen.queryByText(/more/),
+      'and no overflow line either',
+    ).toBeNull();
+    expect(
+      screen.getByText('Score · 1200'),
+      'the positive control: the panel DID render, so the absence above is the rule and not a failed render',
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Return to title' }),
+      'and the way out is still there',
+    ).toBeTruthy();
+  });
+
+  it('an unlock line co-renders with a red streak-ended line without taking its colour', () => {
+    render(
+      createElement(DailyResultOverlay, {
+        ...base,
+        endedStreakLength: 4,
+        unlockedAchievements: ['1000 Bricks'],
+      }),
+    );
+
+    const unlock = screen.getByText('Unlocked · 1000 Bricks');
+    const ended = screen.getByText('Your 4-day streak ended');
+    const plain = screen.getByText('Days played · 45');
+    expect(
+      [unlock, ended, plain].every((el) => el != null),
+      'all three lines must be on screen — a real day can end a streak and unlock something at the same time, and that is the day this case is about',
+    ).toBe(true);
+
+    const endedColor = getComputedStyle(ended).color;
+    expect(
+      endedColor,
+      'the colour probe must read a real value, or both comparisons below are vacuous',
+    ).toBe('rgb(232, 93, 93)');
+    expect(
+      getComputedStyle(unlock).color,
+      'the unlock line takes `styles.metric` and NOTHING else: 12-UI-SPEC extended the destructive red to exactly one element on an explicitly semantic argument, and an unlock is the opposite of a loss — colouring them alike would misreport the day. It may not borrow the badge’s gold either; the record slot is one slot',
+    ).toBe(getComputedStyle(plain).color);
+    expect(
+      getComputedStyle(unlock).color === endedColor,
+      'and it is not the streak-ended colour',
+    ).toBe(false);
+  });
 });
 
 describe('DailyResultOverlay — the board-failure variant keeps the date OPEN (12-05)', () => {
@@ -461,5 +574,33 @@ describe('DailyResultOverlay — the board-failure variant keeps the date OPEN (
     fireEvent.click(screen.getByRole('button', { name: 'Return to title' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(onMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders no achievement block, because nothing was played and nothing was written', () => {
+    render(
+      createElement(DailyResultOverlay, {
+        ...failure,
+        unlockedAchievements: ['1000 Bricks', 'Wave 20'],
+      }),
+    );
+
+    expect(
+      screen.queryByText(/^Unlocked · /),
+      'nothing was played, nothing was written, `recordRunEnd` never ran and the date is still OPEN — so any names in props describe no run on this panel. The block rides the EXISTING `isClosed`, which is why it cannot half-suppress while the score and the countdown are gone',
+    ).toBeNull();
+    expect(
+      screen.queryByText(/and \d+ more/),
+      'and no overflow line either — the whole block is gone, not thinned',
+    ).toBeNull();
+
+    // The positive control, in this same case, in this file's own shipped idiom.
+    expect(
+      screen.getByText("Today's board could not be built — tap Retry"),
+      'the positive control: the board-failure copy is on screen, which is only reachable through a successful render of this panel',
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: "Retry today's daily board" }),
+      'and `Retry` is present, because THIS date is still open — the same single D-01 rule that forbids a Retry once it has closed',
+    ).toBeTruthy();
   });
 });
