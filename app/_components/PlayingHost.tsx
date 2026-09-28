@@ -310,6 +310,24 @@ export function PlayingHost({
   const dailyDateRef = useRef('');
   const [dailyDateKey, setDailyDateKey] = useState('');
   /**
+   * What local calendar date it is RIGHT NOW — the sole input to D-01 (12-05).
+   *
+   * Distinct from `dailyDateRef`, and the distinction is load-bearing. `dailyDateRef`
+   * is the date of the run in flight or of the panel being shown; it is written once
+   * per daily start and must NEVER be re-derived from a later clock read, because the
+   * board was generated from it and the result must be recorded under it. Moving it on
+   * a rollover would record a run against a date whose board it was not — an outright
+   * SC-1 break. This ref is the other question: what date is it now, for deciding
+   * whether today is playable. Two questions, two values, neither pretending to be the
+   * other.
+   *
+   * Written by the two events that can answer it from a fresh clock read: the daily
+   * entry press, and the app returning to the foreground (12-UI-SPEC § Clock policy
+   * rule 1 — the playability decision is re-derived from a fresh local-date read on
+   * every foreground, and it is evaluated only by D-01).
+   */
+  const localTodayRef = useRef('');
+  /**
    * The Daily Result panel's scalars (12-05).
    *
    * Derived HERE, in the `app` tier, and threaded down as plain numbers, because the
@@ -611,6 +629,74 @@ export function PlayingHost({
     void store.flush?.().catch(() => {});
   }, [clearCountdown, store]);
 
+  /**
+   * The app returned to the foreground (12-05; 12-UI-SPEC § Clock policy rules 1-2).
+   *
+   * Threaded into the app's ONE `AppState` subscription via `useGameLoop`'s
+   * `onOsForeground`, rather than added as a second subscription. It resumes nothing:
+   * see `appStatePause.ts`'s never-resume paragraph (PLT-01 / T-03-03).
+   *
+   * A CALLBACK and not render work, because it reads the clock — `reactCompiler` is on
+   * and `react-hooks/purity` fails the build on an impure call during render, which
+   * this file already documents at the wall-clock refs.
+   *
+   * Two things, both read-only with respect to stored state:
+   *
+   *  - re-derive what local calendar date it is, into `localTodayRef`. That is the
+   *    D-01 input; `dailyDateRef` is deliberately NOT touched, for the SC-1 reason
+   *    stated at that ref's declaration.
+   *  - bump the injected instant the panel computes its countdown against. DERIVED,
+   *    never accumulated: one clock read, no stored deadline, no elapsed-time
+   *    accumulator, no counter to decrement — so a clock jump changes only the next
+   *    computed value and there is no second piece of state to disagree with it.
+   *
+   * `dailyNextBoundaryMs` is deliberately NOT re-derived here. It is pinned to the
+   * local midnight that ends the date the PANEL is showing, set once when the panel is
+   * published. Re-deriving it from `now` would make the remainder permanently positive
+   * and the countdown could never expire; leaving it pinned is what makes rule 5 fall
+   * out for free — once the date rolls, the remainder goes non-positive and the line
+   * omits itself rather than counting down to a second tomorrow.
+   */
+  const onOsForeground = useCallback(() => {
+    const at = Date.now();
+    localTodayRef.current = localDateKey(at);
+    setDailyNowMs(at);
+  }, []);
+
+  /**
+   * The 60-second countdown refresh (12-UI-SPEC § Clock policy rule 4).
+   *
+   * **Scoped to the Daily Result panel being open, and that is a MEASURED requirement
+   * rather than a style choice.** Induced unconditionally on a clean tree, this
+   * interval reds `PlayingHost.endless-run`, `PlayingHost.endless-record`,
+   * `PlayingHost.endless-retry` and `PlayingHost.next-bake` with
+   * `Aborting after running 10000 timers, assuming an infinite loop!` — those four call
+   * `vi.runAllTimers()` against a mounted host, which a live recurring timer makes
+   * non-terminating by construction. No plan in this phase owns those four files, so
+   * an unconditional interval would be a defect with no owner. Scoped: 158 passed.
+   * Unconditional: 67 failed across four files.
+   *
+   * It is not a scope reduction either. The countdown renders on exactly one surface,
+   * and the HUD strip is contractually forbidden from carrying it, so an interval
+   * running while the panel is closed would refresh nothing a player can see. Minute
+   * granularity is the whole reason 60 seconds suffices — a per-second timer would buy
+   * a digit nobody reads and keep a timer alive behind a result panel (T-12-23).
+   */
+  const dailyPanelOpen = mode === 'daily' && result != null;
+  useEffect(() => {
+    if (!dailyPanelOpen) {
+      return;
+    }
+    const id = setInterval(() => {
+      const at = Date.now();
+      localTodayRef.current = localDateKey(at);
+      setDailyNowMs(at);
+    }, 60_000);
+    return () => {
+      clearInterval(id);
+    };
+  }, [dailyPanelOpen]);
+
   const { paddleTarget, launchFlag, gesture } = usePaddleGesture({
     chrome: chromeSv,
     uiPhase: uiPhaseSv,
@@ -636,6 +722,7 @@ export function PlayingHost({
     chromeSeq,
     compiled: compiledSv,
     onOsPause,
+    onOsForeground,
     vfxIntensity,
     playBatch: playBatchOnJS,
     glowAtlas: glowAtlasSv,

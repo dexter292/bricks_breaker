@@ -230,6 +230,17 @@ export type UseGameLoopOptions = {
   compiled: SharedValue<CompiledLevel | null>;
   /** Invoked from AppState auto-pause path (Task 2); host sets React pause UI. */
   onOsPause?: () => void;
+  /**
+   * Invoked when the app returns to the foreground (12-05); host re-derives the local
+   * calendar date and recomputes the daily countdown from a fresh clock read.
+   *
+   * A pure notification threaded through the app's ONE `AppState` subscription rather
+   * than added as a second one. Two subscriptions with independent lifetimes means no
+   * single place a reader can see what the app does on foreground, which is the
+   * "two renderers for one truth" shape this codebase keeps repairing. It cannot
+   * resume physics: see `appStatePause.ts`'s never-resume paragraph (PLT-01 / T-03-03).
+   */
+  onOsForeground?: () => void;
   drawOverlayFlag?: boolean;
   hudFont?: SkFont | null;
   /** PERF_OVERLAY / cliff harness sprite count (until Plan 05). */
@@ -761,7 +772,15 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).
   // CERT harness skips OS pause — deep-link relaunch / screen glances must not kill the frame loop.
   const onOsPause = options.onOsPause;
+  const onOsForeground = options.onOsForeground;
   useEffect(() => {
+    // Unchanged, deliberately. 12-05 ACCEPTED the consequence rather than reaching
+    // past it: under the cert harness this effect returns before subscribing, so the
+    // foreground notification does not fire in that configuration. The daily
+    // countdown's mount and 60-second refreshes still do, the countdown is decoration
+    // and never a gate (12-UI-SPEC § Clock policy rule 1), playability is evaluated
+    // only by D-01, and the cert harness is a development instrument with no player on
+    // the other side. Recorded here rather than left to be discovered.
     if (certMetricsLog) {
       return;
     }
@@ -772,11 +791,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         uiPhase.value = UiPhaseNum.PAUSED;
         onOsPause?.();
       },
+      onForeground: () => {
+        onOsForeground?.();
+      },
     });
     return () => {
       sub.remove();
     };
-  }, [setActive, uiPhase, onOsPause, certMetricsLog]);
+  }, [setActive, uiPhase, onOsPause, onOsForeground, certMetricsLog]);
 
   /**
    * Cert worst-case (D-14): bump request — UI frame injects on live World.
