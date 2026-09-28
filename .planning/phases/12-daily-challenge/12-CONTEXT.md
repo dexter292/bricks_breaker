@@ -96,6 +96,21 @@ that out entirely — no server, no account).
   — **Reversibility:** one-way — once players have accumulated these numbers there is no
   way to reconstruct them from a trimmed history, so a later schema change must migrate
   them rather than recompute them.
+  — **AMENDED 2026-09-28, approved by the project owner at 12-03's blocking checkpoint,
+  before any of these values had shipped.** Two scalars are not sufficient. A streak
+  length computed by walking the stored dates can only ever see the surviving window plus
+  the date being closed, so `longestStreak` saturates at `DAILY_HISTORY_BOUND + 1` and
+  stays there — measured at 401 for 450 consecutive closes. That is precisely the failure
+  this decision names ("a streak longer than the window would read as the window
+  length"), off by one. `DailyRecord` therefore carries a THIRD surviving member,
+  `currentStreakStart: string` — a date key, not a counter, so SC-3's "computed from
+  stored dates rather than an incrementable counter that a crash could corrupt" still
+  holds. The current streak is a `previousDateKey` walk from the closing date back to that
+  start, bounded by `DAILY_STREAK_WALK_CAP`; reaching the cap is treated as evidence of a
+  tampered blob and discards the stored start rather than saturating at it, because
+  saturating would invent a century of play. Downstream: `sanitizeDailyRecord` (12-04)
+  validates four members, not two, and must degrade an invalid start in the
+  under-reporting direction.
 - **D-17: Breaking a streak is stated, with the length that ended.** "Your 12-day streak
   ended" rather than a silent reset to 1. The loss is the point of the feature.
 
