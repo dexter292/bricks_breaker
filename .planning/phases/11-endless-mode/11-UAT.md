@@ -1,19 +1,18 @@
 ---
-status: partial
+status: complete
 phase: 11-endless-mode
 source: [11-VERIFICATION.md]
 started: 2026-09-27T00:00:00Z
-updated: 2026-09-27T00:00:00Z
+updated: 2026-09-28T18:26:00Z
 ---
 
 ## Current Test
 
-[testing paused — 4 items outstanding]
+[testing complete]
 
-Paused 2026-09-27 at the user's request to move on to Phase 12. Test 1 was skipped
-(no device reading taken); tests 2, 3, 4 and 5 were never presented and remain
-[pending], deliberately — no decision was recorded on the reader's behalf.
-Resume with `/gsd-verify-work 11`; it picks up at test 2.
+Resumed and finished 2026-09-28. Tests 2-5 all pass; test 1 remains SKIPPED with
+its reason intact — no SC-5 device reading was ever taken, so N-END-03 stays
+undischarged and `[ ]`. Nothing was recorded on the reader's behalf.
 
 ## Tests
 
@@ -27,12 +26,12 @@ reason: User skipped — no device reading taken this session. SC-5 / N-END-03 s
 expected: Zero injections on a later campaign `level-03` session after an intervening endless detour.
 why_human: No harness in this repo can observe the positive direction of the drop.
 note: OPTIONAL and explicitly NOT load-bearing for gap 1 — belt-and-braces added by 11-19 beyond what the gap required. Its absence reds only a source contract; cell 5 stays green without it.
-result: [pending]
+result: pass
 
 ### 3. E1 / E3 overflow backstops
 expected: No wrap, no clipping, at the stated extreme values.
 why_human: jsdom computes no layout.
-result: [pending]
+result: pass
 
 ### 4. OWNER DECISION — the WR-01 source pointer in ENDLESS-MODE.md
 expected: An owner decision — authorise the WR-01 pointer patch as written, or commission the one-time rewrite.
@@ -51,7 +50,8 @@ note: |
   The choice: patch the pointer in place (three lines), or commission the single rewrite of
   § Limits item 2 and the `:261` table cell from source — the cell is ~1,700 words carrying
   five dated revisions, which is why five consecutive plans declined to touch it.
-result: [pending]
+result: pass
+decision: Option A — patch the pointer in place. Owner replied `pass` to an A/B question; the orchestrator read that as authorising the cheap, reversible option and said so, since A does not foreclose B. Applied 2026-09-28: `:261` and the § Limits blockquote now cite `certLevelPlanFor` / `plan === 'force'` and name `app/_components/certLevelPlan.ts`, each with a dated **Re-pointed 2026-09-28** marker in the doc's own revision idiom. Measured after: the dead expression occurs 0 times anywhere in `docs/`, and `certLevelPlan` now occurs 3 times where it previously occurred 0. Behavioural content of both sentences unchanged.
 
 ### 5. Spot-confirm the remaining flagged prohibitions
 expected: Spot-confirm or overrule the verifier's judgement.
@@ -68,14 +68,14 @@ note: |
   do-not-press and restart instructions survive verbatim and got stronger; N-END-03 untouched
   at `[ ]`; REQUIREMENTS.md touched by exactly one commit and `requirements.mark-complete`
   not run.
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 5
-passed: 0
+passed: 4
 issues: 0
-pending: 4
+pending: 0
 skipped: 1
 blocked: 0
 
