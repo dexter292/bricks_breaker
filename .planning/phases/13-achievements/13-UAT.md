@@ -92,12 +92,28 @@ tappable without scrolling — **at 402×874 pt**, which is not the viewport #17
 ### 7. WINDOWS #16 — a 16-character display name on one line at 320 px
 expected: view `Unlocked · {name}` with a display name of exactly sixteen characters in the shipped
 320 px panel; one line, no wrap, no truncation.
-result: **blocked — hardware.** Two separate reasons, both real. (a) No 320 px-wide device is
-reachable here: `xcrun simctl list` offers only iPhone 17 / 17 Pro / 17 Pro Max / 17e, and 320×568
-requires Display Zoom on an iPhone 8 / SE, none of which is installed. (b) **No sixteen-character
-name exists in the shipped catalog** — the longest is `Flawless Clear` at 14, and the two observed
-today were `25x Combo` (9) and `1000 Bricks` (11). The entry's own text already says confirming at
-14 does not verify the budget; a name must be temporarily lengthened to exactly 16. Stays OPEN.
+result: **DISCHARGED later the same day, and both of my stated reasons were wrong.**
+
+(a) I claimed no 320 px-wide device was reachable. The panel is **`maxWidth: 320` in
+`ResultOverlay`** — its width is a property of the *panel*, not the device. Any device at least
+320 pt wide renders the case, and no 320 pt-wide *device* was ever needed.
+(b) I claimed the missing 16-character name was a blocker. It is a one-line temporary edit, which
+is exactly what the entry itself asks for.
+
+**Procedure**: iPhone SE (3rd generation) at 375×667; `bricks-1000`'s name temporarily lengthened
+from `1000 Bricks` (11) to `1000 Bricks Gone` (**exactly 16**); `lifetime.bricksBroken` seeded to
+1500 so the entry fires; one losing run. `catalog.ts` restored byte-identical to HEAD afterwards.
+
+**Result**: `Unlocked · 1000 Bricks Gone` on **one line, no wrap, no truncation**, all 27
+characters legible. Measured by pixel analysis: the text ink spans **261.5 pt** inside a **312 pt**
+panel, so 264 pt of available width — it fits with margin, at a panel **8 pt narrower** than the
+320 this check specifies.
+
+**And a correction to the budget's own arithmetic, in the safe direction**: 27 chars × the assumed
+9.792 px advance = 264.4 px, which at *this* panel width predicts an overflow — and none occurred.
+The real SpaceMono advance is slightly narrower than the assumed 0.612 em, so the 16-character
+budget is **conservative**, not tight. The margin is small; do not widen the budget on that basis
+without re-measuring at a true 320 pt panel.
 
 ### 8. WINDOWS #28 / #17 — the 320×568 pt vertical fit, and the bottom safe-area INSET
 expected: reach a campaign win with three stars, `New Record`, `Retry`, `Next` and `Menu` plus a
@@ -133,7 +149,25 @@ property of the emulated device's geometry, which the simulator reports exactly 
 ### 9. WINDOWS #29 — Dynamic Type at iOS xLarge
 expected: expected to CLIP (≈1.118 against a computed ceiling of 1.102). Confirming the clip is the
 correct outcome — D-18's recorded deferral, due Phase 14, not a new defect.
-result: **not run.** Stays OPEN.
+result: **observed the same day, and the expected outcome is confirmed in direction.** Dynamic
+Type **is** settable on a simulator — `xcrun simctl ui <device> content_size extra-large` — which
+neither #29 nor I knew. Measured on the SE at 375×667: the lose panel grew **361.5 pt → 381.5 pt**
+from `large` to `extra-large`, i.e. **+20 pt across 7 text rows**, about 2.86 pt per row.
+
+**A trap worth naming, because it nearly produced the opposite conclusion here.** The panel
+*height* ratio is 1.0553, and that is **not** the text multiplier #29's "1.118 against a ceiling of
+1.102" compares. Fixed padding, borders and button chrome do not scale, so the panel always grows
+by less than the font does, and reading `1.0553 < 1.102` as "it does not clip" compares two
+different quantities. The correct projection uses **absolute** growth: the binding campaign-win
+case at 320×568 carries 11 text rows, so ≈31 pt on top of 522 pt = **≈553 pt against 548 usable**
+— and 548 is itself now measured, via #28's `t=20 b=0`. **Over by roughly 5 pt, so it clips**,
+which is what #29 predicted.
+
+**What this is not**: the binding case was never rendered. A 7-row panel at 667 pt was extrapolated
+to an 11-row panel at 568 pt, and per-row growth is not uniform because rows carry different base
+font sizes. The direction is confirmed; the ≈5 pt overshoot is an estimate. `content_size` was
+reset to `large`. **Stays OPEN** — it is D-18's deferral due at Phase 14, and confirming the clip
+was always the correct outcome rather than a repair.
 
 ### 10. D-11 — the twelve thresholds as judgements
 expected: an owner decides whether each threshold is the right bar. Four questions are prepared in
