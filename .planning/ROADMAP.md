@@ -247,7 +247,17 @@ Plans:
   4. New screens respect the existing shell contract: safe-area insets, dark palette, no ads/shop/login chrome, and `PlayingHost` still unmounts when not playing
   5. Navigation between modes cannot leave a run mounted in the background consuming frame time
 
-**Plans:** TBD
+**Plans:** 7 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — TRACER: one production mode entry on Title reaches a real run end-to-end
+- [ ] 14-02-PLAN.md — the persisted unseen-unlock field, wired at all four obligated sites (D-11 decision checkpoint)
+- [ ] 14-03-PLAN.md — StatisticsScreen: three lifetime rows + a seven-row By mode table, read once
+- [ ] 14-04-PLAN.md — MAX_FONT_SCALE and the src/runtime tier's 39 Text nodes
+- [ ] 14-05-PLAN.md — AchievementsScreen: twelve entries, the unseen mark, and the colour fences
+- [ ] 14-06-PLAN.md — the two new shell branches, Title's seven rows, and the dev-row deletions
+- [ ] 14-07-PLAN.md — the app tier's cap, the three-assertion gate, docs, requirements and six backstops
+
 **UI hint**: yes
 
 ## Carried Debt
