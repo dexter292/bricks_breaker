@@ -447,6 +447,29 @@ vi.mock('../../src/services/storage', async (importOriginal) => {
   };
 });
 
+/**
+ * The run-stats mirror and its seq, hoisted to module scope so a test can publish into
+ * them. The mock factory below returns a fresh object per render, so anything declared
+ * inline there is unreachable from a test — and the UI->JS hop these two drive is the one
+ * the phase-09 device UAT found broken.
+ */
+const runStatsOutMock = {
+  value: {
+    bricksBroken: 0,
+    bestCombo: 1,
+    pickupMultiball: 0,
+    pickupExpand: 0,
+    pickupExtraLife: 0,
+    pickupSlow: 0,
+    pickupFireball: 0,
+    livesLost: 0,
+    longestRally: 0,
+    largestCascade: 0,
+    ticksPlayed: 0,
+  } as Record<string, number>,
+};
+const runStatsSeqMock = { value: 0 };
+
 const setActive = vi.fn();
 const retry = vi.fn();
 const advanceWave = vi.fn();
@@ -462,22 +485,8 @@ vi.mock('../../src/runtime/useGameLoop', () => ({
     injectCertWorstCase: () => {},
     certOut: { value: { p50: 0, p95: 0, mean: 0, fps: 60, n: 0, over: 0 } },
     certSeq: { value: 0 },
-    runStatsOut: {
-      value: {
-        bricksBroken: 0,
-        bestCombo: 1,
-        pickupMultiball: 0,
-        pickupExpand: 0,
-        pickupExtraLife: 0,
-        pickupSlow: 0,
-        pickupFireball: 0,
-        livesLost: 0,
-        longestRally: 0,
-        largestCascade: 0,
-        ticksPlayed: 0,
-      },
-    },
-    runStatsSeq: { value: 0 },
+    runStatsOut: runStatsOutMock,
+    runStatsSeq: runStatsSeqMock,
   }),
 }));
 
@@ -509,6 +518,27 @@ function boardFingerprint(): string {
   const b = compiledBoard();
   if (b == null) return 'none';
   return `${b.brickCount}:${Array.from(b.hp.slice(0, 64)).join(',')}`;
+}
+
+/**
+ * Publish a run-stats mirror exactly as the worklet's `runStatsSeq` bump does, then fire
+ * the reactions so the host's JS-side ref is refreshed.
+ *
+ * This is the UI-thread -> JS hop `buildRunStatsInput` reads at the run boundary, and it
+ * is the hop the phase-09 device UAT found broken (`bricksBroken: 0` after a run that
+ * visibly destroyed bricks). Nothing in jsdom drives it on its own, which is why no test
+ * asserted the join until 2026-09-29.
+ */
+async function publishRunStats(counters: Record<string, number>): Promise<void> {
+  const prev = runStatsSeqMock.value;
+  runStatsOutMock.value = { ...runStatsOutMock.value, ...counters };
+  runStatsSeqMock.value = prev + 1;
+  await act(async () => {
+    for (const reaction of reactions) {
+      reaction.fn(runStatsSeqMock.value, prev);
+    }
+    await Promise.resolve();
+  });
 }
 
 /** Deliver one chrome mirror exactly as the UI runtime's `chromeSeq` bump does. */
@@ -753,6 +783,58 @@ describe('PlayingHost daily run (behaviour)', () => {
       lastScreenProps.unlockedAchievements,
       'a run that records always REPUBLISHES, with an empty array when nothing fired — which is why no reset is needed on any path where a run RECORDS. The paths where none does are the exception, and the closed-date one is covered in the boundaries block below',
     ).toEqual([]);
+  });
+
+  it('the counters the worklet published reach recordRunEnd — the UI->JS hop the phase-09 device UAT found broken (09-VERIFICATION SC-1)', async () => {
+    // WHY THIS CASE EXISTS. Phase 09's SC-1 is "a completed run contributes deterministic
+    // counters". The counters themselves are deterministic and well tested in
+    // `tests/telemetry.reduce-run-events.test.ts`. What had NO test was the join: the
+    // host reads a JS-side mirror refreshed by a seq reaction, and hands it to
+    // `recordRunEnd`. MEASURED 2026-09-29 before this case existed — zeroing every field
+    // of `buildRunStatsInput`'s return left the WHOLE suite green at 112 files /
+    // 873 passed, typecheck clean. That is the exact observable signature of the device
+    // defect this phase's own UAT caught (`bricksBroken: 0` after a run that visibly
+    // destroyed bricks, fixed in 59afd98), and the regression guard written afterwards is
+    // a source regex asserting `not.toMatch(/runStats\.value/)` — which a functionally
+    // identical zeroing passes.
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(DAY_A_NOON);
+    await mountAndStartDaily();
+
+    await publishRunStats({
+      bricksBroken: 42,
+      bestCombo: 7,
+      livesLost: 2,
+      longestRally: 19,
+      largestCascade: 4,
+      pickupMultiball: 3,
+      ticksPlayed: 5000,
+    });
+
+    await deliverPhase(SIM.WON, { score: 1200 });
+    now.mockRestore();
+
+    expect(
+      recordRunEnd,
+      'the run must have been recorded at all, or every assertion below is about an empty mock',
+    ).toHaveBeenCalled();
+    const stats = recordRunEnd.mock.calls[0]![0]!.stats as Record<string, number>;
+
+    expect(
+      stats.bricksBroken,
+      'THE POINT: a distinctive non-zero value published on the UI thread must arrive at the storage call unchanged. A zero here is the device defect, and it is what the whole suite failed to see',
+    ).toBe(42);
+    expect(stats.bestCombo, 'each counter is carried individually — a single spread is not what buildRunStatsInput does').toBe(7);
+    expect(stats.livesLost).toBe(2);
+    expect(stats.longestRally).toBe(19);
+    expect(stats.largestCascade).toBe(4);
+    expect(stats.pickupMultiball).toBe(3);
+    expect(stats.ticksPlayed).toBe(5000);
+
+    expect(
+      stats.pickupExpand,
+      'and a counter the run never incremented stays zero — so the case proves TRANSPORT, not that every field is nonzero. Without this, mapping every field to a constant 42 would pass',
+    ).toBe(0);
   });
 
   it('the same date gives the same board and a different date gives a different one (SC-1 / N-DAILY-01)', async () => {
