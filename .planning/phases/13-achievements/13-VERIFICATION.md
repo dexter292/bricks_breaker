@@ -433,3 +433,33 @@ and was not labelled as such.
 `npm run lint` exit 0 at `✖ 3 problems (0 errors, 3 warnings)`. `windows status` → `ok: true`,
 31 open / 0 waived / 6 fixed / 37 total. Verdict **unchanged: `human_needed`** — nothing here
 touched the five human items, and nothing here could.
+
+---
+
+## Simulator UAT, 2026-09-29 — what it added and what it did not
+
+`13-UAT.md` records a device batch run after this report. **The verdict does not change**: it is
+still `human_needed`, and for the same reason — the four device/layout backstops are out of reach
+on this machine.
+
+What the batch did add is behavioural confirmation of the criteria this report could only establish
+against jsdom and storage harnesses, on a real blob this device had genuinely accumulated:
+SC-1 and SC-5 (exactly the predicted one of twelve fired, and the panel showed the catalog **name**,
+not the stored id), SC-2 (no re-fire; timestamp unmoved), SC-3 (survived an app kill), SC-4 and
+D-06/N-ACH-03 (the same block on the daily panel, above the countdown). Each test stated its
+prediction from the on-disk blob **before** the run.
+
+The one genuinely new observation is D-05's two-row budget. The cap, the `and N more` copy, the
+declaration-order choice of which achievement gets named, and the count being the remainder of the
+whole set were arithmetic in `13-UI-SPEC.md` that nothing had ever rendered. They render correctly,
+and storage confirms the whole seven-entry flood shares **one** timestamp — D-04's recorded
+consequence, and the reason `achievementLines` refuses a recency sort, now observed rather than
+argued.
+
+**It discharged no backstop.** WINDOWS #16, #17, #28 and #29 stay open, and `13-UAT.md` states the
+hardware reason for each. #16 carries a second blocker worth knowing before anyone schedules the
+device session: **no sixteen-character display name exists in the shipped catalog** — the longest is
+`Flawless Clear` at 14 — so a name must be temporarily lengthened to exactly 16 or the check
+verifies nothing.
+
+Human testimony remains **zero**. Nobody has played this build.
