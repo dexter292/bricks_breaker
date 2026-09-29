@@ -760,6 +760,147 @@ describe('sanitizeDailyRecord — bounded on read, every stored key validated (1
  * of the three. That is asserted below rather than only argued, because it is the whole
  * reason 64 is safe.
  */
+/**
+ * The two `recentRuns` bounds, and the sibling-degrade property — the three phase-09
+ * truths that HELD but that nothing would have caught the removal of (09-VERIFICATION).
+ *
+ * MEASURED 2026-09-29, before this block existed: deleting the `slice(-RECENT_RUNS_BOUND)`
+ * from `mergeTelemetryBlobs` left the whole suite green at 874 passed, and so did deleting
+ * it from `sanitizeTelemetry`'s read path. The existing merge case asserted
+ * `merged.recentRuns.length <= RECENT_RUNS_BOUND` against a merged length of **2** — an
+ * assertion that cannot fail, under a test name claiming the bound.
+ *
+ * Note the DIRECTION, and that it is the opposite of the achievements bound one screen
+ * above. `recentRuns` is `slice(-N)` — keep the LATEST — because it is a recency ring and
+ * the oldest run is the one worth losing. `achievements` is `slice(0, N)` — keep the
+ * FIRST — because under D-17 an unlock is permanent and the oldest are the ones held
+ * longest. Both are correct for their collection and a later reader must not unify them,
+ * so each direction is asserted rather than merely bounded.
+ */
+describe('recentRuns bounds and sibling degradation — the three unguarded phase-09 truths (09-VERIFICATION)', () => {
+  const runEntry = (timestamp: number): Record<string, unknown> => ({
+    mode: 'campaign',
+    levelId: PLAYABLE_LEVEL_ORDER[0] as string,
+    outcome: 'lose',
+    score: timestamp,
+    ticks: 10,
+    timestamp,
+  });
+
+  it('mergeTelemetryBlobs bounds recentRuns and keeps the LATEST — proved with more entries than the bound', () => {
+    const a = defaultTelemetryBlob();
+    const b = defaultTelemetryBlob();
+    // 40 + 40 = 80 entries against a bound of 50, so the bound must actually cut. The old
+    // case merged two entries and asserted `<= 50`.
+    a.recentRuns = Array.from({ length: 40 }, (_, i) =>
+      runEntry(i + 1),
+    ) as unknown as typeof a.recentRuns;
+    b.recentRuns = Array.from({ length: 40 }, (_, i) =>
+      runEntry(i + 101),
+    ) as unknown as typeof b.recentRuns;
+
+    const merged = mergeTelemetryBlobs(a, b);
+
+    expect(
+      merged.recentRuns.length,
+      'the bound must BITE: 80 entries in, RECENT_RUNS_BOUND out. Asserting `<=` against a merged length of 2, as this file did until 2026-09-29, is green whether or not the slice exists',
+    ).toBe(RECENT_RUNS_BOUND);
+    expect(
+      merged.recentRuns[merged.recentRuns.length - 1]?.timestamp,
+      'and the survivors are the LATEST — slice(-N), not slice(0, N). The newest run must always be in the window a stats screen reads',
+    ).toBe(140);
+    expect(
+      merged.recentRuns[0]?.timestamp,
+      'and the 30 DROPPED entries are the oldest ones. The two source blobs use disjoint timestamp ranges (1..40 and 101..140) on purpose: after sorting, the window is the last 50 POSITIONS, so the oldest survivor is timestamp 31 — not 140 minus 50, which is what a reader assuming contiguous timestamps would predict, and what the first version of this assertion got wrong',
+    ).toBe(31);
+  });
+
+  it('the read path bounds recentRuns too — a tampered blob cannot grow the ring', () => {
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).recentRuns = Array.from(
+      { length: 500 },
+      (_, i) => runEntry(i + 1),
+    );
+    const res = parseProgressResult(JSON.stringify(blob));
+
+    expect(
+      res.status,
+      'the bound TRIMS, it does not reject — C1 D-09 makes parse fail-soft',
+    ).toBe('ok');
+    expect(
+      res.progress.telemetry.recentRuns.length,
+      'bounded on READ as well as on write. Without this the only cap on a hand-edited blob would be the write path, which a tampered file never goes through',
+    ).toBe(RECENT_RUNS_BOUND);
+    expect(
+      res.progress.telemetry.recentRuns[RECENT_RUNS_BOUND - 1]?.timestamp,
+      'and the read path keeps the LATEST as well, matching the merge direction',
+    ).toBe(500);
+  });
+
+  it('a corrupt lifetime, byMode or recentRuns degrades ITSELF and leaves every sibling standing', () => {
+    // Each sibling is seeded NON-DEFAULT first and that is asserted, or "the siblings
+    // survived" is indistinguishable from "the siblings were always default". Phase 12 hit
+    // exactly this vacuity at sanitizeTelemetry.
+    const seeded = () => {
+      const b = defaultProgressBlob() as unknown as Record<string, unknown>;
+      b.bestScore = 4242;
+      (b.unlocked as string[]) = [PLAYABLE_LEVEL_ORDER[0] as string];
+      const t = b.telemetry as Record<string, unknown>;
+      (t.lifetime as Record<string, number>).bricksBroken = 777;
+      (t.byMode as Record<string, unknown>).campaign = {
+        [PLAYABLE_LEVEL_ORDER[0] as string]: { runsPlayed: 9 },
+      };
+      t.recentRuns = [runEntry(55)];
+      (t.endless as Record<string, number>).bestWave = 6;
+      return b;
+    };
+
+    // The anti-vacuity baseline: a clean parse really does carry all five non-defaults.
+    const clean = parseProgressResult(JSON.stringify(seeded()));
+    expect(clean.status).toBe('ok');
+    expect(clean.progress.bestScore, 'baseline').toBe(4242);
+    expect(clean.progress.telemetry.lifetime.bricksBroken, 'baseline').toBe(777);
+    expect(
+      clean.progress.telemetry.byMode.campaign[PLAYABLE_LEVEL_ORDER[0] as string]
+        ?.runsPlayed,
+      'baseline',
+    ).toBe(9);
+    expect(clean.progress.telemetry.recentRuns, 'baseline').toHaveLength(1);
+    expect(clean.progress.telemetry.endless.bestWave, 'baseline').toBe(6);
+
+    for (const field of ['lifetime', 'byMode', 'recentRuns'] as const) {
+      const b = seeded();
+      (b.telemetry as Record<string, unknown>)[field] = 'BOOM';
+      const res = parseProgressResult(JSON.stringify(b));
+
+      expect(res.status, `${field}: a corrupt field must never fail the parse`).toBe('ok');
+
+      const t = res.progress.telemetry;
+      expect(
+        res.progress.bestScore,
+        `${field} degraded, but bestScore is a SIBLING and must be untouched — Research Pitfall 4 is that telemetry corruption degrades telemetry alone, and this is the finer-grained form of it`,
+      ).toBe(4242);
+      expect(res.progress.unlocked, `${field}: the unlocked ladder survives`).toContain(
+        PLAYABLE_LEVEL_ORDER[0] as string,
+      );
+      expect(t.endless.bestWave, `${field}: the endless record survives`).toBe(6);
+
+      if (field !== 'lifetime') {
+        expect(t.lifetime.bricksBroken, `${field}: lifetime survives`).toBe(777);
+      }
+      if (field !== 'byMode') {
+        expect(
+          t.byMode.campaign[PLAYABLE_LEVEL_ORDER[0] as string]?.runsPlayed,
+          `${field}: byMode survives`,
+        ).toBe(9);
+      }
+      if (field !== 'recentRuns') {
+        expect(t.recentRuns, `${field}: recentRuns survives`).toHaveLength(1);
+      }
+    }
+  });
+});
+
 describe('sanitizeAggregateMap — bounded on read, and the bound is above every legitimate key domain (09-A1)', () => {
   const bigCampaign = (n: number): Record<string, unknown> => {
     const m: Record<string, unknown> = {};
