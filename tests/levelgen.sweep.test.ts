@@ -337,8 +337,24 @@ describe('generated board contract sweep (N-GEN-02 / N-GEN-03)', () => {
  * either way.
  *
  * What this adds over `tests/levels.solvability-parity.test.ts`: that file pins the two
- * implementations against the **six shipped assets**. This one extends the same evidence to
- * the generated distribution — 21 000 boards the authored corpus never reaches.
+ * implementations against the **six shipped assets**. This one extends the CORPUS to the
+ * generated distribution — 21 000 boards the authored corpus never reaches.
+ *
+ * ## What the 21 000-board loop does and does NOT establish
+ *
+ * It establishes that the two implementations **agree on every board the generator actually
+ * produces**. It does not, on its own, establish that they would agree on a board where
+ * either could be wrong, and the phase-10 security audit proved the difference: gutting
+ * `scripts/lib/levelSolvability.mjs`'s `checkSolvability` to a constant
+ * `{ ok: true, unreachableBreakables: [], corridorWarnings: [] }` left the loop **green**.
+ * Every generated board is solvable on both sides, so it compared `true === true` 21 000
+ * times.
+ *
+ * MEASURED 2026-09-29 over 4 200 boards: **zero** are unsolvable and **zero** carry a
+ * corridor warning. So widening the comparison to the full result shape would add nothing
+ * either — the generated distribution contains no board on which the two could disagree.
+ * The missing evidence is not more boards, it is a board where the answer is NO, which is
+ * what the negative case below supplies.
  *
  * `checkTs` is deep-imported from `src/core/levels/solvability` rather than aliased off the
  * `../src/core` barrel above on purpose: parity is a claim about two *implementations*, so
@@ -356,4 +372,37 @@ describe('solvability parity over the generated corpus (R-16, resolves 10-02-04)
     },
     SWEEP_TIMEOUT_MS,
   );
+
+  it('and they agree when the answer is NO — the negative case that makes the loop above non-vacuous', () => {
+    // A generated board with a breakable SEALED inside steel: a `1` at row 13 col 1 with
+    // `X` on every side, so the flood that starts outside the brick field cannot reach it.
+    // The board is otherwise the generator's own output, so this is a board from the
+    // generated distribution with one deliberate defect — not a hand-authored fixture.
+    const base = generate(7, 5);
+    const cells = [...base.cells];
+    cells[12] = 'XXX.......';
+    cells[13] = 'X1X.......';
+    cells[14] = 'XXX.......';
+    const sealed = { ...base, cells };
+
+    const ts = checkTs(sealed);
+    const mjs = checkMjs(sealed);
+
+    expect(
+      ts.ok,
+      'the TS lib must actually report the defect, or the parity below is two implementations agreeing that nothing is wrong — which is the state the 21 000-board loop was already in',
+    ).toBe(false);
+    expect(
+      mjs.ok,
+      'and so must the twin. Gutting scripts/lib/levelSolvability.mjs to a constant ok:true left the whole 21 000-board loop green; it cannot survive this case',
+    ).toBe(false);
+    expect(
+      mjs.unreachableBreakables,
+      'agreement on the VERDICT is not agreement on the ANSWER — the two must name the same unreachable cell, which is what a twin is for',
+    ).toEqual(ts.unreachableBreakables);
+    expect(
+      ts.unreachableBreakables,
+      'and the answer is the sealed cell, so this case is anchored to a specific defect rather than to any failure',
+    ).toEqual([{ row: 13, col: 1, char: '1' }]);
+  });
 });
