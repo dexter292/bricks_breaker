@@ -21,6 +21,7 @@ import {
   PROGRESS_VERSION,
   AGGREGATE_MAP_BOUND,
   RECENT_RUNS_BOUND,
+  RUN_LOG_LEVEL_ID_MAX,
   createMemoryProgressStore,
   defaultProgressBlob,
   defaultRunStatsInput,
@@ -33,6 +34,7 @@ import {
   parseProgressResult,
   defaultTelemetryAggregate,
   defaultEndlessRecord,
+  DAILY_TELEMETRY_KEY,
   ENDLESS_TELEMETRY_KEY,
   DAILY_HISTORY_BOUND,
   defaultDailyRecord,
@@ -835,6 +837,70 @@ describe('recentRuns bounds and sibling degradation — the three unguarded phas
       res.progress.telemetry.recentRuns[RECENT_RUNS_BOUND - 1]?.timestamp,
       'and the read path keeps the LATEST as well, matching the merge direction',
     ).toBe(500);
+  });
+
+  it('a stored levelId longer than RUN_LOG_LEVEL_ID_MAX drops its entry, and every legitimate value is far below the bound (T-09-A2)', () => {
+    // MEASURED before this bound existed: a 4 000-character levelId survived the read path
+    // intact at status 'ok', as did `<Text>evil</Text>` and `__proto__`. Nothing renders
+    // recentRuns today; Phase 14's statistics screen is what will, and it would have
+    // inherited an unfenced string. Same surface phase 12 fenced as T-12-15 and phase 13 as
+    // T-13-01 — phase 09's own register never named it.
+    const entry = (levelId: string, timestamp: number): Record<string, unknown> => ({
+      mode: 'campaign',
+      levelId,
+      outcome: 'lose',
+      score: 10,
+      ticks: 10,
+      timestamp,
+    });
+
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).recentRuns = [
+      entry('A'.repeat(4000), 1),
+      entry('B'.repeat(RUN_LOG_LEVEL_ID_MAX + 1), 2),
+      entry(PLAYABLE_LEVEL_ORDER[0] as string, 3),
+      entry('C'.repeat(RUN_LOG_LEVEL_ID_MAX), 4),
+    ];
+    const res = parseProgressResult(JSON.stringify(blob));
+
+    expect(res.status, 'a hostile entry must not fail the parse — C1 D-09').toBe('ok');
+    expect(
+      res.progress.telemetry.recentRuns.map((e) => e.timestamp),
+      'the two over-length entries are DROPPED whole, matching every other entry sanitizer in parseBlob.ts. Truncating instead would keep a lie about which level a run was played on, and a recentRuns entry is cheap to lose — unlike an achievement unlock, which D-17 makes one-way and which is therefore kept with a defaulted field (D-21)',
+    ).toEqual([3, 4]);
+    expect(
+      res.progress.telemetry.recentRuns.every(
+        (e) => e.levelId.length <= RUN_LOG_LEVEL_ID_MAX,
+      ),
+      'and nothing over the bound survives anywhere in the parsed blob',
+    ).toBe(true);
+    expect(
+      res.progress.telemetry.recentRuns[1]?.levelId.length,
+      'the boundary itself is INCLUSIVE — exactly RUN_LOG_LEVEL_ID_MAX is accepted, so the check is > and not >=',
+    ).toBe(RUN_LOG_LEVEL_ID_MAX);
+  });
+
+  it('the bound sits above every value the three modes can legitimately store', () => {
+    // This is the assertion that makes the bound safe rather than merely present. If a
+    // future LevelId, or a renamed mode key, ever grows past it, this reds BEFORE a real
+    // player silently loses run-log entries.
+    const longestLevelId = Math.max(
+      ...PLAYABLE_LEVEL_ORDER.map((id) => (id as string).length),
+    );
+    for (const [what, value] of [
+      ['the longest LevelId', longestLevelId],
+      ['ENDLESS_TELEMETRY_KEY', ENDLESS_TELEMETRY_KEY.length],
+      ['DAILY_TELEMETRY_KEY', DAILY_TELEMETRY_KEY.length],
+    ] as const) {
+      expect(
+        value,
+        `${what} must stay under RUN_LOG_LEVEL_ID_MAX — only one of the three modes stores a LevelId at all, which is why the fence is a LENGTH bound and not a membership check`,
+      ).toBeLessThan(RUN_LOG_LEVEL_ID_MAX);
+    }
+    expect(
+      RUN_LOG_LEVEL_ID_MAX,
+      'and the headroom is real: four times the longest legitimate value',
+    ).toBeGreaterThanOrEqual(longestLevelId * 4);
   });
 
   it('a corrupt lifetime, byMode or recentRuns degrades ITSELF and leaves every sibling standing', () => {

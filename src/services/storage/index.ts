@@ -18,6 +18,7 @@ export {
   type StarCount,
   type LevelBest,
   RECENT_RUNS_BOUND,
+  RUN_LOG_LEVEL_ID_MAX,
   defaultTelemetryBlob,
   defaultTelemetryAggregate,
   defaultRunStatsInput,

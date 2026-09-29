@@ -20,6 +20,7 @@ import {
   AGGREGATE_MAP_BOUND,
   DAILY_HISTORY_BOUND,
   RECENT_RUNS_BOUND,
+  RUN_LOG_LEVEL_ID_MAX,
   defaultAchievementRecord,
   defaultDailyRecord,
   defaultProgressBlob,
@@ -380,7 +381,16 @@ function sanitizeRunLogEntry(raw: unknown): RunLogEntry | null {
   if (typeof entry.mode !== 'string' || !GAME_MODE_SET.has(entry.mode)) {
     return null;
   }
-  if (typeof entry.levelId !== 'string' || entry.levelId.length === 0) {
+  // Bounded at BOTH ends (T-09-A2). The lower bound was always here; the upper one was
+  // not, so a hand-edited blob could store a 4 000-character id that survived to whatever
+  // renders `recentRuns` — which is Phase 14's statistics screen, not anything shipped
+  // today. See `RUN_LOG_LEVEL_ID_MAX` for why this is a length bound and not a membership
+  // check: only one of the three modes stores a `LevelId` at all.
+  if (
+    typeof entry.levelId !== 'string' ||
+    entry.levelId.length === 0 ||
+    entry.levelId.length > RUN_LOG_LEVEL_ID_MAX
+  ) {
     return null;
   }
   if (typeof entry.outcome !== 'string' || !RUN_OUTCOME_SET.has(entry.outcome)) {

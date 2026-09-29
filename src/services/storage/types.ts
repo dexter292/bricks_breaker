@@ -53,6 +53,35 @@ export type RunOutcome = 'win' | 'lose' | 'abandoned';
 export const RECENT_RUNS_BOUND = 50 as const;
 
 /**
+ * The upper length bound on a stored `RunLogEntry.levelId` (T-09-A2).
+ *
+ * **Why a LENGTH bound and not a membership check.** v4 is mode-aware from the start
+ * (D-04), and the three legitimate values come from three different closed sets, only one
+ * of which is `LevelId`: a campaign run stores its `LevelId`, an endless run stores
+ * `ENDLESS_TELEMETRY_KEY`, a daily run stores `DAILY_TELEMETRY_KEY`. A catalog-membership
+ * check would therefore be wrong on two of the three modes, and would also have to be
+ * edited every time a mode is added — which is precisely the coupling the mode-aware
+ * design avoids. The longest legitimate value is **eight** characters (`level-01`), so 32
+ * is four times the real maximum and can only ever reject something invented.
+ *
+ * **What it is for.** `sanitizeRunLogEntry` required a non-empty string and nothing more,
+ * so a hand-edited blob could store an arbitrarily long id. MEASURED 2026-09-29: a
+ * **4 000-character** `levelId` survived the read path intact, as did `<Text>evil</Text>`
+ * and `__proto__`, all at `status: 'ok'`. Nothing renders `recentRuns` today — **Phase 14's
+ * statistics screen (N-STAT-03) is what will**, and it would have inherited an unfenced
+ * string with nothing telling it so. This is the same surface phase 12 fenced as T-12-15
+ * (the stored daily `date` reaching a `Text` in a 320px panel) and phase 13 as T-13-01 (the
+ * stored achievement id); phase 09's own register never named it, which is why it is still
+ * open three phases later.
+ *
+ * The entry is DROPPED rather than truncated, matching every other entry sanitizer in
+ * `parseBlob.ts`: a truncated id is a lie about which level a run was played on, and a
+ * `recentRuns` entry is cheap to lose — unlike an achievement unlock, which D-17 makes
+ * one-way and which is therefore kept with a defaulted field instead (D-21).
+ */
+export const RUN_LOG_LEVEL_ID_MAX = 32 as const;
+
+/**
  * Bounded daily history window (D-15), same reasoning as `RECENT_RUNS_BOUND` above and the
  * same obligation to state arithmetic rather than assert a number. A `{ date, score,
  * outcome }` entry serialises to roughly 45 bytes of JSON, so 400 entries is ~18KB against
