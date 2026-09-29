@@ -162,15 +162,15 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 
 ### Telemetry & Statistics
 
-- [ ] **N-STAT-01** (FC-R07): A run records deterministic counters — bricks broken, best combo, power-ups caught, lives lost, ticks played, outcome — derived from the existing event ring, aggregated lifetime and per level id
-- [ ] **N-STAT-02**: `ProgressBlob` v3 → v4 migration is lossless for every existing best score, star and unlocked level; corrupt v4 degrades to defaults instead of throwing
+- [x] **N-STAT-01** (FC-R07): A run records deterministic counters — bricks broken, best combo, power-ups caught, lives lost, ticks played, outcome — derived from the existing event ring, aggregated lifetime and per level id
+- [x] **N-STAT-02**: `ProgressBlob` v3 → v4 migration is lossless for every existing best score, star and unlocked level; corrupt v4 degrades to defaults instead of throwing
 - [ ] **N-STAT-03** (FC-R07): A statistics screen renders lifetime and per-level telemetry without recomputing on every frame
 
 ### Board Generation
 
-- [ ] **N-GEN-01**: `generate(seed, difficulty)` is pure and returns a `LevelFileV1`; identical arguments produce byte-identical output across processes
-- [ ] **N-GEN-02**: Every generated board passes `checkSolvability` with zero unreachable breakables and fits the 360×640 playfield, asserted over a seed/difficulty sweep
-- [ ] **N-GEN-03**: `difficulty` is monotone — higher values yield non-decreasing authored weight (brick count and total HP); generation uses only shipped verbs and respects the Mid particle budget
+- [x] **N-GEN-01**: `generate(seed, difficulty)` is pure and returns a `LevelFileV1`; identical arguments produce byte-identical output across processes
+- [x] **N-GEN-02**: Every generated board passes `checkSolvability` with zero unreachable breakables and fits the 360×640 playfield, asserted over a seed/difficulty sweep
+- [x] **N-GEN-03**: `difficulty` is monotone — higher values yield non-decreasing authored weight (brick count and total HP); generation uses only shipped verbs and respects the Mid particle budget
 
 ### Endless Mode
 
