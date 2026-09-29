@@ -287,8 +287,18 @@ counts are `grep -c`, 2026-09-29, pre-change:
 | `app/_components/SelectScreen.tsx` | 7 | unchanged screen, but see below |
 | `app/_components/StatisticsScreen.tsx` | new | **S2**, budgeted above |
 | `app/_components/AchievementsScreen.tsx` | new | **S3** |
-| `app/_components/PlayingHost.tsx` | 7, two deleted this phase | `__DEV__` dev row |
+| `app/_components/PlayingHost.tsx` | 7, **three** deleted this phase → **4** | `__DEV__` dev row |
 | | **56 today** | |
+
+**Correction, 2026-09-29 — the PlayingHost row said "two deleted" and the number is three.**
+All seven of `PlayingHost`'s `<Text` nodes live in the dev row: `Lv {n}`, the tier label,
+`Cert WC`, `Endless`, `Daily`, the `W{n}` wave readout and `Crash`. The shipped source comment
+bundles the readout with the control it sits beside — *"Phase 14 ships the real Title route and
+**DELETES this Pressable and the wave readout beside it**"* (`PlayingHost.tsx`, the D-05 block) —
+and a second comment deletes `Daily`. So this phase removes **three** `<Text` nodes, not two, and
+`PlayingHost` ends at **4**. The plan must state the post-change per-file count explicitly rather
+than inherit it from either this table or that comment, because the two disagreed and assertion 1
+pins whichever number the executor picks.
 
 **`SelectScreen` is in scope even though it needs no cap to fit** (its own ceiling is ≈1.94). If
 Title caps and `SelectScreen` does not, one tap changes the player's text size — **the cap is a
@@ -313,11 +323,31 @@ surface outside the Skia playfield. The Skia playfield renders no `Text` and is 
    place a number lived, read by nothing in production. Caught by the UI checker on this document,
    which is the second time this defect family has been caught at this stage in two phases.
 
-3. **No escapee.** `grep -rc '<Text'` over `src/` and `app/` outside the twelve enumerated files
-   must return **zero**. The enumeration is closed at twelve and an enumeration cannot detect a
+3. **No escapee.** A scan over `src/` and `app/` outside the twelve enumerated files must find
+   **zero** `<Text` nodes. The enumeration is closed at twelve and an enumeration cannot detect a
    node nobody enumerated, so a thirteenth file added later would be invisible to assertions 1
    and 2. This is the assertion that keeps the cap a property of the app's typography rather than
    of a list someone maintained once.
+
+   **Corrected 2026-09-29 — as first written this assertion was RED ON ARRIVAL, and for a reason
+   that had nothing to do with typography.** A bare `grep -rc '<Text'` over `src/` and `app/`
+   returns **11 files / 57 occurrences**, not 10 / 56: the eleventh is
+   `src/services/storage/types.ts:69`, which carries the string `<Text>evil</Text>` inside a
+   **doc comment** documenting an XSS-shaped storage fixture. It renders nothing. Shipped as
+   written, the assertion would have failed on its first run, and the likely repair under time
+   pressure is to weaken the scan — which is how this project has previously turned a real gate
+   into a decorative one. The assertion therefore carries **two** scope rules, both required,
+   because either alone still admits a false positive:
+   - **Scope to `.tsx` only.** A `.ts` file cannot render JSX, so a `<Text` in one is by
+     construction not a rendered node. This is what excludes `types.ts`.
+   - **Strip comments before scanning.** A doc comment inside a `.tsx` file would still be a
+     false positive, and this repo already has the tool for it —
+     `tests/ui/achievementLines.test.ts` strips comments before its source scan and
+     `scripts/assert-levelgen-thread.mjs` self-checks by planting its pattern *in a comment*
+     specifically to prove the stripping works.
+
+   Red-proof it in both directions: plant a `<Text` in an unenumerated `.tsx` (must go red) and
+   plant one in a comment in an unenumerated `.tsx` (must stay green).
 
 All three must be re-run by this phase's final plan and all three must be red-proofed — a gate
 this document has just been corrected about is not one to take on trust.
@@ -1022,7 +1052,7 @@ document is one of these three; none is recalled.**
 | Explicit `lineHeight` scales with the multiplier on iOS | `RCTAttributedTextUtils.mm:230` | **measured in the installed package** |
 | `maxFontSizeMultiplier` is honoured, as a continuous `fminf` | `RCTAttributedTextUtils.mm:117` — `fminf(maxFontSizeMultiplier, fontSizeMultiplier)` | **measured in the installed package** |
 | Nothing in `src/` or `app/` sets `allowFontScaling` / `maxFontSizeMultiplier` today | `grep -rn` over both trees, 0 hits | **measured** |
-| **56 `<Text` nodes across the twelve enumerated files**, and 56 `</Text>` (no self-closing or nesting confound) | `grep -c` per file, 2026-09-29, table in § The multiplier | **measured** |
+| **56 `<Text` nodes across the twelve enumerated files**, and 56 `</Text>` (no self-closing or nesting confound) | `grep -c` per file, 2026-09-29, table in § The multiplier | **measured** — re-verified per file 2026-09-29; all twelve counts hold. `src/` + `app/` as a whole is **57 in 11 files**; the 57th is a doc comment in `src/services/storage/types.ts`, which is why assertion 3 is `.tsx`-scoped and comment-stripped |
 | `ACHIEVEMENT_LINES_MAX`'s production reader is `achievementLines.ts:158` | `grep -rn ACHIEVEMENT_LINES_MAX src/ app/` — one non-comment production hit | **measured** |
 | The twelve catalog names (longest `Flawless Clear`, 14) and descriptions (longest 53) | `grep -n 'name:\|description:' src/services/achievements/catalog.ts` | **measured in source** |
 | `PLAYABLE_LEVEL_ORDER` = `01, 04, 05, 06, 03`, five members | `src/services/storage/catalog.ts:14` | **measured in source** |
