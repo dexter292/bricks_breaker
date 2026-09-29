@@ -752,12 +752,18 @@ including the coverage floor at **83.94%** lines against 40%.
 
 ### Recorded, not resolved
 
-- The four unguarded-but-holding properties this report measured — the `mergeTelemetryBlobs` bound
-  (whose only assertion is a `toBeLessThanOrEqual(RECENT_RUNS_BOUND)` against a length of **2**, a
-  gate that cannot fail), the read-side `recentRuns` bound, the sibling degrade-alone property for
-  `lifetime`/`byMode`/`recentRuns`, and the `src/core` freeze. Each holds; nothing would catch its
-  removal. The verdict stays `human_needed` on that basis and the annotations above the score are
-  the part to read.
+- The four unguarded-but-holding properties this report measured. **Three are now guarded**
+  (`3727fab`): the `mergeTelemetryBlobs` bound — whose only assertion was a
+  `toBeLessThanOrEqual(RECENT_RUNS_BOUND)` against a merged length of **2**, a gate that could not
+  fail under a test name claiming the bound — the read-side `recentRuns` bound, and the sibling
+  degrade-alone property for `lifetime`/`byMode`/`recentRuns`. Each was re-measured unguarded
+  before being written and red-proved after, with four mutations: bound removed, bound flipped to
+  keep-first, read bound removed, and a corrupt `lifetime` made to wipe its siblings.
+  The new merge case also asserts the DIRECTION, because this file now holds two bounds running
+  opposite ways and both are correct — `recentRuns` keeps the latest, `achievements` keeps the
+  first — and a later reader must not unify them.
+  **The fourth is deliberately not closed**: the `src/core` freeze is a phase-scoped historical
+  claim about what phase 09 touched, not an ongoing invariant a test can hold.
 - `EVENT_RING_CAPACITY` has no production importer while `runStats.ts` hard-codes `128` twice —
   the same shape as phase 13's `ACHIEVEMENT_LINES_MAX`, which was found the same way.
 - `docs/ops/PROGRESS-STORAGE.md` still describes **v3** in § Storage keys / § Migrate / § Fail-soft
