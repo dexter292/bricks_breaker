@@ -4,14 +4,14 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_plan: 5
 status: in_progress
-stopped_at: Completed 13-05-PLAN.md — phase 13 automated half complete; four device claims outstanding
-last_updated: "2026-09-28T15:12:02.900Z"
-state_head: 723dd211ff3da2bfc7c6334509143649aa3cfd47
+stopped_at: Phase 14 context gathered
+last_updated: "2026-09-29T06:51:32.916Z"
+state_head: 68ee06df8d08dbe1cc78d4270d72558a530ae8a4
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 43
-  completed_plans: 42
+  completed_plans: 43
   percent: 17
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
@@ -331,6 +331,6 @@ Total Plans in Phase: 5
 
 ## Session Continuity
 
-Last session: 2026-09-28T15:12:02.857Z
-Stopped at: Completed 13-05-PLAN.md — phase 13 automated half complete; four device claims outstanding
-Resume file: None
+Last session: 2026-09-29T06:51:32.859Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-meta-shell-mode-select-stats-achievements/14-CONTEXT.md
