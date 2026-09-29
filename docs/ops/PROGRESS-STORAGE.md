@@ -60,23 +60,63 @@ Cleared ⟺ unlock chain proves prior clear **or** recorded stars ∈ {1,2,3} (R
 
 ## Storage keys
 
+> **Brought up to v4 on 2026-09-29.** These three sections described **v3** as canonical
+> until then, while the shipped key had been `@nbb/progress/v4` since Phase 9. Recorded as
+> `T-09-A3` by the phase-09 security audit: phase 09 shipped the v4 blob, the v3→v4 chain,
+> the sixteen-field aggregate, `RECENT_RUNS_BOUND` and the whole fail-soft v4 contract, and
+> wrote **zero lines** of this document — no plan ever undertook it. That is the direct
+> mechanism by which the uncapped `sanitizeAggregateMap` (WINDOWS #27) sat unowned for three
+> phases: the document a later phase reads did not describe the thing it was reading.
+
 | Key | Version | Role |
 |-----|---------|------|
-| `@nbb/progress/v3` | 3 | Canonical unlock + nested `bestByLevel` + rollup `bestScore` |
+| `@nbb/progress/v4` | 4 | **Canonical.** Everything v3 held, plus the `telemetry` blob — lifetime and per-`(mode, levelId)` aggregates, the bounded `recentRuns` ring, the endless record, the daily record, and the achievements set |
+| `@nbb/progress/v3` | 3 | Legacy migrate source; **retained** after migrate |
 | `@nbb/progress/v2` | 2 | Legacy; **retained** after migrate |
 | `@nbb/personal-best/v1` | 1 | Legacy PB; **retained** after migrate |
 
 ### Migrate
 
-- Prefer valid **v3**.
-- Else **v2→v3**: number bests → `{ score }` (omit stars); preserve `unlocked`.
-- Else **v1→v3**: seed `bestScore` only; `unlocked=['level-01']`; empty `bestByLevel` (no invented attribution).
-- Write-through v3 once after successful seed; do **not** delete legacy keys.
-- Corrupt v3 → defaults; in-memory watermarks never lowered (F-26).
+The chain is `migrateOrDefault(v4, v3, v2, v1)` in `src/services/storage/migrateProgress.ts`.
+
+- Prefer valid **v4**.
+- Else run the **v3 chain** (`migrateOrDefaultV3`) and lift its result through `v3ToV4`:
+  - Prefer valid **v3**.
+  - Else **v2→v3**: number bests → `{ score }` (omit stars); preserve `unlocked`.
+  - Else **v1→v3**: seed `bestScore` only; `unlocked=['level-01']`; empty `bestByLevel` (no invented attribution).
+- `v3ToV4` **adds** the telemetry blob at defaults and carries every v3 field forward unchanged —
+  it must not lose a single best score, star or unlocked level. That is Phase 9's SC-3 and a v3
+  fixture round-trips through it in `tests/storage.progress-v4.test.ts`.
+- Write-through v4 once after a successful seed; do **not** delete legacy keys.
+- Corrupt v4 → defaults; in-memory watermarks never lowered (F-26).
+
+**Additive fields take no version bump.** Phase 13's `telemetry.achievements` was added to the v4
+blob without touching `PROGRESS_VERSION` (D-13): a v4 blob written before the field existed parses
+with `status: 'ok'` and the field defaulted. See § Achievements below.
 
 ### Fail-soft (D-09 / F-26)
 
-Corrupt JSON → defaults in parse result; watermark merge never lowers known score/stars. Writes soft-fail; `flush()` on AppState / OS pause re-attempts pending write.
+Corrupt JSON → defaults in parse result; watermark merge never lowers known score/stars. Writes
+soft-fail; `flush()` on AppState / OS pause re-attempts pending write.
+
+**Telemetry corruption degrades telemetry ALONE** (Research Pitfall 4), and finer than that: a
+corrupt `lifetime`, `byMode`, `recentRuns`, `daily` or `achievements` degrades only *itself*, and
+`bestScore`, `unlocked`, `bestByLevel` and the sibling telemetry regions all survive it. Guarded by
+`tests/storage.progress-v4.test.ts`; the `lifetime` / `byMode` / `recentRuns` third of that was
+itself unguarded until 2026-09-29.
+
+**Every stored collection is bounded on READ as well as on write**, so a hand-edited blob cannot
+grow one:
+
+| Collection | Bound | Direction | Why that direction |
+|---|---|---|---|
+| `recentRuns` | `RECENT_RUNS_BOUND` = 50 | keep **latest** | a recency ring; the oldest run is the one worth losing |
+| `byMode.*` maps | `AGGREGATE_MAP_BOUND` = 64 | keep first | every key comes from a five- or one-member domain, so 64 can only drop invented ones |
+| `achievements.unlocked` | `ACHIEVEMENT_UNLOCK_BOUND` = 64 | keep **first** | under D-17 an unlock is permanent, so the oldest are the ones held longest |
+| `recentRuns[].levelId` | `RUN_LOG_LEVEL_ID_MAX` = 32 chars | entry dropped | four times the longest legitimate value (`level-01`, 8) |
+
+The two `keep` directions genuinely differ and both are correct for their collection. A later
+change must not unify them.
 
 ## Ops: cert arm smoke + ceiling re-run (D-16 / RELEASE-GATES §6)
 
@@ -89,11 +129,15 @@ Ceiling measurement itself is a separate session (not part of routine UAT approv
 
 ## Achievements in the v4 telemetry blob (Phase 13 / D-13)
 
-> The sections above describe the **v3** `ProgressBlob` and its migration chain. The telemetry
-> sub-object (`lifetime`, `byMode`, `endless`, `daily`, `achievements`, `recentRuns`) lives in the
-> **v4** blob at `@nbb/progress/v4` (`PROGRESS_VERSION`, `PROGRESS_KEY` in
-> `src/services/storage/types.ts`). This section covers the achievements field only; the catalog,
-> the thresholds and the surface are in [`ACHIEVEMENTS.md`](./ACHIEVEMENTS.md).
+> This section covers the achievements field only; the catalog, the thresholds and the surface
+> are in [`ACHIEVEMENTS.md`](./ACHIEVEMENTS.md). The telemetry sub-object it belongs to
+> (`lifetime`, `byMode`, `endless`, `daily`, `achievements`, `recentRuns`) is described in
+> § Storage keys above.
+>
+> *This note used to open "the sections above describe the **v3** `ProgressBlob`", which was true
+> when phase 13 wrote it and is no longer: those sections were brought up to v4 on 2026-09-29
+> (`T-09-A3`). Phase 13 having to disclaim the rest of its own ops document is what made the gap
+> visible in the first place.*
 
 **Shape.** `TelemetryBlob.achievements` is an `AchievementRecord` — `{ unlocked: AchievementUnlock[] }`
 — where an `AchievementUnlock` is `{ id, at }`: the catalog id, and the Unix ms at which it was

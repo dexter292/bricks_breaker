@@ -19,6 +19,7 @@ import {
   MIN_HORIZONTAL_RATIO,
   STALL_TIER3_REPEAT_TICKS,
   BALL_RADIUS,
+  EVENT_RING_CAPACITY,
 } from '../src/core';
 import { BRICK_HP1, BRICK_HP2, BRICK_HP3, BRICK_UNBREAKABLE } from '../src/render/colors';
 
@@ -36,6 +37,38 @@ describe('constants parity (F-37 / F-63)', () => {
     expect(SEPARATION_EPS).toBe(1e-4);
     expect(src).toContain(`const logicalWidth = ${LOGICAL_WIDTH}`);
     expect(src).toContain(`const logicalHeight = ${LOGICAL_HEIGHT}`);
+  });
+
+  it('runStats.ts ring-capacity literals match EVENT_RING_CAPACITY — BOTH of them', () => {
+    // WHY THIS ROW WAS MISSING, AND WHY IT MATTERS.
+    // `EVENT_RING_CAPACITY` is exported from `src/core/constants.ts` and read by NOTHING in
+    // production: `src/runtime/runStats.ts` hard-codes 128 twice instead, each time with a
+    // comment naming the constant. Measured 2026-09-29 — the only production occurrences of
+    // the identifier are its declaration and the `src/core` barrel re-export. So the link
+    // the two comments assert exists only in prose, and editing the constant would silently
+    // leave them behind and turn both comments into lies.
+    //
+    // The hard-coding itself is CORRECT and is not what this fixes: `reduceRunTelemetry` is
+    // a worklet and the file's own header records the rule that worklets cannot close over
+    // primitive tuned literals. This file is the instrument that makes such a literal
+    // honest, and it already pins five sibling constants the same way — this one was simply
+    // never added. The phase-13 code review found the same shape in
+    // `ACHIEVEMENT_LINES_MAX`, which was documented by three artifacts as the single place
+    // its number lived and was read by nothing.
+    const src = read('src/runtime/runStats.ts');
+
+    expect(
+      src,
+      'the cascade scratch arrays are sized by the ring capacity — a ring that outgrew them would overflow the scratch before it overflowed itself',
+    ).toContain(`const CASCADE_SCRATCH_LEN = ${EVENT_RING_CAPACITY};`);
+    expect(
+      src,
+      'and the defensive read bound in the reducer uses the same number. Both sites, not one: an edit that fixed only the first would leave a reducer reading past its own scratch',
+    ).toContain(`const ringCap = ${EVENT_RING_CAPACITY};`);
+    expect(
+      EVENT_RING_CAPACITY,
+      'pinned to its measured value as well, so raising the constant is a deliberate act that reds this row rather than a silent widening',
+    ).toBe(128);
   });
 
   it('stepRun serveSpeed matches SERVE_SPEED', () => {

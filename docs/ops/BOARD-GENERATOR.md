@@ -294,12 +294,23 @@ This section is why this document exists rather than a code comment. Everything 
 these are the things that are **not** established, stated plainly so a later phase does not
 mistake an inference for a fact.
 
-**1. A1 — Hermes byte-identity — is UNMEASURED.** Byte-identity was verified across Node
-processes only (four of them, two module pipelines — but all V8). The generator has never been
-run on Hermes. If A1 is false, Phase 12's daily challenge hands **different boards to device
-and CI**, which is precisely the failure daily mode cannot tolerate: the leaderboard would
-compare scores on boards that were never the same board. Plan 10-05's `__DEV__` on-device
-probe is what discharges this, by computing the u32 fingerprint on device and comparing.
+**1. A1 — Hermes byte-identity — is measured on a SIMULATOR, never on physical hardware.**
+
+*This heading read "is UNMEASURED" until 2026-09-29, directly above the block that discharges
+it — the phase-10 security audit's Finding 6. The error was in the safe direction, understating
+what had been proven, but a reader skimming headings got the opposite of the truth. The heading
+now names the residual that is genuinely open rather than the one that was closed.*
+
+The original risk: byte-identity was verified across Node processes only (four of them, two
+module pipelines — but all V8), and the generator had never been run on Hermes. If A1 were
+false, Phase 12's daily challenge would hand **different boards to device and CI**, which is
+precisely the failure daily mode cannot tolerate: two players would compare scores on boards
+that were never the same board. Plan 10-05's `__DEV__` on-device probe discharges it by
+computing the u32 fingerprint on device and comparing.
+
+**What is still open** is narrow and is stated in the block's own last line: the reading was
+taken on the iOS **simulator**, which runs the same Hermes engine but not on the same silicon.
+A physical-device run has not been observed either way.
 
 > **Device digest: MEASURED 2026-09-25 — A1 DISCHARGED.**
 > **On-device u32 fingerprint:** `0x2e8f6c23` = `781151267` — **matches the Node pin exactly.**
