@@ -103,12 +103,32 @@ today were `25x Combo` (9) and `1000 Bricks` (11). The entry's own text already 
 expected: reach a campaign win with three stars, `New Record`, `Retry`, `Next` and `Menu` plus a
 two-line unlock block at 320×568 pt; confirm `Menu` is reachable without scrolling, and **read** the
 bottom safe-area inset rather than inferring it from the panel appearing to fit.
-result: **blocked — hardware.** No 320×568 device exists on this machine, and the inset is the
-question, not the fit. What today *does* contribute is a lower bound and nothing more: the
-11-row daily panel and the 2-line block both render with `Menu` reachable at 402×874. That is a
-larger viewport in both dimensions and says nothing about 26 px of spare at 568 pt. `ACHIEVEMENT_LINES_MAX`
-stays 2. Stays OPEN — and note the remedy is only load-bearing as of `99afd8b`; before it, the
-constant was read by nothing in production.
+result: **partially discharged later the same day — both unverified inputs are now measured, the
+viewport itself is not.** The first version of this entry said "blocked — hardware", which was
+wrong about what hardware was reachable: only iPhone 17 simulators were *installed*, but an
+**iPhone SE (3rd generation)** — the exact device class #28 names as the route to 320×568 — can be
+**created**, and was.
+
+1. **The inset is read, not inferred**, which is what #28 demanded. A temporary on-screen readout
+   of `useSafeAreaInsets()` in `GameScreen` on that device printed **`t=20 b=0 l=0 r=0`**. The
+   probe was reverted and `GameScreen` is byte-identical to HEAD. **Bottom inset is zero** on the
+   device class, so usable at 320×568 is `568 − 20 − 0 = 548` — exactly the figure
+   `13-UI-SPEC.md` assumed.
+2. **The row arithmetic is validated against a real render.** A lose panel on the same device
+   measured **362.5 pt** by pixel analysis, against `48 + 40 + 40 + 32 + 32 + 44 + 64 + 62 = 362`
+   for the rows actually present. Half a point. The binding campaign-win case adds stars (32) and
+   `Next` (64) for **458**, and two unlock rows for **522** — so 522 against 548 is a measured
+   model now, not an estimate.
+
+**What is still open is narrow**: the 320×568 viewport was never rendered. `simctl` exposes no
+Display Zoom, and iPhone SE (1st generation) — natively 320×568 — is **incompatible with iOS 26.5**,
+the only installed runtime. Both *inputs* to the computation are measured; its *output* has not
+been observed. `ACHIEVEMENT_LINES_MAX` stays 2, and the remedy is only load-bearing as of
+`99afd8b`.
+
+**Why a simulator counts here and did not for phase 11**: phase 11's SC-5 is a frame-timing claim,
+where a simulator runs on desktop silicon and the number is meaningless. A safe-area inset is a
+property of the emulated device's geometry, which the simulator reports exactly as hardware does.
 
 ### 9. WINDOWS #29 — Dynamic Type at iOS xLarge
 expected: expected to CLIP (≈1.118 against a computed ceiling of 1.102). Confirming the clip is the
