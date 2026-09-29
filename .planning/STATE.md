@@ -4,9 +4,9 @@ milestone: v1.2
 milestone_name: Retention & Replayability
 current_plan: 5
 status: in_progress
-stopped_at: Phase 14 context gathered
-last_updated: "2026-09-29T06:51:32.916Z"
-state_head: 68ee06df8d08dbe1cc78d4270d72558a530ae8a4
+stopped_at: Phase 14 UI-SPEC approved
+last_updated: "2026-09-29T07:20:41.522Z"
+state_head: f9d656ce96e7d8adae2a578522598a269d9318c9
 progress:
   total_phases: 6
   completed_phases: 1
@@ -331,6 +331,6 @@ Total Plans in Phase: 5
 
 ## Session Continuity
 
-Last session: 2026-09-29T06:51:32.859Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-meta-shell-mode-select-stats-achievements/14-CONTEXT.md
+Last session: 2026-09-29T07:20:41.424Z
+Stopped at: Phase 14 UI-SPEC approved
+Resume file: .planning/phases/14-meta-shell-mode-select-stats-achievements/14-UI-SPEC.md
