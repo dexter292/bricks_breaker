@@ -154,10 +154,23 @@ wrong about what hardware was reachable: only iPhone 17 simulators were *install
    wrap at 312 pt — *narrower* than a true 320 pt device would give.
 
 **What is still open, and it is now very narrow**: the 320×568 viewport was never rendered.
-`simctl` exposes no Display Zoom, and iPhone SE (1st generation) — natively 320×568 — is
-**incompatible with iOS 26.5**, the only installed runtime. The computation's inputs are measured,
-its output is measured on a taller device, and the mechanism linking them is argued rather than
-observed. `ACHIEVEMENT_LINES_MAX` stays 2, and the remedy is only load-bearing as of `99afd8b`.
+
+**The Display Zoom route is checked and unavailable, not assumed unavailable.** Having been wrong
+about reachability three times in one day, I drove Settings rather than reasoning about it.
+`Settings.app` was launched on the SE and its root list holds no **`Display & Brightness`** pane —
+Display Zoom's actual home — because a simulator omits hardware-dependent panes.
+`Accessibility → Vision` holds only Hover Text, Display & Text Size, Motion and Spoken Content; no
+Zoom pane. Settings *search* returned nothing for either term, but that is **not** the evidence: a
+fresh simulator never builds the Settings search index, so its emptiness proves nothing. The two
+navigational checks are what settles it. iPhone SE (1st generation) — natively 320×568 — is
+separately **incompatible with iOS 26.5**, the only installed runtime.
+
+**So the residual is exactly one thing**: a physical 375×667 device with Display Zoom set to
+Zoomed. Every input the computation rests on is measured — inset `t=20 b=0`, per-row arithmetic
+validated to half a point, and the binding case rendered at **484 pt against 548 usable, 64 pt
+spare**. What is unobserved is the *composition* of those facts at 568 pt, and the argument for it
+is that the panel is content-sized with no `maxHeight`. `ACHIEVEMENT_LINES_MAX` stays 2, and the
+remedy is only load-bearing as of `99afd8b`.
 
 **Why a simulator counts here and did not for phase 11**: phase 11's SC-5 is a frame-timing claim,
 where a simulator runs on desktop silicon and the number is meaningless. A safe-area inset is a
