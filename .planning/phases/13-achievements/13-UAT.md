@@ -136,11 +136,28 @@ wrong about what hardware was reachable: only iPhone 17 simulators were *install
    `Next` (64) for **458**, and two unlock rows for **522** — so 522 against 548 is a measured
    model now, not an estimate.
 
-**What is still open is narrow**: the 320×568 viewport was never rendered. `simctl` exposes no
-Display Zoom, and iPhone SE (1st generation) — natively 320×568 — is **incompatible with iOS 26.5**,
-the only installed runtime. Both *inputs* to the computation are measured; its *output* has not
-been observed. `ACHIEVEMENT_LINES_MAX` stays 2, and the remedy is only load-bearing as of
-`99afd8b`.
+3. **The binding case itself was rendered and measured, and the model is conservative by 38 pt.**
+   Level 01 was cleared on the SE using the paddle affordance phase 11 established (`baseW` 72 →
+   300, `src/core` restored byte-identical afterwards) with counters seeded so four achievements
+   fired. That produced **exactly** what #28 computes against — `Win` / `All clear` / `Score` /
+   `Best` / `★★☆` / `New Record` / `Unlocked · 1000 Bricks` / `and 3 more` / `Retry` / `Next` /
+   `Menu`, the campaign-win worst case with a two-line block, 11 text rows.
+
+   **Measured: 484 pt** (top 120, bottom 604), against the **522 pt** the model predicts. Per-row
+   pitch was read individually and the unlock rows come out at ~32–34 pt each, matching the model;
+   the 38 pt of slack sits in nominal row ceilings and the 48 pt padding figure. So the spare at
+   320×568 is **548 − 484 = 64 pt, not 26**. `Menu` was fully visible; nothing clipped.
+
+   **Why 484 pt carries to 568 pt**: the panel is content-sized with `maxWidth: 320` and no
+   `maxHeight`, so its height is a function of its rows, not of the available height. The only
+   mechanism that could change it is text wrapping at a narrower panel, and test 7 measured no
+   wrap at 312 pt — *narrower* than a true 320 pt device would give.
+
+**What is still open, and it is now very narrow**: the 320×568 viewport was never rendered.
+`simctl` exposes no Display Zoom, and iPhone SE (1st generation) — natively 320×568 — is
+**incompatible with iOS 26.5**, the only installed runtime. The computation's inputs are measured,
+its output is measured on a taller device, and the mechanism linking them is argued rather than
+observed. `ACHIEVEMENT_LINES_MAX` stays 2, and the remedy is only load-bearing as of `99afd8b`.
 
 **Why a simulator counts here and did not for phase 11**: phase 11's SC-5 is a frame-timing claim,
 where a simulator runs on desktop silicon and the number is meaningless. A safe-area inset is a
