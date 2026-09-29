@@ -4,9 +4,14 @@ Logged during plan execution; out of current-task scope (do not fix inline).
 
 | Found in | Item | Why deferred | Status |
 |----------|------|--------------|--------|
-| 06-01 | `tsc --noEmit`: `app/index.tsx` Property `fill` (suggests `fills`); overlays use `StyleSheet.absoluteFillObject` | Pre-existing; not introduced by storage plan; storage files tsc-clean | **RESOLVED — verified stale 2026-09-29** |
+| 06-01 | `tsc --noEmit`: `app/index.tsx` Property `fill` (suggests `fills`); overlays use `StyleSheet.absoluteFillObject` | Pre-existing; not introduced by storage plan; storage files tsc-clean | resolved |
 
-## 06-01, closed
+## 06-01, closed 2026-09-29
+
+The Status cell above reads exactly `resolved` on purpose: `parseDeferredTableItems`
+excludes a table row only when a cell reads **exactly** one of `resolved` / `done` / `pass`, so
+`**RESOLVED — verified stale 2026-09-29**` — the first thing written here — did not suppress it
+and the item kept surfacing. The detail belongs in this prose block, not in the cell.
 
 **The item was already fixed and nobody closed the record.** Verified at HEAD rather than assumed:
 `app/index.tsx` uses `styles.fills` — the exact name the deferral suggested — at both call sites
