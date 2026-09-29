@@ -383,12 +383,12 @@ describe('PlayingHost endless host (source contract)', () => {
     const exitAt = toggleBody.search(/modeRef\.current = 'campaign';/);
     const toggleExit = exitAt < 0 ? '' : toggleBody.slice(exitAt);
 
-    const endlessOnly: ReadonlyArray<readonly [string, string]> = [
+    const endlessOnly: readonly (readonly [string, string])[] = [
       ["handleRunEnded's endless arm", runEndedEndless],
       ['failEndlessStart', failStart],
       ['startEndlessRun', startEndless],
     ];
-    const campaignOnly: ReadonlyArray<readonly [string, string]> = [
+    const campaignOnly: readonly (readonly [string, string])[] = [
       ['the getBestForLevel preload effect', preload],
       ["handleRunEnded's campaign arm", runEndedCampaign],
       ["onRetry's campaign branch", onRetryCampaign],

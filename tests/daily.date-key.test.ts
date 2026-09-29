@@ -103,7 +103,7 @@ const FIXED_DAY_MS = 24 * 60 * 60 * 1000;
  * The four rollover boundaries 12-RESEARCH § Finding 3(d) executed: year, leap-year,
  * non-leap February, and month. Each is `[noon-of-the-day instant, expected next key]`.
  */
-const ROLLOVERS: ReadonlyArray<readonly [string, string, string]> = [
+const ROLLOVERS: readonly (readonly [string, string, string])[] = [
   ['2026-12-31T12:00:00.000Z', '2026-12-31', '2027-01-01'],
   ['2028-02-28T12:00:00.000Z', '2028-02-28', '2028-02-29'],
   ['2027-02-28T12:00:00.000Z', '2027-02-28', '2027-03-01'],
