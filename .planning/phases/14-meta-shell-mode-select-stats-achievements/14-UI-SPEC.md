@@ -1,7 +1,9 @@
 ---
 phase: 14
 slug: meta-shell-mode-select-stats-achievements
-status: draft
+status: approved
+reviewed_at: 2026-09-29
+reviewed_by: gsd-ui-checker
 shadcn_initialized: false
 preset: none
 created: 2026-09-29
@@ -293,12 +295,32 @@ Title caps and `SelectScreen` does not, one tap changes the player's text size �
 property of the app's typography, not a per-screen repair.** One constant, one behaviour, every
 surface outside the Skia playfield. The Skia playfield renders no `Text` and is untouched.
 
-**The gate is a count equality, not a reading of the diff:** across the twelve files, occurrences
-of `maxFontSizeMultiplier` must equal occurrences of `<Text`. Today both sides of the enumerated
-set are 56 (`grep -c '<Text'`, and `grep -c '</Text>'` also 56, so there is no self-closing or
-nesting confound). The executor re-counts after this phase's two deletions and its additions and
-pins the new number. **This is what makes `MAX_FONT_SCALE` a constant that is read rather than
-described** — the failure `ACHIEVEMENT_LINES_MAX` shipped with before `99afd8b`.
+**The gate is THREE assertions, not one, and the reason is that the first one alone is the
+`ACHIEVEMENT_LINES_MAX` defect wearing a gate's clothes.**
+
+1. **Count equality.** Across the twelve files, occurrences of `maxFontSizeMultiplier` must equal
+   occurrences of `<Text`. Today both sides of the enumerated set are 56 (`grep -c '<Text'`, and
+   `grep -c '</Text>'` also 56, so there is no self-closing or nesting confound). The executor
+   re-counts after this phase's two deletions and its additions and pins the new number.
+
+2. **No literal.** `grep -n 'maxFontSizeMultiplier={1' ` over the twelve files must return **zero**.
+   *Assertion 1 alone does not make the constant load-bearing*, and the first draft of this
+   paragraph claimed it did. A file writing `maxFontSizeMultiplier={1.2}` as a **literal** passes
+   a count-equality gate identically to one importing `MAX_FONT_SCALE` — so the count proves the
+   prop is PRESENT and says nothing about where its value came from. Editing `MAX_FONT_SCALE`
+   would then change no rendered text while the gate stayed green, which is
+   `ACHIEVEMENT_LINES_MAX` before `99afd8b` exactly: a constant three artifacts called the single
+   place a number lived, read by nothing in production. Caught by the UI checker on this document,
+   which is the second time this defect family has been caught at this stage in two phases.
+
+3. **No escapee.** `grep -rc '<Text'` over `src/` and `app/` outside the twelve enumerated files
+   must return **zero**. The enumeration is closed at twelve and an enumeration cannot detect a
+   node nobody enumerated, so a thirteenth file added later would be invisible to assertions 1
+   and 2. This is the assertion that keeps the cap a property of the app's typography rather than
+   of a list someone maintained once.
+
+All three must be re-run by this phase's final plan and all three must be red-proofed — a gate
+this document has just been corrected about is not one to take on trust.
 
 **#29 is discharged by this contract's decision but NOT by any test in this repository.** jsdom
 performs no layout. #29 must be re-verified on a device and only then marked fixed — see
@@ -371,7 +393,7 @@ virtual playfield units. **Phase 14 adds no token and changes no shipped value.*
 | lg | **24px** | Screen `paddingHorizontal` on all three screens (shipped); `marginTop` of `Best · {n}`, `Campaign`, `Statistics` (S1); every heading and section `marginTop` (S2, S3); `paddingBottom` at the end of the S3 scroll content |
 | xl | 32px | (inherited — `SelectScreen` heading / list margins, untouched) |
 | 2xl | 48px | (inherited — HUD strip content height, untouched) |
-| 3xl | 64px | **No longer used anywhere.** It was the shipped `playButton.marginTop` on Title; row 3's `marginTop` is `lg` in the budget above. Kept in the scale as inherited, with no consumer |
+| 3xl | 64px | **No longer used anywhere — REMOVAL CANDIDATE, not an available token.** It was the shipped `playButton.marginTop` on Title; row 3's `marginTop` is `lg` in the budget above. Kept in the scale only because removing a token is not this phase's job, and named as a candidate so a later author does not read an unused value as an offered one. A row that needs 64 px of separation should say why rather than reach for this |
 
 **Exceptions:**
 
@@ -403,6 +425,20 @@ virtual playfield units. **Phase 14 adds no token and changes no shipped value.*
 ---
 
 ## Typography
+
+### Visual hierarchy per surface, stated so no executor has to judge it
+
+The UI checker flagged that **S1 declares its hierarchy and S2/S3 did not**. Stating it:
+
+| Surface | Primary anchor | Then | Why |
+|---|---|---|---|
+| **S1 Title** | the Brand at Display 48 | the three filled mode entries, then the two outlined secondaries | declared already — playing is primary, reviewing is secondary (D-02) |
+| **S2 Statistics** | the `Statistics` heading at Heading 20 | the three lifetime rows, then the per-level table | there is no hero number here on purpose: a single highlighted stat would be a claim about which one matters, and D-11's thresholds are still unreviewed judgements |
+| **S3 Achievements** | the `Achievements` heading at Heading 20 | the twelve rows in catalog declaration order (D-10) | the list IS the content, and any row promoted above it would re-sort the order D-10 makes contract |
+
+On both new screens the 20 px heading is the anchor and nothing competes with it — no Display 48
+outside Title, which is what keeps Title's brand the only thing at that size in the app.
+
 
 Shell / chrome only. Skia gameplay entities unchanged. `SpaceMono` is the only family. **Phase 14
 adds no size and no weight.**
@@ -1073,6 +1109,13 @@ that a simulator exposes no Display Zoom pane.
    **Extends #16**, whose discharge covered Body 16 at 312 pt and said in terms that the margin is
    small and no budget should be widened on it without a fresh reading at a true 320 pt panel.
    These are 14 px claims at 272 pt and are not covered by that discharge.
+   **CONSEQUENCE, stated because backstops 1–5 state theirs and this one did not:** the three
+   claims fail in two different directions and the repair differs. A *truncation* or an ellipsis
+   means the meta is over budget and the copy shortens — `Streak` loses its word, `By mode` loses
+   characters — with no height cost. A *wrap* means the row grows by its own line height (20 px at
+   Label 14) and the vertical budget of whichever screen it sits on absorbs it: Title has 80 pt of
+   spare at `m = 1` and 30.8 at the cap, so one wrapped meta is survivable and two are not. Record
+   which of the two occurred, because they are not the same defect.
 
 **One entry to annotate rather than open:** #35 is this phase's to close, and D-11/D-12 close it by
 **decision**; the mark's *appearance* is covered by backstop 4 and its *logic* by the jsdom cases
