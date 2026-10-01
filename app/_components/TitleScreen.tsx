@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DISPLAY_NAME } from '../_brand';
+import { MAX_FONT_SCALE } from '../../src/runtime/textScale';
 
 type Props = {
   best: number;
@@ -47,8 +48,12 @@ export function TitleScreen({
       ]}
     >
       <View style={styles.content}>
-        <Text style={styles.brand}>{DISPLAY_NAME}</Text>
-        <Text style={styles.best}>{`Best · ${best}`}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.brand}>
+          {DISPLAY_NAME}
+        </Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.best}>
+          {`Best · ${best}`}
+        </Text>
 
         <Pressable
           accessibilityRole="button"
@@ -56,7 +61,11 @@ export function TitleScreen({
           onPress={onCampaign}
           style={styles.modeButtonFirst}
         >
-          <Text style={styles.modeLabel} numberOfLines={1}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.modeLabel}
+            numberOfLines={1}
+          >
             Campaign
           </Text>
         </Pressable>
@@ -67,7 +76,11 @@ export function TitleScreen({
           onPress={onEndless}
           style={styles.modeButton}
         >
-          <Text style={styles.modeLabel} numberOfLines={1}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.modeLabel}
+            numberOfLines={1}
+          >
             Endless
           </Text>
         </Pressable>
@@ -82,11 +95,19 @@ export function TitleScreen({
           onPress={onDaily}
           style={[styles.modeButton, styles.modeButtonRow]}
         >
-          <Text style={styles.modeLabel} numberOfLines={1}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.modeLabel}
+            numberOfLines={1}
+          >
             Daily
           </Text>
           {dailyPlayedToday ? (
-            <Text style={styles.modeMeta} numberOfLines={1}>
+            <Text
+              maxFontSizeMultiplier={MAX_FONT_SCALE}
+              style={styles.modeMeta}
+              numberOfLines={1}
+            >
               {`Played · ${dailyStreak}-day streak`}
             </Text>
           ) : null}
@@ -98,7 +119,11 @@ export function TitleScreen({
           onPress={onStats}
           style={styles.secondaryButtonFirst}
         >
-          <Text style={styles.secondaryLabel} numberOfLines={1}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.secondaryLabel}
+            numberOfLines={1}
+          >
             Statistics
           </Text>
         </Pressable>
@@ -113,11 +138,19 @@ export function TitleScreen({
           onPress={onAchievements}
           style={[styles.secondaryButton, styles.secondaryButtonRow]}
         >
-          <Text style={styles.secondaryLabel} numberOfLines={1}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.secondaryLabel}
+            numberOfLines={1}
+          >
             Achievements
           </Text>
           {unseenCount > 0 ? (
-            <Text style={styles.secondaryMeta} numberOfLines={1}>
+            <Text
+              maxFontSizeMultiplier={MAX_FONT_SCALE}
+              style={styles.secondaryMeta}
+              numberOfLines={1}
+            >
               {`${unseenCount} new`}
             </Text>
           ) : null}

@@ -12,6 +12,7 @@ import {
   type ProgressStore,
 } from '../../src/services/storage';
 import { LEVEL_LABEL } from './SelectScreen';
+import { MAX_FONT_SCALE } from '../../src/runtime/textScale';
 
 type StatisticsScreenProps = {
   onBack: () => void;
@@ -33,10 +34,18 @@ type StatRowProps = {
 function StatRow({ label, meta, accessibilityLabel }: StatRowProps) {
   return (
     <View style={styles.row} accessibilityLabel={accessibilityLabel}>
-      <Text style={styles.rowLabel} numberOfLines={1}>
+      <Text
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+        style={styles.rowLabel}
+        numberOfLines={1}
+      >
         {label}
       </Text>
-      <Text style={styles.rowMeta} numberOfLines={1}>
+      <Text
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+        style={styles.rowMeta}
+        numberOfLines={1}
+      >
         {meta}
       </Text>
     </View>
@@ -99,10 +108,14 @@ export function StatisticsScreen({ onBack, store: storeProp }: StatisticsScreenP
           onPress={onBack}
           style={styles.backButton}
         >
-          <Text style={styles.backLabel}>Back</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.backLabel}>
+            Back
+          </Text>
         </Pressable>
 
-        <Text style={styles.heading}>Statistics</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.heading}>
+          Statistics
+        </Text>
 
         <View style={styles.lifetimeBlock}>
           <StatRow
@@ -122,7 +135,9 @@ export function StatisticsScreen({ onBack, store: storeProp }: StatisticsScreenP
           />
         </View>
 
-        <Text style={styles.sectionLabel}>By mode</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.sectionLabel}>
+          By mode
+        </Text>
 
         <View style={styles.table}>
           {PLAYABLE_LEVEL_ORDER.map((id) => {

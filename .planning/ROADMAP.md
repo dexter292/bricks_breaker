@@ -38,7 +38,7 @@ Numbering continues from v1.0's phases 1–8. v1.1 used letters (A1…E2) outsid
 - [ ] **Phase 11: Endless Mode** - A run that never runs out of board, escalating until the player misses
 - [x] **Phase 12: Daily Challenge** - One shared board per local date, with a streak worth keeping (completed 2026-09-28)
 - [ ] **Phase 13: Achievements** - Local, deterministic unlocks earned from telemetry
-- [ ] **Phase 14: Meta Shell — Mode Select, Stats & Achievements** - The new modes and records become reachable and readable
+- [x] **Phase 14: Meta Shell — Mode Select, Stats & Achievements** - The new modes and records become reachable and readable
 
 ## Phase Details
 
@@ -270,7 +270,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 14-07-PLAN.md — the app tier's cap, the three-assertion gate, docs, requirements and six backstops
+- [x] 14-07-PLAN.md — the app tier's cap, the three-assertion gate, docs, requirements and six backstops
 
 **UI hint**: yes
 

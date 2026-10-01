@@ -164,7 +164,7 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 
 - [x] **N-STAT-01** (FC-R07): A run records deterministic counters — bricks broken, best combo, power-ups caught, lives lost, ticks played, outcome — derived from the existing event ring, aggregated lifetime and per level id
 - [x] **N-STAT-02**: `ProgressBlob` v3 → v4 migration is lossless for every existing best score, star and unlocked level; corrupt v4 degrades to defaults instead of throwing
-- [ ] **N-STAT-03** (FC-R07): A statistics screen renders lifetime and per-level telemetry without recomputing on every frame
+- [x] **N-STAT-03** (FC-R07): A statistics screen renders lifetime and per-level telemetry without recomputing on every frame
 
 ### Board Generation
 
@@ -196,8 +196,8 @@ type, no monetization SDK.** Anything needing a server, an account, or a store g
 
 ### Meta Shell
 
-- [ ] **N-UI-01**: Title offers campaign, endless and daily as distinct entries; the daily entry shows whether today has been played
-- [ ] **N-UI-02**: New screens respect the shell contract — safe-area insets, dark palette, no ads/shop/login chrome, `PlayingHost` unmounts when not playing, and navigation never leaves a run mounted in the background
+- [x] **N-UI-01**: Title offers campaign, endless and daily as distinct entries; the daily entry shows whether today has been played
+- [x] **N-UI-02**: New screens respect the shell contract — safe-area insets, dark palette, no ads/shop/login chrome, `PlayingHost` unmounts when not playing, and navigation never leaves a run mounted in the background
 
 ### Explicitly out of scope for v1.2
 

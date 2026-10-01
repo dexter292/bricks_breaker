@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 30
+open_count: 34
 waived_count: 0
-fixed_count: 7
-total_count: 37
-last_updated: 2026-09-28T17:07:52.156Z
+fixed_count: 8
+total_count: 42
+last_updated: 2026-10-01T08:19:11.893Z
 ---
 
 # Broken Windows Ledger
@@ -49,9 +49,14 @@ last_updated: 2026-09-28T17:07:52.156Z
 | 32 | 13 | unmet-truth | src/runtime/GameScreen.tsx |  | COVERAGE GAP, named not papered over. The achievements prop threaded to BOTH arms of the showResult route has NO behavioural test. MEASURED by plan 13-05 T2: grep -cin achiev tests/ui/GameScreen.test.tsx prints 0. The only automated observers are npm run typecheck (the prop must exist on ResultOverlay and DailyResultOverlay and both arms must accept it - a real gate, since 13-01 could not wire an arm to a prop the component did not declare) and npm run lint (the runtime -> services boundary). Both panel suites render the overlays DIRECTLY, not through GameScreen. So the claim 'the prop reaches both arms' is compiler-checked and behaviourally unobserved, and 13-VALIDATION.md's row for it is marked with a qualified status for that reason rather than a green tick. Closing it means a GameScreen-level render case, which no plan in phase 13 owned. | open |  | 2026-09-28T15:10:37.830Z |  |
 | 33 | 13 | unmet-truth | .planning/phases/13-achievements/13-VALIDATION.md |  | GATES THAT COULD NOT FAIL, found and corrected at phase close. Two of the twenty seeded per-task map rows named cases in the WRONG FILE: 'npx vitest run tests/achievements.record.test.ts -t "unknown id"' and the same with -t "degrades alone". Neither case name exists in that file - the unknown-id drop and the independent-degradation claim both live in tests/storage.progress-v4.test.ts, where plan 13-03 T1 put the sanitizer battery. As written each would have printed Tests 24 skipped (24) at EXIT 0: the same silent non-binding plan 13-03 measured through wrong CASE, reached here through wrong FILE. A third row (-t "achievements" for the D-13 no-migration claim) matched a whole describe body rather than the claim, and a fourth (-t "timestamp") swept in three unrelated cases. All four corrected to the EXECUTED commands with the correction noted in the file. Open work: no gate anywhere in this repo checks that a -t filter in a planning artifact actually binds to a case that exists. | open |  | 2026-09-28T15:10:37.944Z |  |
 | 34 | 13 | deviation | .planning/phases/13-achievements/13-05-PLAN.md |  | Plan 13-05 Task 3's presence gate invokes 'gsd-tools windows list', which DOES NOT EXIST - the windows verb offers status, append, waive, fixed only. As written the command errored to stderr (suppressed by 2>/dev/null), printed 0, and so FAILED the gate it was written to pass. Executed instead against 'windows status --raw', asserting both presence and open-ness of #16/#17/#28/#29 (4/4 present, 4/4 open), which is strictly more than the gate asked for. Recorded because a planning artifact naming a non-existent subcommand is the same defect family as a -t filter that does not bind. | open |  | 2026-09-28T15:10:38.059Z |  |
-| 35 | 13 | deviation | app/_components/PlayingHost.tsx |  | 13 code review WR-03: an unlock earned on an ABANDONED run is persisted and never announced. handleMenuPress records outcome 'abandoned' (which evaluates and stores the unlock) then calls onMenu() and navigates away, so no panel remains to show it; D-02's delta is one-shot so it cannot fire later. NOT fixed in phase 13 — the fix is a placement decision and there is no Menu-route surface that states run outcomes. Belongs with Phase 14's Achievements screen — but NOT automatically: the phase-13 verifier (W2) checked, and Phase 14's SC-3 as written requires only locked/unlocked entries with descriptions, so a Phase 14 that satisfies its own success criteria VERBATIM still leaves an abandon-earned unlock indistinguishable from any other. This is therefore an INHERITED OBLIGATION on Phase 14's discuss/plan stage, not a mitigation Phase 14 already provides; whoever plans that phase must add a newly-unlocked marker or an unseen-unlock surface explicitly. QUANTIFIED by the phase-13 verifier: 7 of the 12 entries are crossable on an abandoned run (combo-25, rally-60, cascade-12, pickups-100, bricks-1000, runs-50, endless-runs-20), in all three modes, because mergeRunIntoTelemetry increments runsPlayed unconditionally. No artifact carried that number before. Recorded in docs/ops/ACHIEVEMENTS.md Limit 2b, including why the alternative (suppressing the unlock so it can be re-earned) is worse: it contradicts D-17's one-way rule. | open |  | 2026-09-28T15:37:47.196Z |  |
+| 35 | 13 | deviation | app/_components/PlayingHost.tsx |  | 13 code review WR-03: an unlock earned on an ABANDONED run is persisted and never announced. handleMenuPress records outcome 'abandoned' (which evaluates and stores the unlock) then calls onMenu() and navigates away, so no panel remains to show it; D-02's delta is one-shot so it cannot fire later. NOT fixed in phase 13 — the fix is a placement decision and there is no Menu-route surface that states run outcomes. Belongs with Phase 14's Achievements screen — but NOT automatically: the phase-13 verifier (W2) checked, and Phase 14's SC-3 as written requires only locked/unlocked entries with descriptions, so a Phase 14 that satisfies its own success criteria VERBATIM still leaves an abandon-earned unlock indistinguishable from any other. This is therefore an INHERITED OBLIGATION on Phase 14's discuss/plan stage, not a mitigation Phase 14 already provides; whoever plans that phase must add a newly-unlocked marker or an unseen-unlock surface explicitly. QUANTIFIED by the phase-13 verifier: 7 of the 12 entries are crossable on an abandoned run (combo-25, rally-60, cascade-12, pickups-100, bricks-1000, runs-50, endless-runs-20), in all three modes, because mergeRunIntoTelemetry increments runsPlayed unconditionally. No artifact carried that number before. Recorded in docs/ops/ACHIEVEMENTS.md Limit 2b, including why the alternative (suppressing the unlock so it can be re-earned) is worse: it contradicts D-17's one-way rule. | fixed |  | 2026-09-28T15:37:47.196Z | 2026-10-01T08:19:11.893Z |
 | 36 | 13 | deviation | src/runtime/overlays/achievementLines.ts |  | 13 code review WR-02 (FIXED in phase 13): ACHIEVEMENT_LINES_MAX was read by nothing in production — the cap was the branch table alone, so WINDOWS #28's recorded remedy ('this constant drops to 1') would have changed no rendered row. The constant now clamps the returned array via slice(0, ACHIEVEMENT_LINES_MAX). Red-proved three ways: clamp removed reds 1 case; a literal slice(0, 2) reds the source scan; the constant set to 1 reds ELEVEN cases across THREE files (8 achievementLines.test.ts / 2 ResultOverlay.achievements.test.tsx / 1 DailyResultOverlay.test.tsx), where before the fix only the assertion naming the number moved. Filed as 8 — the one-file figure — and corrected to 11 after the phase-13 verifier measured the whole suite. The clamp is DOWNWARD ONLY by design — at 1 the surviving row is the first name line, per D-05's rejection of a bare count; raising it above 2 changes nothing because the branch table tops out at two and would invalidate the 458/548 arithmetic. Because the clamp is a no-op at the shipped value no black-box case can observe it, so the guard is a comment-stripping source scan in tests/ui/achievementLines.test.ts, on the precedent of the catalog purity scan. | fixed |  | 2026-09-28T15:37:58.783Z | 2026-09-28T15:38:11.494Z |
 | 37 | 13 | deviation | src/services/achievements/catalog.ts |  | 13 code review WR-04 (FIXED in phase 13): campaign-25's player-facing description said 'Win 25 campaign levels', which the predicate does not do and a player cannot do — PLAYABLE_LEVEL_ORDER holds five, so 25 distinct levels do not exist. The entry's own JSDoc already argued correctly for summed runsWon ('replaying one level twenty-five times IS persistence'); only the copy was never moved. Now reads 'Win 25 campaign runs'. No test pinned the string, which is why it survived four plans and two checker rounds; descriptions are asserted only for uniqueness. | fixed |  | 2026-09-28T15:37:58.893Z | 2026-09-28T15:38:11.605Z |
+| 38 | 14 | unrun-verify | app/_components/TitleScreen.tsx |  | Backstop 1 (UI-SPEC § Backstops): Title vertical fit at 320x568 is UNRUN. Computed: seven rows total 468pt of 548pt usable at the default text size and 517.2pt at the MAX_FONT_SCALE=1.2 cap. Machine half already green: Title is not a scrolling container and carries no scroll content style (textScale.gate.test.ts, tests/ui/TitleScreen.test.tsx). Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, confirm all seven rows (brand, best, Campaign, Endless, Daily, Statistics, Achievements) are fully visible and tappable with no scrolling, at the default text size and at the font cap. Consequence if it fails: a mode entry is pushed off-screen and unreachable without scrolling, which this screen must never need. | open |  | 2026-10-01T08:18:23.427Z |  |
+| 39 | 14 | unrun-verify | app/_components/TitleScreen.tsx |  | Backstop 2 (UI-SPEC § Backstops): the brand wrap claim at 320x568 is UNRUN. Claim: the brand wraps to exactly two lines at 320pt and still two lines at the MAX_FONT_SCALE=1.2 cap. This is a WRAP claim, the class of claim this project has repeatedly got wrong (jsdom performs no layout). Machine half already green: the brand is read from the shared DISPLAY_NAME export and never a literal, gated by scripts/assert-brand-name.mjs. Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, confirm the brand renders on exactly two lines at the default text size and still exactly two lines at the font cap. Consequence if it fails: a third wrapped line pushes every row below it down by one line height, which the seven-row Title budget (backstop 1) does not have margin for. | open |  | 2026-10-01T08:18:31.102Z |  |
+| 40 | 14 | unrun-verify | app/_components/StatisticsScreen.tsx |  | Backstop 3 (UI-SPEC § Backstops): Statistics vertical fit at 320x568 is UNRUN. Computed: 458pt of 548pt usable at the default text size, 522.4pt at the MAX_FONT_SCALE=1.2 cap, no scroll. Machine half already green: tests/ui/StatisticsScreen.test.tsx 'row order' pins exactly three lifetime rows and exactly seven By-mode table rows — the row count the budget above is computed from, so a row-count regression is caught even though the rendered height is not. Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, confirm the Statistics screen fits with no scrolling at the default text size and at the font cap. Consequence if it fails: this screen is explicitly NOT a ScrollView (D-15/UI-SPEC § S2), so an overflow pushes content off-screen with no recovery. | open |  | 2026-10-01T08:18:37.980Z |  |
+| 41 | 14 | unrun-verify | app/_components/AchievementsScreen.tsx |  | Backstop 4 (UI-SPEC § Backstops) — the appearance half of #35. At 320x568 is UNRUN: Back must be fully visible and tappable AT MAXIMUM SCROLL, at least the first two entries must render complete, there must be no sticky header, and the last entry must not be clipped under the trailing padding. Machine half already green and load-bearing: Back and the heading are structurally OUTSIDE the scrolling subtree, asserted both at the render tree (tests/ui/AchievementsScreen.test.tsx 'shell contract', via the achievements-scroll testID) and in source (the ScrollView-position source contract in the same file). This row is the APPEARANCE half of the #35 split (unseen-unlock marker): the LOGIC half (recorded, marked, rendered distinctly, cleared once) is machine-verified and closed fixed on window #35 directly; this row stays open for the appearance half — whether the New marker and the scroll structure actually look and behave correctly on a real 320x568 screen. Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, scroll the Achievements list to its maximum extent and confirm Back remains visible and tappable, the first two entries are fully readable, no header is stuck mid-scroll, and the final catalog entry is not clipped under the trailing padding. Consequence if it fails: the screen's only navigation control (Back) could become unreachable. | open |  | 2026-10-01T08:18:46.311Z |  |
+| 42 | 14 | unrun-verify | app/_components/TitleScreen.tsx |  | Backstop 6 (UI-SPEC § Backstops), extends window 16: horizontal budgets at Label 14 across Title and Statistics are UNRUN at 320x568. Computed: the Title daily meta at a five-digit streak is 227.8pt of a 240pt box; the Statistics table meta at 20 characters is 177.7pt; a Title entry name plus the widest marker is 221.6pt of a 272pt box. Window 16's prior discharge covered a larger type size at a 312pt panel and stated the margin is small and must not be widened without a fresh reading — this row is that fresh reading, for Phase 14's new rows. Machine half already green: numberOfLines={1} is present on every fixed-width row that can hold a long value (gated by the twelve-file MAX_FONT_SCALE parity scan, tests/ui/textScale.gate.test.ts). Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, check the three budgets above at the default text size and at the font cap, and record WHICH failure direction occurs if any — a TRUNCATION (copy shortens, no height cost) or a WRAP (row grows by one line height, costing part of Title's measured spare of 30.8pt at the cap) — because the two failure modes need different repairs and are not the same defect. Consequence if it fails: a wrap on more than one of these rows could exceed Title's vertical budget (backstop 1). | open |  | 2026-10-01T08:18:54.759Z |  |
 
 ````json
 [
@@ -504,10 +509,10 @@ last_updated: 2026-09-28T17:07:52.156Z
     "file": "app/_components/PlayingHost.tsx",
     "line": null,
     "description": "13 code review WR-03: an unlock earned on an ABANDONED run is persisted and never announced. handleMenuPress records outcome 'abandoned' (which evaluates and stores the unlock) then calls onMenu() and navigates away, so no panel remains to show it; D-02's delta is one-shot so it cannot fire later. NOT fixed in phase 13 — the fix is a placement decision and there is no Menu-route surface that states run outcomes. Belongs with Phase 14's Achievements screen — but NOT automatically: the phase-13 verifier (W2) checked, and Phase 14's SC-3 as written requires only locked/unlocked entries with descriptions, so a Phase 14 that satisfies its own success criteria VERBATIM still leaves an abandon-earned unlock indistinguishable from any other. This is therefore an INHERITED OBLIGATION on Phase 14's discuss/plan stage, not a mitigation Phase 14 already provides; whoever plans that phase must add a newly-unlocked marker or an unseen-unlock surface explicitly. QUANTIFIED by the phase-13 verifier: 7 of the 12 entries are crossable on an abandoned run (combo-25, rally-60, cascade-12, pickups-100, bricks-1000, runs-50, endless-runs-20), in all three modes, because mergeRunIntoTelemetry increments runsPlayed unconditionally. No artifact carried that number before. Recorded in docs/ops/ACHIEVEMENTS.md Limit 2b, including why the alternative (suppressing the unlock so it can be re-earned) is worse: it contradicts D-17's one-way rule.",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-09-28T15:37:47.196Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-01T08:19:11.893Z",
     "milestone": "v1.2"
   },
   {
@@ -534,6 +539,71 @@ last_updated: 2026-09-28T17:07:52.156Z
     "reason": "",
     "recorded_at": "2026-09-28T15:37:58.893Z",
     "resolved_at": "2026-09-28T15:38:11.605Z",
+    "milestone": "v1.2"
+  },
+  {
+    "id": 38,
+    "kind": "unrun-verify",
+    "phase": "14",
+    "file": "app/_components/TitleScreen.tsx",
+    "line": null,
+    "description": "Backstop 1 (UI-SPEC § Backstops): Title vertical fit at 320x568 is UNRUN. Computed: seven rows total 468pt of 548pt usable at the default text size and 517.2pt at the MAX_FONT_SCALE=1.2 cap. Machine half already green: Title is not a scrolling container and carries no scroll content style (textScale.gate.test.ts, tests/ui/TitleScreen.test.tsx). Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, confirm all seven rows (brand, best, Campaign, Endless, Daily, Statistics, Achievements) are fully visible and tappable with no scrolling, at the default text size and at the font cap. Consequence if it fails: a mode entry is pushed off-screen and unreachable without scrolling, which this screen must never need.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-01T08:18:23.427Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 39,
+    "kind": "unrun-verify",
+    "phase": "14",
+    "file": "app/_components/TitleScreen.tsx",
+    "line": null,
+    "description": "Backstop 2 (UI-SPEC § Backstops): the brand wrap claim at 320x568 is UNRUN. Claim: the brand wraps to exactly two lines at 320pt and still two lines at the MAX_FONT_SCALE=1.2 cap. This is a WRAP claim, the class of claim this project has repeatedly got wrong (jsdom performs no layout). Machine half already green: the brand is read from the shared DISPLAY_NAME export and never a literal, gated by scripts/assert-brand-name.mjs. Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, confirm the brand renders on exactly two lines at the default text size and still exactly two lines at the font cap. Consequence if it fails: a third wrapped line pushes every row below it down by one line height, which the seven-row Title budget (backstop 1) does not have margin for.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-01T08:18:31.102Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 40,
+    "kind": "unrun-verify",
+    "phase": "14",
+    "file": "app/_components/StatisticsScreen.tsx",
+    "line": null,
+    "description": "Backstop 3 (UI-SPEC § Backstops): Statistics vertical fit at 320x568 is UNRUN. Computed: 458pt of 548pt usable at the default text size, 522.4pt at the MAX_FONT_SCALE=1.2 cap, no scroll. Machine half already green: tests/ui/StatisticsScreen.test.tsx 'row order' pins exactly three lifetime rows and exactly seven By-mode table rows — the row count the budget above is computed from, so a row-count regression is caught even though the rendered height is not. Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, confirm the Statistics screen fits with no scrolling at the default text size and at the font cap. Consequence if it fails: this screen is explicitly NOT a ScrollView (D-15/UI-SPEC § S2), so an overflow pushes content off-screen with no recovery.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-01T08:18:37.980Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 41,
+    "kind": "unrun-verify",
+    "phase": "14",
+    "file": "app/_components/AchievementsScreen.tsx",
+    "line": null,
+    "description": "Backstop 4 (UI-SPEC § Backstops) — the appearance half of #35. At 320x568 is UNRUN: Back must be fully visible and tappable AT MAXIMUM SCROLL, at least the first two entries must render complete, there must be no sticky header, and the last entry must not be clipped under the trailing padding. Machine half already green and load-bearing: Back and the heading are structurally OUTSIDE the scrolling subtree, asserted both at the render tree (tests/ui/AchievementsScreen.test.tsx 'shell contract', via the achievements-scroll testID) and in source (the ScrollView-position source contract in the same file). This row is the APPEARANCE half of the #35 split (unseen-unlock marker): the LOGIC half (recorded, marked, rendered distinctly, cleared once) is machine-verified and closed fixed on window #35 directly; this row stays open for the appearance half — whether the New marker and the scroll structure actually look and behave correctly on a real 320x568 screen. Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, scroll the Achievements list to its maximum extent and confirm Back remains visible and tappable, the first two entries are fully readable, no header is stuck mid-scroll, and the final catalog entry is not clipped under the trailing padding. Consequence if it fails: the screen's only navigation control (Back) could become unreachable.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-01T08:18:46.311Z",
+    "resolved_at": null,
+    "milestone": "v1.2"
+  },
+  {
+    "id": 42,
+    "kind": "unrun-verify",
+    "phase": "14",
+    "file": "app/_components/TitleScreen.tsx",
+    "line": null,
+    "description": "Backstop 6 (UI-SPEC § Backstops), extends window 16: horizontal budgets at Label 14 across Title and Statistics are UNRUN at 320x568. Computed: the Title daily meta at a five-digit streak is 227.8pt of a 240pt box; the Statistics table meta at 20 characters is 177.7pt; a Title entry name plus the widest marker is 221.6pt of a 272pt box. Window 16's prior discharge covered a larger type size at a 312pt panel and stated the margin is small and must not be widened without a fresh reading — this row is that fresh reading, for Phase 14's new rows. Machine half already green: numberOfLines={1} is present on every fixed-width row that can hold a long value (gated by the twelve-file MAX_FONT_SCALE parity scan, tests/ui/textScale.gate.test.ts). Human half (unrun): at 320x568 via Display Zoom on a physical 375x667 device, check the three budgets above at the default text size and at the font cap, and record WHICH failure direction occurs if any — a TRUNCATION (copy shortens, no height cost) or a WRAP (row grows by one line height, costing part of Title's measured spare of 30.8pt at the cap) — because the two failure modes need different repairs and are not the same defect. Consequence if it fails: a wrap on more than one of these rows could exceed Title's vertical budget (backstop 1).",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-01T08:18:54.759Z",
+    "resolved_at": null,
     "milestone": "v1.2"
   }
 ]

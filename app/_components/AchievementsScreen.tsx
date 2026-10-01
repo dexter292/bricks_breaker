@@ -8,6 +8,7 @@ import {
   type ProgressStore,
 } from '../../src/services/storage';
 import { ACHIEVEMENT_CATALOG } from '../../src/services/achievements';
+import { MAX_FONT_SCALE } from '../../src/runtime/textScale';
 
 type AchievementsScreenProps = {
   onBack: () => void;
@@ -105,10 +106,14 @@ export function AchievementsScreen({ onBack, store: storeProp }: AchievementsScr
           onPress={onBack}
           style={styles.backButton}
         >
-          <Text style={styles.backLabel}>Back</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.backLabel}>
+            Back
+          </Text>
         </Pressable>
 
-        <Text style={styles.heading}>Achievements</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.heading}>
+          Achievements
+        </Text>
 
         <ScrollView
           testID="achievements-scroll"
@@ -137,19 +142,26 @@ export function AchievementsScreen({ onBack, store: storeProp }: AchievementsScr
               >
                 <View style={styles.rowHeader}>
                   <Text
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
                     style={[styles.name, isUnlocked && styles.nameUnlocked]}
                     numberOfLines={1}
                   >
                     {entry.name}
                   </Text>
                   <Text
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
                     style={[styles.marker, marker === 'New' && styles.markerNew]}
                     numberOfLines={1}
                   >
                     {marker}
                   </Text>
                 </View>
-                <Text style={styles.description}>{entry.description}</Text>
+                <Text
+                  maxFontSizeMultiplier={MAX_FONT_SCALE}
+                  style={styles.description}
+                >
+                  {entry.description}
+                </Text>
               </View>
             );
           })}

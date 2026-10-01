@@ -65,6 +65,7 @@ import {
 import { defaultPlatformServices } from '../../src/services/platform';
 import { CERT_HARNESS, PERF_OVERLAY } from '../../src/devflags';
 import { triggerTestCrash } from '../../src/services/crashReporting';
+import { MAX_FONT_SCALE } from '../../src/runtime/textScale';
 import {
   PLAYABLE_LEVEL_ORDER,
   createDefaultProgressStore,
@@ -2688,7 +2689,10 @@ export function PlayingHost({
           hitSlop={8}
           style={styles.devSwitch}
         >
-          <Text style={styles.devSwitchLabel}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.devSwitchLabel}
+          >
             {`Lv ${levelId.slice(-2)}`}
           </Text>
         </Pressable>
@@ -2699,7 +2703,9 @@ export function PlayingHost({
           hitSlop={8}
           style={styles.devSwitch}
         >
-          <Text style={styles.devSwitchLabel}>{tierLabel}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.devSwitchLabel}>
+            {tierLabel}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -2708,7 +2714,9 @@ export function PlayingHost({
           hitSlop={8}
           style={styles.devSwitch}
         >
-          <Text style={styles.devSwitchLabel}>Cert WC</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.devSwitchLabel}>
+            Cert WC
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -2723,7 +2731,9 @@ export function PlayingHost({
           hitSlop={8}
           style={styles.devSwitch}
         >
-          <Text style={styles.devSwitchLabel}>Crash</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.devSwitchLabel}>
+            Crash
+          </Text>
         </Pressable>
       </View>
     ) : null;

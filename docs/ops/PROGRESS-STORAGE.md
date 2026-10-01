@@ -113,6 +113,7 @@ grow one:
 | `recentRuns` | `RECENT_RUNS_BOUND` = 50 | keep **latest** | a recency ring; the oldest run is the one worth losing |
 | `byMode.*` maps | `AGGREGATE_MAP_BOUND` = 64 | keep first | every key comes from a five- or one-member domain, so 64 can only drop invented ones |
 | `achievements.unlocked` | `ACHIEVEMENT_UNLOCK_BOUND` = 64 | keep **first** | under D-17 an unlock is permanent, so the oldest are the ones held longest |
+| `achievements.unseen` | `ACHIEVEMENT_UNLOCK_BOUND` = 64 (same constant) | keep **first** | a subset of `unlocked`, intersected with it on read (14-02) — the same permanence argument applies, so it shares the sibling's bound rather than minting a second one |
 | `recentRuns[].levelId` | `RUN_LOG_LEVEL_ID_MAX` = 32 chars | entry dropped | four times the longest legitimate value (`level-01`, 8) |
 
 The two `keep` directions genuinely differ and both are correct for their collection. A later
