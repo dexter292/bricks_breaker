@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   lifetimeBlock: {
     marginTop: 24,
-    gap: 8,
+    gap: 4,
   },
   sectionLabel: {
     color: '#FFFFFF',
@@ -215,15 +215,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 16,
+    marginBottom: 4,
   },
   table: {
-    gap: 4,
+    gap: 2,
   },
   row: {
-    minHeight: 44,
-    paddingVertical: 12,
+    // No minHeight/44pt tap target: these rows are not interactive (no
+    // accessibilityRole="button"), so the SelectScreen tap-target convention does
+    // not apply — the vertical budget for ten rows on one non-scrolling screen
+    // (UI-SPEC § S2) does not have room for it.
+    paddingVertical: 2,
     paddingHorizontal: 0,
     flexDirection: 'row',
     alignItems: 'center',
