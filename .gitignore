@@ -52,3 +52,7 @@ coverage/
 
 # Research tooling cache
 .planning/research/.cache/
+
+# GSD runtime lock/state (ephemeral, per-process — never committed)
+.planning/milestone.lock
+.planning/state.json
