@@ -515,6 +515,7 @@ function recordSuite(flavor: StoreFlavor): void {
           { id: shared, at: T_SHARED_EARLY },
           { id: onlyMemory, at: T_ONLY_MEMORY },
         ],
+        unseen: [],
       };
       const late = defaultTelemetryBlob();
       late.achievements = {
@@ -522,6 +523,7 @@ function recordSuite(flavor: StoreFlavor): void {
           { id: shared, at: T_SHARED_LATE },
           { id: onlyDisk, at: T_ONLY_DISK },
         ],
+        unseen: [],
       };
 
       /**
@@ -567,9 +569,9 @@ function recordSuite(flavor: StoreFlavor): void {
       const [idA, idB] = CATALOG_IDS as [string, string];
 
       const memory = defaultTelemetryBlob();
-      memory.achievements = { unlocked: [{ id: idA, at: T_SHARED_EARLY }] };
+      memory.achievements = { unlocked: [{ id: idA, at: T_SHARED_EARLY }], unseen: [] };
       const incoming = defaultTelemetryBlob();
-      incoming.achievements = { unlocked: [{ id: idB, at: T_ONLY_DISK }] };
+      incoming.achievements = { unlocked: [{ id: idB, at: T_ONLY_DISK }], unseen: [] };
 
       const merged = mergeTelemetryBlobs(memory, incoming);
       const why =
@@ -647,7 +649,7 @@ function recordSuite(flavor: StoreFlavor): void {
       ).toBeGreaterThan(ACHIEVEMENT_UNLOCK_BOUND);
 
       const blob = defaultProgressBlob();
-      blob.telemetry.achievements = { unlocked: seeded };
+      blob.telemetry.achievements = { unlocked: seeded, unseen: [] };
       const store = flavor.fromRaw(JSON.stringify(blob));
       await store.getSnapshot(); // hydrate, as the hosts do
 
@@ -676,6 +678,72 @@ function recordSuite(flavor: StoreFlavor): void {
         stored.filter((e) => e.id.startsWith('not-an-achievement')),
         'no invented id survives to reach the host, let alone a rendered Text (T-13-01)',
       ).toEqual([]);
+    });
+
+    /**
+     * `unseen` (D-11 / D-12, 14-02 decision: store-side, gated on the run's outcome).
+     *
+     * An unlock earned on an ABANDONED run — where no result panel renders — is marked
+     * unseen; the identical crossing on a WIN or a LOSE is not, because both reach a result
+     * panel. `markAchievementsSeen()` clears the set and is idempotent.
+     */
+    it('unseen', async () => {
+      const abandonedStore = makeStore();
+      const abandonedResult = abandonedStore.recordRunEnd({
+        mode: 'campaign',
+        levelId: PLAYABLE_LEVEL_ORDER[0]!,
+        score: 0,
+        outcome: 'abandoned',
+        livesRemaining: 3,
+        stats: runStats({ bricksBroken: QUALIFYING_BRICKS }),
+      });
+      expect(
+        abandonedResult.newlyUnlocked,
+        'the fixture run must still cross a catalog threshold on an abandoned outcome, or this case is vacuous',
+      ).toContain(CONTROL_ID);
+      const afterAbandoned = await abandonedStore.getSnapshot();
+      expect(
+        afterAbandoned.telemetry.achievements.unseen,
+        'an unlock earned on an abandoned run — no result panel renders — must be marked unseen',
+      ).toContain(CONTROL_ID);
+
+      const winStore = makeStore();
+      winStore.recordRunEnd({
+        mode: 'campaign',
+        levelId: PLAYABLE_LEVEL_ORDER[0]!,
+        score: 900,
+        outcome: 'win',
+        livesRemaining: 3,
+        stats: runStats({ bricksBroken: QUALIFYING_BRICKS }),
+      });
+      const afterWin = await winStore.getSnapshot();
+      expect(
+        afterWin.telemetry.achievements.unseen,
+        'the identical crossing on a WIN reaches a result panel and must not be marked unseen',
+      ).not.toContain(CONTROL_ID);
+
+      const loseStore = makeStore();
+      loseStore.recordRunEnd({
+        mode: 'campaign',
+        levelId: PLAYABLE_LEVEL_ORDER[0]!,
+        score: 0,
+        outcome: 'lose',
+        livesRemaining: 0,
+        stats: runStats({ bricksBroken: QUALIFYING_BRICKS }),
+      });
+      const afterLose = await loseStore.getSnapshot();
+      expect(
+        afterLose.telemetry.achievements.unseen,
+        'the identical crossing on a LOSE also reaches a result panel and must not be marked unseen',
+      ).not.toContain(CONTROL_ID);
+
+      // markAchievementsSeen clears the set and is idempotent.
+      await abandonedStore.markAchievementsSeen?.();
+      const afterSeen = await abandonedStore.getSnapshot();
+      expect(afterSeen.telemetry.achievements.unseen).toEqual([]);
+      await abandonedStore.markAchievementsSeen?.();
+      const afterSeenTwice = await abandonedStore.getSnapshot();
+      expect(afterSeenTwice.telemetry.achievements.unseen).toEqual([]);
     });
   });
 }

@@ -646,7 +646,7 @@ function sanitizeAchievementRecord(raw: unknown): AchievementRecord {
   if (raw == null || typeof raw !== 'object') {
     return out;
   }
-  const record = raw as { unlocked?: unknown };
+  const record = raw as { unlocked?: unknown; unseen?: unknown };
   if (!Array.isArray(record.unlocked)) {
     return out;
   }
@@ -668,13 +668,52 @@ function sanitizeAchievementRecord(raw: unknown): AchievementRecord {
   // applied AFTER the drop loop, never before.
   //
   // The trap this bound is measured against lives in this same file: `sanitizeAggregateMap`
-  // below has NO key cap and copies every key it finds on every parse. WINDOWS #27 records
-  // 5 000 injected keys surviving `parseProgressResult` with `status: 'ok'`. This collection
-  // avoids that shape only because it is a bounded ARRAY whose ids are validated — the
-  // pattern map's rule is that it must have the bound or the id check and must not have
-  // neither. If a later change relaxes the unknown-id drop "to be forward-compatible with a
-  // later catalog", this line is the only remaining cap and must stay.
+  // below is ALSO bounded (`AGGREGATE_MAP_BOUND`), applied the same drop-then-trim way, after
+  // WINDOWS #27 recorded 5 000 injected keys surviving `parseProgressResult` with
+  // `status: 'ok'` before that bound existed. This collection avoids that shape only because
+  // it is a bounded ARRAY whose ids are validated — the pattern map's rule is that it must
+  // have the bound or the id check and must not have neither. If a later change relaxes the
+  // unknown-id drop "to be forward-compatible with a later catalog", this line is the only
+  // remaining cap and must stay.
   out.unlocked = [...byId.values()].slice(0, ACHIEVEMENT_UNLOCK_BOUND);
+  // `unseen` — a fourth step specific to this field, AFTER `out.unlocked` is assigned so the
+  // intersection below has a parsed set to intersect against (D-11, D-12, 14-02):
+  //
+  //  1. Return the default (empty) when `record.unseen` is not an array.
+  //  2. Drop per entry — not a string, not a known catalog id, or not present in the just-
+  //     assigned `out.unlocked` id set. That last clause is the INTERSECTION, and it is the
+  //     only thing that makes the UI-SPEC's "capped at 12 by the catalog" claim a property of
+  //     this read path rather than merely of the catalog — the field's own bound is 64.
+  //  3. De-duplicate, keeping the FIRST occurrence.
+  //  4. Bound LAST, as a counter over SURVIVORS (the `sanitizeAggregateMap` shape below):
+  //     trimming the raw input first would let padding garbage push real ids out of the
+  //     window, which is the opposite of what the bound exists for.
+  const unseenRaw = record.unseen;
+  if (Array.isArray(unseenRaw)) {
+    const unlockedIds = new Set(out.unlocked.map((e) => e.id));
+    const seen = new Set<string>();
+    const unseen: string[] = [];
+    for (const item of unseenRaw) {
+      if (typeof item !== 'string') {
+        continue;
+      }
+      if (!isKnownAchievementId(item)) {
+        continue;
+      }
+      if (!unlockedIds.has(item)) {
+        continue;
+      }
+      if (seen.has(item)) {
+        continue;
+      }
+      if (unseen.length >= ACHIEVEMENT_UNLOCK_BOUND) {
+        break;
+      }
+      seen.add(item);
+      unseen.push(item);
+    }
+    out.unseen = unseen;
+  }
   return out;
 }
 

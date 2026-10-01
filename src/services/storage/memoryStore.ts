@@ -14,6 +14,7 @@ import {
 } from './types';
 import {
   cloneTelemetryBlob,
+  markAchievementsUnseen,
   mergeAchievementUnlocks,
   mergeDailyRecord,
   mergeEndlessRecord,
@@ -216,6 +217,18 @@ export function createMemoryProgressStore(
           newlyUnlocked,
           Date.now(),
         );
+        // D-11/D-12, 14-02 decision: store-side, gated on the run's OUTCOME. An
+        // abandoned run never reaches a result panel — the same gate `PlayingHost`
+        // applies one function away (`handleRunEnded`) for the identical reason — so
+        // an unlock earned there is marked unseen here. Named residual: `outcome` is
+        // a PROXY for "no panel rendered", not the fact itself; all four shipped run
+        // exits were traced and pass abandoned only when no panel renders, but that
+        // is a reading of control flow, not a test. One write still: this rides the
+        // same `blob.telemetry` assignment and `updatedAt` stamp as the unlock merge
+        // above, not a second persist.
+        if (args.outcome === 'abandoned') {
+          blob.telemetry = markAchievementsUnseen(blob.telemetry, newlyUnlocked);
+        }
         blob.updatedAt = Date.now();
       }
       // D-19: the delta rides the return. `cloneBlob` has already produced a
@@ -235,6 +248,13 @@ export function createMemoryProgressStore(
     },
     async flush(): Promise<void> {
       // in-memory — nothing to flush
+    },
+    async markAchievementsSeen(): Promise<void> {
+      blob.telemetry = {
+        ...blob.telemetry,
+        achievements: { ...blob.telemetry.achievements, unseen: [] },
+      };
+      blob.updatedAt = Date.now();
     },
   };
 }

@@ -394,6 +394,25 @@ export type AchievementRecord = {
    * finds on read with no cap forever.
    */
   unlocked: AchievementUnlock[];
+  /**
+   * Ids unlocked but not yet announced on a result panel (D-11, D-12, 14-02).
+   *
+   * **Inverted deliberately.** A `seen` list defaulting to empty would mark every
+   * pre-field unlock as new the moment this field ships — exactly the harm D-13 rejects.
+   * An `unseen` list defaulting to empty makes D-13 true with no sentinel, no version
+   * bump and no migration: a v4 blob written before this field existed parses with it
+   * defaulted to `[]`, so every existing unlock reads as already seen.
+   *
+   * **Bounded and intersected on read.** Bounded by `ACHIEVEMENT_UNLOCK_BOUND` like its
+   * sibling, and additionally intersected with the parsed `unlocked` set
+   * (`parseBlob.ts` `sanitizeAchievementRecord`) — Title (14-06) renders a count from this
+   * field's length, and without the intersection a tampered blob could render a count the
+   * catalog cannot justify.
+   *
+   * Reachable from `defaultTelemetryBlob()` via `defaultAchievementRecord()`, which is
+   * what makes the no-migration claim above true rather than merely intended.
+   */
+  unseen: string[];
 };
 
 export type TelemetryBlob = {
@@ -445,7 +464,7 @@ export function defaultDailyRecord(): DailyRecord {
 
 /** Empty achievement record — nothing has been earned yet. */
 export function defaultAchievementRecord(): AchievementRecord {
-  return { unlocked: [] };
+  return { unlocked: [], unseen: [] };
 }
 
 export function defaultTelemetryBlob(): TelemetryBlob {
@@ -645,4 +664,13 @@ export interface ProgressStore {
   isUnlocked(id: LevelId): Promise<boolean>;
   getSnapshot(): Promise<ProgressBlob>;
   flush?(): Promise<void>;
+  /**
+   * Clears `achievements.unseen` to empty and persists once (14-02).
+   *
+   * Optional for the same reason `flush?()` is: five test files build their store as a
+   * bare object literal inside a `vi.mock` factory and are therefore not contextually
+   * typed as `ProgressStore`. A caller must use optional-call syntax (`store
+   * .markAchievementsSeen?.()`) or it will throw at runtime in those harnesses.
+   */
+  markAchievementsSeen?(): Promise<void>;
 }

@@ -80,6 +80,7 @@ export {
   mergeEndlessRecord,
   mergeDailyRecord,
   mergeAchievementUnlocks,
+  markAchievementsUnseen,
   currentDailyStreak,
   cloneTelemetryBlob,
 } from './telemetry';

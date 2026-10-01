@@ -13,6 +13,7 @@ import {
 import { computeStars, mergeLevelBest } from './stars';
 import {
   cloneTelemetryBlob,
+  markAchievementsUnseen,
   mergeAchievementUnlocks,
   mergeDailyRecord,
   mergeEndlessRecord,
@@ -499,13 +500,26 @@ function createAsyncStorageProgressStoreFrom(
         memory.telemetry.achievements.unlocked.map((e) => e.id),
       );
       if (newlyUnlocked.length > 0) {
+        let nextTelemetry = mergeAchievementUnlocks(
+          memory.telemetry,
+          newlyUnlocked,
+          Date.now(),
+        );
+        // D-11/D-12, 14-02 decision: store-side, gated on the run's OUTCOME. An
+        // abandoned run never reaches a result panel — the same gate `PlayingHost`
+        // applies one function away (`handleRunEnded`) for the identical reason —
+        // so an unlock earned there is marked unseen here. Named residual:
+        // `outcome` is a PROXY for "no panel rendered", not the fact itself; all
+        // four shipped run exits were traced and pass abandoned only when no panel
+        // renders, but that is a reading of control flow, not a test. One write
+        // still: this rebuilds `memory` once, alongside the unlock merge, not a
+        // second persist.
+        if (args.outcome === 'abandoned') {
+          nextTelemetry = markAchievementsUnseen(nextTelemetry, newlyUnlocked);
+        }
         memory = {
           ...memory,
-          telemetry: mergeAchievementUnlocks(
-            memory.telemetry,
-            newlyUnlocked,
-            Date.now(),
-          ),
+          telemetry: nextTelemetry,
           updatedAt: Date.now(),
         };
       }
@@ -558,6 +572,18 @@ function createAsyncStorageProgressStoreFrom(
       } catch {
         // keep pending
       }
+    },
+    async markAchievementsSeen(): Promise<void> {
+      await ensureHydrated();
+      memory = {
+        ...memory,
+        telemetry: {
+          ...memory.telemetry,
+          achievements: { ...memory.telemetry.achievements, unseen: [] },
+        },
+        updatedAt: Date.now(),
+      };
+      await persist(memory);
     },
   };
 }

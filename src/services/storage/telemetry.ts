@@ -87,6 +87,9 @@ export function cloneTelemetryBlob(t: TelemetryBlob): TelemetryBlob {
     // in `tests/storage.progress-v4.test.ts`, which plan 13-03 copies for achievements.
     achievements: {
       unlocked: t.achievements.unlocked.map((e) => ({ ...e })),
+      // `unseen` holds primitives, so the sibling's `.map((e) => ({ ...e }))` entry-object
+      // shape does not transfer — a spread copy is the clone; an alias is a defect.
+      unseen: [...t.achievements.unseen],
     },
     recentRuns: t.recentRuns.map((e) => ({ ...e })),
   };
@@ -250,11 +253,44 @@ export function mergeAchievementUnlocks(
     unlocked.push({ id, at });
   }
   next.achievements = {
+    ...next.achievements,
     // Bound on write (D-15's direction, T-13-02's fence). `slice(0, …)` and NOT
     // `slice(-…)`: the recent-run ring keeps the NEWEST because it is a window on recent
     // activity, whereas an unlock is permanent (D-17) and dropping the oldest would
     // un-earn the achievements the player has held longest.
     unlocked: unlocked.slice(0, ACHIEVEMENT_UNLOCK_BOUND),
+  };
+  return next;
+}
+
+/**
+ * Mark ids as not-yet-announced on a result panel (D-11, D-12, 14-02).
+ *
+ * Copies `mergeAchievementUnlocks`' shape exactly: clone first, guard on a non-array or
+ * empty `ids`, union onto the existing set, bound with `slice(0, …)` and not `slice(-…)`
+ * for the identical D-17 reason — an unlock is permanent, so dropping the oldest unseen
+ * mark would un-announce the achievements held longest.
+ */
+export function markAchievementsUnseen(
+  telemetry: TelemetryBlob,
+  ids: readonly string[],
+): TelemetryBlob {
+  const next = cloneTelemetryBlob(telemetry);
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return next;
+  }
+  const union = [...next.achievements.unseen];
+  const present = new Set(union);
+  for (const id of ids) {
+    if (typeof id !== 'string' || id === '' || present.has(id)) {
+      continue;
+    }
+    present.add(id);
+    union.push(id);
+  }
+  next.achievements = {
+    ...next.achievements,
+    unseen: union.slice(0, ACHIEVEMENT_UNLOCK_BOUND),
   };
   return next;
 }
@@ -875,7 +911,20 @@ function mergeAchievementRecords(
       byId.set(e.id, { ...e, at: safeCounter(e.at) });
     }
   }
-  return { unlocked: [...byId.values()].slice(0, ACHIEVEMENT_UNLOCK_BOUND) };
+  // `unseen` is an ID SET, not a claim/evidence pair — the hazard above does not recur
+  // here. Union through a `Set`, preserving first-seen order; no earliest-wins rule is
+  // invented because an id is its own evidence and the union of two id sets cannot
+  // inflate. Named cost: two devices, one of which has already seen an unlock, re-show
+  // the mark after a reconcile — D-13's chosen direction of harm, and academic here
+  // because this project has no cloud sync.
+  const unseen = [...new Set([...a.unseen, ...b.unseen])].slice(
+    0,
+    ACHIEVEMENT_UNLOCK_BOUND,
+  );
+  return {
+    unlocked: [...byId.values()].slice(0, ACHIEVEMENT_UNLOCK_BOUND),
+    unseen,
+  };
 }
 
 /** Merge two telemetry blobs (memory ↔ freshly-hydrated disk). */

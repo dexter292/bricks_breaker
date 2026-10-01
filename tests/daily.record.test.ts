@@ -37,6 +37,7 @@ import {
   DAILY_STREAK_WALK_CAP,
   createMemoryProgressStore,
   currentDailyStreak,
+  defaultProgressBlob,
   defaultRunStatsInput,
   defaultTelemetryBlob,
   mergeDailyRecord,
@@ -883,5 +884,64 @@ describe('a tampered blob supplying an invalid key (T-12-15 / D-01, 12-04)', () 
     expect(hasResultFor(keys, '2026-02-30')).toBe(false);
     // …while the one well-formed sibling is untouched and still closed.
     expect(hasResultFor(keys, '2026-09-27')).toBe(true);
+  });
+});
+
+/**
+ * `AchievementRecord.unseen` (D-11 / D-12, 14-02) survives the two run-end write paths that
+ * do NOT touch achievements at all. Both `mergeEndlessRecord` and `mergeDailyRecord` start
+ * from `cloneTelemetryBlob`, which is the worst case in the file's three-site trap: a field
+ * missing from the clone is dropped on EVERY other mode's run-end write, not just the one a
+ * case happens to exercise.
+ */
+describe('unseen survives a run-end write (D-11 / D-12, 14-02)', () => {
+  it('an endless run-end write preserves a pre-existing unseen set', async () => {
+    const seed = defaultProgressBlob();
+    seed.telemetry.achievements = { unlocked: [], unseen: ['first-clear'] };
+    const store = createMemoryProgressStore(seed);
+
+    store.recordRunEnd({
+      mode: 'endless',
+      wave: 3,
+      score: 500,
+      outcome: 'lose',
+      livesRemaining: 0,
+      stats: runStats({ bricksBroken: 10, ticksPlayed: 1_000 }),
+    });
+
+    const snapshot = await store.getSnapshot();
+    expect(
+      snapshot.telemetry.achievements.unseen,
+      'an endless run that earns nothing new must not drop the pre-existing unseen set',
+    ).toEqual(['first-clear']);
+  });
+
+  it('a daily run-end write preserves a pre-existing unseen set', async () => {
+    const seed = defaultProgressBlob();
+    seed.telemetry.achievements = { unlocked: [], unseen: ['first-clear'] };
+    const store = createMemoryProgressStore(seed);
+
+    closeDate(store, '2026-09-27', 'win');
+
+    const snapshot = await store.getSnapshot();
+    expect(
+      snapshot.telemetry.achievements.unseen,
+      'a daily run that earns nothing new must not drop the pre-existing unseen set',
+    ).toEqual(['first-clear']);
+  });
+});
+
+describe('reconcile unseen (memory ↔ freshly-hydrated disk, 14-02)', () => {
+  it('unions both sides, keeps first-seen order, de-duplicates and bounds', () => {
+    const memory = defaultTelemetryBlob();
+    memory.achievements = { unlocked: [], unseen: ['a', 'shared'] };
+    const incoming = defaultTelemetryBlob();
+    incoming.achievements = { unlocked: [], unseen: ['shared', 'b'] };
+
+    const merged = mergeTelemetryBlobs(memory, incoming);
+    expect(
+      merged.achievements.unseen,
+      'union, first-seen order preserved, the shared id de-duplicated to one entry',
+    ).toEqual(['a', 'shared', 'b']);
   });
 });

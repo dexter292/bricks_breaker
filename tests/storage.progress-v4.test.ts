@@ -1343,6 +1343,96 @@ describe('sanitizeAchievementRecord — the stored achievements set, bounded on 
       12,
     );
   });
+
+  const unseenIn = (r: ReturnType<typeof parseWithAchievements>) =>
+    r.progress.telemetry.achievements.unseen;
+
+  it('unseen', () => {
+    // D-13 default: a v4 blob with no `unseen` key (the pre-field shape) parses with it
+    // defaulted to empty — every unlock that predates the field reads as already seen.
+    const noUnseenKey = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+    });
+    expect(noUnseenKey.status).toBe('ok');
+    expect(unseenIn(noUnseenKey)).toEqual([]);
+
+    // Degrades alone: a non-array `unseen` does not make the enclosing blob corrupt and
+    // does not touch the sibling `unlocked` field.
+    for (const broken of ['nope', 7, null, {}, true]) {
+      const r = parseWithAchievements({
+        unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+        unseen: broken,
+      });
+      expect(r.status, `unseen: ${JSON.stringify(broken)} must not corrupt the blob`).toBe(
+        'ok',
+      );
+      expect(unseenIn(r), `unseen: ${JSON.stringify(broken)} degrades to empty`).toEqual([]);
+      expect(
+        unlockedIn(r).map((e) => e.id),
+        'the sibling unlocked field is untouched by a broken unseen field',
+      ).toEqual([KNOWN[0]]);
+    }
+
+    // The positive control: a well-formed unseen id that IS in the parsed unlocked set
+    // survives.
+    const ok = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[0]],
+    });
+    expect(unseenIn(ok)).toEqual([KNOWN[0]]);
+  });
+
+  it('unseen bound', () => {
+    // Unknown-id drop: an id the catalog never minted is dropped from unseen, independent
+    // of the unlocked-field drop above.
+    const unknownDropped = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[0], NOT_AN_ID],
+    });
+    expect(unseenIn(unknownDropped)).toEqual([KNOWN[0]]);
+
+    // Dedupe keep-first: a repeated id collapses to one entry.
+    const deduped = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[0], KNOWN[0], KNOWN[0]],
+    });
+    expect(deduped.status).toBe('ok');
+    expect(unseenIn(deduped)).toEqual([KNOWN[0]]);
+
+    // The intersection: an unseen id that is a REAL catalog id but is NOT present in the
+    // stored unlocked array is absent from the parsed record — it can raise no rendered
+    // count for an achievement that, per this blob, was never earned.
+    const notUnlocked = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[1]],
+    });
+    expect(
+      unseenIn(notUnlocked),
+      'an unseen id absent from unlocked must not survive the intersection',
+    ).toEqual([]);
+
+    // Drop-then-bound ordering: real ids sit at the END, behind padding the drop loop
+    // rejects. A bound applied BEFORE the drop would keep only padding and evict every
+    // real id; this asserts the real ids survive.
+    const unlockedReal = KNOWN.slice(0, 3);
+    const padding = Array.from(
+      { length: ACHIEVEMENT_UNLOCK_BOUND + 6 },
+      (_, i) => `${NOT_AN_ID}-${i}`,
+    );
+    expect(
+      padding.length,
+      'the padding must exceed the bound, or a bound-first implementation cannot be distinguished from this one',
+    ).toBeGreaterThan(ACHIEVEMENT_UNLOCK_BOUND);
+    const ordered = parseWithAchievements({
+      unlocked: unlockedReal.map((id, i) => ({ id, at: 1_800_000_000_000 + i })),
+      unseen: [...padding, ...unlockedReal],
+    });
+    expect(
+      unseenIn(ordered),
+      'the real ids survive padding ahead of them — trimming before the drop loop would evict them and leave nothing',
+    ).toEqual(unlockedReal);
+    expect(unseenIn(ordered).length).toBeLessThanOrEqual(ACHIEVEMENT_UNLOCK_BOUND);
+  });
 });
 
 describe('recordRunEnd (v4, mode-aware, D-03/D-04)', () => {
