@@ -18,7 +18,8 @@ type SelectScreenProps = {
   store?: ProgressStore;
 };
 
-const LEVEL_LABEL: Record<(typeof PLAYABLE_LEVEL_ORDER)[number], string> = {
+/** Display labels for campaign level ids — the one shipped level-id-to-label mapping (14-03). */
+export const LEVEL_LABEL: Record<(typeof PLAYABLE_LEVEL_ORDER)[number], string> = {
   'level-01': 'Level 01',
   'level-03': 'Level 03',
   'level-04': 'Level 04',
