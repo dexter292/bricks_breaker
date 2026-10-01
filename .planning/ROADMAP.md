@@ -262,7 +262,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 14-05-PLAN.md — AchievementsScreen: twelve entries, the unseen mark, and the colour fences
+- [x] 14-05-PLAN.md — AchievementsScreen: twelve entries, the unseen mark, and the colour fences
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
