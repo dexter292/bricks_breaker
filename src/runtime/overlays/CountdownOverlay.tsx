@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MAX_FONT_SCALE } from '../textScale';
 
 type Props = {
   /** Display numeral 3 | 2 | 1 */
@@ -25,7 +26,9 @@ export function CountdownOverlay({ numeral }: Props) {
       ]}
       pointerEvents="auto"
     >
-      <Text style={styles.numeral}>{String(numeral)}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.numeral}>
+        {String(numeral)}
+      </Text>
     </View>
   );
 }

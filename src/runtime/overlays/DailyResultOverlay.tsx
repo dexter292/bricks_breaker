@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { achievementLines } from './achievementLines';
+import { MAX_FONT_SCALE } from '../textScale';
 
 /**
  * The Daily Result panel (N-DAILY-02 / N-DAILY-03 / D-06 / D-10 / D-12 / D-17;
@@ -315,19 +316,26 @@ export function DailyResultOverlay({
           Each optional line is a ternary to `null`, never a disabled or greyed
           variant — the shipped conditional-line pattern.
         */}
-        <Text style={[styles.heading, kind === 'lose' && styles.loseHeading]}>
+        <Text
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
+          style={[styles.heading, kind === 'lose' && styles.loseHeading]}
+        >
           {isFailure ? 'Daily' : isWin ? 'Win' : 'Lose'}
         </Text>
-        <Text style={styles.body}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.body}>
           {isFailure
             ? "Today's board could not be built — tap Retry"
             : isWin
               ? 'All clear'
               : 'Out of lives'}
         </Text>
-        <Text style={styles.metric}>Daily · {dateKey}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>
+          Daily · {dateKey}
+        </Text>
         {isClosed ? (
-          <Text style={styles.metric}>Score · {score}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>
+            Score · {score}
+          </Text>
         ) : null}
         {/*
           The three streak readouts each carry a spoken label: `·` is announced
@@ -336,12 +344,14 @@ export function DailyResultOverlay({
           layout path of their own.
         */}
         <Text
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           style={styles.metric}
           accessibilityLabel={`Streak: ${streak} days`}
         >
           Streak · {streak}
         </Text>
         <Text
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           style={styles.metric}
           accessibilityLabel={`Best streak: ${longestStreak} days`}
         >
@@ -349,6 +359,7 @@ export function DailyResultOverlay({
         </Text>
         {isClosed ? (
           <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
             style={styles.metric}
             accessibilityLabel={`Days played: ${totalDaysPlayed}`}
           >
@@ -366,11 +377,18 @@ export function DailyResultOverlay({
           itself a loss.
         */}
         {endedCopy != null ? (
-          <Text style={[styles.metric, styles.streakEnded]}>{endedCopy}</Text>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={[styles.metric, styles.streakEnded]}
+          >
+            {endedCopy}
+          </Text>
         ) : null}
         {showBadge ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>Best streak ever</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.badgeLabel}>
+              Best streak ever
+            </Text>
           </View>
         ) : null}
         {/*
@@ -419,6 +437,7 @@ export function DailyResultOverlay({
                 key={`${line.kind}-${i}`}
                 style={styles.metric}
                 numberOfLines={1}
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
                 accessibilityLabel={line.label}
               >
                 {line.text}
@@ -426,7 +445,11 @@ export function DailyResultOverlay({
             ))
           : null}
         {countdown.kind !== 'omit' ? (
-          <Text style={styles.metric} accessibilityLabel={countdown.label}>
+          <Text
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+            style={styles.metric}
+            accessibilityLabel={countdown.label}
+          >
             {countdown.text}
           </Text>
         ) : null}
@@ -440,7 +463,9 @@ export function DailyResultOverlay({
             onPress={onRetry}
             style={[styles.button, styles.buttonSpaced]}
           >
-            <Text style={styles.buttonLabel}>Retry</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+              Retry
+            </Text>
           </Pressable>
         ) : null}
         <Pressable
@@ -449,7 +474,9 @@ export function DailyResultOverlay({
           onPress={onMenu}
           style={[styles.menuButton, styles.buttonSpaced]}
         >
-          <Text style={styles.menuLabel}>Menu</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.menuLabel}>
+            Menu
+          </Text>
         </Pressable>
       </View>
     </View>

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { achievementLines } from './achievementLines';
+import { MAX_FONT_SCALE } from '../textScale';
 
 type Props = {
   kind: 'win' | 'lose';
@@ -95,6 +96,7 @@ function StarRow({ filled }: { filled: 1 | 2 | 3 }) {
       {glyphs.map((g, i) => (
         <Text
           key={i}
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           style={[
             styles.starGlyph,
             g.filled ? styles.starFilled : styles.starEmpty,
@@ -179,10 +181,15 @@ export function ResultOverlay({
       pointerEvents="auto"
     >
       <View style={styles.panel}>
-        <Text style={[styles.heading, !isWin && styles.loseHeading]}>
+        <Text
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
+          style={[styles.heading, !isWin && styles.loseHeading]}
+        >
           {isWin ? 'Win' : 'Lose'}
         </Text>
-        <Text style={styles.body}>{body}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.body}>
+          {body}
+        </Text>
         {/*
           11-UI-SPEC § Endless copy, "Line order is contract": heading → body →
           `Wave ·` → `Score ·` → `Best ·` → `Best wave ·` → badge → Retry → Menu.
@@ -203,19 +210,29 @@ export function ResultOverlay({
           already nulled outside endless.
         */}
         {isEndless && showRunLines ? (
-          <Text style={styles.metric}>Wave · {wave}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>
+            Wave · {wave}
+          </Text>
         ) : null}
         {showRunLines ? (
-          <Text style={styles.metric}>Score · {score}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>
+            Score · {score}
+          </Text>
         ) : null}
-        <Text style={styles.metric}>Best · {best}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>
+          Best · {best}
+        </Text>
         {isEndless ? (
-          <Text style={styles.metric}>Best wave · {bestWave}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>
+            Best wave · {bestWave}
+          </Text>
         ) : null}
         {showStars ? <StarRow filled={stars} /> : null}
         {isNewRecord ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>New Record</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.badgeLabel}>
+              New Record
+            </Text>
           </View>
         ) : null}
         {/*
@@ -254,6 +271,7 @@ export function ResultOverlay({
                 key={`${line.kind}-${i}`}
                 style={styles.metric}
                 numberOfLines={1}
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
                 accessibilityLabel={line.label}
               >
                 {line.text}
@@ -272,7 +290,9 @@ export function ResultOverlay({
           onPress={onRetry}
           style={[styles.button, styles.retrySpaced]}
         >
-          <Text style={styles.buttonLabel}>Retry</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+            Retry
+          </Text>
         </Pressable>
         {showNext ? (
           <Pressable
@@ -281,7 +301,9 @@ export function ResultOverlay({
             onPress={onNext}
             style={[styles.button, styles.buttonSpaced]}
           >
-            <Text style={styles.buttonLabel}>Next</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+              Next
+            </Text>
           </Pressable>
         ) : null}
         <Pressable
@@ -290,7 +312,9 @@ export function ResultOverlay({
           onPress={onMenu}
           style={[styles.menuButton, styles.buttonSpaced]}
         >
-          <Text style={styles.menuLabel}>Menu</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.menuLabel}>
+            Menu
+          </Text>
         </Pressable>
       </View>
     </View>

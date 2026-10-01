@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MAX_FONT_SCALE } from './textScale';
 
 export type HudStripProps = {
   score: number;
@@ -43,11 +44,11 @@ export function HudStrip({
       pointerEvents="box-none"
     >
       <View style={styles.metrics} pointerEvents="none">
-        <Text style={styles.metric}>{`Score · ${score}`}</Text>
-        <Text style={styles.metric}>{`×${combo}`}</Text>
-        <Text style={styles.metric}>{`Lives · ${lives}`}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>{`Score · ${score}`}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>{`×${combo}`}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>{`Lives · ${lives}`}</Text>
         {showStall ? (
-          <Text style={styles.metric}>{`Stall! · ${stallTier}`}</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.metric}>{`Stall! · ${stallTier}`}</Text>
         ) : null}
       </View>
 
@@ -60,7 +61,9 @@ export function HudStrip({
           hitSlop={8}
           style={styles.pauseButton}
         >
-          <Text style={styles.pauseLabel}>Pause</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.pauseLabel}>
+            Pause
+          </Text>
         </Pressable>
       ) : null}
     </View>

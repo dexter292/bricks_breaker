@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MAX_FONT_SCALE } from '../textScale';
 
 type Props = {
   /**
@@ -35,14 +36,18 @@ export function PauseOverlay({ mode, onResume, onRetry, onMenu }: Props) {
       pointerEvents="auto"
     >
       <View style={styles.panel}>
-        <Text style={styles.heading}>Paused</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.heading}>
+          Paused
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Resume game"
           onPress={onResume}
           style={styles.button}
         >
-          <Text style={styles.buttonLabel}>Resume</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+            Resume
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -60,7 +65,9 @@ export function PauseOverlay({ mode, onResume, onRetry, onMenu }: Props) {
           onPress={onRetry}
           style={[styles.button, styles.buttonSpaced]}
         >
-          <Text style={styles.buttonLabel}>Retry</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+            Retry
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -68,7 +75,9 @@ export function PauseOverlay({ mode, onResume, onRetry, onMenu }: Props) {
           onPress={onMenu}
           style={[styles.menuButton, styles.buttonSpaced]}
         >
-          <Text style={styles.menuLabel}>Menu</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.menuLabel}>
+            Menu
+          </Text>
         </Pressable>
       </View>
     </View>

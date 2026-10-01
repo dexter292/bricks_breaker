@@ -12,6 +12,7 @@ import { LevelErrorOverlay } from './overlays/LevelErrorOverlay';
 import { PauseOverlay } from './overlays/PauseOverlay';
 import { ResultOverlay } from './overlays/ResultOverlay';
 import { DailyResultOverlay } from './overlays/DailyResultOverlay';
+import { MAX_FONT_SCALE } from './textScale';
 
 export type GameScreenUiPhase = 'playing' | 'paused' | 'countdown';
 
@@ -253,6 +254,7 @@ export function GameScreen({
         {showServeHint && showPauseChrome ? (
           <Text
             pointerEvents="none"
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
             style={[
               styles.serveHint,
               { bottom: Math.max(insets.bottom, 16) + 48 },

@@ -258,7 +258,7 @@ Plans:
 
 - [x] 14-02-PLAN.md — the persisted unseen-unlock field, wired at all four obligated sites (D-11 decision checkpoint)
 - [x] 14-03-PLAN.md — StatisticsScreen: three lifetime rows + a seven-row By mode table, read once
-- [ ] 14-04-PLAN.md — MAX_FONT_SCALE and the src/runtime tier's 39 Text nodes
+- [x] 14-04-PLAN.md — MAX_FONT_SCALE and the src/runtime tier's 39 Text nodes
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
