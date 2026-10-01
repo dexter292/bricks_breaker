@@ -263,6 +263,7 @@ async function mountAndStartEndless(): Promise<void> {
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: () => {},
+      entryMode: 'campaign',
     }),
   );
   await act(async () => {

@@ -252,7 +252,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 14-01-PLAN.md — TRACER: one production mode entry on Title reaches a real run end-to-end
+- [x] 14-01-PLAN.md — TRACER: one production mode entry on Title reaches a real run end-to-end
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

@@ -67,16 +67,19 @@ vi.mock('../../app/_components/PlayingHost', async () => {
     PlayingHost: ({
       onMenu,
       levelId,
+      entryMode,
     }: {
       onMenu: () => void;
       levelId: string;
       onLevelIdChange?: (id: string) => void;
+      entryMode: string;
     }) =>
       React.createElement(
         View,
         null,
         React.createElement(Text, null, 'PlayingStub'),
         React.createElement(Text, null, `levelId:${levelId}`),
+        React.createElement(Text, null, `entryMode:${entryMode}`),
         React.createElement(
           Pressable,
           {
@@ -112,6 +115,22 @@ describe('GameHost', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
     expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
+  });
+
+  it('entry mode: Title Endless reaches PlayingHost in endless', async () => {
+    render(createElement(GameHost));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play endless mode' }));
+    expect(screen.getByText('PlayingStub')).toBeTruthy();
+    expect(screen.getByText('entryMode:endless')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    await waitFor(() => {
+      expect(screen.getByText('Levels')).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Play Level 01' }));
+    expect(screen.getByText('entryMode:campaign')).toBeTruthy();
   });
 
   it('CERT/SOAK source: initial playing when CERT; soak never sets select', () => {

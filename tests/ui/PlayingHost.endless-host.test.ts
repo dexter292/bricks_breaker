@@ -1764,4 +1764,48 @@ describe('PlayingHost endless host (source contract)', () => {
     });
   });
 
+  /**
+   * 14-01 Task 2 — the entry-mode dispatch's two silent-failure modes: a missing
+   * readiness dependency (a cold-start tap silently lands the player on a campaign
+   * board) and a synchronous call (an `error`-severity `react-hooks/set-state-in-effect`
+   * violation that lint would catch, but lint is not a durable regression gate on a
+   * shape a later author might "simplify").
+   */
+  it('entry dispatch is deferred, once-only and readiness-gated', () => {
+    const effect = code.match(
+      /if \(entryMode === 'campaign' \|\| entryDispatchedRef\.current\) return;([\s\S]*?)\}, \[([^\]]*)\]\);/,
+    );
+    expect(
+      effect,
+      'the entry-dispatch effect must be extractable, or every assertion below is vacuous',
+    ).toBeTruthy();
+    const body = effect![1];
+    const deps = effect![2];
+
+    for (const name of ['entryMode', 'levelReady', 'levelError', 'fxReady']) {
+      expect(
+        deps.includes(name),
+        `dependency array must name ${name} — omitting it is the cold-start defect: a []-dependency effect fires once, no-ops on a not-yet-ready host, and never fires again`,
+      ).toBe(true);
+    }
+
+    expect(
+      body.includes('setTimeout'),
+      'the dispatch must be scheduled through setTimeout, not called synchronously in the effect body — a synchronous call is an error-severity react-hooks/set-state-in-effect violation in this tree',
+    ).toBe(true);
+    expect(
+      body.includes('clearTimeout'),
+      'the effect must clear its pending timeout on cleanup/unmount',
+    ).toBe(true);
+    expect(
+      body.includes('entryDispatchedRef.current = true'),
+      'a once-only latch must be set before the dispatch, or a readiness flip re-enters and double-starts the run',
+    ).toBe(true);
+
+    expect(
+      code.includes('entryDispatchedRef'),
+      'non-vacuity: the comment-stripped source must still contain the identifier at all, or the strip above deleted everything and the assertions passed on an empty string',
+    ).toBe(true);
+  });
+
 });

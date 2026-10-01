@@ -6,7 +6,7 @@ import { CERT_HARNESS, LEVELGEN_PROBE, SOAK_HARNESS } from '../../src/devflags';
 import { CORPUS_SEEDS, D_MAX, corpusFingerprint } from '../../src/levelgen';
 import type { LevelId } from '../../src/runtime/loadLevel';
 import { createDefaultProgressStore } from '../../src/services/storage';
-import { PlayingHost } from './PlayingHost';
+import { PlayingHost, type EntryMode } from './PlayingHost';
 import { SelectScreen } from './SelectScreen';
 import { TitleScreen } from './TitleScreen';
 
@@ -66,6 +66,9 @@ export function GameHost() {
   }, []);
   const [best, setBest] = useState(0);
   const [activeLevelId, setActiveLevelId] = useState<LevelId>('level-01');
+  // D-04: which run Title dispatched into; reset to campaign on every onMenu so
+  // no shell state survives a run.
+  const [entryMode, setEntryMode] = useState<EntryMode>('campaign');
   // F-26: same ProgressStore singleton as PlayingHost — Title rollup matches max.
   const store = useMemo(() => createDefaultProgressStore(), []);
 
@@ -169,7 +172,14 @@ export function GameHost() {
     return (
       <View style={styles.root}>
         {harnessAwake}
-        <TitleScreen best={best} onPlay={() => setShellPhase('select')} />
+        <TitleScreen
+          best={best}
+          onPlay={() => setShellPhase('select')}
+          onEndless={() => {
+            setEntryMode('endless');
+            setShellPhase('playing');
+          }}
+        />
       </View>
     );
   }
@@ -195,7 +205,11 @@ export function GameHost() {
       <PlayingHost
         levelId={CERT_HARNESS ? 'level-03' : activeLevelId}
         onLevelIdChange={setActiveLevelId}
-        onMenu={() => setShellPhase('title')}
+        entryMode={CERT_HARNESS ? 'campaign' : entryMode}
+        onMenu={() => {
+          setEntryMode('campaign');
+          setShellPhase('title');
+        }}
       />
     </View>
   );

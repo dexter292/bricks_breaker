@@ -18,7 +18,8 @@ afterEach(cleanup);
 describe('TitleScreen', () => {
   it('renders brand, best, and Play; Play invokes onPlay', () => {
     const onPlay = vi.fn();
-    render(createElement(TitleScreen, { best: 42, onPlay }));
+    const onEndless = vi.fn();
+    render(createElement(TitleScreen, { best: 42, onPlay, onEndless }));
 
     expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
     expect(screen.getByText('Best · 42')).toBeTruthy();
@@ -27,5 +28,27 @@ describe('TitleScreen', () => {
     expect(play).toBeTruthy();
     fireEvent.click(play);
     expect(onPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the Endless entry alongside Play', () => {
+    const onPlay = vi.fn();
+    const onEndless = vi.fn();
+    render(createElement(TitleScreen, { best: 42, onPlay, onEndless }));
+
+    expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
+    expect(screen.getByText('Best · 42')).toBeTruthy();
+
+    const play = screen.getByRole('button', { name: 'Start game' });
+    const endless = screen.getByRole('button', { name: 'Play endless mode' });
+    expect(play).toBeTruthy();
+    expect(endless).toBeTruthy();
+
+    fireEvent.click(endless);
+    expect(onEndless).toHaveBeenCalledTimes(1);
+    expect(onPlay).not.toHaveBeenCalled();
+
+    fireEvent.click(play);
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onEndless).toHaveBeenCalledTimes(1);
   });
 });

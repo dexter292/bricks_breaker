@@ -508,6 +508,7 @@ async function mountAndStartEndless(): Promise<void> {
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: () => {},
+      entryMode: 'campaign',
     }),
   );
   await settleAndStartEndless();
@@ -533,6 +534,7 @@ async function mountControlledAndStartEndless(
       levelId,
       onLevelIdChange: () => {},
       onMenu: () => {},
+      entryMode: 'campaign',
     }),
   );
   await settleAndStartEndless();
@@ -544,6 +546,7 @@ async function mountControlledAndStartEndless(
             levelId: next,
             onLevelIdChange: () => {},
             onMenu: () => {},
+            entryMode: 'campaign',
           }),
         );
         await Promise.resolve();
@@ -568,6 +571,7 @@ async function mountOnly(): Promise<void> {
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: () => {},
+      entryMode: 'campaign',
     }),
   );
   await act(async () => {
@@ -824,6 +828,7 @@ describe('PlayingHost endless record display (gap 2)', () => {
       createElement(PlayingHost, {
         levelId: 'level-01' as LevelId,
         onMenu: () => {},
+        entryMode: 'campaign',
       }),
     );
     await act(async () => {

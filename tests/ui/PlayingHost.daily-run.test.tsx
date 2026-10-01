@@ -579,6 +579,7 @@ async function mountHost(): Promise<void> {
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: hostOnMenu,
+      entryMode: 'campaign',
     }),
   );
   await act(async () => {

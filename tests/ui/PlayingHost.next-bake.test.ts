@@ -201,6 +201,7 @@ describe('PlayingHost Next bake gate (behavioral D-03)', () => {
         levelId,
         onLevelIdChange: setLevelId,
         onMenu: () => {},
+        entryMode: 'campaign',
       });
     }
 
@@ -247,6 +248,7 @@ describe('PlayingHost Next bake gate (behavioral D-03)', () => {
       createElement(PlayingHost, {
         levelId: 'level-01' as LevelId,
         onMenu: () => {},
+        entryMode: 'campaign',
       }),
     );
 
@@ -290,6 +292,7 @@ describe('PlayingHost Next bake gate (behavioral D-03)', () => {
         levelId,
         onLevelIdChange: setLevelId,
         onMenu: () => {},
+        entryMode: 'campaign',
       });
     }
 

@@ -181,12 +181,17 @@ const SIM = {
  */
 const ENDLESS_WAVE_FLOOR = 1;
 
+/** The run kind a Title entry dispatches into (N-UI-01, 14-01). */
+export type EntryMode = 'campaign' | 'endless' | 'daily';
+
 type Props = {
   onMenu: () => void;
   /** Required — GameHost owns Select / Next / CERT levelId (D-14 / D-15). */
   levelId: LevelId;
   /** Next + DEV + cert force when controlled from GameHost. */
   onLevelIdChange?: (id: LevelId) => void;
+  /** Which run Title dispatched into; drives the deferred entry effect below. */
+  entryMode: EntryMode;
 };
 
 /** NG-14 — isolated keep-awake so unmount releases the lock; tag is component-local. */
@@ -207,6 +212,7 @@ export function PlayingHost({
   onMenu,
   levelId: levelIdProp,
   onLevelIdChange,
+  entryMode,
 }: Props) {
   const [fontsLoaded] = useFonts({
     SpaceMono: require('../../assets/fonts/SpaceMono-Regular.ttf'),
@@ -465,6 +471,8 @@ export function PlayingHost({
   const endlessBestScoreRef = useRef(0);
   const endlessBestWaveRef = useRef(0);
   const runEndedRef = useRef(false);
+  /** Once-only latch for the entry-mode dispatch effect below (14-01). */
+  const entryDispatchedRef = useRef(false);
   /**
    * D-09 wall clock — PLAY time, not elapsed time. `runStartedAtRef` marks the start
    * of the current play segment; `runWallClockMsRef` banks segments already closed.
@@ -2068,6 +2076,38 @@ export function PlayingHost({
     levelError,
     fxReady,
   ]);
+
+  /**
+   * Entry-mode dispatch (N-UI-01, D-04, 14-01). `GameHost` passes the mode the
+   * player tapped on Title; this effect starts the matching run exactly once,
+   * deferred past the readiness gate so a cold-start tap does not silently land
+   * the player on a campaign board instead.
+   *
+   * The dispatch is scheduled through `setTimeout`, not called directly in the
+   * effect body: `react-hooks/set-state-in-effect` is severity `error` in this
+   * tree and is interprocedural — it follows `startEndlessRun`/`startDailyRun`
+   * through their own `useCallback` — so a direct call here fails
+   * `npm run lint -- --max-warnings 0` and therefore CI.
+   *
+   * The readiness dependency is not optional either: on a cold start
+   * `levelReady`/`fxReady` are false, `startDailyRun`'s own guard would return
+   * early, and a `[]`-dependency effect would fire once, no-op, and never fire
+   * again. Returning (without latching the ref) while not ready lets the effect
+   * re-run and dispatch once readiness flips.
+   */
+  useEffect(() => {
+    if (entryMode === 'campaign' || entryDispatchedRef.current) return;
+    if (!levelReady || levelError != null || !fxReady) return;
+    entryDispatchedRef.current = true;
+    const id = setTimeout(() => {
+      if (entryMode === 'endless') {
+        startEndlessRun();
+      } else {
+        startDailyRun();
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [entryMode, levelReady, levelError, fxReady, startEndlessRun, startDailyRun]);
 
   const onRetry = useCallback(() => {
     // 11-07 gap 1 — the run boundary is MODE-AWARE. In endless a run owns a seed, a

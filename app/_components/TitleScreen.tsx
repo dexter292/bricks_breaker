@@ -5,13 +5,14 @@ import { DISPLAY_NAME } from '../_brand';
 type Props = {
   best: number;
   onPlay: () => void;
+  onEndless: () => void;
 };
 
 /**
  * Cold-start Title shell (UI-SPEC / D-01, D-02, D-12).
  * Brand → Best · N → Play. No ads/shop/login chrome (D-18).
  */
-export function TitleScreen({ best, onPlay }: Props) {
+export function TitleScreen({ best, onPlay, onEndless }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -35,6 +36,14 @@ export function TitleScreen({ best, onPlay }: Props) {
           style={styles.playButton}
         >
           <Text style={styles.playLabel}>Play</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Play endless mode"
+          onPress={onEndless}
+          style={styles.endlessButton}
+        >
+          <Text style={styles.playLabel}>Endless</Text>
         </Pressable>
       </View>
     </View>
@@ -71,6 +80,16 @@ const styles = StyleSheet.create({
   },
   playButton: {
     marginTop: 64,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  endlessButton: {
+    marginTop: 16,
     minHeight: 44,
     minWidth: 44,
     paddingHorizontal: 16,
