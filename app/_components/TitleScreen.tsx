@@ -4,15 +4,35 @@ import { DISPLAY_NAME } from '../_brand';
 
 type Props = {
   best: number;
-  onPlay: () => void;
+  /** Whether today's local date already has a stored daily result (N-UI-01 / D-05). */
+  dailyPlayedToday: boolean;
+  /** `currentDailyStreak` over the stored record — rendered only when played today. */
+  dailyStreak: number;
+  /** Count of unseen achievement unlocks; zero renders as an absence, never `0 new`. */
+  unseenCount: number;
+  onCampaign: () => void;
   onEndless: () => void;
+  onDaily: () => void;
+  onStats: () => void;
+  onAchievements: () => void;
 };
 
 /**
- * Cold-start Title shell (UI-SPEC / D-01, D-02, D-12).
- * Brand → Best · N → Play. No ads/shop/login chrome (D-18).
+ * Cold-start Title shell — the seven-row composition (N-UI-01 / N-UI-02, 14-06).
+ * Brand → Best · N → Campaign → Endless → Daily → Statistics → Achievements.
+ * No ads/shop/login chrome (D-18). Never scrolls (D-01/D-02/D-03).
  */
-export function TitleScreen({ best, onPlay, onEndless }: Props) {
+export function TitleScreen({
+  best,
+  dailyPlayedToday,
+  dailyStreak,
+  unseenCount,
+  onCampaign,
+  onEndless,
+  onDaily,
+  onStats,
+  onAchievements,
+}: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -29,21 +49,78 @@ export function TitleScreen({ best, onPlay, onEndless }: Props) {
       <View style={styles.content}>
         <Text style={styles.brand}>{DISPLAY_NAME}</Text>
         <Text style={styles.best}>{`Best · ${best}`}</Text>
+
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Start game"
-          onPress={onPlay}
-          style={styles.playButton}
+          accessibilityLabel="Play campaign mode"
+          onPress={onCampaign}
+          style={styles.modeButtonFirst}
         >
-          <Text style={styles.playLabel}>Play</Text>
+          <Text style={styles.modeLabel} numberOfLines={1}>
+            Campaign
+          </Text>
         </Pressable>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Play endless mode"
           onPress={onEndless}
-          style={styles.endlessButton}
+          style={styles.modeButton}
         >
-          <Text style={styles.playLabel}>Endless</Text>
+          <Text style={styles.modeLabel} numberOfLines={1}>
+            Endless
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            dailyPlayedToday
+              ? `Daily, played today, ${dailyStreak}-day streak`
+              : "Play today's daily challenge"
+          }
+          onPress={onDaily}
+          style={[styles.modeButton, styles.modeButtonRow]}
+        >
+          <Text style={styles.modeLabel} numberOfLines={1}>
+            Daily
+          </Text>
+          {dailyPlayedToday ? (
+            <Text style={styles.modeMeta} numberOfLines={1}>
+              {`Played · ${dailyStreak}-day streak`}
+            </Text>
+          ) : null}
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="View statistics"
+          onPress={onStats}
+          style={styles.secondaryButtonFirst}
+        >
+          <Text style={styles.secondaryLabel} numberOfLines={1}>
+            Statistics
+          </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            unseenCount > 0
+              ? `View achievements, ${unseenCount} new`
+              : 'View achievements'
+          }
+          onPress={onAchievements}
+          style={[styles.secondaryButton, styles.secondaryButtonRow]}
+        >
+          <Text style={styles.secondaryLabel} numberOfLines={1}>
+            Achievements
+          </Text>
+          {unseenCount > 0 ? (
+            <Text style={styles.secondaryMeta} numberOfLines={1}>
+              {`${unseenCount} new`}
+            </Text>
+          ) : null}
         </Pressable>
       </View>
     </View>
@@ -58,8 +135,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   content: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 320,
   },
   brand: {
     color: '#FFFFFF',
@@ -78,8 +157,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
   },
-  playButton: {
-    marginTop: 64,
+  modeButtonFirst: {
+    marginTop: 24,
     minHeight: 44,
     minWidth: 44,
     paddingHorizontal: 16,
@@ -88,7 +167,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
-  endlessButton: {
+  modeButton: {
     marginTop: 16,
     minHeight: 44,
     minWidth: 44,
@@ -98,11 +177,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
-  playLabel: {
+  modeButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modeLabel: {
     color: '#1a1a2e',
     fontFamily: 'SpaceMono',
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
+  },
+  modeMeta: {
+    color: '#1a1a2e',
+    fontFamily: 'SpaceMono',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  secondaryButtonFirst: {
+    marginTop: 24,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  secondaryButton: {
+    marginTop: 8,
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  secondaryButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  secondaryLabel: {
+    color: '#FFFFFF',
+    fontFamily: 'SpaceMono',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
+  secondaryMeta: {
+    color: '#FFFFFF',
+    fontFamily: 'SpaceMono',
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   },
 });

@@ -573,9 +573,11 @@ const hostOnMenu = vi.fn();
  * 60-second interval is live. See the file header for why that distinction is not a
  * detail.
  */
-async function mountHost(): Promise<void> {
+async function mountHostWithHandle(): Promise<{
+  rerender: ReturnType<typeof render>['rerender'];
+}> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
-  render(
+  const { rerender } = render(
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: hostOnMenu,
@@ -587,10 +589,10 @@ async function mountHost(): Promise<void> {
     vi.runAllTimers();
     await Promise.resolve();
   });
+  // Readiness proxy: the cold-path gate calls setActive(true) once levelReady/fxReady
+  // flip — the same fact the deleted __DEV__ button's presence used to stand in for.
   await waitFor(() => {
-    expect(
-      screen.getByRole('button', { name: "Open today's daily challenge" }),
-    ).toBeTruthy();
+    expect(setActive).toHaveBeenCalledWith(true);
   });
   setActive.mockClear();
   retry.mockClear();
@@ -598,13 +600,52 @@ async function mountHost(): Promise<void> {
   recordRunEnd.mockClear();
   hostOnMenu.mockClear();
   generateCalls.length = 0;
+  return { rerender };
 }
 
-async function pressDaily(): Promise<void> {
+/**
+ * Switch a `mountHostWithHandle()` mount into daily — the production entry path
+ * (14-01's deferred dispatch), in place of the deleted `__DEV__` `Open today's daily
+ * challenge` control.
+ */
+async function enterDaily(
+  rerender: ReturnType<typeof render>['rerender'],
+): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  rerender(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: hostOnMenu,
+      entryMode: 'daily',
+    }),
+  );
   await act(async () => {
-    fireEvent.click(
-      screen.getByRole('button', { name: "Open today's daily challenge" }),
-    );
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
+}
+
+/**
+ * Fresh mount directly into daily, entryMode set from the first render — the shape a
+ * real Title tap produces (GameHost sets entryMode then mounts PlayingHost, never the
+ * other way round). Used for a SECOND daily entry after `Menu`, which in production
+ * unmounts PlayingHost entirely (D-01) — `entryDispatchedRef`'s one-shot latch means a
+ * second invocation can only be reached through a genuinely fresh instance, never a
+ * rerender of the one still mounted.
+ */
+async function remountIntoDaily(): Promise<void> {
+  cleanup();
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  render(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: hostOnMenu,
+      entryMode: 'daily',
+    }),
+  );
+  await act(async () => {
+    await Promise.resolve();
+    vi.runAllTimers();
     await Promise.resolve();
   });
 }
@@ -617,8 +658,8 @@ async function press(name: string): Promise<void> {
 }
 
 async function mountAndStartDaily(): Promise<void> {
-  await mountHost();
-  await pressDaily();
+  const { rerender } = await mountHostWithHandle();
+  await enterDaily(rerender);
 }
 
 /**
@@ -772,11 +813,14 @@ describe('PlayingHost daily run (behaviour)', () => {
       'the first run must actually have published a name, or the emptying below is vacuous',
     ).toEqual([entry.name]);
 
-    // A second date, this time reporting no delta — the D-02 set difference on a repeat.
+    // A second date, this time reporting no delta — the D-02 set difference on a
+    // repeat. In production, Menu unmounts PlayingHost entirely (D-01) and a second
+    // Title tap mounts a fresh instance directly into daily — `remountIntoDaily`
+    // mirrors that, since `entryDispatchedRef`'s one-shot latch cannot be re-armed by
+    // rerendering the SAME instance.
     newlyUnlocked = [];
     now.mockReturnValue(DAY_B_NOON);
-    await press('Panel Menu');
-    await pressDaily();
+    await remountIntoDaily();
     await deliverPhase(SIM.WON, { score: 900 });
     now.mockRestore();
 
@@ -918,14 +962,14 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     const today = localDateKey(DAY_A_NOON);
     seedClosedThrough(today, 4242);
 
-    await mountHost();
+    const { rerender: rerender1 } = await mountHostWithHandle();
     // The CAMPAIGN board the cold path pushed. Captured before the press so the
     // assertion below is about what the press did, not about what was already there —
     // `compiledBoard()` is non-null from mount, so a bare not-null check would be
     // green against an implementation that swapped in a daily board.
     const beforePress = boardFingerprint();
     expect(beforePress).not.toBe('none');
-    await pressDaily();
+    await enterDaily(rerender1);
     now.mockRestore();
 
     expect(
@@ -953,8 +997,8 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     const today = localDateKey(DAY_A_NOON);
     seedClosedThrough(today, 4242);
 
-    await mountHost();
-    await pressDaily();
+    const { rerender } = await mountHostWithHandle();
+    await enterDaily(rerender);
     now.mockRestore();
 
     expect(lastScreenProps.dailyDateKey).toBe(today);
@@ -990,7 +1034,7 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
 
     // `mountHost` leaves the host in campaign mode on `level-01`; this win records under
     // the campaign arm and publishes through the one shared call.
-    await mountHost();
+    const { rerender } = await mountHostWithHandle();
     await deliverPhase(SIM.WON, { score: 1200 });
 
     expect(
@@ -1002,7 +1046,7 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
       'and it published from CAMPAIGN, which is what makes the leak cross-mode',
     ).toBe('campaign');
 
-    await pressDaily();
+    await enterDaily(rerender);
     now.mockRestore();
 
     expect(
@@ -1025,8 +1069,8 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     // Yesterday is closed; today is not.
     seedClosedThrough(previousDateKey(localDateKey(DAY_A_NOON)), 900);
 
-    await mountHost();
-    await pressDaily();
+    const { rerender } = await mountHostWithHandle();
+    await enterDaily(rerender);
     now.mockRestore();
 
     expect(
@@ -1120,8 +1164,8 @@ describe('PlayingHost daily run boundaries (12-05)', () => {
     now.mockReturnValue(DAY_A_NOON);
     forceBoardFailure = true;
 
-    await mountHost();
-    await pressDaily();
+    const { rerender } = await mountHostWithHandle();
+    await enterDaily(rerender);
     now.mockRestore();
 
     expect(

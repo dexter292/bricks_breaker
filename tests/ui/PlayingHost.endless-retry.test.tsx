@@ -450,10 +450,11 @@ async function mountAndStartEndless(
   levelId: LevelId = 'level-01' as LevelId,
 ): Promise<void> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
-  render(
+  const onMenu = () => {};
+  const { rerender } = render(
     createElement(PlayingHost, {
       levelId,
-      onMenu: () => {},
+      onMenu,
       entryMode: 'campaign',
     }),
   );
@@ -462,27 +463,44 @@ async function mountAndStartEndless(
     vi.runAllTimers();
     await Promise.resolve();
   });
+  // Readiness proxy: the cold-path gate calls setActive(true) once levelReady/fxReady
+  // flip — the same fact the deleted __DEV__ button's presence used to stand in for.
   await waitFor(() => {
-    expect(
-      screen.getByRole('button', { name: 'Start an endless run' }),
-    ).toBeTruthy();
+    expect(setActive).toHaveBeenCalledWith(true);
   });
   setActive.mockClear();
   retry.mockClear();
   advanceWave.mockClear();
   injectCertWorstCase.mockClear();
   recordRunEnd.mockClear();
-  await press('Start an endless run');
+  // 14-01's production entry: switching entryMode to 'endless' after mount triggers
+  // the deferred dispatch effect, exactly the path a Title tap takes, in place of the
+  // deleted __DEV__ `Start an endless run` control.
+  rerender(
+    createElement(PlayingHost, {
+      levelId,
+      onMenu,
+      entryMode: 'endless',
+    }),
+  );
+  await act(async () => {
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
 }
 
 /**
- * Mount and stop at the dev row — mode is still `'campaign'` and no endless run has
- * been started (11-10 Task 2). `mountAndStartEndless` presses the entry button, so a
- * case about CAMPAIGN behaviour cannot use it.
+ * Mount and stop at readiness — mode is still `'campaign'` and no endless run has
+ * been started (11-10 Task 2). `mountAndStartEndless` switches entryMode to start one,
+ * so a case about CAMPAIGN behaviour cannot use it. Returns the `rerender` handle so a
+ * case that needs to enter endless LATER — after driving the dev row first, for
+ * instance — can do so via `enterEndless` below rather than a deleted button press.
  */
-async function mountOnly(): Promise<void> {
+async function mountOnlyWithHandle(): Promise<{
+  rerender: ReturnType<typeof render>['rerender'];
+}> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
-  render(
+  const { rerender } = render(
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: () => {},
@@ -495,15 +513,40 @@ async function mountOnly(): Promise<void> {
     await Promise.resolve();
   });
   await waitFor(() => {
-    expect(
-      screen.getByRole('button', { name: 'Start an endless run' }),
-    ).toBeTruthy();
+    expect(setActive).toHaveBeenCalledWith(true);
   });
   setActive.mockClear();
   retry.mockClear();
   advanceWave.mockClear();
   injectCertWorstCase.mockClear();
   recordRunEnd.mockClear();
+  return { rerender };
+}
+
+/**
+ * Switch a `mountOnlyWithHandle()` mount into endless — the production entry path
+ * (14-01's deferred dispatch), in place of the deleted `__DEV__` `Start an endless
+ * run` control.
+ */
+async function enterEndless(
+  rerender: ReturnType<typeof render>['rerender'],
+): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  rerender(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: () => {},
+      entryMode: 'endless',
+    }),
+  );
+  await act(async () => {
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
+}
+
+async function mountOnly(): Promise<void> {
+  await mountOnlyWithHandle();
 }
 
 /** Run to wave 2 and stop there, leaving the guard released and the run live. */
@@ -538,7 +581,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
     const wave2 = boardFingerprint();
-    expect(screen.getByText('W2')).toBeTruthy();
 
     await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
     advanceWave.mockClear();
@@ -546,10 +588,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
 
     await press('Retry');
 
-    expect(
-      screen.getByText('W1'),
-      'an endless Retry is a NEW run — waveRef must return to 1, not resume at 2',
-    ).toBeTruthy();
     expect(
       boardFingerprint(),
       'the wave-N generated board must be replaced, never refilled with lives',
@@ -626,7 +664,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
     const wave2 = boardFingerprint();
-    expect(screen.getByText('W2')).toBeTruthy();
 
     // `remountDevSession` is reached exactly as a developer reaches it: the dev-row
     // tier button runs `cycleDevTier`, and the `tierOverrideRef` effect calls the
@@ -646,96 +683,24 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     }
     expect(args.outcome).toBe('abandoned');
     expect(args.wave, 'recorded at the wave reached BEFORE the reset').toBe(2);
-    expect(screen.getByText('W1'), 'and then it is a new run at wave 1').toBeTruthy();
     expect(boardFingerprint(), 'on a freshly generated board').not.toBe(wave2);
   });
 
   /**
-   * 11-10 — `11-VERIFICATION.md` gap 1, the DURABLE half.
-   *
-   * The `__DEV__` `Endless` button binds `onPress={startEndlessRun}` directly and the
-   * dev row stays mounted and tappable for the whole run, so a second press mid-run
-   * is a run boundary — and it was the one round 1 missed, because the funnel was
-   * wired at the CALLERS rather than inside `startEndlessRun`. Measured pre-fix:
-   * readout `W2` → `W1`, `recordRunEnd` calls = ZERO. No case in this file pressed
-   * that button twice before now.
-   *
-   * `startEndlessRun` is the function Phase 14 promotes to the production endless
-   * entry point, which is why the omission outlives the dev row that exposed it.
+   * 14-06: the two cases this comment once introduced — "a second press of the
+   * __DEV__ Endless button records the run it discards" and "that second press
+   * starts a genuinely NEW run" — tested `startEndlessRun`'s funnel against a second
+   * invocation reached from the SAME live mounted instance, with no app unmount in
+   * between. That reachability existed ONLY because the `__DEV__` dev row stayed
+   * mounted and tappable for the whole run. Phase 14 deletes that control and
+   * replaces it with the Title entry, which can only be pressed while `PlayingHost`
+   * is unmounted (D-01: Title and Playing are mutually exclusive shell phases) — so
+   * a second invocation on a live instance's `entryDispatchedRef`-latched effect has
+   * no reachable trigger left. The funnel's own one-shot latch is still covered by
+   * `tests/ui/PlayingHost.endless-host.test.ts`'s source contract over
+   * `entryDispatchedRef`; removed here is only the UI-driven behavioural duplicate of
+   * a path this phase's own deletion makes unreachable.
    */
-  it('a second press of the __DEV__ Endless button records the run it discards (gap 1)', async () => {
-    await mountAndStartEndless();
-    await advanceToWaveTwo();
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
-    expect(recordRunEnd, 'nothing recorded yet — the run is still live').toHaveBeenCalledTimes(0);
-
-    await press('Start an endless run');
-
-    expect(
-      recordRunEnd,
-      'measured pre-fix: 0 calls — the in-flight run vanished from telemetry entirely',
-    ).toHaveBeenCalledTimes(1);
-    const args = recordRunEnd.mock.calls[0]![0];
-    expect(args.mode, 'filed under the endless arm, not the campaign one').toBe(
-      'endless',
-    );
-    if (args.mode !== 'endless') {
-      throw new Error('expected the endless arm of RecordRunEndArgs');
-    }
-    expect(
-      args.wave,
-      'at the wave the discarded run REACHED — recorded before anything can move waveRef',
-    ).toBe(2);
-    expect(args.outcome, 'the player did not lose it — they replaced it').toBe(
-      'abandoned',
-    );
-    expect(
-      screen.getByText('W1'),
-      'and only AFTER the record does the readout return to W1',
-    ).toBeTruthy();
-  });
-
-  it('that second press starts a genuinely NEW run — the wave does not carry forward (gap 1)', async () => {
-    const now = vi.spyOn(Date, 'now');
-    now.mockReturnValue(1_000_000);
-    await mountAndStartEndless();
-    const wave1A = boardFingerprint();
-    await advanceToWaveTwo();
-    const wave2 = boardFingerprint();
-    advanceWave.mockClear();
-
-    now.mockReturnValue(9_876_543);
-    await press('Start an endless run');
-
-    expect(wave1A, 'the harness produced a real board to compare against').not.toBe(
-      'none',
-    );
-    expect(
-      boardFingerprint(),
-      'the wave-2 generated board must be replaced, not refilled with lives',
-    ).not.toBe(wave2);
-    expect(
-      boardFingerprint(),
-      'and the seed was re-minted — a reused seed would replay the identical board sequence',
-    ).not.toBe(wave1A);
-    expect(
-      advanceWave,
-      'a run START is not a wave transition — advanceWave belongs to the WON intercept alone',
-    ).not.toHaveBeenCalled();
-    expect(hostProps.current?.lives, 'lives reset').toBe(3);
-    expect(hostProps.current?.score, 'score reset').toBe(0);
-
-    // The discriminating assertion: a mid-run restart that carried the wave forward
-    // would file this loss at wave 3, silently inflating the record it just dropped.
-    recordRunEnd.mockClear();
-    await deliverPhase(SIM.LOST, { lives: 0, score: 300 });
-    expect(recordRunEnd, 'the new run records on its own loss').toHaveBeenCalledTimes(1);
-    const args = recordRunEnd.mock.calls[0]![0];
-    if (args.mode !== 'endless') {
-      throw new Error('expected the endless arm of RecordRunEndArgs');
-    }
-    expect(args.wave, 'a new run starts at wave 1 and loses at wave 1').toBe(1);
-  });
 
   it('Retry from the endless lose overlay records nothing extra — the funnel latch survived the move (T-11-11)', async () => {
     await mountAndStartEndless();
@@ -752,7 +717,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       recordRunEnd,
       'the run already ended at zero lives — a Retry must not write it again',
     ).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('W1'), 'and the Retry still starts a new run').toBeTruthy();
     expect(hostProps.current?.result, 'which clears the overlay').toBeNull();
   });
 
@@ -770,7 +734,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     }
     expect(args.outcome).toBe('abandoned');
     expect(args.wave, 'at the wave reached before the reset').toBe(2);
-    expect(screen.getByText('W1')).toBeTruthy();
     expect(hostProps.current?.lives, 'lives reset').toBe(3);
     expect(hostProps.current?.score, 'score reset').toBe(0);
   });
@@ -805,21 +768,9 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     ).toHaveBeenCalledTimes(1);
   });
 
-  it('the dev-row wave readout carries a screen-reader label naming the wave (11-UI-SPEC)', async () => {
-    await mountAndStartEndless();
-
-    expect(
-      screen.getByLabelText('Wave 1'),
-      'a bare W1 reads as nonsense to a screen reader',
-    ).toBeTruthy();
-    expect(screen.getByText('W1'), 'the visible readout is unchanged').toBeTruthy();
-
-    await advanceToWaveTwo();
-
-    expect(screen.getByLabelText('Wave 2')).toBeTruthy();
-    expect(screen.getByText('W2')).toBeTruthy();
-    expect(screen.queryByLabelText('Wave 1')).toBeNull();
-  });
+  // 14-06: "the dev-row wave readout carries a screen-reader label naming the wave"
+  // tested the `__DEV__` W{n} readout's own accessibilityLabel, which Phase 14
+  // deletes along with the readout itself (app/_components/PlayingHost.tsx).
 
   it('a wave that cannot be built ENDS the run, records it, and the ended run STAYS ended (WR-04 / gap 3)', async () => {
     const devError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -943,7 +894,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
     const wave2 = boardFingerprint();
-    expect(screen.getByText('W2'), 'the run reached wave 2').toBeTruthy();
 
     await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
     expect(
@@ -963,14 +913,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     // from the defect, now at its third occurrence.
     await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
 
-    expect(
-      screen.queryByText('W3'),
-      'measured pre-fix: the readout had walked to W3 on a run that was already over',
-    ).toBeNull();
-    expect(
-      screen.queryByText('W2'),
-      'the wave readout must not move after the run ended',
-    ).not.toBeNull();
     expect(
       advanceWave,
       'measured pre-fix: advanceWave called ONCE, on a run the player had already lost',
@@ -1016,14 +958,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     }
 
     expect(
-      screen.queryByText('W6'),
-      'measured pre-fix: four pairs walked the readout to W6 with the lose overlay still up',
-    ).toBeNull();
-    expect(
-      screen.queryByText('W2'),
-      'four WON/DOCKED pairs after the run ended must change nothing',
-    ).not.toBeNull();
-    expect(
       advanceWave,
       'measured pre-fix: four advanceWave calls, one per pair',
     ).not.toHaveBeenCalled();
@@ -1062,7 +996,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
     const wave2 = boardFingerprint();
-    expect(screen.queryByText('W2'), 'the run reached wave 2').not.toBeNull();
 
     // Fail exactly the wave-3 build.
     //
@@ -1094,14 +1027,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
     failCompileFrom = 0;
     await deliverPhase(SIM.WON, { lives: 3, score: 9999 });
 
-    expect(
-      screen.queryByText('W3'),
-      'measured pre-fix: the readout moved to W3 while the overlay still read the wave-3 failure copy',
-    ).toBeNull();
-    expect(
-      screen.queryByText('W2'),
-      'an ended run holds its last successfully built wave',
-    ).not.toBeNull();
     expect(
       advanceWave,
       'measured pre-fix: advanceWave called once, on a run that had already ended',
@@ -1170,7 +1095,6 @@ describe('PlayingHost endless run boundary (behaviour)', () => {
       hostProps.current?.result,
       'the second press starts the run, which clears the overlay',
     ).toBeNull();
-    expect(screen.getByText('W1'), 'a new run at wave 1').toBeTruthy();
     expect(hostProps.current?.lives).toBe(3);
     expect(hostProps.current?.score).toBe(0);
   });
@@ -1282,13 +1206,13 @@ describe('PlayingHost — the ended-run chrome latch covers CAMPAIGN too (11-15,
 
   it('a FAILED START stays ended — the one ended state that writes no chrome of its own (gap 1)', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    await mountOnly();
+    const { rerender } = await mountOnlyWithHandle();
 
     // The mechanism the sibling A-01 / failed-START cases already use: the very first
     // `compileGeneratedLevel` call fails, so `startEndlessRun` cannot build wave 1 and
     // routes into `failEndlessStart`.
     failCompileFrom = compileCalls + 1;
-    await press('Start an endless run');
+    await enterEndless(rerender);
 
     expect(
       hostProps.current?.result,
@@ -1367,7 +1291,6 @@ describe('PlayingHost — Lv exits endless (A-02)', () => {
   it('records the in-flight run before discarding it (measured pre-fix: 0 calls)', async () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
 
     await press(LV);
 
@@ -1387,16 +1310,11 @@ describe('PlayingHost — Lv exits endless (A-02)', () => {
   it('leaves the mode — no W{n} readout survives the press', async () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
-    expect(screen.getByText('W2')).toBeTruthy();
 
     await press(LV);
 
     // The readout is gated on `mode === 'endless'`, so its absence is the RENDERED
     // proof that the mode actually changed — not a prop read or a source shape.
-    expect(
-      screen.queryByText('W2'),
-      'measured pre-fix: the readout stayed at W2 because nothing wrote modeRef back',
-    ).toBeNull();
     expect(
       screen.queryByText(/^W\d+$/),
       'and no other wave readout takes its place — the run is over, not rewound',
@@ -1513,7 +1431,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
     const wave2 = boardFingerprint();
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
     expect(
       screen.getByRole('button', { name: TIER_AUTO }),
       'the tier must be UNSET going in — this case is about the branch that DOES cross a boundary',
@@ -1533,13 +1450,12 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     }
     expect(args.outcome).toBe('abandoned');
     expect(args.wave, 'at the wave reached BEFORE the reset').toBe(2);
-    expect(screen.getByText('W1'), 'and then it is a new run at wave 1').toBeTruthy();
     expect(boardFingerprint(), 'on a freshly generated board').not.toBe(wave2);
     expect(hostProps.current?.result, 'a restart, not a Results overlay').toBeNull();
   });
 
   it('with the tier already Mid, Cert WC leaves the endless run live and the level unchanged', async () => {
-    await mountOnly();
+    const { rerender } = await mountOnlyWithHandle();
     // The tier must really be Mid BEFORE endless is entered, or this case would pass
     // against a run on some other tier and prove nothing about the level half alone.
     await press(TIER_AUTO); // null -> low
@@ -1549,9 +1465,8 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       'the tier half of runCertWorstCase must be a no-op for this case to isolate the level half',
     ).toBeTruthy();
 
-    await press('Start an endless run');
+    await enterEndless(rerender);
     await advanceToWaveTwo();
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
     expect(
       screen.getByRole('button', { name: LV_01 }),
       'and it is on a level that is NOT level-03, so the level half would have fired',
@@ -1572,7 +1487,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       screen.getByRole('button', { name: LV_01 }),
       'the run keeps the level it started on',
     ).toBeTruthy();
-    expect(screen.getByText('W2'), 'and the run is still live at wave 2').toBeTruthy();
     expect(
       boardFingerprint(),
       'the generated board under measurement is untouched',
@@ -1617,7 +1531,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     await mountAndStartEndless();
     await advanceToWaveTwo();
     const wave2 = boardFingerprint();
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
     expect(
       screen.getByRole('button', { name: TIER_AUTO }),
       'the tier must be UNSET going in — a Mid tier would no-op the half that arms the deferral',
@@ -1647,10 +1560,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     }
     expect(args.outcome, 'measured pre-fix: abandoned').toBe('abandoned');
     expect(args.wave, 'measured pre-fix: at the wave reached, 2').toBe(2);
-    expect(
-      screen.getByText('W1'),
-      'measured pre-fix: the restart lands at wave 1 — the boundary half is unchanged by this plan',
-    ).toBeTruthy();
     expect(
       boardFingerprint(),
       'measured pre-fix: a freshly generated board',
@@ -1703,7 +1612,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
   it('while endless already on level-03, Cert WC injects nothing either — the deferral that WOULD have discharged is suppressed (gap 2)', async () => {
     await mountAndStartEndless('level-03' as LevelId);
     await advanceToWaveTwo();
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
     expect(
       levelSwitchLabel(),
       'the session must really START on level-03, or this case silently tests the OTHER sub-branch',
@@ -1733,10 +1641,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
     }
     expect(args.outcome, 'measured pre-fix: abandoned').toBe('abandoned');
     expect(args.wave, 'measured pre-fix: at the wave reached, 2').toBe(2);
-    expect(
-      screen.getByText('W1'),
-      'measured pre-fix: still endless, restarted at wave 1 — the mode is not what changes here',
-    ).toBeTruthy();
     expect(
       levelSwitchLabel(),
       'measured pre-fix: still level-03 — the level half no-ops because it is already there',
@@ -1938,10 +1842,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
    */
   it('a CAMPAIGN press below level-03 still arms the deferral and discharges it exactly once', async () => {
     await mountOnly();
-    expect(
-      screen.queryByText('W1'),
-      'mountOnly leaves the host in CAMPAIGN mode — no endless run, no wave readout',
-    ).toBeNull();
     expect(levelSwitchLabel(), 'and below level-03, so the level half fires').toBe(
       LV_01,
     );
@@ -1999,10 +1899,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       screen.getByRole('button', { name: TIER_MID }),
       'and the tier is already Mid — the tier half must have nothing left to do either',
     ).toBeTruthy();
-    expect(
-      screen.queryByText('W1'),
-      'still CAMPAIGN — no endless run was ever started',
-    ).toBeNull();
 
     injectCertWorstCase.mockClear();
     await press(CERT);
@@ -2039,10 +1935,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
    */
   it('a CAMPAIGN press from a mounted lose panel with the tier AUTO arms nothing — the later Lv walk to level-03 injects nothing (round-6 gap 1)', async () => {
     await mountOnly();
-    expect(
-      screen.queryByText('W1'),
-      'mountOnly leaves the host in CAMPAIGN mode — no endless run, no wave readout',
-    ).toBeNull();
     expect(
       screen.getByRole('button', { name: TIER_AUTO }),
       'the tier must be AUTO going in — this is the whole difference from the two ENDED cases above, and with it Mid the tier half no-ops and the arm is never reached',
@@ -2139,10 +2031,6 @@ describe('PlayingHost — Cert WC carries a mode term (gap 1 / gap 2)', () => {
       screen.getByRole('button', { name: TIER_AUTO }),
       'and the tier is still AUTO — without this the tier half no-ops, defer stays false and the case silently tests cell 8 (the DIRECT injection) instead of the deferral',
     ).toBeTruthy();
-    expect(
-      screen.queryByText('W1'),
-      'still CAMPAIGN — no endless run was ever started',
-    ).toBeNull();
 
     await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
 

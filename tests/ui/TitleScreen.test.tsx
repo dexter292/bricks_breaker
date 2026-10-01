@@ -1,5 +1,5 @@
 /**
- * F-43 / N-QA-03 — TitleScreen mount-path contract (RN → react-native-web).
+ * N-UI-01 / N-UI-02 — TitleScreen: the seven-row composition (14-06).
  *
  * @vitest-environment jsdom
  */
@@ -15,40 +15,95 @@ vi.mock('react-native-safe-area-context', () => ({
 
 afterEach(cleanup);
 
+function baseProps(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    best: 42,
+    dailyPlayedToday: false,
+    dailyStreak: 0,
+    unseenCount: 0,
+    onCampaign: vi.fn(),
+    onEndless: vi.fn(),
+    onDaily: vi.fn(),
+    onStats: vi.fn(),
+    onAchievements: vi.fn(),
+    ...over,
+  };
+}
+
 describe('TitleScreen', () => {
-  it('renders brand, best, and Play; Play invokes onPlay', () => {
-    const onPlay = vi.fn();
-    const onEndless = vi.fn();
-    render(createElement(TitleScreen, { best: 42, onPlay, onEndless }));
+  it('seven rows', () => {
+    const props = baseProps();
+    render(createElement(TitleScreen, props));
 
     expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
     expect(screen.getByText('Best · 42')).toBeTruthy();
 
-    const play = screen.getByRole('button', { name: 'Start game' });
-    expect(play).toBeTruthy();
-    fireEvent.click(play);
-    expect(onPlay).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders the Endless entry alongside Play', () => {
-    const onPlay = vi.fn();
-    const onEndless = vi.fn();
-    render(createElement(TitleScreen, { best: 42, onPlay, onEndless }));
-
-    expect(screen.getByText(DISPLAY_NAME)).toBeTruthy();
-    expect(screen.getByText('Best · 42')).toBeTruthy();
-
-    const play = screen.getByRole('button', { name: 'Start game' });
+    const campaign = screen.getByRole('button', { name: 'Play campaign mode' });
     const endless = screen.getByRole('button', { name: 'Play endless mode' });
-    expect(play).toBeTruthy();
-    expect(endless).toBeTruthy();
+    const daily = screen.getByRole('button', {
+      name: "Play today's daily challenge",
+    });
+    const stats = screen.getByRole('button', { name: 'View statistics' });
+    const achievements = screen.getByRole('button', { name: 'View achievements' });
+
+    fireEvent.click(campaign);
+    expect(props.onCampaign).toHaveBeenCalledTimes(1);
+    expect(props.onEndless).not.toHaveBeenCalled();
 
     fireEvent.click(endless);
-    expect(onEndless).toHaveBeenCalledTimes(1);
-    expect(onPlay).not.toHaveBeenCalled();
+    expect(props.onEndless).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(play);
-    expect(onPlay).toHaveBeenCalledTimes(1);
-    expect(onEndless).toHaveBeenCalledTimes(1);
+    fireEvent.click(daily);
+    expect(props.onDaily).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(stats);
+    expect(props.onStats).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(achievements);
+    expect(props.onAchievements).toHaveBeenCalledTimes(1);
+
+    // Each callback was invoked exactly once overall — no cross-firing.
+    expect(props.onCampaign).toHaveBeenCalledTimes(1);
+    expect(props.onEndless).toHaveBeenCalledTimes(1);
+    expect(props.onDaily).toHaveBeenCalledTimes(1);
+    expect(props.onStats).toHaveBeenCalledTimes(1);
+    expect(props.onAchievements).toHaveBeenCalledTimes(1);
+  });
+
+  it('daily meta', () => {
+    const unplayed = baseProps({ dailyPlayedToday: false });
+    render(createElement(TitleScreen, unplayed));
+    // Positive control: the Daily label itself is present even with no meta.
+    expect(screen.getByText('Daily')).toBeTruthy();
+    expect(screen.queryByText(/Played ·/)).toBeNull();
+    cleanup();
+
+    const played = baseProps({ dailyPlayedToday: true, dailyStreak: 7 });
+    render(createElement(TitleScreen, played));
+    expect(screen.getByText('Daily')).toBeTruthy();
+    expect(screen.getByText('Played · 7-day streak')).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: 'Daily, played today, 7-day streak',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('new', () => {
+    const zero = baseProps({ unseenCount: 0 });
+    render(createElement(TitleScreen, zero));
+    // Positive control: the Achievements label is present even with no meta at zero.
+    expect(screen.getByText('Achievements')).toBeTruthy();
+    expect(screen.queryByText(/new$/)).toBeNull();
+    cleanup();
+
+    const one = baseProps({ unseenCount: 1 });
+    render(createElement(TitleScreen, one));
+    expect(screen.getByText('1 new')).toBeTruthy();
+    cleanup();
+
+    const twelve = baseProps({ unseenCount: 12 });
+    render(createElement(TitleScreen, twelve));
+    expect(screen.getByText('12 new')).toBeTruthy();
   });
 });

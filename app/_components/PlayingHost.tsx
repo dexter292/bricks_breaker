@@ -302,7 +302,10 @@ export function PlayingHost({
    */
   const [mode, setMode] = useState<'campaign' | 'endless' | 'daily'>('campaign');
   const modeRef = useRef<'campaign' | 'endless' | 'daily'>('campaign');
-  const [wave, setWave] = useState(1);
+  // 14-06: the only reader of this value was the deleted `W{n}` dev readout.
+  // `waveRef` below remains the source of truth for every callback; the setter is
+  // kept because every wave-advance call site still needs to trigger a re-render.
+  const [, setWave] = useState(1);
   const waveRef = useRef(1);
   /**
    * The local calendar date key of the daily run in flight (N-DAILY-01 / D-01).
@@ -2707,56 +2710,6 @@ export function PlayingHost({
         >
           <Text style={styles.devSwitchLabel}>Cert WC</Text>
         </Pressable>
-        {/*
-          D-05: TEMPORARY. Endless has no production entry this phase — Phase 14
-          ships the real Title route and DELETES this Pressable and the wave
-          readout beside it. Nothing else should grow a dependency on them.
-        */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Start an endless run"
-          onPress={startEndlessRun}
-          hitSlop={8}
-          style={styles.devSwitch}
-        >
-          <Text style={styles.devSwitchLabel}>Endless</Text>
-        </Pressable>
-        {/*
-          12-01 / N-UI-01: TEMPORARY, exactly like the `Endless` control it sits beside.
-          Daily has no production entry this phase — Phase 14 ships the real Title route
-          and DELETES this Pressable. Nothing else should grow a dependency on it.
-
-          NO readout beside it, and that is a measured decision rather than an omission:
-          the dev row is `flexDirection: 'row'` with no `flexWrap`, in a slot with a
-          `right` and no `left`, and it is already ~397-404px wide in the two tier states
-          a dev build launches in — past a 375pt viewport before this control is added.
-          `Daily` costs a further ~71px. A `D{n}` counterpart to `W{n}` would spend ~30px
-          more for a number the Daily Result panel already shows.
-
-          Position is contract too: immediately RIGHT OF `Endless` (12-UI-SPEC § Entry
-          point), which keeps the two mode entries adjacent and keeps this phase's own
-          control out of the group pushed past the left edge.
-        */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open today's daily challenge"
-          onPress={startDailyRun}
-          hitSlop={8}
-          style={styles.devSwitch}
-        >
-          <Text style={styles.devSwitchLabel}>Daily</Text>
-        </Pressable>
-        {/*
-          11-UI-SPEC § Copywriting → Accessibility labels: a bare `W17` reads as
-          nonsense to a screen reader. Visible text, style and the `mode` gate are
-          deliberately unchanged — only the label is added.
-        */}
-        {mode === 'endless' ? (
-          <Text
-            accessibilityLabel={`Wave ${wave}`}
-            style={styles.devReadout}
-          >{`W${wave}`}</Text>
-        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Trigger test crash for Sentry N-OPS-01 verification"
@@ -2864,25 +2817,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,
-  },
-  /**
-   * The `W{n}` readout is not a control, so it carries no 44pt target — but it DOES need the
-   * same opaque chrome as its neighbours. MEASURED on an iPhone 17 simulator, 2026-09-28: as a
-   * bare label it rendered directly onto the brick field, squeezed between two opaque buttons,
-   * and was unreadable exactly when it matters — during an endless run, which is the only time
-   * it is shown and the run an SC-5 reading measures.
-   */
-  devReadout: {
-    color: '#FFFFFF',
-    fontFamily: 'SpaceMono',
-    fontSize: 12,
-    fontWeight: '400',
-    lineHeight: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: '#12121f',
-    borderWidth: 1,
-    borderColor: '#6B7280',
-    overflow: 'hidden',
   },
 });

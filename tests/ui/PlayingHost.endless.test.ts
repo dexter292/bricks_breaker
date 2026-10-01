@@ -31,12 +31,6 @@ function countOf(haystack: string, needle: RegExp): number {
   return haystack.match(needle)?.length ?? 0;
 }
 
-/**
- * The ATTRIBUTE form, not the bare phrase. `codeOnly` strips `//` comments but not
- * JSDoc, and `startEndlessRun`'s own doc comment opens with the same words — so a
- * bare-phrase count would be 2 for a perfectly correct file.
- */
-const ENTRY_LABEL = 'accessibilityLabel="Start an endless run"';
 const DEV_GUARD = /typeof __DEV__ !== 'undefined' && __DEV__/g;
 
 describe('PlayingHost endless entry and wave contracts (source contract)', () => {
@@ -78,19 +72,11 @@ describe('PlayingHost endless entry and wave contracts (source contract)', () =>
     return m?.[1] ?? '';
   })();
 
-  it('the endless entry lives inside the one __DEV__-guarded dev row (D-05)', () => {
+  it('the dev row is still a single __DEV__-guarded region (D-05, 14-06)', () => {
     expect(devRow, 'the dev row must be extractable').not.toBe('');
     expect(
-      countOf(code, new RegExp(ENTRY_LABEL, 'g')),
-      'the entry label must be attached to exactly one element in the file',
-    ).toBe(1);
-    expect(
-      devRow,
-      'the entry must sit INSIDE the guarded dev row, not beside it — a production build must not render it (D-05)',
-    ).toContain(ENTRY_LABEL);
-    expect(
       countOf(devRow, DEV_GUARD),
-      'the dev row is a single guard wrapping all its Pressables — adding a fifth must not add a second guard',
+      'the dev row is a single guard wrapping all its Pressables',
     ).toBe(1);
   });
 
@@ -157,14 +143,8 @@ describe('PlayingHost endless entry and wave contracts (source contract)', () =>
     ).toMatch(/compiled\.w\[0\][\s\S]*compiled\.h\[0\]/);
   });
 
-  it('the wave number renders in the same dev row (D-13)', () => {
-    expect(
-      devRow,
-      'D-13 puts the wave readout in the dev row — a production HUD slot is Phase 14 scope',
-    ).toMatch(/`W\$\{wave\}`/);
-    expect(
-      devRow,
-      'the readout is endless-only, so campaign chrome is unchanged',
-    ).toMatch(/mode === 'endless' \?/);
-  });
+  // 14-06: "the wave number renders in the same dev row (D-13)" tested the W{n}
+  // readout, which Phase 14 deletes along with the dev-row entry it was gated on.
+  // `tests/ui/PlayingHost.endless-host.test.ts`'s `dev row deletions` case covers the
+  // post-deletion shape.
 });

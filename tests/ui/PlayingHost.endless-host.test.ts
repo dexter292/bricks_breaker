@@ -1808,4 +1808,30 @@ describe('PlayingHost endless host (source contract)', () => {
     ).toBe(true);
   });
 
+  /**
+   * 14-06 Task 3 — the two temporary __DEV__ mode controls and the wave readout beside
+   * them are deleted, now that 14-01's production entry is their only caller.
+   */
+  it('dev row deletions', () => {
+    expect(
+      (code.match(/accessibilityLabel="Start an endless run"/g) || []).length,
+      'the temporary endless dev control must be gone',
+    ).toBe(0);
+    expect(
+      (code.match(/accessibilityLabel="Open today's daily challenge"/g) || [])
+        .length,
+      'the temporary daily dev control must be gone',
+    ).toBe(0);
+    expect(
+      (code.match(/<Text/g) || []).length,
+      'exactly four Text nodes survive: Lv, tier, Cert WC and Crash',
+    ).toBe(4);
+    // Non-vacuity: the crash control's label is still present, so a scan over a wrong
+    // path cannot pass by finding nothing.
+    expect(
+      (code.match(/Crash/g) || []).length,
+      'non-vacuity: the surviving crash control must still be found',
+    ).toBeGreaterThan(0);
+  });
+
 });

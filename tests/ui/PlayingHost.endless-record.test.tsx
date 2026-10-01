@@ -472,16 +472,16 @@ const RETRY = /^Retry/;
  * wait on the entry button, the same wait on `host-best`, the same mock clears, the
  * same `Start an endless run` press.
  */
-async function settleAndStartEndless(): Promise<void> {
+async function settleAndStartEndless(enterEndless: () => void): Promise<void> {
   await act(async () => {
     await Promise.resolve();
     vi.runAllTimers();
     await Promise.resolve();
   });
+  // Readiness proxy: the cold-path gate calls setActive(true) once levelReady/fxReady
+  // flip — the same fact the deleted __DEV__ button's presence used to stand in for.
   await waitFor(() => {
-    expect(
-      screen.getByRole('button', { name: 'Start an endless run' }),
-    ).toBeTruthy();
+    expect(setActive).toHaveBeenCalledWith(true);
   });
   // The watermark seed must LAND before the run ends, or every strictness assertion
   // below silently compares against 0. The campaign preload is observable (it lands
@@ -496,22 +496,38 @@ async function settleAndStartEndless(): Promise<void> {
   retry.mockClear();
   advanceWave.mockClear();
   recordRunEnd.mockClear();
-  await press('Start an endless run');
+  // 14-01's production entry: switching entryMode to 'endless' after mount triggers
+  // the deferred dispatch effect, exactly the path a Title tap takes, in place of the
+  // deleted __DEV__ `Start an endless run` control.
+  enterEndless();
+  await act(async () => {
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
 }
 
 async function mountAndStartEndless(): Promise<void> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  const onMenu = () => {};
   // UNCONTROLLED on purpose, and it must stay that way: every pre-11-10 case in this
   // file mounts through here, and supplying `onLevelIdChange` would silently change
   // what `toggleDevLevel` does to them.
-  render(
+  const { rerender } = render(
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
-      onMenu: () => {},
+      onMenu,
       entryMode: 'campaign',
     }),
   );
-  await settleAndStartEndless();
+  await settleAndStartEndless(() => {
+    rerender(
+      createElement(PlayingHost, {
+        levelId: 'level-01' as LevelId,
+        onMenu,
+        entryMode: 'endless',
+      }),
+    );
+  });
 }
 
 /**
@@ -529,23 +545,34 @@ async function mountControlledAndStartEndless(
   rerenderWithLevel: (next: LevelId) => Promise<void>;
 }> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  const onLevelIdChange = () => {};
+  const onMenu = () => {};
   const view = render(
     createElement(PlayingHost, {
       levelId,
-      onLevelIdChange: () => {},
-      onMenu: () => {},
+      onLevelIdChange,
+      onMenu,
       entryMode: 'campaign',
     }),
   );
-  await settleAndStartEndless();
+  await settleAndStartEndless(() => {
+    view.rerender(
+      createElement(PlayingHost, {
+        levelId,
+        onLevelIdChange,
+        onMenu,
+        entryMode: 'endless',
+      }),
+    );
+  });
   return {
     rerenderWithLevel: async (next: LevelId) => {
       await act(async () => {
         view.rerender(
           createElement(PlayingHost, {
             levelId: next,
-            onLevelIdChange: () => {},
-            onMenu: () => {},
+            onLevelIdChange,
+            onMenu,
             entryMode: 'campaign',
           }),
         );
@@ -565,9 +592,11 @@ async function mountControlledAndStartEndless(
  * (it lands in `best`), so waiting on it also proves the sibling `getSnapshot` chain
  * flushed and the endless watermark refs are seeded rather than merely defaulted.
  */
-async function mountOnly(): Promise<void> {
+async function mountOnlyWithHandle(): Promise<{
+  rerender: ReturnType<typeof render>['rerender'];
+}> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
-  render(
+  const { rerender } = render(
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
       onMenu: () => {},
@@ -580,9 +609,7 @@ async function mountOnly(): Promise<void> {
     await Promise.resolve();
   });
   await waitFor(() => {
-    expect(
-      screen.getByRole('button', { name: 'Start an endless run' }),
-    ).toBeTruthy();
+    expect(setActive).toHaveBeenCalledWith(true);
   });
   await waitFor(() => {
     expect(screen.getByTestId('host-best').textContent).toBe(
@@ -594,6 +621,29 @@ async function mountOnly(): Promise<void> {
   retry.mockClear();
   advanceWave.mockClear();
   recordRunEnd.mockClear();
+  return { rerender };
+}
+
+/**
+ * Switch a `mountOnlyWithHandle()` mount into endless — the production entry path
+ * (14-01's deferred dispatch), in place of the deleted `__DEV__` `Start an endless
+ * run` control.
+ */
+async function enterEndless(
+  rerender: ReturnType<typeof render>['rerender'],
+): Promise<void> {
+  const { PlayingHost } = await import('../../app/_components/PlayingHost');
+  rerender(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu: () => {},
+      entryMode: 'endless',
+    }),
+  );
+  await act(async () => {
+    vi.runAllTimers();
+    await Promise.resolve();
+  });
 }
 
 /** Run to wave 2 and stop there, leaving the guard released and the run live. */
@@ -824,10 +874,11 @@ describe('PlayingHost endless record display (gap 2)', () => {
     // Armed BEFORE the mount, so the preload effect's own promise is the held one.
     const landCampaignRead = deferCampaignRead();
     const { PlayingHost } = await import('../../app/_components/PlayingHost');
-    render(
+    const onMenu = () => {};
+    const { rerender } = render(
       createElement(PlayingHost, {
         levelId: 'level-01' as LevelId,
-        onMenu: () => {},
+        onMenu,
         entryMode: 'campaign',
       }),
     );
@@ -836,10 +887,10 @@ describe('PlayingHost endless record display (gap 2)', () => {
       vi.runAllTimers();
       await Promise.resolve();
     });
+    // Readiness proxy: the cold-path gate calls setActive(true) once levelReady/fxReady
+    // flip — independent of the held campaign-best preload chain below.
     await waitFor(() => {
-      expect(
-        screen.getByRole('button', { name: 'Start an endless run' }),
-      ).toBeTruthy();
+      expect(setActive).toHaveBeenCalledWith(true);
     });
     // NOT the `host-best` wait the shared helpers use: `best` cannot land while the
     // campaign read is held, so waiting on it would hang. `getSnapshot` is the sibling
@@ -852,7 +903,19 @@ describe('PlayingHost endless record display (gap 2)', () => {
     retry.mockClear();
     advanceWave.mockClear();
     recordRunEnd.mockClear();
-    await press('Start an endless run');
+    // 14-01's production entry: switching entryMode to 'endless' after mount triggers
+    // the deferred dispatch effect, in place of the deleted __DEV__ control.
+    rerender(
+      createElement(PlayingHost, {
+        levelId: 'level-01' as LevelId,
+        onMenu,
+        entryMode: 'endless',
+      }),
+    );
+    await act(async () => {
+      vi.runAllTimers();
+      await Promise.resolve();
+    });
 
     await advanceToWaveTwo();
     await deliverPhase(SIM.LOST, { lives: 0, score: 2400 });
@@ -1171,14 +1234,14 @@ describe('PlayingHost endless — a failed start from a fresh mount (gap 3)', ()
     getSnapshot.mockClear();
   });
 
-  /** Fresh mount, first generated board forced to fail, press the only endless entry. */
+  /** Fresh mount, first generated board forced to fail, enter the only endless entry. */
   async function failFirstStart(): Promise<void> {
-    await mountOnly();
+    const { rerender } = await mountOnlyWithHandle();
     // The very FIRST `compileGeneratedLevel` call fails. `compileCalls` is 0 here —
     // the campaign catalog load goes through the real `loadLevelById`, never this
     // wrapper — so this targets `advanceToWave(1)` and nothing else.
     failCompileFrom = compileCalls + 1;
-    await press('Start an endless run');
+    await enterEndless(rerender);
   }
 
   it('renders the owner-decided tap-Retry copy on the REAL overlay (A-01, gap 3)', async () => {
@@ -1422,10 +1485,6 @@ describe('PlayingHost endless — Pause → Retry with a failing build (gap 2)',
     failCompileFrom = 0;
     await press(RETRY);
 
-    expect(
-      screen.getByText('W1'),
-      'a new endless run starts at wave 1, with the ref and the HUD in step',
-    ).toBeTruthy();
     expect(hostProps.current?.result, 'the overlay is cleared for the new run').toBeNull();
 
     await deliverPhase(SIM.LOST, { lives: 0, score: 300 });
@@ -1508,7 +1567,6 @@ describe('PlayingHost endless — Retry with the readiness gate CLOSED (11-10, t
     await advanceToWaveTwo();
     // The dev-row readout, not `props.wave` — that prop is `resultWave`, which is
     // written only at run END, so it reads 0 while a run is live.
-    expect(screen.getByText('W2'), 'the run is live at wave 2').toBeTruthy();
     rejectLevelId = 'level-04' as LevelId;
     await rerenderWithLevel('level-04' as LevelId);
     expect(

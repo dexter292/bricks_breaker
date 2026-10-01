@@ -20,8 +20,6 @@ import { createElement } from 'react';
 import {
   cleanup,
   render,
-  screen,
-  fireEvent,
   act,
   waitFor,
 } from '@testing-library/react';
@@ -259,10 +257,11 @@ async function deliverPhase(
 
 async function mountAndStartEndless(): Promise<void> {
   const { PlayingHost } = await import('../../app/_components/PlayingHost');
-  render(
+  const onMenu = () => {};
+  const { rerender } = render(
     createElement(PlayingHost, {
       levelId: 'level-01' as LevelId,
-      onMenu: () => {},
+      onMenu,
       entryMode: 'campaign',
     }),
   );
@@ -271,19 +270,27 @@ async function mountAndStartEndless(): Promise<void> {
     vi.runAllTimers();
     await Promise.resolve();
   });
+  // Readiness proxy: the cold-path gate calls setActive(true) once levelReady/fxReady
+  // flip — the same fact the deleted __DEV__ button's presence used to stand in for.
   await waitFor(() => {
-    expect(
-      screen.getByRole('button', { name: 'Start an endless run' }),
-    ).toBeTruthy();
+    expect(setActive).toHaveBeenCalledWith(true);
   });
   setActive.mockClear();
   retry.mockClear();
   advanceWave.mockClear();
   recordRunEnd.mockClear();
+  // 14-01's production entry: switching entryMode to 'endless' after mount triggers
+  // the deferred dispatch effect, exactly the path a Title tap takes, in place of the
+  // deleted __DEV__ `Start an endless run` control.
+  rerender(
+    createElement(PlayingHost, {
+      levelId: 'level-01' as LevelId,
+      onMenu,
+      entryMode: 'endless',
+    }),
+  );
   await act(async () => {
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Start an endless run' }),
-    );
+    vi.runAllTimers();
     await Promise.resolve();
   });
 }
@@ -311,7 +318,6 @@ describe('PlayingHost endless run (behaviour)', () => {
     expect(compiledBoard()!.brickCount).toBeGreaterThan(0);
     expect(retry, 'retry() is correct at run start and only there').toHaveBeenCalledTimes(1);
     expect(setActive).toHaveBeenLastCalledWith(true);
-    expect(screen.getByText('W1')).toBeTruthy();
   });
 
   it('clearing a board swaps in the next one instead of ending the run (SC-1 / N-END-01)', async () => {
@@ -329,7 +335,6 @@ describe('PlayingHost endless run (behaviour)', () => {
       boardFingerprint(),
       'the next board must be in compiledSv BEFORE advanceWave lands (11-03 ordering)',
     ).not.toBe(wave1);
-    expect(screen.getByText('W2')).toBeTruthy();
     expect(
       setActive,
       'a wave transition must cost no gate churn (SC-5)',
@@ -346,7 +351,6 @@ describe('PlayingHost endless run (behaviour)', () => {
 
     expect(advanceWave, 'the in-flight guard must swallow the repeat').toHaveBeenCalledTimes(1);
     expect(boardFingerprint(), 'no second board may be generated').toBe(afterFirst);
-    expect(screen.getByText('W2')).toBeTruthy();
   });
 
   it('the guard releases once the mirror reports a live phase, so wave 3 follows (Pitfall 5)', async () => {
@@ -356,7 +360,6 @@ describe('PlayingHost endless run (behaviour)', () => {
     await deliverPhase(SIM.WON, { score: 2400 });
 
     expect(advanceWave).toHaveBeenCalledTimes(2);
-    expect(screen.getByText('W3')).toBeTruthy();
   });
 
   it('zero lives records once through the endless arm with the wave reached (N-END-02 / SC-3)', async () => {

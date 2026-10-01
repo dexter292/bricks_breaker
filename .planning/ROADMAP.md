@@ -266,7 +266,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 14-06-PLAN.md — the two new shell branches, Title's seven rows, and the dev-row deletions
+- [x] 14-06-PLAN.md — the two new shell branches, Title's seven rows, and the dev-row deletions
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
