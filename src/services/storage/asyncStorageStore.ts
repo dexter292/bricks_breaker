@@ -11,7 +11,15 @@ import {
   parseProgressV3Result,
 } from './parseBlob';
 import { computeStars, mergeLevelBest } from './stars';
-import { cloneTelemetryBlob, mergeRunIntoTelemetry } from './telemetry';
+import {
+  cloneTelemetryBlob,
+  markAchievementsUnseen,
+  mergeAchievementUnlocks,
+  mergeDailyRecord,
+  mergeEndlessRecord,
+  mergeRunIntoTelemetry,
+} from './telemetry';
+import { newlyUnlockedAchievements } from '../achievements';
 import { mergeHighWatermark } from './watermark';
 import {
   unlockAfterClear as unlockAfterClearPure,
@@ -23,15 +31,16 @@ import {
   PROGRESS_KEY,
   PROGRESS_KEY_V3,
   PROGRESS_KEY_V2,
+  DAILY_TELEMETRY_KEY,
+  ENDLESS_TELEMETRY_KEY,
   defaultProgressBlob,
-  type GameMode,
   type LevelBest,
   type PersonalBestBlob,
   type PersonalBestStore,
   type ProgressBlob,
   type ProgressStore,
-  type RunOutcome,
-  type RunStatsInput,
+  type RecordRunEndArgs,
+  type RecordRunEndResult,
 } from './types';
 import type { LevelId } from '../../core';
 
@@ -361,14 +370,7 @@ function createAsyncStorageProgressStoreFrom(
       applyLevelBest(id, mergeLevelBest(memory.bestByLevel[id], n, null));
       await persist(memory);
     },
-    recordRunEnd(args: {
-      levelId: LevelId;
-      mode: GameMode;
-      score: number;
-      outcome: RunOutcome;
-      livesRemaining: number;
-      stats: RunStatsInput;
-    }): ProgressBlob {
+    recordRunEnd(args: RecordRunEndArgs): RecordRunEndResult {
       // Sync memory update first so Results can use returned blob (D-10 / F-26).
       // Hydration is best-effort fire-and-forget if not yet done — callers that
       // need disk state should await getSnapshot/getBest first (hosts do).
@@ -377,29 +379,147 @@ function createAsyncStorageProgressStoreFrom(
         // Kick hydrate without blocking return; rare cold path before first read.
         void ensureHydrated();
       }
-      // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
-      const starsFromWin =
-        args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
-      const merged = mergeLevelBest(
-        memory.bestByLevel[args.levelId],
-        args.score,
-        starsFromWin,
-      );
-      applyLevelBest(args.levelId, merged);
+      // Campaign progress is mode-gated (SC-3 / N-END-02): an endless or daily
+      // run must never move bestByLevel, bestScore or the unlock ladder. The
+      // discriminated union makes args.levelId reachable ONLY inside this block,
+      // so the gate cannot be dropped without a compile error.
+      if (args.mode === 'campaign') {
+        // Stars and unlock stay win-gated; an abandoned run merges score + stats only.
+        const starsFromWin =
+          args.outcome === 'win' ? computeStars(args.livesRemaining) : null;
+        const merged = mergeLevelBest(
+          memory.bestByLevel[args.levelId],
+          args.score,
+          starsFromWin,
+        );
+        applyLevelBest(args.levelId, merged);
+        if (args.outcome === 'win') {
+          memory = {
+            ...memory,
+            unlocked: unlockAfterClearPure(memory.unlocked, args.levelId),
+            updatedAt: Date.now(),
+          };
+        }
+      }
+      // Telemetry is mode-keyed BY DESIGN and stays OUTSIDE the gate — every mode
+      // accumulates runs/bricks/ticks. A generated endless or daily board has no
+      // catalog id, so each keys on its own constant instead of a LevelId.
+      //
+      // T-12-01 / D-15: the daily branch MUST reach the constant. Keying this map by
+      // anything that varies per calendar day makes it unbounded — `sanitizeAggregateMap`
+      // (`parseBlob.ts`) copies every key it finds on read with no cap, so nothing
+      // downstream would ever trim it. The per-day history rides `telemetry.daily`,
+      // which is a bounded collection.
+      //
+      // What holds that is BEHAVIOURAL, and it is in `tests/storage.daily-firewall.test.ts`:
+      // “the same daily win DOES land… under the constant key” and “the daily aggregate
+      // map still holds exactly one key after 40 distinct dates (T-12-08 / D-15)”.
+      // MEASURED: keying this branch per calendar date reds both of them, in THIS store
+      // only, with the sibling store's copies still green — the two hand-mirrored stores
+      // are parameterised separately and gated independently.
+      //
+      // Nothing reads the SHAPE of the expression below, so an if/else chain, a switch or
+      // a helper is a free refactor. Keep the daily branch reaching the constant and those
+      // two cases will say so if it ever stops.
+      //
+      // ACHIEVEMENTS ARE THE SECOND MEMBER OF THAT CATEGORY (D-01 / D-12). The evaluation
+      // block at the tail of this function sits outside every `args.mode === …` gate for
+      // the same reason the telemetry write does: the catalog reads `lifetime`, all three
+      // `byMode` maps, the endless record and the daily record, so a mode-gated evaluation
+      // would satisfy the LETTER of SC-5 and not its point. Nothing reads the shape of that
+      // region either. What holds it is behavioural, and it is the *every mode unlocks the
+      // same achievement* case in `tests/achievements.record.test.ts`, which drives one
+      // qualifying run under campaign, endless AND daily and asserts each one unlocks —
+      // against this store and the memory store separately.
+      const telemetryKey =
+        args.mode === 'endless'
+          ? ENDLESS_TELEMETRY_KEY
+          : args.mode === 'daily'
+            ? DAILY_TELEMETRY_KEY
+            : args.levelId;
       memory = {
         ...memory,
         telemetry: mergeRunIntoTelemetry(memory.telemetry, {
           mode: args.mode,
-          levelId: args.levelId,
+          levelId: telemetryKey,
           outcome: args.outcome,
           score: args.score,
           stats: args.stats,
         }),
       };
-      if (args.outcome === 'win') {
+      if (args.mode === 'endless') {
+        // The endless record is the ONLY personal best an endless run may raise.
+        // Nothing in here may reference bestByLevel, unlocked or bestScore.
         memory = {
           ...memory,
-          unlocked: unlockAfterClearPure(memory.unlocked, args.levelId),
+          telemetry: mergeEndlessRecord(memory.telemetry, {
+            wave: args.wave,
+            score: args.score,
+          }),
+          updatedAt: Date.now(),
+        };
+      }
+      if (args.mode === 'daily') {
+        // The daily history is the ONLY record a daily run may write. Nothing in here
+        // may reference bestByLevel, unlocked or bestScore (N-DAILY-03 / SC-5) — and
+        // the daily arm carries no levelId, so none of them is even reachable.
+        //
+        // D-07: win or lose CLOSES the date; abandoning does not. An abandoned daily
+        // run has already accumulated its telemetry above (D-09) and stops here, so a
+        // real interruption does not cost the day.
+        if (args.outcome === 'win' || args.outcome === 'lose') {
+          memory = {
+            ...memory,
+            telemetry: mergeDailyRecord(memory.telemetry, {
+              date: args.date,
+              score: args.score,
+              outcome: args.outcome,
+            }),
+            updatedAt: Date.now(),
+          };
+        }
+      }
+      // Achievements (N-ACH-02 / D-01 / D-02 / D-12 / D-14 / D-19), OUTSIDE every mode
+      // gate — see the paragraph above `telemetryKey`. Hand-mirrored with
+      // `memoryStore.ts`: the behaviour is identical and the MUTATION STYLE is not — this
+      // store rebuilds `memory` rather than mutating in place, which is exactly where a
+      // careless copy-paste of the sibling breaks. Every claim about this block is asserted
+      // separately for this store by the parameterised suite in
+      // `tests/achievements.record.test.ts`.
+      //
+      // `memory.telemetry` satisfies `AchievementSnapshot` STRUCTURALLY: the evaluator
+      // imports no storage type and declares its own read-only view (D-20), and this call
+      // site is where the compiler checks the two agree. The clock is read HERE, beside the
+      // `updatedAt = Date.now()` this store already does, which keeps the evaluator pure
+      // (D-03) while D-14 still gets a real unlock instant.
+      //
+      // Nothing in this block may reference `bestByLevel`, `unlocked` or `bestScore`
+      // (T-13-05): outside the campaign gate `args.levelId` does not narrow.
+      const newlyUnlocked = newlyUnlockedAchievements(
+        memory.telemetry,
+        memory.telemetry.achievements.unlocked.map((e) => e.id),
+      );
+      if (newlyUnlocked.length > 0) {
+        let nextTelemetry = mergeAchievementUnlocks(
+          memory.telemetry,
+          newlyUnlocked,
+          Date.now(),
+        );
+        // D-11/D-12, 14-02 decision: store-side, gated on the run's OUTCOME. An
+        // abandoned run never reaches a result panel — the same gate `PlayingHost`
+        // applies one function away (`handleRunEnded`) for the identical reason —
+        // so an unlock earned there is marked unseen here. Named residual:
+        // `outcome` is a PROXY for "no panel rendered", not the fact itself; all
+        // four shipped run exits were traced and pass abandoned only when no panel
+        // renders, but that is a reading of control flow, not a test. One write
+        // still: this rebuilds `memory` once, alongside the unlock merge, not a
+        // second persist.
+        if (args.outcome === 'abandoned') {
+          nextTelemetry = markAchievementsUnseen(nextTelemetry, newlyUnlocked);
+        }
+        memory = {
+          ...memory,
+          telemetry: nextTelemetry,
           updatedAt: Date.now(),
         };
       }
@@ -416,7 +536,10 @@ function createAsyncStorageProgressStoreFrom(
         // just-ended run, not every run ever played.
         void ensureHydrated().then(() => persist(memory));
       }
-      return snapshot;
+      // D-19: the delta rides the return. `snapshot` is already a caller-owned clone, so
+      // the spread adds no aliasing. `newlyUnlocked` is `[]` and never `undefined` when
+      // nothing fired.
+      return { ...snapshot, newlyUnlocked };
     },
     async unlockAfterClear(id: LevelId): Promise<void> {
       await ensureHydrated();
@@ -449,6 +572,18 @@ function createAsyncStorageProgressStoreFrom(
       } catch {
         // keep pending
       }
+    },
+    async markAchievementsSeen(): Promise<void> {
+      await ensureHydrated();
+      memory = {
+        ...memory,
+        telemetry: {
+          ...memory.telemetry,
+          achievements: { ...memory.telemetry.achievements, unseen: [] },
+        },
+        updatedAt: Date.now(),
+      };
+      await persist(memory);
     },
   };
 }

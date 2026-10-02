@@ -1,18 +1,18 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Retention & Replayability
-current_phase: '9'
+current_plan: 5
 status: in_progress
-stopped_at: "Phase 9 VERIFIED on device (5/5 plans, 451 tests, both checkpoints pass). Next: Phase 10 seeded board generator"
-last_updated: "2026-09-25T13:40:00.000Z"
-last_activity: 2026-09-25
+stopped_at: Phase 14 UI-SPEC approved
+last_updated: "2026-09-29T09:14:27.239Z"
+state_head: afec44abe1bb4219ad39b7f2debca6b4180eaa37
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  completed_phases: 1
+  total_plans: 50
+  completed_plans: 43
+  percent: 0
   phase_9_human_checkpoint: passed_2026_09_25
   v1_0: closed_2026_09_24
   v1_1_post_mvp: code_complete_2026_09_25_store_track_open
@@ -36,6 +36,9 @@ progress:
   post_mvp_display_name: pulse_paddle
   post_mvp_f45_speed_ramp: shipped_0_01_per_sec
   post_mvp_owner_gates: skipped_by_owner_2026_09_25
+last_activity: 2026-09-25
+current_phase_name: Meta Shell — Mode Select, Stats & Achievements
+current_phase: 13
 ---
 
 # Project State
@@ -45,12 +48,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Core value:** A single level must feel arcade-punchy, skillful, and visually spectacular at a stable 60 FPS—responsive controls and accurate physics come first; neon effects never steal clarity or frame time.
-**Current focus:** **v1.2 — Retention & Replayability.** The game ends when the 5th level ends; v1.2 makes it outlast its authored content using shipped verbs and no backend. Phases 9–14: telemetry → seeded generator → endless → daily → achievements → meta shell. v1.1's owner/device debt (§5d on a ramp build, ASC uniqueness, Sentry DSN, cohort, R-10/R-12) is carried, not scoped.
+**Current focus:** Phase 13 — Achievements
 
 ## Current Position
 
-**v1.2 PLANNED** — roadmap written, nothing planned or executed yet.  
-**Next:** `/gsd-discuss-phase 9` (Run Telemetry & Storage v4) — no dependencies, and phases 13/14 both need its counters. Phase 10 (generator) can run in parallel.  
+Current Plan: 5
+Total Plans in Phase: 7
+
+**Phase 11 (Endless Mode) — all 21 plans executed (6 original + 15 gap-closure across 6 rounds).** Endless is playable from the `__DEV__` dev row; SC-1/SC-2/SC-3/SC-4 are proven headlessly and `docs/ops/ENDLESS-MODE.md` is the written-down record. **Round 6 closed both round-5 gaps** (the cert-level decision is one predicate with three consumers; the queued `Cert WC` load is pinned at source and the four artifacts that described it wrongly are corrected) **and the round-5 `showPauseOverlay` advisory** (two negative render cases make the operator observable). `.planning/REQUIREMENTS.md` is coherent again: N-END-01 and N-END-02 read `[x]` on a round-6 evidence gate, N-END-03 reads `[ ]`.  
+**Next:** `/gsd-verify-work 11` (round 7 — and harvest the SC-5 device reading), then `/gsd-discuss-phase 12` (Daily Challenge).  
+**Open from Phase 11:** the SC-5 device half — see Pending Todos.  
 **Owner-gated, carried from v1.1:** §5d Instruments on a ramp build (capture past t=100s), ASC console uniqueness for `Pulse Paddle`, Sentry DSN, human playtest cohort.  
 **Public path:** iOS-first. **Not** authorized for ASC public submit until RELEASE-GATES G2.  
 
@@ -58,7 +65,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 **Velocity:**
 
-- Total plans completed: 41 (Phase 01: 4, Phase 02: 6)
+- Total plans completed: 47 (Phase 01: 4, Phase 02: 6)
 - Average duration: —
 - Total execution time: —
 
@@ -96,6 +103,43 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 | Phase 08 P03 | 3min | 2 tasks | 5 files |
 | Phase 08 P04 | 2min | 2 tasks | 4 files |
 | Phase D1-juice-presentation P02 | 2min | 2 tasks | 5 files |
+| 12 | 6 | - | - |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 11 P01 | 15min | 3 tasks | 8 files |
+| Phase 11 P02 | 12min | 3 tasks | 8 files |
+| Phase 11 P03 | 12min | 2 tasks | 2 files |
+| Phase 11 P04 | 12min | 2 tasks | 2 files |
+| Phase 11 P05 | 20 min | 3 tasks | 5 files |
+| Phase 11 P06 | 8min | 3 tasks | 3 files |
+| Phase 11 P07 | 1h 16m | 4 tasks | 6 files |
+| Phase 11 P08 | 25 min | 3 tasks | 10 files |
+| Phase 11 P09 | 10 min | 3 tasks | 5 files |
+| Phase 11 P10 | 9 min | 2 tasks | 4 files |
+| Phase 11 P11 | 10 min | 3 tasks | 4 files |
+| Phase 11 P12 | 9 min | 3 tasks | 4 files |
+| Phase 11 P13 | 9 min | 3 tasks | 4 files |
+| Phase 11 P14 | 9 min | 3 tasks | 4 files |
+| Phase 11 P15 | 11 min | 3 tasks | 4 files |
+| Phase 11 P16 | 10 min | 3 tasks | 4 files |
+| Phase 11 P17 | 12 min | 3 tasks | 3 files |
+| Phase 11 P18 | 7 min | 3 tasks | 3 files |
+| Phase 11 P19 | 10 min | 3 tasks | 5 files |
+| Phase 11 P20 | 13 min | 3 tasks | 5 files |
+| Phase 11 P21 | 11 min | 3 tasks | 5 files |
+| Phase 12 P01 | 17 min | 1 tasks | 15 files |
+| Phase 12 P02 | 19 min | 3 tasks | 5 files |
+| Phase 12 P03 | 31 min | 3 tasks | 9 files |
+| Phase 12 P04 | 18 min | 2 tasks | 4 files |
+| Phase 12 P05 | 26 min | 3 tasks | 12 files |
+| Phase 12 P06 | 9 min | 2 tasks | 3 files |
+| Phase 13 P01 | 62 min | 1 tasks | 16 files |
+| Phase 13 P02 | 18 min | 2 tasks | 4 files |
+| Phase 13 P03 | 13 min | 2 tasks | 3 files |
+| Phase 13 P04 | 10 min | 2 tasks | 5 files |
+| Phase 13 P05 | 16 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -162,6 +206,95 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 - [D1-02]: expo-haptics ~57.0.3 via npx expo install; soft-fail mirrors ExpoAudio probe
 - [D1-02]: Local ImpactFeedbackStyle string consts for Vitest spies; no top-level native import
 - [D1-02]: PlayingHost fan-out deferred to Plan 03; owner rebuild required for device Taptic
+- [Phase 11]: D-06 implemented: applyWaveAdvance sets world.tick = 0 so every wave starts at serve speed; the effect SoA clear stays above the reset because effectUntilTick is absolute — E2 speed ramp hits MAX_BALL_SPEED at t=100s, inside wave 1 — carrying tick would pin every ball at the cap from wave 3 on and make the written-down difficulty ramp cosmetic
+- [Phase 11]: seedForWave mixes the wave index, not the difficulty — difficulty saturates at D_MAX from wave 21, so mixing it would hand every post-clamp wave the same board
+- [Phase 11]: applyWaveAdvance takes only (World, CompiledLevel or null) — mode-agnostic so Phase 12 daily reuses it verbatim; endless policy stays in src/services/endless
+- [Phase 11]: D-07 implemented: lowestLiveBall exported from tests/helpers/balanceBot.ts instead of duplicating the scan
+- [Phase 11]: D-11 implemented: recordRunEnd takes the RecordRunEndArgs discriminated union (campaign | endless); the endless arm has no levelId, so TypeScript narrowing forces the runtime mode gate to exist and SC-3 becomes a property of the type rather than a caller convention — A convention-only gate is one careless edit away from returning; the union is pinned by a @ts-expect-error that fails tsc if it ever collapses back to a flat type
+- [Phase 11]: D-12 implemented: ENDLESS_TELEMETRY_KEY is a plain string constant for byMode.endless, and LevelId was NOT widened — LevelId is the key type for bestByLevel and unlocked; admitting an endless value there is the exact SC-3 failure
+- [Phase 11]: EndlessRecord lives inside TelemetryBlob, never on ProgressBlob, and no version bump or migration was needed (PROGRESS_VERSION stays 4, migrateProgress.ts has a zero-line diff) — sanitizeTelemetry already validates telemetry independently of its siblings; that independence IS the SC-3 firewall, and defaultTelemetryBlob() makes an old key-less v4 blob default cleanly
+- [Phase 11]: The endless run driver is DUPLICATED into tests/endless.determinism.test.ts rather than lifted to tests/helpers/ — importing it from tests/endless.wave-loop.test.ts would re-register that file's eight suites inside the determinism file, and the fixture serves two test files, not the shipped code
+- [Phase 11]: D-04's guard is two tests and only 6a is load-bearing: lives immediately after each applyWaveAdvance must equal lives immediately before it. 6b (the MAX_LIVES cap) asserts a real life gain FIRST — in the 12-wave reference run lives first exceed 3 at wave 8 and reach exactly MAX_LIVES = 5 at wave 10 — because an un-exercised cap assertion is green regardless of whether anyone thought about D-04
+- [Phase 11]: SC-4 is scoped in the file that claims it: a DEVICE endless run is not replayable, because intent is read per substep from paddleTarget.value and substep count depends on wall-clock frame timing — nothing records the per-tick intent sequence. No literal hash or digest is pinned anywhere; every case is A-equals-B self-consistency or A-differs-from-B divergence, because an endless sequence is not a frozen corpus
+- [Phase 11]: The seed-divergence case asserts the divergence is a genuine HASH difference inside the shared boundary range, not merely a different run length — the plan's literal wording (differs at at least one boundary) would have been satisfied by the weaker claim
+- [Phase 11]: The device half of SC-5 is recorded as a dated OPEN assumption in docs/ops/ENDLESS-MODE.md rather than assumed to pass — no automated step in this repo can measure a frame on hardware, and the block names 'no device available' as a valid outcome that keeps it OPEN
+- [Phase 11]: BOARD-GENERATOR.md § Limits item 2's 'plausibly unfinishable' inference is marked superseded in place (20 insertions, 0 deletions) with a dated note cross-linked to ENDLESS-MODE.md — the original belief stays visible next to its correction, which is what that section exists for
+- [Phase 11]: SCHEDULE was deliberately NOT re-tuned — the clear-time tail is a trajectory property (18x spread on one lattice across paddle offsets) and per-difficulty maxima are non-monotone (d=17 at 2735.3 s beats d=20), so a re-tune buys ~34% off the median while re-rolling the tail and invalidating Phase 10's digests, sweep, proof and the A1 device record
+- [Phase 11]: A-01 decided retry-in-place: a Retry that cannot build wave 1 keeps the endless Results overlay up with Retry live, body copy `Wave 1 could not be built — tap Retry` (literal wave 1, never templated) — The mid-run body says run saved, which is false at Retry time — there is no in-flight run to save. A silent no-op was rejected too: it presents a dead-looking Retry button. Owner decision 2026-09-26.
+- [Phase 11]: genIssues removed: a generated board that fails to compile ends the run instead of rendering LevelErrorOverlay — LevelErrorOverlay has no controls and GameScreen suppresses showResult while levelError is non-null, so the old route left a live sim behind a modal with two dead buttons (11-UI-SPEC Error state (board)).
+- [Phase 11]: The mode branch in handleRunEnded moved ahead of evaluatePersonalBest, and each arm now owns its own recordRunEnd call — a single ternary call site cannot express branch-before-compare, because the ternary IS the branch and it sits after the compare — Gap 2's three symptoms — the campaign PB shown as the endless Best, New Record firing against an unrelated campaign score, and the endless score written into previousBestRef where the next run start re-published it — all came from that one ordering. 11-UI-SPEC Record Display Contract makes branch-before-compare the contract.
+- [Phase 11]: waveBuildFailedWave alone discriminates the two wave-build-failure bodies: 1 is always Retry-time (tap Retry), >= 2 is always mid-run (run saved) — no second flag was added — Structural, not a convention: a mid-run failure sets waveRef.current + 1 and waveRef is >= 1 from the first successful build, so mid-run can never produce 1. 11-07 stored the FAILED wave rather than the last good one precisely so this needs no arithmetic.
+- [Phase 11]: mode/wave/bestWave are REQUIRED props on GameScreenProps and ResultOverlay, and the overlay FORCES the lose variant in endless rather than trusting the caller's kind — A defaulted mode would silently render campaign chrome for an endless run if a call site forgot it — the exact class of defect this plan closes. Gating only on kind would make the SC-1 unreachability of Win/All clear/stars/Next a caller promise; isWin = kind === 'win' && !isEndless makes it a component property.
+- [Phase 11]: WR-04 folded in: startEndlessRun publishes endlessBestScoreRef/endlessBestWaveRef, never previousBestRef — the host `best` prop belongs to the player's mode for the whole lifetime of a run, not only while ResultOverlay is mounted — Latent today (`best` reaches only ResultOverlay, unmounted mid-run, and handleRunEnded always overwrites first) but rendered the moment Phase 14 adds a mid-run endless record surface. Owner folded the fix in 2026-09-26 rather than record it as debt. Both halves published: resultBestWave is the endless-only counterpart on the same Record Display Contract row.
+- [Phase 11]: The campaign-ref claim moved to the source-contract tier because the WR-04 fix REMOVES the only behavioural probe of it — previousBestRef's remaining readers are campaign resets unreachable while modeRef is latched to endless, and the getBestForLevel effect heals the ref on every levelId change — The contract states in its own comment what it does NOT prove: counting assignment sites proves the WRITE, never the RENDER. Asserted as two campaign-only REGIONS (the mount effect's success + fail-soft pair is one place), not a literal statement count of two, which would have been unsatisfiable without deleting the load-bearing fail-soft branch.
+- [Phase 11]: docs/ops/ENDLESS-MODE.md keeps its bolded `every path that discards a run records it first` sentence STANDING with a dated correction beneath, rather than rewriting it as though it had always held; A-02 retires to DECIDED 2026-09-26 and the SC-5 do-not-press note NARROWS to the tier button and Cert WC — Same superseded-claim-beside-its-correction treatment BOARD-GENERATOR.md § Limits item 2 received. `Lv` came out of the warning because A-02 made it an explicit exit; the tier button stays because cycleDevTier fires remountDevSession, whose endless branch restarts the run at wave 1 and re-bakes the glow atlas — the exact cold path SC-5 exists to prove is not entered.
+- [Phase 11]: Guard the PUBLICATION, never the cache: previousBestRef.current stays unconditional in both preload arms so the campaign best is warm the instant the player exits endless — A guarded cache write would make the campaign Best stale after every endless run, which toggleDevLevel's synchronous republication would then faithfully propagate. The new setResultBest contract pins cache-writes === publications.
+- [Phase 11]: Keep the previousBestRef WR-04 contract and ADD a setResultBest one rather than replacing it — The cache and the publication are different obligations and need different instruments. The round-2 contract counted assignments and whitelisted the region the gap-1 defect lived in; it was not wrong, only blind.
+- [Phase 11]: N-END-02 moved twice in one plan, as two separate commits — unticked while the rendered leak was open, re-ticked only after npm test went green — The requirement is about what the player SEES, and a campaign number was provably rendered as the endless Best. Two commits keep the record of what was believed when recoverable from git (threat T-11-22).
+- [Phase 11]: The endless WON branch RETURNS on runEndedRef rather than falling through — a fall-through would end an endless run on a cleared board (SC-1)
+- [Phase 11]: gap 3 severity recorded as the verifier settled it (incoherent ENDED state + copy defect), not as 11-REVIEW CR-01 opened it (CRITICAL/false record)
+- [Phase 11]: Task 3 pins an INDEPENDENT structural count (three setActive(false) run-end sites) beside the four-branch enumeration — an enumeration cannot detect a branch nobody enumerated
+- [Phase 11]: The WR-04 guard-release claim dropped to the source tier, disclosed in the test's own comment; the case was re-pointed and renamed, never deleted
+- [Phase 11]: The mode term gates runCertWorstCase's LEVEL half only; the tier half stays a real, funnel-covered run boundary — Gating the tier half would be the 'disable Cert WC while endless' option the owner rejected on 2026-09-26 as inconsistent with A-02's explicit-exit resolution for Lv. The level half was the last deterministic, race-free trigger for a cross-mode record publication, and while endless it could not take effect anyway — its only product was a stopped frame loop behind a live HUD.
+- [Phase 11]: Task 1 Test 1 (tier UNSET) was RED pre-fix, not the passing regression pin the plan assumed: the funnel DID fire (verifier P3 holds) but the restart could not reach W1 because the level half had flipped levelId and fxReady was false at the readiness gate — Recorded as measured rather than reconciled against the verifier's pre-fix numbers — the gate did not merely preserve branch A, it repaired it.
+- [Phase 11]: An explanatory comment must not restate a literal that a structural gate counts — naming the level-forcing call in prose made the plan's own gate read 2 where it requires 1 — Caught by running the gate, not by reading it. Line comments only inside runCertWorstCase, because codeOnly() in PlayingHost.endless-host.test.ts strips // but not block comments.
+- [Phase 11]: Cert WC stays in the SC-5 do-not-press set even though its level half is now gated — It still injects the worst-case ball, particle and shake load onto the board under measurement, which disqualifies any frame time captured across it in BOTH tier branches. The warning was narrowed by reason, not by control.
+- [Phase 11]: Hoist the run-ended latch to the FIRST statement of applyChrome rather than snapshotting resultScore/resultLives at the boundary — one statement, and it closes the campaign Results panel by the same edit because the same five chrome writes precede both campaign branches — The snapshot shape would add two pieces of state every reset path must maintain and would leave the HUD behind the overlay still repainting from a finished run
+- [Phase 11]: Remove the endless WON branch inner runEndedRef guard and re-point 11-13 three branch ordering assertions to the applyChrome function preamble, disclosing the tier change in the test own comment — With the latch at the top the inner copy is unreachable, so no mutation could kill it; mutation evidence measured strictly stronger after the move (7 cases RED vs 11-13 M2 set)
+- [Phase 11]: [Phase 11]: The review's Cert WC one-liner was adopted but only after BOTH endless sub-branches were measured — pressing Cert WC while already on level-03 (the shipped default) discharged a real injection into the freshly restarted endless run pre-fix (1 call), so the term suppresses a genuine behaviour there rather than clearing a stranded flag; recorded at the assignment, in the ops doc and in the SUMMARY rather than shipped silently
+- [Phase 11]: [Phase 11]: Latch hygiene stated as a general rule at the assignment site — do not arm a latch whose discharge preconditions the same change has made unreachable. 11-14 gated runCertWorstCase's level half and left the deferral bookkeeping, so an endless press armed a one-shot only a campaign level-03 session could discharge
+- [Phase 11]: [Phase 11]: Case C1 (the campaign deferral) DOES fire in jsdom, so the plan's permitted downgrade to a flagged unprovable assumption was NOT taken — both preconditions are asserted as rendered labels before the injection count, so the pass cannot be vacuous
+- [Phase 11]: [Phase 11]: gsd check tdd-red-evidence requires the FULL TAP test name including the tests/… file prefix in targetTest — the bare 'describe > it' name is classified no_target_test_failure even when that exact test appears in the parsed failing_tests list
+- [Phase 11]: A1 closed: the ops doc no longer calls level-03 the shipped default — it is the CERT_HARNESS mount level (GameHost.tsx:196) and LAST in PLAYABLE_LEVEL_ORDER, four Lv presses from the shipped level-01 default (GameHost.tsx:68), so the SC-5 operator's sub-branch is the RARE one
+- [Phase 11]: The Cert WC level half is documented with THREE terms, not the plan's 'both' — 11-17 added !runEndedRef.current to an EXISTING two-term condition; writing 'both terms' would have dropped levelId !== 'level-03', this phase's signature failure inside the edit correcting it
+- [Phase 11]: Under a gate that pins a false literal at 0, a superseded claim is DESCRIBED rather than quoted — the beside-not-erase rule and the discriminating-gate rule conflict, and the record lives in git rather than in the file
+- [Phase 11]: N-END-01 and N-END-02 re-ticked on an evidence gate that ran BEFORE the file was opened; each closure note states the claim rests on the round-4 verifier's judgement plus round-5 instruments, NOT a fresh first-principles audit, so a future round can overrule without archaeology
+- [Phase 11]: requirements.mark-complete was NOT run and the metadata commit excludes REQUIREMENTS.md — both would produce a second commit on that file and break Task 3's requirements-commits=1 gate (threat T-11-22)
+- [Phase 11]: Round-5 gap 1 closed structurally: certLevelPlanFor is the single cert-level decision and three PlayingHost consumers read its returned value — Rounds 3, 4 and 5 each added a term to one of two copies of the same decision. Extracting the decision removes the drift class, not its fourth instance. Enforced by count: runEndedRef and modeRef pinned at 0 occurrences inside both decision bodies (measured bases 1 and 2).
+- [Phase 11]: certLevelPlanFor evaluation order is contract: endless first, level-03 before the run-ended latch, then run-ended — Endless first preserves 11-16 suppression of both endless sub-branches; level-03 before the latch preserves cell 7, where an ended run already at the cert level needs no level move and the 11-17 guard has nothing to guard (T-11-39). Both orderings were falsified by mutation and the RED signals recorded.
+- [Phase 11]: The deferred-cert self-cancel is source-pinned only; its positive direction is unobservable by any harness in this repo — Measured by deletion: only the Part C source contract reds, no behavioural case moves. Recorded as human_judgment true in the SUMMARY coverage block rather than claimed proven.
+- [Phase 11]: src/runtime is NOT changed by 11-20: no harness in this repo can drive onFrame, and a reset in the retry block would swallow a request issued between a retry() and the next frame — silently disabling the deferred-inject path. link 4 of tests/runtime.cert-request.test.ts is the tripwire for a future change
+- [Phase 11]: Round-6 gap 2: the Cert WC load is QUEUED on certRequest and applies on the FIRST FRAME OF THE NEXT RUN, below the retry-reset block, onto the freshly reset world — proven link by link at source in tests/runtime.cert-request.test.ts, which states in its own header that it cannot produce a frame. The MEASURED label round 5 attached to a vi.fn() count is struck
+- [Phase 11]: 11-20 ticks NO requirement. N-END-03 device half stays unmeasured by plan prohibition; N-END-01 gets no new closing evidence from a plan that repairs an instruction rather than taking a reading. REQUIREMENTS.md untouched
+- [Phase 11]: The 1,400-word Cert WC table cell in ENDLESS-MODE.md is corrected in content and deliberately NOT restructured (advisory IN-03) — a compression would relocate five dated corrections away from where the SC-5 operator reads them. Owner rewrite option stays open
+- [Phase 11]: [Phase 11]: The round-5 showPauseOverlay advisory is closed with a NEGATIVE RENDER CASE, not a single-literal source gate — a prettier re-wrap of that assignment would red a source literal with no behaviour changing, and a literal cannot tell 'the operator is &&' from 'the operator is spelled && on this line'. ASSERTION 5 is untouched: it asserts the two TERMS, the new cases assert the OPERATOR between them
+- [Phase 11]: [Phase 11]: An absence assertion carries a POSITIVE CONTROL in the same case — case 2 asserts the result overlay's Retry level button IS present, so 'the component rendered nothing' cannot pass as 'the pause gate refused'
+- [Phase 11]: [Phase 11]: N-END-01 and N-END-02 re-ticked on a round-6 evidence gate that ran BEFORE the file was opened (npm test 99 files / 663 tests, typecheck, lint — all green, transcripts dated in the commit body); the incoherent box/note pairs go 3 to 0; N-END-03 stays [ ] because round 6 repaired the INSTRUCTIONS for the SC-5 reading without taking it
+- [Phase 11]: [Phase 11]: N-END-01's superseded clause is DESCRIBED, not quoted — the first draft re-introduced the false literal while retiring it and moved the plan's own premature-clause gate from 0 back to 1. Caught by running the gate, not by reading it
+- [Phase 11]: [Phase 11]: Four plan-stated bases had moved under this plan by execution time (false-clause enumeration 6 at 6bb18bf vs 5 at da1c356; nine declared falsifications vs twelve recorded; roadmap ticks 2/1 not 0/3, making one gate counter vacuous; the :108 line already half-edited by update-plan-progress). All four reported in the SUMMARY rather than edited to fit
+- [Phase 12]: DAILY_DIFFICULTY = 10 — from the generator's published table: between level-01's 32 bricks and level-03's showpiece, ~2-minute median clear, and exactly where endless arrives at wave 11 (D-11)
+- [Phase 12]: The daily arm of RecordRunEndArgs carries date and NO levelId, so bestByLevel/unlocked/bestScore are unreachable at compile time rather than merely unwritten (N-DAILY-03 / SC-5)
+- [Phase 12]: telemetryKey stays ONE const ternary in both stores; the daily branch reaches DAILY_TELEMETRY_KEY and never a date, which is what keeps byMode.daily bounded (D-15)
+- [Phase 12]: ResultOverlay.mode is NOT widened — daily ships as a separate scalar-props DailyResultOverlay, which is SC-5 at the prop signature
+- [Phase 12]: D-16 amended: DailyRecord gains currentStreakStart, a stored DATE rather than a counter — With only longestStreak and totalDaysPlayed the closing streak could be derived solely from the bounded window, so longestStreak saturated at DAILY_HISTORY_BOUND+1 (MEASURED 401 for 450 consecutive closes), defeating D-16. Approved by the developer at plan 12-03 blocking checkpoint.
+- [Phase 12]: Daily record reconcile is max-and-union, and is explicitly not lossless — longestStreak takes a per-field max; totalDaysPlayed takes max(a, b, union size). A trimmed copy meeting one with exclusive dates under-counts by the overlap and never inflates; the limit is stated in the doc comment and asserted in tests/daily.record.test.ts.
+- [Phase 12]: Tamper fences in the daily record degrade downward, never inflating — DAILY_STREAK_WALK_CAP=36525 is a tamper fence, not a streak ceiling: exceeding it discards the stored start rather than saturating at it, because saturating would invent ~36525 days of play from a hostile blob.
+- [Phase 12]: sanitizeStreakStart rejects an invalid, unanchored or postdating currentStreakStart to '' but deliberately CARRIES a start older than the trimmed window — expressing a run longer than the window is the entire reason D-16 was amended to store it.
+- [Phase 12]: A read-side sanitizer validates but does not repair: the surviving daily history is not re-sorted and not de-duplicated, because repairing a tampered order would inflate a derived streak.
+- [Phase 12]: Task 2 ships no source and therefore has no RED phase; its six cases were proved non-vacuous by four reverted source mutations instead of by a manufactured RED commit.
+- [Phase 12]: The daily panel Streak line is derived by currentDailyStreak — the write side own exact derivation — rather than by streakFrom over the trimmed window, which both plan 12-05 and 12-03 handoff prescribed. — MEASURED at 450 consecutive closes: streakFrom returns 400 against a stored longestStreak of 450. The panel would state a streak the player does not have, and the streak === longestStreak badge would stop firing permanently for a player on their best-ever run.
+- [Phase 12]: The 60-second daily countdown interval is scoped to the Daily Result panel being open, red-proved on this tree rather than taken on trust. — Induced unconditionally it throws 'Aborting after running 10000 timers' across four host specs no plan in phase 12 owns; scoped, 20 files / 183 tests pass.
+- [Phase 12]: 12-VALIDATION.md status stays draft while nyquist_compliant goes true: 'validated' is the lifecycle marker for validate-phase having run, and it has not
+- [Phase 12]: The sign-off's automated-verify line is ticked with a named exception — 13 of 14 phase tasks carry an <automated> block; the one that does not is a checkpoint:decision that ships no code
+- [Phase 12]: docs/ops/DAILY-CHALLENGE.md records the falsified midday-anchor rationale as a preserved measurement (38355 dates, 15 zones, 0 differences) so a later reader does not correct it back
+- [Phase 12]: max-and-union is documented as lossy with its worked under-count (500/10/410 -> 500 where the truth is 510), never as exact
+- [Phase 12]: Five device verifications that existed only in prose were appended to WINDOWS (20-24); entry 14 was marked fixed after verifying the close mechanically
+- [Phase 13]: 13-01: recordRunEnd widens its return to RecordRunEndResult, carrying this write's newly-unlocked ids (D-19) — The set difference cannot cross the store boundary any other way: once the union is persisted it is gone, and a host pre-read is the extra storage read D-01 avoided. Measured blast radius: exactly two lines, and the four mocked-store harnesses do NOT break, so every consumer must fail soft.
+- [Phase 13]: 13-01: the unlock merge keys whole {id, at} records and the EARLIEST timestamp wins (D-22) — The inversion of mergeDailyRecords' incoming-wins tiebreak. Last-writer-wins moves the timestamp forward and D-14 stores it precisely so Phase 14 can show a recency order. Reducing over all timestamps instead of per id is the phase-12 cross-wiring defect in a new place.
+- [Phase 13]: 13-01: a named control must have a command whose output MOVES with the control's presence — npm run lint exits 0 against a clean src/services/achievements/ whether or not the purity block exists, so the __purity_probe gate (5 with the block, 0 without) is the control and the lint run is not. Corollary found in execution: an AST-level gate tolerates prose naming the banned construct; a grep-level gate does not.
+- [Phase 13]: All twelve achievement predicates read through one set of total readers, including the entry plan 13-01 shipped: a degradation direction must be uniform across a data table or the table has an over-reporting hole in exactly one row
+- [Phase 13]: Exactly one of the twelve achievement thresholds claims a published anchor (Wave 10, against DAILY_DIFFICULTY and the generator table); the other eleven state outright that no anchor exists rather than inventing one
+- [Phase 13]: The achievements read bound keeps the FIRST entries (slice(0, ACHIEVEMENT_UNLOCK_BOUND)), not the last — the plan specified the recent-run ring direction — Both shipped write sites already trim this collection with slice(0, ...), and mergeAchievementUnlocks explicitly rejects slice(-...) for it: under D-17 an unlock is permanent, so dropping the oldest un-earns the achievements the player has held longest. The plan trim-after-drop fixture (leading garbage, trailing real) also only discriminates drop-first from trim-first under keep-first.
+- [Phase 13]: D-22 is asserted as COMMUTATIVITY over both merge argument orders, not as a single merge — MEASURED: the case exactly as the plan specified it PASSED against a deliberately inverted incoming-wins mergeAchievementRecords. mergeTelemetryBlobs iterates memory-then-incoming, so incoming-wins returns whichever copy is passed second — which, with the earlier copy as incoming, is the earliest. Earliest-wins is commutative and incoming-wins is not; requiring the same answer in both orders is what binds the rule.
+- [Phase 13]: vitest -t filters are case-SENSITIVE — a filtered gate can match nothing and still exit 0 — MEASURED: -t "earliest" against a case named EARLIEST printed Test Files 1 skipped (1) / Tests 24 skipped (24) and exited 0. This is the phase already-recorded non-matching-filter-exits-0 trap arriving through CASE rather than through a wrong word. Every -t row in 13-VALIDATION.md must match the case its test name actually uses.
+- [Phase 13]: 13-04: the daily unlock block is the SAME JSX body as ResultOverlay's, differing only in its gating flag and its neighbours — if the two bodies diverge in anything else, one of them is wrong
+- [Phase 13]: 13-04: suppression reuses the shipped isClosed (daily) and showRunLines (endless) flags and adds none — a second flag meaning 'is there a run' is a second place for the answer to drift. Red-proved both ways: removing the gate reds the absence case, inverting it to failureKind === 'none' reds the mid-run presence case
+- [Phase 13]: 13-04: order-preservation and non-mutation are SEPARATE test cases — MEASURED: sorting the caller's array reds only non-mutation (clean is filtered before the sort), sorting the returned data reds only order. One case standing for both would have proved neither
+- [Phase 13]: ACHIEVEMENT_LINES_MAX stays 2 and all four device backstops stay OPEN — No physical iOS device was available and the Simulator is not acceptable evidence for a safe-area inset claim (phase 11 established that for its own frame-timing claim). The consequence of a non-zero bottom inset is written down instead - the constant drops to 1 with two named test cases moving alongside it.
+- [Phase 13]: WINDOWS 16, 17, 28 and 29 were ANNOTATED with a recipe and a consequence, never closed or duplicated — No automated step in this repository can discharge a layout claim (jsdom performs no layout). Closing one on a green npm test is the false-gate failure this project has shipped three times; duplicating them under new ids would make the ship gate count one debt twice.
+- [Phase 13]: 13-VALIDATION.md nyquist_compliant true is SCOPED in the frontmatter, and status stays draft — It describes the per-task map (every row an executed command with a measured status), not the four Manual-Only items, which have no automated command anywhere. Only /gsd-validate-phase may set the validated status.
+- [Phase 13]: Two seeded validation rows named cases in the WRONG FILE and were vacuous at exit 0 - corrected to the executed commands — tests/achievements.record.test.ts has no 'unknown id' or 'degrades alone' case; both claims live in tests/storage.progress-v4.test.ts. Each predicted command would have printed Tests 24 skipped (24) and exited 0 - the same silent non-binding 13-03 measured through wrong case, reached through wrong file.
+- [Phase 13]: GameScreen's achievements threading is recorded as compiler-checked and behaviourally unobserved — grep -cin achiev tests/ui/GameScreen.test.tsx prints 0; both panel suites render the overlays directly. Filed as WINDOWS 32 rather than implied to be covered.
 
 ### Decisions (Post-MVP close)
 
@@ -175,6 +308,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ### Pending Todos
 
 - **Phase 8 Plan 06:** Pixel 6a gfxinfo + iPhone Instruments + device soak Results (PLT-03)
+- **Phase 11 SC-5 device reading (OPEN, 2026-09-25):** no frame spike outside the Mid budget across an endless wave transition — device half unmeasured. Dev build + perf overlay + `__DEV__` `Endless` entry, waves 1-5, watch each transition. Open-assumption block and discharge procedure live in `docs/ops/ENDLESS-MODE.md` § Limits item 2
 - **§5d ceiling cert must now run on a ramp build** — E2 changed sustained ball speed; §5/§5b/§5c predate it. Set `SPEED_RAMP_PER_SECOND = 0` to reproduce the old baseline
 - **ASC console uniqueness for "Pulse Paddle"** — never run; old name's failure was an exact-title collision
 - **Owner sign-off on the E2 curve + ramp feel** — E2's stated acceptance, not obtained
@@ -183,6 +317,8 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ### Blockers/Concerns
 
 - [MVP] Hardware performance gates still open (waived only for Phase 1 close)
+- N-END-03 is deliberately left UNCHECKED in REQUIREMENTS.md by plan 11-08. Its reproducibility half is verified (tests/endless.determinism.test.ts); its second clause — "wave transitions cause no frame spike outside the Mid budget" — is the unmeasured SC-5 device half. Checking it would be the untaken-reading failure the phase's own prohibitions forbid. Discharge it together with the SC-5 device reading.
+- Phase gate instrument defect (reported by 11-11 Task 3, deliberately NOT fixed): the plan's freeze command `git diff --name-only origin/main...HEAD -- src/core src/levelgen` prints 8, because origin/main (8788caa) predates Phase 10 and Phase 10 CREATED src/levelgen. Against the phase base b99607b the diff is 0 and the freeze holds. Future phase gates must anchor on the phase directory's first commit, not origin/main.
 
 ## Deferred Items
 
@@ -195,6 +331,6 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 
 ## Session Continuity
 
-Last session: 2026-09-25T02:54:51.000Z
-Stopped at: Completed D1-02-PLAN.md (expo-haptics soft-fail service)
-Resume file: None
+Last session: 2026-09-29T07:20:41.424Z
+Stopped at: Phase 14 UI-SPEC approved
+Resume file: .planning/phases/14-meta-shell-mode-select-stats-achievements/14-UI-SPEC.md

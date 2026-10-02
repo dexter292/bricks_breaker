@@ -11,6 +11,8 @@ import { CountdownOverlay } from './overlays/CountdownOverlay';
 import { LevelErrorOverlay } from './overlays/LevelErrorOverlay';
 import { PauseOverlay } from './overlays/PauseOverlay';
 import { ResultOverlay } from './overlays/ResultOverlay';
+import { DailyResultOverlay } from './overlays/DailyResultOverlay';
+import { MAX_FONT_SCALE } from './textScale';
 
 export type GameScreenUiPhase = 'playing' | 'paused' | 'countdown';
 
@@ -29,6 +31,97 @@ export type GameScreenProps = {
   lives: number;
   score: number;
   best: number;
+  /**
+   * Which record domain the Results overlay is reading (11-08 / gap 2; 12-01 adds
+   * `'daily'`). `src/runtime` receives plain numbers and a discriminant — it never
+   * imports the storage layer, so the boundaries matrix is unchanged (LC-05).
+   *
+   * `'daily'` routes to `DailyResultOverlay`, a SEPARATE component.
+   * `ResultOverlay.mode` keeps its two-value type and is never widened (12-UI-SPEC
+   * § A new component) — the route below narrows rather than widening.
+   */
+  mode: 'campaign' | 'endless' | 'daily';
+  /**
+   * Daily only — the stored `YYYY-MM-DD` key of the date being shown, rendered
+   * verbatim with no formatting step (N-DAILY-01 / SC-1). Required rather than
+   * defaulted: a blank fallback would render `Daily · ` on a real panel, and the host
+   * always knows the date by the time a daily result exists.
+   */
+  dailyDateKey: string;
+  /**
+   * Daily only — the streak block and the countdown, as SCALARS (12-05).
+   *
+   * Seven flat props rather than one object, following the shipped `wave` /
+   * `bestWave` / `waveBuildFailedWave` precedent. Flatness is what makes SC-5
+   * checkable by READING this type: there is no per-level best, no campaign personal
+   * best, no endless record and no star count anywhere in the daily group, and an
+   * object prop would put that guarantee one indirection away.
+   *
+   * Required rather than optional-with-a-default, for the reason 12-01 gave for
+   * `dailyDateKey`: a zero default is a silent path to rendering `Streak · 0`, a state
+   * `12-UI-SPEC.md § Empty and zero states` marks UNREACHABLE on this panel.
+   */
+  dailyStreak: number;
+  /** Daily only — `DailyRecord.longestStreak`, the lifetime maximum (D-16). */
+  dailyLongestStreak: number;
+  /** Daily only — `DailyRecord.totalDaysPlayed` (D-16). */
+  dailyTotalDaysPlayed: number;
+  /**
+   * Daily only — the already-derived length of the streak that just ended, or null
+   * (D-17). Null means OMIT the line; the panel never substitutes the lifetime
+   * longest streak for a length it could not derive.
+   */
+  dailyEndedStreakLength: number | null;
+  /**
+   * Daily only — the instant the countdown is computed against, INJECTED from the
+   * host (`12-UI-SPEC.md` § Clock policy). `src/runtime` receives an instant, never a
+   * clock: the panel reading one during its own render would fail
+   * `react-hooks/purity` and would make the rollover and sub-minute cases untestable.
+   */
+  dailyNowMs: number;
+  /** Daily only — the next local-midnight instant, calendar arithmetic in the host. */
+  dailyNextBoundaryMs: number;
+  /**
+   * Daily only — today's board could not be generated (12-05).
+   *
+   * The date stays OPEN: nothing was played and nothing was written. The panel takes
+   * the board-failure variant — the accent-white `Daily` heading rather than the
+   * `Lose` red, `Retry` then `Menu`, and every closed-date line suppressed.
+   *
+   * Shaped exactly like the shipped endless start-failure, which also raises `result`
+   * to reach the result chrome and carries the failure as a separate field
+   * (`waveBuildFailedWave`) rather than as a third `result` value. `LevelErrorOverlay`
+   * is NOT used here: it has no controls and would trap the player with no exit.
+   */
+  dailyBoardFailed?: boolean;
+  /**
+   * Achievement DISPLAY NAMES newly unlocked by this run, in catalog declaration order
+   * (N-ACH-03 / D-08). Empty renders no block at all.
+   *
+   * Declared OUTSIDE the `daily*` group on purpose: it is the only prop threaded to BOTH
+   * branches of the result route, so grouping it with the daily scalars would make the
+   * type read as if only the daily panel took it. Plain strings, like everything else
+   * that crosses this boundary — `src/runtime` never imports the storage layer, and the
+   * id-to-name mapping happens one tier up in `app/_components/PlayingHost.tsx`.
+   *
+   * BOTH arms of the result route below receive it as of plan 13-04, which is what
+   * makes the sentence above true: a player finishing today's daily board is told what
+   * they earned on the panel they are actually looking at, not on the one they are not.
+   */
+  unlockedAchievements?: readonly string[];
+  /** Endless only — the wave this run reached (11-UI-SPEC § Endless copy line 1). */
+  wave: number;
+  /** Endless only — `telemetry.endless.bestWave`, post-merge (line 4). */
+  bestWave: number;
+  /**
+   * Endless only — the wave that could not be built, or null. Replaces the lose body
+   * with the wave-build-failure copy; the four metric lines still render.
+   * Deliberately NOT routed to `LevelErrorOverlay`: that overlay has no controls and
+   * `showResult` is suppressed while `levelError` is set, which would leave the
+   * player facing a live sim behind a modal with no exit (11-UI-SPEC `Error state
+   * (board)`).
+   */
+  waveBuildFailedWave?: number | null;
   isNewRecord: boolean;
   combo: number;
   stallTier: number;
@@ -64,6 +157,19 @@ export function GameScreen({
   lives,
   score,
   best,
+  mode,
+  dailyDateKey,
+  dailyStreak,
+  dailyLongestStreak,
+  dailyTotalDaysPlayed,
+  dailyEndedStreakLength,
+  dailyNowMs,
+  dailyNextBoundaryMs,
+  dailyBoardFailed = false,
+  unlockedAchievements = [],
+  wave,
+  bestWave,
+  waveBuildFailedWave = null,
   isNewRecord,
   combo,
   stallTier,
@@ -101,6 +207,13 @@ export function GameScreen({
 
   const playfieldTop = insets.top + HUD_STRIP_CONTENT;
   const padR = Math.max(insets.right, 16);
+  // The dev-row slot needs a LEFT bound as well as a right one. Absolutely positioned
+  // with `right` alone it sizes to its content and grows leftwards off-screen, which is
+  // how the row came to clip `Lv` and the tier button (MEASURED on an iPhone 17
+  // simulator at 402pt, 2026-09-28; 12-UI-SPEC E5 named the cause — "the slot has no
+  // left bound" — and routed the fit to a device backstop). Bounding it gives the row's
+  // `flexWrap` a real width to wrap against.
+  const padL = Math.max(insets.left, 16);
 
   return (
     <View style={styles.root}>
@@ -141,6 +254,7 @@ export function GameScreen({
         {showServeHint && showPauseChrome ? (
           <Text
             pointerEvents="none"
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
             style={[
               styles.serveHint,
               { bottom: Math.max(insets.bottom, 16) + 48 },
@@ -152,6 +266,7 @@ export function GameScreen({
 
         {showPauseOverlay ? (
           <PauseOverlay
+            mode={mode}
             onResume={onResume}
             onRetry={onRetry}
             onMenu={onMenu}
@@ -162,17 +277,47 @@ export function GameScreen({
           <CountdownOverlay numeral={countdownNumeral} />
         ) : null}
 
+        {/*
+          12-UI-SPEC § A new component: daily gets its own overlay rather than a third
+          arm on `ResultOverlay`. The ternary NARROWS — inside the else branch `mode` is
+          `'campaign' | 'endless'`, which is what lets `ResultOverlay.mode` keep its
+          two-value type. Widening that prop instead would put a campaign/endless-shaped
+          `best`, `wave`, `bestWave`, `stars` and `onNext` on a panel for which every
+          one of them is meaningless.
+        */}
         {showResult ? (
-          <ResultOverlay
-            kind={result!}
-            score={score}
-            best={best}
-            isNewRecord={isNewRecord}
-            stars={stars}
-            onRetry={onRetry}
-            onMenu={onMenu}
-            onNext={onNext}
-          />
+          mode === 'daily' ? (
+            <DailyResultOverlay
+              kind={dailyBoardFailed ? 'board-failure' : result!}
+              dateKey={dailyDateKey}
+              score={score}
+              streak={dailyStreak}
+              longestStreak={dailyLongestStreak}
+              totalDaysPlayed={dailyTotalDaysPlayed}
+              endedStreakLength={dailyEndedStreakLength}
+              nowMs={dailyNowMs}
+              nextBoundaryMs={dailyNextBoundaryMs}
+              unlockedAchievements={unlockedAchievements}
+              onRetry={dailyBoardFailed ? onRetry : null}
+              onMenu={onMenu}
+            />
+          ) : (
+            <ResultOverlay
+              kind={result!}
+              mode={mode}
+              score={score}
+              best={best}
+              wave={wave}
+              bestWave={bestWave}
+              waveBuildFailedWave={waveBuildFailedWave}
+              isNewRecord={isNewRecord}
+              unlockedAchievements={unlockedAchievements}
+              stars={stars}
+              onRetry={onRetry}
+              onMenu={onMenu}
+              onNext={onNext}
+            />
+          )
         ) : null}
 
         {hasLevelError ? <LevelErrorOverlay issues={levelError!} /> : null}
@@ -184,6 +329,7 @@ export function GameScreen({
               styles.devSwitchSlot,
               {
                 top: insets.top + HUD_STRIP_CONTENT + 8,
+                left: padL,
                 right: padR,
                 zIndex: 20,
               },

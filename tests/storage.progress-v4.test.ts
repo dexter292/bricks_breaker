@@ -19,22 +19,34 @@ import {
   PROGRESS_KEY,
   PROGRESS_KEY_V3,
   PROGRESS_VERSION,
+  AGGREGATE_MAP_BOUND,
   RECENT_RUNS_BOUND,
+  RUN_LOG_LEVEL_ID_MAX,
   createMemoryProgressStore,
   defaultProgressBlob,
   defaultRunStatsInput,
   defaultTelemetryBlob,
   mergeHighWatermark,
+  mergeEndlessRecord,
   mergeRunIntoTelemetry,
   mergeTelemetryBlobs,
   migrateOrDefault,
   parseProgressResult,
   defaultTelemetryAggregate,
+  defaultEndlessRecord,
+  DAILY_TELEMETRY_KEY,
+  ENDLESS_TELEMETRY_KEY,
+  DAILY_HISTORY_BOUND,
+  defaultDailyRecord,
+  ACHIEVEMENT_UNLOCK_BOUND,
+  defaultAchievementRecord,
+  cloneTelemetryBlob,
   v3ToV4,
   type ProgressBlob,
   type RunStatsInput,
 } from '../src/services/storage';
 import { __createAsyncStorageProgressStoreForTests } from '../src/services/storage/asyncStorageStore';
+import { ACHIEVEMENT_CATALOG } from '../src/services/achievements';
 
 /**
  * A realistic "existing player" v3 blob, shaped exactly like today's persisted
@@ -229,8 +241,9 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
     expect(r.progress.bestByLevel[first as never]).toEqual({ score: 640, stars: 2 });
     expect(r.progress.bestScore).toBe(640);
     expect(r.progress.updatedAt).toBe(42);
-    // Only telemetry degrades.
+    // Only telemetry degrades — including the endless record inside it (N-END-02).
     expect(r.progress.telemetry).toEqual(defaultTelemetryBlob());
+    expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
   });
 
   it('partial telemetry keeps the fields it does have and defaults only the missing/invalid ones', () => {
@@ -245,6 +258,8 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
         telemetry: {
           lifetime: { runsPlayed: 3, bricksBroken: 'nope', bestComboEver: 7 },
           byMode: { campaign: { [first]: { runsPlayed: 3 } } },
+          // Structurally broken endless record — must degrade ITSELF and nothing else.
+          endless: 'not-an-object',
           recentRuns: [
             { mode: 'campaign', levelId: first, outcome: 'win', score: 5, ticks: 9, timestamp: 1 },
             { mode: 'bogus-mode', levelId: first, outcome: 'win', score: 5, ticks: 9, timestamp: 2 },
@@ -263,6 +278,108 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
     // Unknown mode entries are dropped, valid ones kept.
     expect(r.progress.telemetry.recentRuns).toHaveLength(1);
     expect(r.progress.telemetry.recentRuns[0]?.timestamp).toBe(1);
+    // The broken endless record degrades alone — its sibling telemetry fields above
+    // all survived, which is the SC-3 independence argument one level down.
+    expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
+  });
+
+  it('a partial endless record keeps the fields it does have and coerces the invalid ones to non-negative integers (N-END-02)', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 500, stars: 1 } },
+        bestScore: 500,
+        updatedAt: 7,
+        // A negative wave next to a perfectly good score: the bad field degrades
+        // alone. (`NaN`/`Infinity` cannot survive JSON — `JSON.stringify` emits
+        // `null` for both, and the `null` form is covered below.)
+        telemetry: { ...telemetry, endless: { bestWave: -5, bestScore: 4200 } },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 0, bestScore: 4200 });
+    // Sibling telemetry survives…
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(6);
+    // …and so does every campaign field (SC-3).
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 2));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+    expect(r.progress.bestScore).toBe(500);
+  });
+
+  it('every non-numeric endless field shape degrades to 0 without touching its sibling field or the enclosing blob', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    const parseWith = (endless: unknown) =>
+      parseProgressResult(
+        JSON.stringify({
+          v: 4,
+          unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+          bestByLevel: { [first]: { score: 500, stars: 1 } },
+          bestScore: 500,
+          updatedAt: 7,
+          telemetry: { ...defaultTelemetryBlob(), endless },
+        }),
+      );
+
+    // A string counter, a fractional counter and a JSON `null` (the wire form of
+    // NaN/Infinity) each degrade that field ALONE.
+    expect(parseWith({ bestWave: '12', bestScore: 30 }).progress.telemetry.endless).toEqual({
+      bestWave: 0,
+      bestScore: 30,
+    });
+    expect(parseWith({ bestWave: 1.7, bestScore: 12.9 }).progress.telemetry.endless).toEqual({
+      bestWave: 1,
+      bestScore: 12,
+    });
+    expect(parseWith({ bestWave: Number.NaN, bestScore: 8 }).progress.telemetry.endless).toEqual({
+      bestWave: 0,
+      bestScore: 8,
+    });
+
+    // Whole-record shapes that are not objects fall back to the default record…
+    for (const broken of ['nope', [], null, 42, undefined]) {
+      const r = parseWith(broken);
+      // …without ever making the enclosing blob read as corrupt (SC-3).
+      expect(r.status).toBe('ok');
+      expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
+      expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+      expect(r.progress.bestScore).toBe(500);
+    }
+  });
+
+  it('an existing v4 blob written before the endless record existed parses with the field defaulted and every campaign field intact — no version bump, no migration', () => {
+    const first = PLAYABLE_LEVEL_ORDER[0] as string;
+    // The exact old shape: a v4 telemetry object with no `endless` key at all.
+    const oldTelemetry = {
+      lifetime: { ...defaultTelemetryAggregate(), runsPlayed: 4, bricksBroken: 120 },
+      byMode: { campaign: { [first]: { ...defaultTelemetryAggregate(), runsPlayed: 4 } }, endless: {}, daily: {} },
+      recentRuns: [],
+    };
+    expect(Object.keys(oldTelemetry)).not.toContain('endless');
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1200, stars: 3 } },
+        bestScore: 1200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: oldTelemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.v).toBe(PROGRESS_VERSION);
+    expect(r.progress.telemetry.endless).toEqual(defaultEndlessRecord());
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(120);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1200);
   });
 
   it('structurally corrupt top-level JSON degrades the whole blob to defaults and never throws', () => {
@@ -279,6 +396,1042 @@ describe('parseProgressResult (v4, telemetry validated independently — Pitfall
     const absent = parseProgressResult(null);
     expect(absent.status).toBe('absent');
     expect(absent.progress).toEqual(defaultProgressBlob());
+  });
+});
+
+/**
+ * The read half of the daily record (N-DAILY-02 / N-DAILY-03 / D-15 / D-16 / T-12-15…17,
+ * plan 12-04).
+ *
+ * Mirrors the endless-record block above case for case, because the daily record inherits
+ * `sanitizeTelemetry`'s independence contract verbatim: start from the default, copy only
+ * the keys the default declares, coerce each field on its own so a broken one cannot
+ * discard a good sibling. Three things the endless record has no counterpart for are
+ * written fresh, and each exists against a named threat:
+ *
+ *  - **Per-entry validation** (T-12-15). 12-UI-SPEC renders the stored key verbatim with no
+ *    formatting step, so a 4 000-character `date` would reach a `Text` inside a 320px
+ *    panel. The entry is DROPPED — never truncated, never repaired.
+ *  - **Bound on read** (T-12-16), applied AFTER the drop. Trimming first would let padding
+ *    garbage push real dates out of the window; the ordering case below is built so that
+ *    mistake is falsifiable rather than merely forbidden in a comment.
+ *  - **Degrade downward, never upward** (D-16 as amended at 12-03's checkpoint). An invalid
+ *    `currentStreakStart` falls back to the empty start, which under-reports a streak.
+ *    Inflating one out of a tampered blob is the direction this phase has refused at every
+ *    turn.
+ *
+ * 12-UI-SPEC § Storage-failure is what makes dropping the right answer rather than merely a
+ * safe one: an unreadable entry means "this date has no stored result", i.e. playable. The
+ * cost — a transient fault handing a player a second attempt at the day — is accepted there
+ * in writing, because the alternative locks a player out of their day on a transient fault.
+ */
+describe('sanitizeDailyRecord — bounded on read, every stored key validated (12-04)', () => {
+  const first = PLAYABLE_LEVEL_ORDER[0] as string;
+
+  /** A v4 blob with a known campaign payload and a caller-supplied daily record. */
+  function parseWithDaily(daily: unknown) {
+    return parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 500, stars: 1 } },
+        bestScore: 500,
+        updatedAt: 7,
+        telemetry: { ...defaultTelemetryBlob(), daily },
+      }),
+    );
+  }
+
+  /**
+   * `count` consecutive ISO keys from 2025-01-01, built by UTC counting rather than through
+   * `localDateKey`. This is a FIXTURE: deriving it with the very function the parser's
+   * validator guards would let a broken pair agree by computing the same wrong answer twice.
+   */
+  function consecutiveKeys(count: number): string[] {
+    const out: string[] = [];
+    const d = new Date(Date.UTC(2025, 0, 1));
+    for (let i = 0; i < count; i++) {
+      out.push(
+        `${String(d.getUTCFullYear()).padStart(4, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`,
+      );
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return out;
+  }
+
+  const winEntry = (date: string, score = 100) => ({ date, score, outcome: 'win' as const });
+
+  it('a missing or non-object daily record parses to the default without making the enclosing blob corrupt', () => {
+    for (const broken of [undefined, null, 'nope', [], 42, true]) {
+      const r = parseWithDaily(broken);
+      expect(r.status, `daily: ${String(broken)} must not make the blob corrupt`).toBe('ok');
+      expect(r.progress.telemetry.daily).toEqual(defaultDailyRecord());
+      // …and every campaign field is untouched by it (N-DAILY-03 / SC-5).
+      expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+      expect(r.progress.bestScore).toBe(500);
+    }
+  });
+
+  it('a partial daily record keeps the fields it does have and coerces the invalid ones (D-16)', () => {
+    const r = parseWithDaily({
+      history: [
+        winEntry('2026-09-26', 1_200),
+        { date: '2026-09-27', score: -5, outcome: 'lose' },
+      ],
+      longestStreak: 2,
+      totalDaysPlayed: -3,
+    });
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily.history).toEqual([
+      { date: '2026-09-26', score: 1_200, outcome: 'win' },
+      { date: '2026-09-27', score: 0, outcome: 'lose' },
+    ]);
+    expect(r.progress.telemetry.daily.longestStreak).toBe(2);
+    expect(r.progress.telemetry.daily.totalDaysPlayed).toBe(0);
+    // Absent entirely — the field the record does not carry defaults rather than throwing.
+    expect(r.progress.telemetry.daily.currentStreakStart).toBe('');
+  });
+
+  it('every non-numeric daily scalar shape degrades to 0 without touching its sibling scalar', () => {
+    const daily = (over: Record<string, unknown>) => ({
+      history: [winEntry('2026-09-27')],
+      longestStreak: 4,
+      totalDaysPlayed: 9,
+      currentStreakStart: '2026-09-27',
+      ...over,
+    });
+
+    // A string counter, a JSON `null` (the wire form of NaN/Infinity) and a fractional
+    // counter each degrade that field ALONE.
+    expect(parseWithDaily(daily({ longestStreak: '4' })).progress.telemetry.daily).toMatchObject({
+      longestStreak: 0,
+      totalDaysPlayed: 9,
+    });
+    expect(
+      parseWithDaily(daily({ totalDaysPlayed: Number.NaN })).progress.telemetry.daily,
+    ).toMatchObject({ longestStreak: 4, totalDaysPlayed: 0 });
+    expect(
+      parseWithDaily(daily({ longestStreak: 4.7, totalDaysPlayed: 9.2 })).progress.telemetry.daily,
+    ).toMatchObject({ longestStreak: 4, totalDaysPlayed: 9 });
+
+    // …and a broken scalar leaves the history and the stored start standing.
+    const broken = parseWithDaily(daily({ longestStreak: null })).progress.telemetry.daily;
+    expect(broken.longestStreak).toBe(0);
+    expect(broken.history).toHaveLength(1);
+    expect(broken.currentStreakStart).toBe('2026-09-27');
+  });
+
+  it('drops a history entry that is not an object, and one whose date is not a string', () => {
+    const r = parseWithDaily({
+      history: [
+        'nope',
+        null,
+        42,
+        [],
+        { score: 10, outcome: 'win' },
+        { date: 20_260_927, score: 10, outcome: 'win' },
+        winEntry('2026-09-27'),
+      ],
+    });
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-27']);
+  });
+
+  it('drops a history entry naming an impossible calendar date — month 0 or 13, day 0 or 32, 30 February, and 29 February in a non-leap year', () => {
+    const impossible = [
+      '2026-00-10',
+      '2026-13-10',
+      '2026-09-00',
+      '2026-09-32',
+      '2026-02-30',
+      '2026-02-29',
+      '1900-02-29',
+      '2026-9-27',
+      '2026-09-27T00:00:00Z',
+      '',
+      'not-a-date',
+    ];
+    for (const date of impossible) {
+      const r = parseWithDaily({ history: [{ date, score: 10, outcome: 'win' }] });
+      expect(r.status, `${date} must not make the blob corrupt`).toBe('ok');
+      expect(r.progress.telemetry.daily.history, `${date} must be dropped`).toEqual([]);
+    }
+
+    // The non-vacuity control: the leap rule is the FULL one, so a real 29 February — and a
+    // 400th-year one — survive. Without this the case above would pass on a validator that
+    // rejected everything.
+    const leap = parseWithDaily({ history: [winEntry('2024-02-29'), winEntry('2000-02-29')] });
+    expect(leap.progress.telemetry.daily.history.map((e) => e.date)).toEqual([
+      '2024-02-29',
+      '2000-02-29',
+    ]);
+  });
+
+  it('drops a 4 000-character date string rather than truncating it or rendering it (T-12-15)', () => {
+    const hostile = '9'.repeat(4_000);
+    const r = parseWithDaily({
+      history: [{ date: hostile, score: 10, outcome: 'win' }, winEntry('2026-09-27')],
+    });
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-27']);
+    // Not truncated either: no prefix of it survives anywhere in the record.
+    expect(JSON.stringify(r.progress.telemetry.daily)).not.toContain(hostile.slice(0, 32));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+  });
+
+  it('drops a history entry whose outcome is outside the closed set — abandoned never closes a date (D-07)', () => {
+    for (const outcome of ['abandoned', 'WIN', 'won', '', 1, null, undefined]) {
+      const r = parseWithDaily({ history: [{ date: '2026-09-27', score: 10, outcome }] });
+      expect(
+        r.progress.telemetry.daily.history,
+        `outcome ${String(outcome)} is outside { win, lose } and must be dropped`,
+      ).toEqual([]);
+    }
+    // Control: both members of the closed set survive.
+    const ok = parseWithDaily({
+      history: [
+        { date: '2026-09-26', score: 10, outcome: 'win' },
+        { date: '2026-09-27', score: 10, outcome: 'lose' },
+      ],
+    });
+    expect(ok.progress.telemetry.daily.history).toHaveLength(2);
+  });
+
+  it('trims a history longer than DAILY_HISTORY_BOUND on read — a tampered blob cannot grow the window (T-12-16)', () => {
+    const keys = consecutiveKeys(DAILY_HISTORY_BOUND + 60);
+    const r = parseWithDaily({ history: keys.map((k) => winEntry(k)) });
+    const history = r.progress.telemetry.daily.history;
+
+    expect(history).toHaveLength(DAILY_HISTORY_BOUND);
+    // The TRAILING window survives — newest kept, oldest evicted, exactly as the shipped
+    // recent-run ring does one field below.
+    expect(history[history.length - 1]?.date).toBe(keys[keys.length - 1]);
+    expect(history[0]?.date).toBe(keys[60]);
+  });
+
+  it('applies the trailing-window trim AFTER dropping invalid entries, so padding garbage cannot push real dates out of the window', () => {
+    const keys = consecutiveKeys(DAILY_HISTORY_BOUND);
+    const padding = Array.from({ length: 40 }, () => ({
+      date: '2026-02-30',
+      score: 1,
+      outcome: 'win',
+    }));
+    const r = parseWithDaily({ history: [...keys.map((k) => winEntry(k)), ...padding] });
+    const history = r.progress.telemetry.daily.history;
+
+    // Trim-then-drop keeps the last 400 of 440 — losing the 40 OLDEST real dates and then
+    // dropping the padding anyway, for 360 survivors. Drop-then-trim keeps all 400. The
+    // difference is what makes the ordering falsifiable rather than merely asserted.
+    expect(history).toHaveLength(DAILY_HISTORY_BOUND);
+    expect(history.map((e) => e.date)).toEqual(keys);
+  });
+
+  it('degrades an invalid currentStreakStart downward to the empty start, never to one that inflates a streak (D-16 amendment)', () => {
+    const history = [winEntry('2026-09-26'), winEntry('2026-09-27')];
+    const startFor = (currentStreakStart: unknown) =>
+      parseWithDaily({ history, longestStreak: 2, totalDaysPlayed: 2, currentStreakStart })
+        .progress.telemetry.daily.currentStreakStart;
+
+    // Controls first, so the rejections below cannot pass vacuously: a well-formed in-window
+    // start is carried…
+    expect(startFor('2026-09-26')).toBe('2026-09-26');
+    // …and so is one reaching back PAST the trimmed window, which is the entire reason the
+    // field is stored rather than derived (D-16, as amended).
+    expect(startFor('2020-01-01')).toBe('2020-01-01');
+
+    for (const hostile of ['2026-02-30', '9'.repeat(4_000), 20_260_927, null, '', '2026-9-26']) {
+      expect(
+        startFor(hostile),
+        `${String(hostile).slice(0, 16)} must degrade to the empty start`,
+      ).toBe('');
+    }
+
+    // A start that POSTDATES its own newest stored date cannot be a real run start —
+    // discarded, which under-reports rather than inflating.
+    expect(startFor('2027-01-01')).toBe('');
+    // And with no stored dates at all there is no run in progress for a start to name.
+    expect(
+      parseWithDaily({ history: [], currentStreakStart: '2026-09-26' }).progress.telemetry.daily
+        .currentStreakStart,
+    ).toBe('');
+  });
+
+  it('a fully corrupt daily record leaves unlocked, bestByLevel, bestScore, stars and the endless record intact (N-DAILY-03 / SC-5)', () => {
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    telemetry.endless = { bestWave: 14, bestScore: 8_400 };
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: {
+          ...telemetry,
+          daily: {
+            history: 'not-an-array',
+            longestStreak: 'lots',
+            totalDaysPlayed: [],
+            currentStreakStart: 999,
+          },
+        },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.daily).toEqual(defaultDailyRecord());
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 14, bestScore: 8_400 });
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(6);
+  });
+
+  it('an existing v4 blob written before the daily record existed parses with the field defaulted and every campaign field intact — no version bump, no migration', () => {
+    // The exact old shape: a v4 telemetry object with no `daily` key at all.
+    const oldTelemetry = {
+      lifetime: { ...defaultTelemetryAggregate(), runsPlayed: 4, bricksBroken: 120 },
+      byMode: {
+        campaign: { [first]: { ...defaultTelemetryAggregate(), runsPlayed: 4 } },
+        endless: {},
+        daily: {},
+      },
+      endless: { bestWave: 3, bestScore: 900 },
+      recentRuns: [],
+    };
+    expect(Object.keys(oldTelemetry)).not.toContain('daily');
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: oldTelemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.v).toBe(PROGRESS_VERSION);
+    expect(r.progress.telemetry.daily).toEqual(defaultDailyRecord());
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 3, bestScore: 900 });
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(120);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+  });
+});
+
+/**
+ * The stored achievements set on the READ path (N-ACH-02 / SC-3 / D-13 / D-15 / D-17 / D-21).
+ *
+ * A SIBLING of `describe('sanitizeDailyRecord …')` above, deliberately not a rewrite of it:
+ * the harness shape, the fixture-not-derived rule, the trim-after-drop case, the
+ * independence case and the no-migration case are all copied from it, because the two
+ * records carry the same independence contract one level down inside `sanitizeTelemetry`.
+ *
+ * Two obligations this record carries that the daily one does not, and both are asserted
+ * here: every stored id is validated against the CATALOG on read, and the timestamp
+ * DEGRADES where the id DROPS (D-21) — two different failure rules inside one entry
+ * sanitizer, which no other sanitizer in `parseBlob.ts` has.
+ */
+/**
+ * `sanitizeAggregateMap` — bounded on read (WINDOWS #27 / T-09-A1, closed 2026-09-29).
+ *
+ * WHY THIS BLOCK EXISTS. This map was the one unbounded stored collection in the v4 read
+ * path, open since plan 09-02 (`ddbbec3`), and phases 11, 12 and 13 each *transferred* a
+ * threat to WINDOWS #27 on the understanding it was tracked. Tracked is not bounded.
+ *
+ * The function does not merely copy keys, it EXPANDS them: `sanitizeAggregate` turns a
+ * stored `{}` cell into a full sixteen-field aggregate. MEASURED before the bound existed,
+ * on a valid v4 blob: 20 000 empty campaign cells at 229KB stored parsed to **5.79MB** in
+ * memory — a 25x inflation — with all 20 000 keys surviving at `status: 'ok'`, against the
+ * ~2MB Android CursorWindow ceiling the ring buffer is sized for. After the bound: 18.9KB
+ * and 64 keys, the same `status: 'ok'`.
+ *
+ * The bound cannot cost a real player anything. Every legitimate key comes from a closed
+ * domain — `byMode.campaign` is keyed by `LevelId` (five members), and the other two maps
+ * hold a single constant key each — so a real blob carries at most five keys in the largest
+ * of the three. That is asserted below rather than only argued, because it is the whole
+ * reason 64 is safe.
+ */
+/**
+ * The two `recentRuns` bounds, and the sibling-degrade property — the three phase-09
+ * truths that HELD but that nothing would have caught the removal of (09-VERIFICATION).
+ *
+ * MEASURED 2026-09-29, before this block existed: deleting the `slice(-RECENT_RUNS_BOUND)`
+ * from `mergeTelemetryBlobs` left the whole suite green at 874 passed, and so did deleting
+ * it from `sanitizeTelemetry`'s read path. The existing merge case asserted
+ * `merged.recentRuns.length <= RECENT_RUNS_BOUND` against a merged length of **2** — an
+ * assertion that cannot fail, under a test name claiming the bound.
+ *
+ * Note the DIRECTION, and that it is the opposite of the achievements bound one screen
+ * above. `recentRuns` is `slice(-N)` — keep the LATEST — because it is a recency ring and
+ * the oldest run is the one worth losing. `achievements` is `slice(0, N)` — keep the
+ * FIRST — because under D-17 an unlock is permanent and the oldest are the ones held
+ * longest. Both are correct for their collection and a later reader must not unify them,
+ * so each direction is asserted rather than merely bounded.
+ */
+describe('recentRuns bounds and sibling degradation — the three unguarded phase-09 truths (09-VERIFICATION)', () => {
+  const runEntry = (timestamp: number): Record<string, unknown> => ({
+    mode: 'campaign',
+    levelId: PLAYABLE_LEVEL_ORDER[0] as string,
+    outcome: 'lose',
+    score: timestamp,
+    ticks: 10,
+    timestamp,
+  });
+
+  it('mergeTelemetryBlobs bounds recentRuns and keeps the LATEST — proved with more entries than the bound', () => {
+    const a = defaultTelemetryBlob();
+    const b = defaultTelemetryBlob();
+    // 40 + 40 = 80 entries against a bound of 50, so the bound must actually cut. The old
+    // case merged two entries and asserted `<= 50`.
+    a.recentRuns = Array.from({ length: 40 }, (_, i) =>
+      runEntry(i + 1),
+    ) as unknown as typeof a.recentRuns;
+    b.recentRuns = Array.from({ length: 40 }, (_, i) =>
+      runEntry(i + 101),
+    ) as unknown as typeof b.recentRuns;
+
+    const merged = mergeTelemetryBlobs(a, b);
+
+    expect(
+      merged.recentRuns.length,
+      'the bound must BITE: 80 entries in, RECENT_RUNS_BOUND out. Asserting `<=` against a merged length of 2, as this file did until 2026-09-29, is green whether or not the slice exists',
+    ).toBe(RECENT_RUNS_BOUND);
+    expect(
+      merged.recentRuns[merged.recentRuns.length - 1]?.timestamp,
+      'and the survivors are the LATEST — slice(-N), not slice(0, N). The newest run must always be in the window a stats screen reads',
+    ).toBe(140);
+    expect(
+      merged.recentRuns[0]?.timestamp,
+      'and the 30 DROPPED entries are the oldest ones. The two source blobs use disjoint timestamp ranges (1..40 and 101..140) on purpose: after sorting, the window is the last 50 POSITIONS, so the oldest survivor is timestamp 31 — not 140 minus 50, which is what a reader assuming contiguous timestamps would predict, and what the first version of this assertion got wrong',
+    ).toBe(31);
+  });
+
+  it('the read path bounds recentRuns too — a tampered blob cannot grow the ring', () => {
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).recentRuns = Array.from(
+      { length: 500 },
+      (_, i) => runEntry(i + 1),
+    );
+    const res = parseProgressResult(JSON.stringify(blob));
+
+    expect(
+      res.status,
+      'the bound TRIMS, it does not reject — C1 D-09 makes parse fail-soft',
+    ).toBe('ok');
+    expect(
+      res.progress.telemetry.recentRuns.length,
+      'bounded on READ as well as on write. Without this the only cap on a hand-edited blob would be the write path, which a tampered file never goes through',
+    ).toBe(RECENT_RUNS_BOUND);
+    expect(
+      res.progress.telemetry.recentRuns[RECENT_RUNS_BOUND - 1]?.timestamp,
+      'and the read path keeps the LATEST as well, matching the merge direction',
+    ).toBe(500);
+  });
+
+  it('a stored levelId longer than RUN_LOG_LEVEL_ID_MAX drops its entry, and every legitimate value is far below the bound (T-09-A2)', () => {
+    // MEASURED before this bound existed: a 4 000-character levelId survived the read path
+    // intact at status 'ok', as did `<Text>evil</Text>` and `__proto__`. Nothing renders
+    // recentRuns today; Phase 14's statistics screen is what will, and it would have
+    // inherited an unfenced string. Same surface phase 12 fenced as T-12-15 and phase 13 as
+    // T-13-01 — phase 09's own register never named it.
+    const entry = (levelId: string, timestamp: number): Record<string, unknown> => ({
+      mode: 'campaign',
+      levelId,
+      outcome: 'lose',
+      score: 10,
+      ticks: 10,
+      timestamp,
+    });
+
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).recentRuns = [
+      entry('A'.repeat(4000), 1),
+      entry('B'.repeat(RUN_LOG_LEVEL_ID_MAX + 1), 2),
+      entry(PLAYABLE_LEVEL_ORDER[0] as string, 3),
+      entry('C'.repeat(RUN_LOG_LEVEL_ID_MAX), 4),
+    ];
+    const res = parseProgressResult(JSON.stringify(blob));
+
+    expect(res.status, 'a hostile entry must not fail the parse — C1 D-09').toBe('ok');
+    expect(
+      res.progress.telemetry.recentRuns.map((e) => e.timestamp),
+      'the two over-length entries are DROPPED whole, matching every other entry sanitizer in parseBlob.ts. Truncating instead would keep a lie about which level a run was played on, and a recentRuns entry is cheap to lose — unlike an achievement unlock, which D-17 makes one-way and which is therefore kept with a defaulted field (D-21)',
+    ).toEqual([3, 4]);
+    expect(
+      res.progress.telemetry.recentRuns.every(
+        (e) => e.levelId.length <= RUN_LOG_LEVEL_ID_MAX,
+      ),
+      'and nothing over the bound survives anywhere in the parsed blob',
+    ).toBe(true);
+    expect(
+      res.progress.telemetry.recentRuns[1]?.levelId.length,
+      'the boundary itself is INCLUSIVE — exactly RUN_LOG_LEVEL_ID_MAX is accepted, so the check is > and not >=',
+    ).toBe(RUN_LOG_LEVEL_ID_MAX);
+  });
+
+  it('the bound sits above every value the three modes can legitimately store', () => {
+    // This is the assertion that makes the bound safe rather than merely present. If a
+    // future LevelId, or a renamed mode key, ever grows past it, this reds BEFORE a real
+    // player silently loses run-log entries.
+    const longestLevelId = Math.max(
+      ...PLAYABLE_LEVEL_ORDER.map((id) => (id as string).length),
+    );
+    for (const [what, value] of [
+      ['the longest LevelId', longestLevelId],
+      ['ENDLESS_TELEMETRY_KEY', ENDLESS_TELEMETRY_KEY.length],
+      ['DAILY_TELEMETRY_KEY', DAILY_TELEMETRY_KEY.length],
+    ] as const) {
+      expect(
+        value,
+        `${what} must stay under RUN_LOG_LEVEL_ID_MAX — only one of the three modes stores a LevelId at all, which is why the fence is a LENGTH bound and not a membership check`,
+      ).toBeLessThan(RUN_LOG_LEVEL_ID_MAX);
+    }
+    expect(
+      RUN_LOG_LEVEL_ID_MAX,
+      'and the headroom is real: four times the longest legitimate value',
+    ).toBeGreaterThanOrEqual(longestLevelId * 4);
+  });
+
+  it('a corrupt lifetime, byMode or recentRuns degrades ITSELF and leaves every sibling standing', () => {
+    // Each sibling is seeded NON-DEFAULT first and that is asserted, or "the siblings
+    // survived" is indistinguishable from "the siblings were always default". Phase 12 hit
+    // exactly this vacuity at sanitizeTelemetry.
+    const seeded = () => {
+      const b = defaultProgressBlob() as unknown as Record<string, unknown>;
+      b.bestScore = 4242;
+      (b.unlocked as string[]) = [PLAYABLE_LEVEL_ORDER[0] as string];
+      const t = b.telemetry as Record<string, unknown>;
+      (t.lifetime as Record<string, number>).bricksBroken = 777;
+      (t.byMode as Record<string, unknown>).campaign = {
+        [PLAYABLE_LEVEL_ORDER[0] as string]: { runsPlayed: 9 },
+      };
+      t.recentRuns = [runEntry(55)];
+      (t.endless as Record<string, number>).bestWave = 6;
+      return b;
+    };
+
+    // The anti-vacuity baseline: a clean parse really does carry all five non-defaults.
+    const clean = parseProgressResult(JSON.stringify(seeded()));
+    expect(clean.status).toBe('ok');
+    expect(clean.progress.bestScore, 'baseline').toBe(4242);
+    expect(clean.progress.telemetry.lifetime.bricksBroken, 'baseline').toBe(777);
+    expect(
+      clean.progress.telemetry.byMode.campaign[PLAYABLE_LEVEL_ORDER[0] as string]
+        ?.runsPlayed,
+      'baseline',
+    ).toBe(9);
+    expect(clean.progress.telemetry.recentRuns, 'baseline').toHaveLength(1);
+    expect(clean.progress.telemetry.endless.bestWave, 'baseline').toBe(6);
+
+    for (const field of ['lifetime', 'byMode', 'recentRuns'] as const) {
+      const b = seeded();
+      (b.telemetry as Record<string, unknown>)[field] = 'BOOM';
+      const res = parseProgressResult(JSON.stringify(b));
+
+      expect(res.status, `${field}: a corrupt field must never fail the parse`).toBe('ok');
+
+      const t = res.progress.telemetry;
+      expect(
+        res.progress.bestScore,
+        `${field} degraded, but bestScore is a SIBLING and must be untouched — Research Pitfall 4 is that telemetry corruption degrades telemetry alone, and this is the finer-grained form of it`,
+      ).toBe(4242);
+      expect(res.progress.unlocked, `${field}: the unlocked ladder survives`).toContain(
+        PLAYABLE_LEVEL_ORDER[0] as string,
+      );
+      expect(t.endless.bestWave, `${field}: the endless record survives`).toBe(6);
+
+      if (field !== 'lifetime') {
+        expect(t.lifetime.bricksBroken, `${field}: lifetime survives`).toBe(777);
+      }
+      if (field !== 'byMode') {
+        expect(
+          t.byMode.campaign[PLAYABLE_LEVEL_ORDER[0] as string]?.runsPlayed,
+          `${field}: byMode survives`,
+        ).toBe(9);
+      }
+      if (field !== 'recentRuns') {
+        expect(t.recentRuns, `${field}: recentRuns survives`).toHaveLength(1);
+      }
+    }
+  });
+});
+
+describe('sanitizeAggregateMap — bounded on read, and the bound is above every legitimate key domain (09-A1)', () => {
+  const bigCampaign = (n: number): Record<string, unknown> => {
+    const m: Record<string, unknown> = {};
+    for (let i = 0; i < n; i += 1) {
+      m[`pad-${i}`] = { runsPlayed: 1 };
+    }
+    return m;
+  };
+
+  it('a tampered map cannot grow the parsed record — 20000 keys in, AGGREGATE_MAP_BOUND out, and the blob still parses ok', () => {
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).byMode = {
+      campaign: bigCampaign(20000),
+      endless: {},
+      daily: {},
+    };
+    const res = parseProgressResult(JSON.stringify(blob));
+
+    expect(
+      res.status,
+      'the bound must TRIM, never reject — a hostile blob that makes the app refuse to load its own progress is a worse outcome than one that loses invented keys (C1 D-09: parse is fail-soft)',
+    ).toBe('ok');
+    expect(
+      Object.keys(res.progress.telemetry.byMode.campaign).length,
+      'WINDOWS #27: before this bound, every one of the 20000 keys survived and each was EXPANDED to a sixteen-field aggregate — 229KB stored became 5.79MB parsed',
+    ).toBe(AGGREGATE_MAP_BOUND);
+  });
+
+  it('the bound is applied AFTER the non-object drop, so padding garbage cannot push a real level out of the window', () => {
+    const real = PLAYABLE_LEVEL_ORDER[0] as string;
+    const campaign: Record<string, unknown> = {};
+    // Garbage FIRST, and enough of it to overrun the window on its own if it counted.
+    for (let i = 0; i < AGGREGATE_MAP_BOUND * 2; i += 1) {
+      campaign[`junk-${i}`] = i % 2 === 0 ? null : 'not-an-object';
+    }
+    campaign[real] = { runsPlayed: 7 };
+
+    const blob = defaultProgressBlob() as unknown as Record<string, unknown>;
+    (blob.telemetry as Record<string, unknown>).byMode = {
+      campaign,
+      endless: {},
+      daily: {},
+    };
+    const res = parseProgressResult(JSON.stringify(blob));
+    const out = res.progress.telemetry.byMode.campaign;
+
+    expect(
+      Object.keys(out).length,
+      'none of the 128 non-object cells may consume a slot — they are dropped, and only survivors are counted toward the bound',
+    ).toBe(1);
+    expect(
+      out[real]?.runsPlayed,
+      'THE POINT: the one real aggregate sits behind 128 junk keys and must still arrive. Counting before the drop — bounding Object.keys(map) instead of the survivors — would silently discard it, which is the trim-then-drop defect this ordering exists to prevent',
+    ).toBe(7);
+  });
+
+  it('every legitimate key domain is far below the bound — which is why 64 costs nothing', () => {
+    expect(
+      PLAYABLE_LEVEL_ORDER.length,
+      'byMode.campaign is keyed by LevelId. If the campaign ever grows past AGGREGATE_MAP_BOUND this assertion reds FIRST, before a player silently loses a level aggregate — that is what it is for',
+    ).toBeLessThan(AGGREGATE_MAP_BOUND);
+    expect(
+      AGGREGATE_MAP_BOUND,
+      'and the headroom is real, not nominal: the largest legitimate map is five keys',
+    ).toBeGreaterThanOrEqual(PLAYABLE_LEVEL_ORDER.length * 4);
+  });
+});
+
+describe('sanitizeAchievementRecord — the stored achievements set, bounded on read and validated against the catalog (13-03)', () => {
+  const first = PLAYABLE_LEVEL_ORDER[0] as string;
+
+  /**
+   * A v4 blob with a known campaign payload, a known endless record and a known daily
+   * record, plus a caller-supplied achievements field.
+   *
+   * Every case therefore asserts INDEPENDENCE as well as its own claim, rather than one
+   * case doing it for all of them — the `parseWithDaily` shape above, for its reason.
+   */
+  function parseWithAchievements(achievements: unknown) {
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    telemetry.endless = { bestWave: 14, bestScore: 8_400 };
+    telemetry.daily = {
+      history: [{ date: '2026-09-27', score: 700, outcome: 'win' }],
+      longestStreak: 3,
+      totalDaysPlayed: 5,
+      currentStreakStart: '2026-09-27',
+    };
+    return parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 2),
+        bestByLevel: { [first]: { score: 500, stars: 1 } },
+        bestScore: 500,
+        updatedAt: 7,
+        telemetry: { ...telemetry, achievements },
+      }),
+    );
+  }
+
+  const unlockedIn = (r: ReturnType<typeof parseWithAchievements>) =>
+    r.progress.telemetry.achievements.unlocked;
+
+  /**
+   * KNOWN ids are DERIVED from the shipped catalog, so plan 13-02's expansion — and any
+   * later one — cannot silently shrink this block's coverage. `tests/ui/certLevelPlan.test.ts`'s
+   * argument, and the same rule `tests/achievements.record.test.ts` applies to its control id.
+   */
+  const KNOWN = ACHIEVEMENT_CATALOG.map((a) => a.id);
+
+  /**
+   * The UNKNOWN id is a hard LITERAL and goes the other way, which is the direction the
+   * daily block's `consecutiveKeys` comment states: deriving this fixture with the very
+   * data the validator guards (`KNOWN[0] + '-x'`) would let a broken pair agree by
+   * computing the same wrong answer twice. A catalog that ever mints this string would
+   * fail the case rather than pass it, which is the safe direction.
+   */
+  const NOT_AN_ID = 'not-an-achievement';
+
+  it('the fixtures are non-vacuous: the catalog mints ids, and the hostile id is not one of them', () => {
+    expect(
+      KNOWN.length,
+      'an empty catalog would make every "survives" assertion below pass by having nothing to keep',
+    ).toBeGreaterThan(2);
+    expect(
+      KNOWN,
+      `${NOT_AN_ID} must not be a real id, or the unknown-id case below is asserting that a REAL achievement is dropped`,
+    ).not.toContain(NOT_AN_ID);
+  });
+
+  it('drops a stored achievements entry whose id the catalog never minted, and keeps its siblings (T-13-01 / D-15)', () => {
+    const r = parseWithAchievements({
+      unlocked: [
+        { id: NOT_AN_ID, at: 1_700_000_000_000 },
+        { id: KNOWN[0], at: 1_700_000_000_001 },
+        { id: '9'.repeat(4_000), at: 1_700_000_000_002 },
+        { id: 42, at: 1 },
+        { id: '', at: 1 },
+        'nope',
+        null,
+        [],
+        { id: KNOWN[1], at: 1_700_000_000_003 },
+      ],
+    });
+
+    expect(r.status, 'a hostile achievements field must not make the enclosing blob corrupt').toBe(
+      'ok',
+    );
+    // The survivors are the positive control: without them this case would pass against a
+    // sanitizer that dropped everything.
+    expect(
+      unlockedIn(r).map((e) => e.id),
+      'an id the catalog never minted cannot reach the host, let alone a rendered Text — and the two real ids must survive it',
+    ).toEqual([KNOWN[0], KNOWN[1]]);
+    // Not truncated or coerced either: no prefix of the 4 000-character id survives.
+    expect(JSON.stringify(r.progress.telemetry.achievements)).not.toContain('99999999');
+    // …and the campaign payload beside it is untouched.
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+  });
+
+  it('KEEPS an achievements entry whose timestamp is malformed and defaults the timestamp to 0 — the id drops, the timestamp degrades (D-15 / D-17 / D-21)', () => {
+    const why =
+      'D-21: dropping the entry because its timestamp is malformed would un-earn an achievement the player did earn (D-17 makes an unlock one-way). Degrading the timestamp costs a sort order; degrading the id costs the achievement — so the two fields take DIFFERENT failure rules inside one entry sanitizer.';
+
+    for (const at of [Number.NaN, '1700000000000', -5, undefined, null, [], {}, true]) {
+      const r = parseWithAchievements({ unlocked: [{ id: KNOWN[0], at }] });
+      const entries = unlockedIn(r);
+      // BOTH halves in one case: the entry is KEPT…
+      expect(entries.map((e) => e.id), `at: ${String(at)} — ${why}`).toEqual([KNOWN[0]]);
+      // …and its timestamp defaulted rather than the entry being dropped.
+      expect(entries[0]?.at, `at: ${String(at)} — ${why}`).toBe(0);
+    }
+
+    // `Infinity` and `-Infinity` have no JSON form and arrive as `null`; asserted through
+    // the object path so the numeric non-finite cases are covered too, not just their wire
+    // shape. This is the shipped `safeCounter` contract, local to `parseBlob.ts`.
+    for (const at of [Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const r = parseProgressResult(
+        JSON.stringify({
+          v: 4,
+          unlocked: [],
+          bestByLevel: {},
+          bestScore: 0,
+          updatedAt: 7,
+          telemetry: { ...defaultTelemetryBlob(), achievements: { unlocked: [{ id: KNOWN[0], at }] } },
+        }),
+      );
+      expect(unlockedIn(r).map((e) => e.id), `at: ${String(at)} — ${why}`).toEqual([KNOWN[0]]);
+      expect(unlockedIn(r)[0]?.at, `at: ${String(at)} — ${why}`).toBe(0);
+    }
+
+    // The non-vacuity control: a WELL-FORMED timestamp is carried through unchanged, so the
+    // zeroes above are a degradation rather than a sanitizer that zeroes everything.
+    const ok = parseWithAchievements({ unlocked: [{ id: KNOWN[0], at: 1_700_000_000_123 }] });
+    expect(unlockedIn(ok)[0]?.at).toBe(1_700_000_000_123);
+  });
+
+  it('collapses duplicate achievements ids to one entry, keeping the EARLIEST timestamp (D-14 / D-22)', () => {
+    const r = parseWithAchievements({
+      unlocked: [
+        { id: KNOWN[0], at: 1_700_000_500_000 },
+        { id: KNOWN[1], at: 1_700_000_100_000 },
+        { id: KNOWN[0], at: 1_700_000_200_000 },
+        { id: KNOWN[0], at: 1_700_000_900_000 },
+      ],
+    });
+    const entries = unlockedIn(r);
+
+    expect(
+      entries.filter((e) => e.id === KNOWN[0]),
+      'one entry per id — the collection is a SET keyed by id, and a tampered blob cannot grow it by repeating one',
+    ).toHaveLength(1);
+    expect(
+      entries.find((e) => e.id === KNOWN[0])?.at,
+      'earliest wins: D-14 stores the moment the achievement was FIRST earned, and a later duplicate walking it forward destroys exactly the recency order it is stored for (D-22 inverts mergeDailyRecords incoming-wins for this reason)',
+    ).toBe(1_700_000_200_000);
+    // The inverse, stated explicitly — a last-writer-wins collapse would still hold one
+    // entry per id and would pass a cardinality-only assertion.
+    expect(
+      JSON.stringify(entries),
+      'no later duplicate timestamp may appear anywhere in the surviving collection',
+    ).not.toContain('1700000900000');
+    expect(entries.find((e) => e.id === KNOWN[1])?.at).toBe(1_700_000_100_000);
+  });
+
+  it('applies the achievements bound AFTER the drop loop, so padding garbage cannot push real unlocks out of the window (T-13-02)', () => {
+    const padding = Array.from({ length: ACHIEVEMENT_UNLOCK_BOUND + 6 }, (_, i) => ({
+      id: `${NOT_AN_ID}-${i}`,
+      at: 1_700_000_000_000 + i,
+    }));
+    const real = KNOWN.slice(0, 3).map((id, i) => ({ id, at: 1_800_000_000_000 + i }));
+    expect(
+      padding.length,
+      'the padding must exceed the bound, or trim-first and drop-first produce the same answer and the ordering is not falsifiable',
+    ).toBeGreaterThan(ACHIEVEMENT_UNLOCK_BOUND);
+
+    const r = parseWithAchievements({ unlocked: [...padding, ...real] });
+
+    // Trim-then-drop keeps the FIRST `ACHIEVEMENT_UNLOCK_BOUND` of 73 — all padding — and
+    // then drops every one of them, for zero survivors. Drop-then-trim keeps all three real
+    // unlocks. The difference is what makes the ordering falsifiable rather than asserted.
+    expect(
+      unlockedIn(r).map((e) => e.id),
+      'the three real unlocks survive 70 entries of padding garbage — trimming before the drop loop would evict them and leave nothing',
+    ).toEqual(real.map((e) => e.id));
+    // The fence itself: structurally unreachable while the unknown-id drop stands (a
+    // legitimate set cannot exceed the catalog's size), which is exactly why it exists —
+    // it is what survives a future relaxation of that check (WINDOWS #27's shape).
+    expect(unlockedIn(r).length).toBeLessThanOrEqual(ACHIEVEMENT_UNLOCK_BOUND);
+  });
+
+  it('a missing or non-object achievements record parses to the default without making the enclosing blob corrupt (D-15)', () => {
+    for (const broken of [undefined, null, 'nope', [], 42, true, { unlocked: 'nope' }, { unlocked: 7 }, { unlocked: null }, { unlocked: {} }]) {
+      const r = parseWithAchievements(broken);
+      expect(
+        r.status,
+        `achievements: ${JSON.stringify(broken) ?? 'undefined'} must not make the blob corrupt`,
+      ).toBe('ok');
+      expect(
+        r.progress.telemetry.achievements,
+        'a non-array in the `unlocked` position yields the empty record — never a throw, and never a coerced scalar',
+      ).toEqual(defaultAchievementRecord());
+      // …and every campaign field is untouched by it.
+      expect(r.progress.bestByLevel[first as never]).toEqual({ score: 500, stars: 1 });
+      expect(r.progress.bestScore).toBe(500);
+    }
+  });
+
+  it('a fully corrupt achievements field leaves unlocked, bestByLevel, bestScore, the endless record and the daily history intact (D-15 / SC-5)', () => {
+    const telemetry = defaultTelemetryBlob();
+    telemetry.lifetime.runsPlayed = 6;
+    telemetry.endless = { bestWave: 14, bestScore: 8_400 };
+    telemetry.daily = {
+      history: [{ date: '2026-09-27', score: 700, outcome: 'win' }],
+      longestStreak: 3,
+      totalDaysPlayed: 5,
+      currentStreakStart: '2026-09-27',
+    };
+
+    // EVERY value this case claims to preserve is proved NON-DEFAULT first, in this same
+    // case. Without this the whole case passes on a blob whose siblings were empty to begin
+    // with — the vacuity trap phase 12 hit at this very function.
+    expect(telemetry.endless, 'the endless record must be non-default, or its survival is vacuous').not.toEqual(
+      defaultEndlessRecord(),
+    );
+    expect(telemetry.daily, 'and so must the daily record').not.toEqual(defaultDailyRecord());
+    expect(telemetry.lifetime, 'and so must the lifetime aggregate').not.toEqual(
+      defaultTelemetryAggregate(),
+    );
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: { ...telemetry, achievements: { unlocked: 'not-an-array', bogus: 9 } },
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(r.progress.telemetry.achievements).toEqual(defaultAchievementRecord());
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 14, bestScore: 8_400 });
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-27']);
+    expect(r.progress.telemetry.daily.longestStreak).toBe(3);
+    expect(r.progress.telemetry.lifetime.runsPlayed).toBe(6);
+  });
+
+  it('an existing v4 blob written before the achievements record existed parses with the field defaulted and every campaign, endless and daily field intact — no version bump, no migration (D-13)', () => {
+    // The exact old shape: a v4 telemetry object with no `achievements` key at all.
+    const oldTelemetry = {
+      lifetime: { ...defaultTelemetryAggregate(), runsPlayed: 4, bricksBroken: 120 },
+      byMode: {
+        campaign: { [first]: { ...defaultTelemetryAggregate(), runsPlayed: 4 } },
+        endless: {},
+        daily: {},
+      },
+      endless: { bestWave: 3, bestScore: 900 },
+      daily: {
+        history: [{ date: '2026-09-26', score: 400, outcome: 'win' }],
+        longestStreak: 1,
+        totalDaysPlayed: 1,
+        currentStreakStart: '2026-09-26',
+      },
+      recentRuns: [],
+    };
+    // This assertion is what makes the case about the ABSENCE rather than about a value —
+    // exactly as the shipped daily no-migration case above does it.
+    expect(Object.keys(oldTelemetry)).not.toContain('achievements');
+
+    const r = parseProgressResult(
+      JSON.stringify({
+        v: 4,
+        unlocked: PLAYABLE_LEVEL_ORDER.slice(0, 3),
+        bestByLevel: { [first]: { score: 1_200, stars: 3 } },
+        bestScore: 1_200,
+        updatedAt: 1_700_000_000_000,
+        telemetry: oldTelemetry,
+      }),
+    );
+
+    expect(r.status).toBe('ok');
+    expect(
+      r.progress.v,
+      'D-13: the field is ADDITIVE — an older v4 blob parses clean with no PROGRESS_VERSION bump and no migration step',
+    ).toBe(PROGRESS_VERSION);
+    expect(r.progress.telemetry.achievements).toEqual(defaultAchievementRecord());
+    expect(r.progress.telemetry.endless).toEqual({ bestWave: 3, bestScore: 900 });
+    expect(r.progress.telemetry.daily.history.map((e) => e.date)).toEqual(['2026-09-26']);
+    expect(r.progress.telemetry.daily.longestStreak).toBe(1);
+    expect(r.progress.telemetry.lifetime.bricksBroken).toBe(120);
+    expect(r.progress.telemetry.byMode.campaign[first]?.runsPlayed).toBe(4);
+    expect(r.progress.unlocked).toEqual(PLAYABLE_LEVEL_ORDER.slice(0, 3));
+    expect(r.progress.bestByLevel[first as never]).toEqual({ score: 1_200, stars: 3 });
+    expect(r.progress.bestScore).toBe(1_200);
+  });
+
+  it('round trip: a stored achievements entry parses back with its id and its timestamp intact — the read half of SC-3', () => {
+    const at = 1_700_000_321_000;
+    const r = parseWithAchievements({ unlocked: [{ id: KNOWN[0], at }] });
+
+    expect(r.status).toBe('ok');
+    expect(
+      unlockedIn(r),
+      'the positive control for every absence case above, and the whole of SC-3 at the parser: an unlock written before an app kill is still there after the next cold start. Before this plan `sanitizeTelemetry` started from `defaultTelemetryBlob()` and never looked at a stored achievements field, so this returned [].',
+    ).toEqual([{ id: KNOWN[0], at }]);
+    // A fractional stored timestamp floors rather than dropping the entry — `safeCounter`,
+    // local to `parseBlob.ts` and NOT the same-named function in `telemetry.ts`.
+    expect(unlockedIn(parseWithAchievements({ unlocked: [{ id: KNOWN[0], at: 12.7 }] }))[0]?.at).toBe(
+      12,
+    );
+  });
+
+  const unseenIn = (r: ReturnType<typeof parseWithAchievements>) =>
+    r.progress.telemetry.achievements.unseen;
+
+  it('unseen', () => {
+    // D-13 default: a v4 blob with no `unseen` key (the pre-field shape) parses with it
+    // defaulted to empty — every unlock that predates the field reads as already seen.
+    const noUnseenKey = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+    });
+    expect(noUnseenKey.status).toBe('ok');
+    expect(unseenIn(noUnseenKey)).toEqual([]);
+
+    // Degrades alone: a non-array `unseen` does not make the enclosing blob corrupt and
+    // does not touch the sibling `unlocked` field.
+    for (const broken of ['nope', 7, null, {}, true]) {
+      const r = parseWithAchievements({
+        unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+        unseen: broken,
+      });
+      expect(r.status, `unseen: ${JSON.stringify(broken)} must not corrupt the blob`).toBe(
+        'ok',
+      );
+      expect(unseenIn(r), `unseen: ${JSON.stringify(broken)} degrades to empty`).toEqual([]);
+      expect(
+        unlockedIn(r).map((e) => e.id),
+        'the sibling unlocked field is untouched by a broken unseen field',
+      ).toEqual([KNOWN[0]]);
+    }
+
+    // The positive control: a well-formed unseen id that IS in the parsed unlocked set
+    // survives.
+    const ok = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[0]],
+    });
+    expect(unseenIn(ok)).toEqual([KNOWN[0]]);
+  });
+
+  it('unseen bound', () => {
+    // Unknown-id drop: an id the catalog never minted is dropped from unseen, independent
+    // of the unlocked-field drop above.
+    const unknownDropped = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[0], NOT_AN_ID],
+    });
+    expect(unseenIn(unknownDropped)).toEqual([KNOWN[0]]);
+
+    // Dedupe keep-first: a repeated id collapses to one entry.
+    const deduped = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[0], KNOWN[0], KNOWN[0]],
+    });
+    expect(deduped.status).toBe('ok');
+    expect(unseenIn(deduped)).toEqual([KNOWN[0]]);
+
+    // The intersection: an unseen id that is a REAL catalog id but is NOT present in the
+    // stored unlocked array is absent from the parsed record — it can raise no rendered
+    // count for an achievement that, per this blob, was never earned.
+    const notUnlocked = parseWithAchievements({
+      unlocked: [{ id: KNOWN[0], at: 1_700_000_000_000 }],
+      unseen: [KNOWN[1]],
+    });
+    expect(
+      unseenIn(notUnlocked),
+      'an unseen id absent from unlocked must not survive the intersection',
+    ).toEqual([]);
+
+    // Drop-then-bound ordering: real ids sit at the END, behind padding the drop loop
+    // rejects. A bound applied BEFORE the drop would keep only padding and evict every
+    // real id; this asserts the real ids survive.
+    const unlockedReal = KNOWN.slice(0, 3);
+    const padding = Array.from(
+      { length: ACHIEVEMENT_UNLOCK_BOUND + 6 },
+      (_, i) => `${NOT_AN_ID}-${i}`,
+    );
+    expect(
+      padding.length,
+      'the padding must exceed the bound, or a bound-first implementation cannot be distinguished from this one',
+    ).toBeGreaterThan(ACHIEVEMENT_UNLOCK_BOUND);
+    const ordered = parseWithAchievements({
+      unlocked: unlockedReal.map((id, i) => ({ id, at: 1_800_000_000_000 + i })),
+      unseen: [...padding, ...unlockedReal],
+    });
+    expect(
+      unseenIn(ordered),
+      'the real ids survive padding ahead of them — trimming before the drop loop would evict them and leave nothing',
+    ).toEqual(unlockedReal);
+    expect(unseenIn(ordered).length).toBeLessThanOrEqual(ACHIEVEMENT_UNLOCK_BOUND);
   });
 });
 
@@ -605,6 +1758,92 @@ describe('telemetry merge semantics (D-07/D-08/D-10, Plan 02 helpers)', () => {
     // recentRuns concatenated, sorted ascending by timestamp, bounded
     expect(merged.recentRuns.map((e) => e.timestamp)).toEqual([1, 2]);
     expect(merged.recentRuns.length).toBeLessThanOrEqual(RECENT_RUNS_BOUND);
+  });
+
+  /**
+   * N-END-02 — the endless personal record. It lives on `TelemetryBlob` (never on
+   * `ProgressBlob`), takes a running max per field, and is written by one dedicated
+   * merge so no campaign path can reach it. See `11-02-PLAN.md` § D-11 / D-12.
+   */
+  it('defaultTelemetryBlob seeds an all-zero endless record, and the byMode key is a constant not a LevelId (N-END-02 / D-12)', () => {
+    expect(defaultTelemetryBlob().endless).toEqual({ bestWave: 0, bestScore: 0 });
+    expect(defaultEndlessRecord()).toEqual({ bestWave: 0, bestScore: 0 });
+    // D-12: a plain string key, because a generated board has no LevelId.
+    expect(typeof ENDLESS_TELEMETRY_KEY).toBe('string');
+    expect(ENDLESS_TELEMETRY_KEY.length).toBeGreaterThan(0);
+    expect(PLAYABLE_LEVEL_ORDER as readonly string[]).not.toContain(ENDLESS_TELEMETRY_KEY);
+  });
+
+  it('cloneTelemetryBlob deep-copies the endless record so a mutation cannot leak across the memory/disk boundary', () => {
+    const source = defaultTelemetryBlob();
+    source.endless = { bestWave: 7, bestScore: 900 };
+
+    const clone = cloneTelemetryBlob(source);
+    expect(clone.endless).toEqual({ bestWave: 7, bestScore: 900 });
+    expect(clone.endless).not.toBe(source.endless);
+
+    clone.endless.bestWave = 99;
+    expect(source.endless.bestWave).toBe(7);
+  });
+
+  it('mergeEndlessRecord takes each field running max INDEPENDENTLY, so a short high-scoring run keeps the deeper wave', () => {
+    const t = defaultTelemetryBlob();
+    t.endless = { bestWave: 20, bestScore: 100 };
+
+    const next = mergeEndlessRecord(t, { wave: 12, score: 500 });
+    expect(next.endless).toEqual({ bestWave: 20, bestScore: 500 });
+    // Clone-then-mutate, exactly like mergeRunIntoTelemetry: the input is untouched.
+    expect(t.endless).toEqual({ bestWave: 20, bestScore: 100 });
+    expect(next).not.toBe(t);
+    // A run worse on both axes moves nothing.
+    expect(mergeEndlessRecord(next, { wave: 1, score: 1 }).endless).toEqual({
+      bestWave: 20,
+      bestScore: 500,
+    });
+  });
+
+  it('mergeEndlessRecord hardens garbage into non-negative integers', () => {
+    const t = defaultTelemetryBlob();
+    expect(mergeEndlessRecord(t, { wave: -5, score: -1 }).endless).toEqual({
+      bestWave: 0,
+      bestScore: 0,
+    });
+    expect(
+      mergeEndlessRecord(t, { wave: Number.NaN, score: Number.POSITIVE_INFINITY }).endless,
+    ).toEqual({ bestWave: 0, bestScore: 0 });
+    expect(mergeEndlessRecord(t, { wave: 1.7, score: 12.9 }).endless).toEqual({
+      bestWave: 1,
+      bestScore: 12,
+    });
+  });
+
+  it('mergeTelemetryBlobs takes the per-field max of the two endless records, in either argument order', () => {
+    const a = defaultTelemetryBlob();
+    a.endless = { bestWave: 31, bestScore: 40 };
+    const b = defaultTelemetryBlob();
+    b.endless = { bestWave: 4, bestScore: 5_000 };
+
+    expect(mergeTelemetryBlobs(a, b).endless).toEqual({ bestWave: 31, bestScore: 5_000 });
+    expect(mergeTelemetryBlobs(b, a).endless).toEqual({ bestWave: 31, bestScore: 5_000 });
+  });
+
+  it('mergeRunIntoTelemetry never writes the endless record — an endless run bumps byMode.endless aggregates only', () => {
+    const before = defaultTelemetryBlob();
+    before.endless = { bestWave: 3, bestScore: 77 };
+
+    const after = mergeRunIntoTelemetry(before, {
+      mode: 'endless',
+      levelId: ENDLESS_TELEMETRY_KEY,
+      outcome: 'lose',
+      score: 99_999,
+      stats: runStats({ bricksBroken: 40, ticksPlayed: 5_000 }),
+    });
+
+    // The record is a separate merge — a campaign run can never write it either.
+    expect(after.endless).toEqual({ bestWave: 3, bestScore: 77 });
+    // …but the mode-keyed aggregate DID land, so this is not a vacuous pass.
+    expect(after.byMode.endless[ENDLESS_TELEMETRY_KEY]?.runsPlayed).toBe(1);
+    expect(after.byMode.endless[ENDLESS_TELEMETRY_KEY]?.bricksBroken).toBe(40);
   });
 
   it('mergeHighWatermark (v4) never lowers progress watermarks and merges telemetry', () => {

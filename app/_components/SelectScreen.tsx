@@ -10,6 +10,7 @@ import {
   type ProgressBlob,
   type ProgressStore,
 } from '../../src/services/storage';
+import { MAX_FONT_SCALE } from '../../src/runtime/textScale';
 
 type SelectScreenProps = {
   onBack: () => void;
@@ -18,7 +19,8 @@ type SelectScreenProps = {
   store?: ProgressStore;
 };
 
-const LEVEL_LABEL: Record<(typeof PLAYABLE_LEVEL_ORDER)[number], string> = {
+/** Display labels for campaign level ids — the one shipped level-id-to-label mapping (14-03). */
+export const LEVEL_LABEL: Record<(typeof PLAYABLE_LEVEL_ORDER)[number], string> = {
   'level-01': 'Level 01',
   'level-03': 'Level 03',
   'level-04': 'Level 04',
@@ -82,10 +84,14 @@ export function SelectScreen({ onBack, onChoose, store: storeProp }: SelectScree
           onPress={onBack}
           style={styles.backButton}
         >
-          <Text style={styles.backLabel}>Back</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.backLabel}>
+            Back
+          </Text>
         </Pressable>
 
-        <Text style={styles.heading}>Levels</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.heading}>
+          Levels
+        </Text>
 
         <View style={styles.list}>
           {PLAYABLE_LEVEL_ORDER.map((id) => {
@@ -109,11 +115,17 @@ export function SelectScreen({ onBack, onChoose, store: storeProp }: SelectScree
                 }}
                 style={styles.row}
               >
-                <Text style={[styles.rowLabel, locked && styles.muted]}>
+                <Text
+                  maxFontSizeMultiplier={MAX_FONT_SCALE}
+                  style={[styles.rowLabel, locked && styles.muted]}
+                >
                   {label}
                 </Text>
                 {locked ? (
-                  <Text style={[styles.lockedAffordance, styles.muted]}>
+                  <Text
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
+                    style={[styles.lockedAffordance, styles.muted]}
+                  >
                     Locked
                   </Text>
                 ) : (
@@ -137,7 +149,10 @@ export function SelectScreen({ onBack, onChoose, store: storeProp }: SelectScree
                       }
                     />
                     {state === 'cleared' && best != null ? (
-                      <Text style={styles.best}>{`Best · ${best.score}`}</Text>
+                      <Text
+                        maxFontSizeMultiplier={MAX_FONT_SCALE}
+                        style={styles.best}
+                      >{`Best · ${best.score}`}</Text>
                     ) : null}
                   </View>
                 )}
@@ -162,6 +177,7 @@ function StarRow({
   if (filled === 0) {
     return (
       <Text
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
         style={styles.emptyStars}
         accessibilityLabel={a11y}
       >
@@ -177,6 +193,7 @@ function StarRow({
       {glyphs.map((g, i) => (
         <Text
           key={i}
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
           style={[styles.starGlyph, g.filled ? styles.starFilled : styles.muted]}
         >
           {g.glyph}

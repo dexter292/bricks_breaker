@@ -1,0 +1,1837 @@
+/**
+ * Plan 11-05 Task 2 — the endless host: the WON intercept, the in-flight guard,
+ * the endless record write, the compile-failure path and the compiled-push guard.
+ *
+ * These are SOURCE contracts, and deliberately so. Every behaviour below is a
+ * property of *statement placement* inside `applyChrome` and the compiled-push
+ * effect — which branch comes first, which path returns early, which dependency
+ * array a ref was read to stay out of. A behaviour test that only observed the
+ * end state could not tell "the endless branch returned before `handleRunEnded`"
+ * from "`handleRunEnded` ran and happened to do nothing", and it is precisely the
+ * former that SC-1 requires.
+ *
+ * `codeOnly` strips `//` comments first, so a doc note naming `handleRunEnded`
+ * can neither satisfy nor falsify a contract.
+ *
+ * @vitest-environment node
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const HOST = join(process.cwd(), 'app/_components/PlayingHost.tsx');
+
+/** Strip // line comments so doc notes cannot false-positive. */
+function codeOnly(src: string): string {
+  return src.replace(/\/\/.*$/gm, '');
+}
+
+describe('PlayingHost endless host (source contract)', () => {
+  const code = codeOnly(readFileSync(HOST, 'utf8'));
+
+  /** The memoised WON/LOST reaction site — every ordering claim below lives in here. */
+  const applyChrome = (() => {
+    const m = code.match(
+      /const applyChrome = useCallback\(\s*\(mirror: ChromeMirror\) => \{([\s\S]*?)\n {4}\},\n {4}\[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  /**
+   * The endless wave-advance branch: anchored on its guard, terminated at its
+   * early return. Never assert on the whole file — `setActive` and
+   * `handleRunEnded` legitimately appear elsewhere in it.
+   */
+  const endlessBranch = (() => {
+    const m = applyChrome.match(
+      /if \(\s*modeRef\.current === 'endless'[\s\S]*?SIM\.WON\s*\)\s*\{([\s\S]*?)\n {8}return;/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  it('applyChrome parsed — the harness itself is honest', () => {
+    expect(
+      applyChrome,
+      'applyChrome must be extractable, or every ordering contract below is vacuous',
+    ).not.toBe('');
+  });
+
+  it('the endless WON branch precedes the campaign WON branch and returns early (SC-1)', () => {
+    const endlessAt = applyChrome.search(
+      /if \(\s*modeRef\.current === 'endless'[\s\S]{0,80}?SIM\.WON/,
+    );
+    const campaignAt = applyChrome.search(
+      /if \(mirror\.phase === SIM\.WON\) \{/,
+    );
+    expect(
+      endlessAt,
+      'the endless WON guard must exist in applyChrome (SC-1)',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      campaignAt,
+      'the campaign WON branch must still exist (campaign is unchanged)',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'the endless WON branch must come FIRST — behind the campaign branch it would never run (SC-1)',
+    ).toBeLessThan(campaignAt);
+    expect(
+      endlessBranch,
+      'the endless WON branch must be extractable and non-empty (SC-1)',
+    ).not.toBe('');
+  });
+
+  it('waveAdvanceInFlightRef is a ref, set in the branch and cleared off WON/LOST (Pitfall 5)', () => {
+    expect(
+      code,
+      'waveAdvanceInFlightRef must be a useRef — state is stale inside the memoised applyChrome',
+    ).toMatch(/const waveAdvanceInFlightRef = useRef\(/);
+    expect(
+      endlessBranch,
+      'the branch must claim the guard before generating, or a double-delivered WON advances twice',
+    ).toMatch(/waveAdvanceInFlightRef\.current = true/);
+    const clear = applyChrome.match(
+      /if \(\s*mirror\.phase !== SIM\.WON &&\s*mirror\.phase !== SIM\.LOST\s*\)\s*\{([\s\S]*?)\}/,
+    );
+    expect(
+      clear?.[1],
+      'the guard must be cleared when the mirror next reports a phase that is neither WON nor LOST',
+    ).toMatch(/waveAdvanceInFlightRef\.current = false/);
+  });
+
+  /**
+   * 11-08 REWROTE this contract rather than deleting it, and kept its property.
+   *
+   * It was written against a single `store.recordRunEnd(` call whose argument was a
+   * ternary selecting the union arm. 11-UI-SPEC § Record Display Contract makes the
+   * mode branch happen BEFORE the personal-best comparison — that ordering IS the
+   * gap-2 fix — so the one ternary call is now one call per branch. Asserting the
+   * old shape would have forbidden the fix instead of protecting D-11, so the three
+   * claims below are re-expressed against the branch structure: the arm is still
+   * chosen by `modeRef`, the endless arm still carries the wave reached, and the
+   * campaign arm still carries `levelId`.
+   *
+   * 12-05: the five body extractors below now close on `[platform, store, levelId…],`
+   * rather than on that dependency array VERBATIM. The regex's job is to BOUND the
+   * function body, not to pin the dependency list — and pinning it meant that adding a
+   * dependency (12-05 added `publishDailyPanel`, the single daily-panel derivation
+   * site) red five cases at once, none of which is about dependencies. The first three
+   * dependencies are still anchored in order, so the extractor cannot silently latch
+   * onto a different callback; what it tolerates is exactly the additive growth it
+   * should never have been measuring.
+   */
+  it('the endless run records through the endless arm of the union, with the wave (N-END-02)', () => {
+    const runEnded = code.match(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
+    );
+    expect(runEnded?.[1], 'handleRunEnded must be extractable').toBeTruthy();
+    const body = runEnded![1];
+
+    const gateAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
+    const elseAt = body.search(/\n {6}\} else \{\n/);
+    expect(
+      gateAt,
+      "the endless arm must be selected by mode, not by a caller convention (D-11)",
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      elseAt,
+      'the campaign arm must be the else of that same mode gate',
+    ).toBeGreaterThan(gateAt);
+
+    const endlessArm = body.slice(gateAt, elseAt);
+    const campaignArm = body.slice(elseAt);
+    expect(
+      endlessArm,
+      'the endless arm must be extractable and non-empty',
+    ).not.toBe('');
+
+    expect(
+      endlessArm,
+      'the endless arm carries the wave reached (N-END-02)',
+    ).toMatch(/store\.recordRunEnd\(\{\s*mode: 'endless',\s*wave: runWave,/);
+    expect(
+      endlessArm,
+      'the wave recorded is the live ref, never a stale state read (Pitfall 5)',
+    ).toMatch(/const runWave = waveRef\.current;/);
+    expect(
+      campaignArm,
+      'the campaign arm is still reachable and still carries levelId',
+    ).toMatch(/store\.recordRunEnd\(\{\s*levelId,\s*mode: 'campaign',/);
+    expect(
+      endlessArm,
+      'the endless arm must NOT record through the campaign arm',
+    ).not.toMatch(/mode: 'campaign'/);
+  });
+
+  /**
+   * The gap-2 regression fence (11-08). `evaluatePersonalBest` compares against
+   * `previousBestRef`, which holds `store.getBestForLevel(levelId)` — a CAMPAIGN
+   * level best. Calling it on the endless path is the whole defect: it produced the
+   * campaign PB as the endless `Best`, `New Record` against an unrelated score, and
+   * the write-back that poisoned the campaign ref for the life of the mount.
+   */
+  it('the campaign comparison is unreachable from the endless arm (gap 2)', () => {
+    const runEnded = code.match(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
+    );
+    const body = runEnded![1];
+    const gateAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
+    const elseAt = body.search(/\n {6}\} else \{\n/);
+    const endlessArm = body.slice(gateAt, elseAt);
+    const campaignArm = body.slice(elseAt);
+
+    expect(
+      endlessArm,
+      'evaluatePersonalBest compares against a CAMPAIGN best — it must not run in endless',
+    ).not.toMatch(/evaluatePersonalBest\s*\(/);
+    expect(
+      endlessArm,
+      'previousBestRef must never be WRITTEN by an endless run (Record Display Contract)',
+    ).not.toMatch(/previousBestRef\.current\s*=/);
+    expect(
+      endlessArm,
+      'the endless record is read from its own watermark refs',
+    ).toMatch(/endlessBestScoreRef\.current/);
+    expect(
+      endlessArm,
+      'the endless record is read from its own watermark refs',
+    ).toMatch(/endlessBestWaveRef\.current/);
+    expect(
+      campaignArm,
+      'the campaign path keeps evaluatePersonalBest and its write-back, unchanged',
+    ).toMatch(/evaluatePersonalBest\(/);
+    expect(
+      campaignArm,
+      'the campaign path keeps evaluatePersonalBest and its write-back, unchanged',
+    ).toMatch(/previousBestRef\.current = best/);
+  });
+
+  /**
+   * WR-04 (11-11) — `previousBestRef` is a CAMPAIGN value and only campaign code may
+   * touch it.
+   *
+   * WHAT THIS DOES NOT PROVE, stated first because the distinction is the whole point
+   * (11-09 Pattern 1). Counting assignment sites proves the WRITE. It proves nothing
+   * about the RENDER — a source contract standing in for a driven one is exactly how
+   * the previous round's gap 3 shipped green, and nothing here may stand in for
+   * `tests/ui/PlayingHost.endless-record.test.tsx`'s WR-04 case, which asserts on the
+   * rendered `host-best` probe and on the real `ResultOverlay`.
+   *
+   * WHY THE BEHAVIOURAL PROBE IS NO LONGER AVAILABLE, which is a measured fact about
+   * this repo rather than a preference. Before 11-11, a poisoned `previousBestRef`
+   * was observable because `startEndlessRun` republished it into `best` at every run
+   * start — that republication IS WR-04, the defect being removed here. Once it is
+   * gone the ref has exactly two remaining readers, both campaign resets
+   * (`onRetry`'s and `remountDevSession`'s campaign branches), and neither is
+   * reachable while `modeRef` is latched to endless for the life of the mount. Worse,
+   * the `getBestForLevel` mount effect re-reads the store and OVERWRITES the ref on
+   * every `levelId` change, so a poisoned value would be healed before any campaign
+   * overlay could render it. There is therefore no behavioural probe of campaign-ref
+   * poisoning left in this repo, and this contract is what replaces it. Do not read
+   * the count below as coverage of the display.
+   *
+   * "Exactly two places" means two REGIONS, not two statements: the mount effect
+   * carries a success assignment and a fail-soft `= 0` assignment, which is one place.
+   * The contract is that EVERY assignment in the file falls inside one of the two
+   * named campaign-only regions and none falls outside them.
+   */
+  it('previousBestRef is assigned only inside the two campaign-only regions, and startEndlessRun never touches it (WR-04)', () => {
+    const seedEffect = (() => {
+      const m = code.match(
+        /void store\s*\.getBestForLevel\(levelId\)([\s\S]*?)\n {2}\}, \[store, levelId\]\);/,
+      );
+      return m?.[1] ?? '';
+    })();
+    const campaignArm = (() => {
+      const runEnded = code.match(
+        /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
+      );
+      const body = runEnded?.[1] ?? '';
+      const elseAt = body.search(/\n {6}\} else \{\n/);
+      return elseAt < 0 ? '' : body.slice(elseAt);
+    })();
+    const startEndless = (() => {
+      const m = code.match(
+        /const startEndlessRun = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+
+    // Every region non-empty FIRST — an un-extracted region makes every pin below it
+    // vacuously green (11-09 Pattern 2).
+    expect(seedEffect, 'the getBestForLevel mount effect must be extractable').not.toBe('');
+    expect(campaignArm, "handleRunEnded's campaign arm must be extractable").not.toBe('');
+    expect(startEndless, 'startEndlessRun must be extractable').not.toBe('');
+
+    const ASSIGN = /previousBestRef\.current\s*=/g;
+    const total = (code.match(ASSIGN) ?? []).length;
+    const inSeedEffect = (seedEffect.match(ASSIGN) ?? []).length;
+    const inCampaignArm = (campaignArm.match(ASSIGN) ?? []).length;
+
+    expect(
+      total,
+      'previousBestRef must be assigned somewhere, or this contract is vacuous',
+    ).toBeGreaterThan(0);
+    expect(
+      inSeedEffect,
+      'the campaign per-level preload assigns it (success and fail-soft)',
+    ).toBeGreaterThan(0);
+    expect(
+      inCampaignArm,
+      "handleRunEnded's campaign arm writes the new personal best back",
+    ).toBe(1);
+    expect(
+      inSeedEffect + inCampaignArm,
+      'EXACTLY TWO PLACES: every previousBestRef assignment in the file must fall inside the getBestForLevel mount effect or handleRunEnded campaign arm — a third writer means a campaign value is being set from somewhere that is not campaign-only',
+    ).toBe(total);
+
+    // The WR-04 half: the endless entry point must not so much as mention the ref.
+    expect(
+      startEndless,
+      'startEndlessRun must not reference previousBestRef at all (WR-04) — it published a campaign per-level best as the endless `best` prop for the life of a run',
+    ).not.toMatch(/previousBestRef/);
+    expect(
+      startEndless,
+      'and it must publish the ENDLESS score watermark instead',
+    ).toMatch(/setResultBest\(endlessBestScoreRef\.current\)/);
+    expect(
+      startEndless,
+      'and the ENDLESS wave watermark on the same Record Display Contract row',
+    ).toMatch(/setResultBestWave\(endlessBestWaveRef\.current\)/);
+  });
+
+  /**
+   * 11-12 gap 1 — the publication rule for `setResultBest`, the symbol that actually
+   * reaches the screen.
+   *
+   * WHAT THIS DOES NOT PROVE, stated first because it is the whole reason this case
+   * exists in the shape it does. Enumerating call sites proves the WRITE RULE. It
+   * proves NOTHING about the RENDER. The render is proven by the behaviour case
+   * `'a campaign per-level best that resolves LATE never reaches the rendered endless
+   * `Best ·` (11-12 gap 1)'` in `tests/ui/PlayingHost.endless-record.test.tsx`, which
+   * mounts the REAL `ResultOverlay`, drives the real host to an endless loss and lands
+   * a held campaign read with the overlay on screen. Nothing here may stand in for it.
+   * If that case is ever deleted, this one is not coverage of the display — it is a
+   * statement count.
+   *
+   * WHY THIS TARGETS `setResultBest` AND NOT `previousBestRef`, which is the correction
+   * this round makes. The sibling WR-04 case above counts assignments to the CAMPAIGN
+   * CACHE and explicitly whitelists the `getBestForLevel` preload effect as one of
+   * "the two campaign-only regions". The gap-1 defect lived inside that whitelisted
+   * region: the effect assigned the cache (legitimately) and then PUBLISHED the same
+   * campaign value into `resultBest` (illegitimately) with no mode term, so it was
+   * structurally incapable of seeing a campaign number reach the prop the endless
+   * overlay reads. The verifier measured it twice before it was caught. The cache and
+   * the publication are different obligations and need different instruments, which
+   * is why the WR-04 case above is KEPT rather than replaced.
+   *
+   * The rule, in one sentence: every `setResultBest` call site in the file sits inside
+   * a named region that is either endless-only (and publishes an endless source) or
+   * campaign-only (and publishes a campaign source), and the one region reachable in
+   * BOTH modes — the preload effect — gates every publication on the mode.
+   */
+  it('every setResultBest publication is mode-correct, and the preload effect gates its own (11-12 gap 1)', () => {
+    const one = (re: RegExp): string => code.match(re)?.[1] ?? '';
+
+    const preload = one(
+      /void store\s*\.getBestForLevel\(levelId\)([\s\S]*?)\n {2}\}, \[store, levelId\]\);/,
+    );
+    const runEnded = one(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
+    );
+    const elseAt = runEnded.search(/\n {6}\} else \{\n/);
+    // 12-01 put the DAILY arm first, so the endless arm is now an `else if`. The
+    // branch-before-compare order is unchanged and is what both anchors encode: every
+    // mode arm sits ABOVE the campaign `else`, which is where `evaluatePersonalBest`
+    // lives. Re-anchoring rather than widening keeps each arm separately extractable,
+    // which is what lets the source rules below stay per-mode.
+    const dailyAt = runEnded.search(
+      /\n {6}if \(modeRef\.current === 'daily'\) \{\n/,
+    );
+    const endlessAt = runEnded.search(
+      /\n {6}\} else if \(modeRef\.current === 'endless'\) \{\n/,
+    );
+    const runEndedDaily =
+      dailyAt < 0 || endlessAt < 0 ? '' : runEnded.slice(dailyAt, endlessAt);
+    const runEndedEndless =
+      endlessAt < 0 || elseAt < 0 ? '' : runEnded.slice(endlessAt, elseAt);
+    const runEndedCampaign = elseAt < 0 ? '' : runEnded.slice(elseAt);
+    const failStart = one(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    const startEndless = one(
+      /const startEndlessRun = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    /** The part of a reset callback BELOW its `if (endless) { startEndlessRun(); return; }` hoist. */
+    const campaignBranchOf = (body: string): string => {
+      const m = body.match(
+        /\n {4}if \(modeRef\.current === 'endless'\) \{\n {6}startEndlessRun\(\);\n {6}return;\n {4}\}\n/,
+      );
+      return m?.index == null ? '' : body.slice(m.index + m[0].length);
+    };
+    const onRetryCampaign = campaignBranchOf(
+      one(/const onRetry = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/),
+    );
+    const remountCampaign = campaignBranchOf(
+      one(
+        /const remountDevSession = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      ),
+    );
+    const toggleBody = one(
+      /const toggleDevLevel = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    const exitAt = toggleBody.search(/modeRef\.current = 'campaign';/);
+    const toggleExit = exitAt < 0 ? '' : toggleBody.slice(exitAt);
+
+    const endlessOnly: readonly (readonly [string, string])[] = [
+      ["handleRunEnded's endless arm", runEndedEndless],
+      ['failEndlessStart', failStart],
+      ['startEndlessRun', startEndless],
+    ];
+    const campaignOnly: readonly (readonly [string, string])[] = [
+      ['the getBestForLevel preload effect', preload],
+      ["handleRunEnded's campaign arm", runEndedCampaign],
+      ["onRetry's campaign branch", onRetryCampaign],
+      ["remountDevSession's campaign branch", remountCampaign],
+      ["toggleDevLevel's exit block", toggleExit],
+    ];
+    /**
+     * 12-01 / N-DAILY-03. The daily arm publishes NOTHING to `resultBest`, and that
+     * emptiness is the contract rather than an omission: `DailyResultOverlay` renders
+     * no `Best ·` line at all (one attempt per date means there is no per-date score to
+     * beat), so any publication from this region would be a record belonging to another
+     * mode reaching a panel that has nowhere honest to put it — prohibition 3 of 11-08,
+     * which SC-5 restates for daily.
+     */
+    const dailyOnly = [
+      ["handleRunEnded's daily arm", runEndedDaily] as const,
+    ] as const;
+    const named = [...endlessOnly, ...dailyOnly, ...campaignOnly];
+
+    // NON-EMPTY FIRST (11-09 Pattern 2). An anchor that drifts must make this case
+    // RED, never vacuously green — a silently-empty region would zero its own counts
+    // and every assertion below would pass while measuring nothing.
+    for (const [label, region] of named) {
+      expect(
+        region,
+        `${label} must be extractable, or every count below it is vacuous`,
+      ).not.toBe('');
+    }
+
+    const PUB = /setResultBest\(/g;
+    const total = (code.match(PUB) ?? []).length;
+    const inRegions = named.reduce(
+      (n, [, region]) => n + (region.match(PUB) ?? []).length,
+      0,
+    );
+    expect(
+      total,
+      'setResultBest must be published somewhere, or this contract is vacuous',
+    ).toBeGreaterThan(0);
+    expect(
+      inRegions,
+      'EVERY setResultBest call site in PlayingHost.tsx must fall inside one of the eight named mode-scoped regions — a publication in none of them is a record reaching the player from code that never decided which mode it belongs to, which is exactly the gap-1 defect',
+    ).toBe(total);
+
+    /** The argument of each publication in a region — the SOURCE being published. */
+    const sourcesOf = (region: string): string[] =>
+      [...region.matchAll(/setResultBest\(([^)]*)\)/g)].map((m) =>
+        (m[1] ?? '').trim(),
+      );
+
+    // An ENDLESS-only region may publish only an endless watermark or the merged
+    // endless score. `previousBestRef.current` here is WR-04, the 11-11 defect.
+    const ENDLESS_SOURCE = /^(endlessBestScoreRef\.current|mergedScore)$/;
+    for (const [label, region] of endlessOnly) {
+      for (const source of sourcesOf(region)) {
+        expect(
+          source,
+          `${label} is endless-only, so it may publish only an ENDLESS source — publishing a campaign value here renders a campaign record as the player's endless Best`,
+        ).toMatch(ENDLESS_SOURCE);
+      }
+    }
+
+    for (const [label, region] of dailyOnly) {
+      expect(
+        sourcesOf(region),
+        `${label} must publish NO setResultBest at all — the daily panel has no Best line, so a publication here is a cross-mode record with nowhere honest to land (N-DAILY-03 / SC-5)`,
+      ).toEqual([]);
+    }
+
+    // A CAMPAIGN-only region may publish only the campaign cache, the resolved
+    // preload value `b`, the fail-soft `0`, or the campaign personal best.
+    const CAMPAIGN_SOURCE = /^(previousBestRef\.current|b|0|best)$/;
+    for (const [label, region] of campaignOnly) {
+      for (const source of sourcesOf(region)) {
+        expect(
+          source,
+          `${label} is campaign-only, so it may publish only a CAMPAIGN source`,
+        ).toMatch(CAMPAIGN_SOURCE);
+      }
+    }
+
+    // THE TERM WHOSE ABSENCE WAS THE GAP. The preload effect is the one region
+    // reachable in both modes — it re-runs on every `levelId` change, including ones
+    // that happen while an endless run is live — so each of its publications must be
+    // wrapped in the mode test, and the wrap must PRECEDE the publication it guards.
+    const guardIdx = [
+      ...preload.matchAll(/modeRef\.current !== 'endless'/g),
+    ].map((m) => m.index ?? -1);
+    const pubIdx = [...preload.matchAll(/setResultBest\(/g)].map(
+      (m) => m.index ?? -1,
+    );
+    expect(
+      guardIdx.length,
+      "the preload effect must gate EVERY setResultBest it makes on modeRef.current !== 'endless' — the success arm and the fail-soft arm are both publications, and an unguarded one repaints a live endless overlay",
+    ).toBe(pubIdx.length);
+    for (let i = 0; i < pubIdx.length; i += 1) {
+      expect(
+        guardIdx[i],
+        'each guard must precede the publication it wraps — a mode test written after the publication does not gate it',
+      ).toBeLessThan(pubIdx[i] as number);
+    }
+
+    // And the cache itself stays UNCONDITIONAL: the guard is on the publication only,
+    // so the campaign best is warm the moment the player exits endless. The sibling
+    // WR-04 case counts these assignments; this one pins that guarding the publication
+    // did not accidentally guard the cache too.
+    expect(
+      (preload.match(/previousBestRef\.current =/g) ?? []).length,
+      'both preload arms must still assign the campaign cache unconditionally — a guarded cache write would make the campaign Best stale after every endless run, which toggleDevLevel republishing previousBestRef.current would then propagate',
+    ).toBe(pubIdx.length);
+  });
+
+  it('an endless run skips the campaign star / next-gate follow-up (SC-3)', () => {
+    const runEnded = code.match(
+      /const handleRunEnded = useCallback\(([\s\S]*?)\n {4}\[platform, store, levelId[^\]]*\],/,
+    );
+    expect(runEnded?.[1], 'handleRunEnded must be extractable').toBeTruthy();
+    const body = runEnded![1];
+    const gateAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
+    const starsAt = body.search(/blob\.bestByLevel\[levelId\]/);
+    expect(
+      gateAt,
+      'handleRunEnded must gate the campaign follow-up on the mode (SC-3)',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      starsAt,
+      'the campaign star read must still exist for campaign runs',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      gateAt,
+      'the mode gate must come BEFORE the bestByLevel read, or an endless run reads campaign state',
+    ).toBeLessThan(starsAt);
+  });
+
+  /**
+   * 11-07 Task 4 rewrote this contract, and deliberately kept its PROPERTY: a
+   * generated-board compile failure must be loud, and `advanceToWave` itself must
+   * never fall through into a run-end path — it reports `false` and the CALLER
+   * decides what that means. What changed is where "loud" lands. The original
+   * routed the failure into `LevelErrorOverlay` via `genIssues`; 11-UI-SPEC
+   * § Copywriting → `Error state (board)` forbids exactly that, because
+   * `GameScreen` suppresses `showResult` whenever `levelError` is non-null, so the
+   * player was left facing a control-less modal in front of a live sim. The
+   * replacement is the run-ending branch in `applyChrome`, pinned below.
+   *
+   * The BEHAVIOUR this shape produces is driven end to end in
+   * `PlayingHost.endless-retry.test.tsx` ("a wave that cannot be built ENDS the
+   * run"). These contracts pin statement placement and stand in for none of it.
+   */
+  it('a generated-board compile failure is loud and never falls through to run end (Pitfall 6, as superseded)', () => {
+    const m = code.match(
+      /const advanceToWave = useCallback\(([\s\S]*?)\n {4}\[/,
+    );
+    expect(m?.[1], 'advanceToWave must be extractable').toBeTruthy();
+    const body = m![1];
+    expect(body, 'the failure path must log the issues under the full __DEV__ guard').toMatch(
+      /typeof __DEV__ !== 'undefined' && __DEV__/,
+    );
+    expect(
+      body,
+      'advanceToWave must never reach the run-end path — it returns false instead (Pitfall 6)',
+    ).not.toMatch(/handleRunEnded|setResult\(/);
+    expect(
+      code,
+      'levelError must derive from the CATALOG load alone — a generated board that fails to compile must never render LevelErrorOverlay (11-UI-SPEC Error state (board))',
+    ).toMatch(/const levelError = loadResult\.ok \? null : loadResult\.issues;/);
+    expect(
+      code,
+      'genIssues is removed, not merely bypassed — a surviving declaration, setter call or levelError fold is a live route back into the trap (codeOnly strips // only, so these patterns match code forms, never the prose that explains the removal)',
+    ).not.toMatch(/const \[genIssues|setGenIssues\(|genIssues \?\?/);
+  });
+
+  it('the failed wave build ends the run and releases the guard, inside the endless branch (WR-04 / SC-1)', () => {
+    expect(
+      endlessBranch,
+      'the endless WON branch must be extractable, or every ordering claim here is vacuous',
+    ).not.toBe('');
+    const failure = endlessBranch.match(
+      /if \(advanceToWave\(waveRef\.current \+ 1\)\) \{[\s\S]*?\} else \{([\s\S]*?)\n {10}\}/,
+    );
+    expect(
+      failure?.[1],
+      'the returned-false path must be an explicit else branch, not a fall-through',
+    ).toBeTruthy();
+    const body = failure![1];
+    expect(
+      body,
+      'a latched waveAdvanceInFlightRef swallows every later WON — the failure path must clear it (SC-1)',
+    ).toMatch(/waveAdvanceInFlightRef\.current = false/);
+    expect(
+      body,
+      'the wave that could NOT be built is recorded for the copy in 11-08',
+    ).toMatch(/setWaveBuildFailedWave\(waveRef\.current \+ 1\)/);
+    expect(
+      body,
+      'the in-flight run must be recorded, through the same runEndedRef funnel (T-09-10)',
+    ).toMatch(/runEndedRef\.current = true/);
+    expect(
+      body,
+      "and recorded as abandoned — the player did not lose it",
+    ).toMatch(/'abandoned'/);
+    expect(
+      body,
+      'the frame loop must stop, or a live sim runs behind the overlay with keepAwake mounted (T-11-07-04)',
+    ).toMatch(/setActive\(false\)/);
+    const clearAt = body.search(/waveAdvanceInFlightRef\.current = false/);
+    const recordAt = body.search(/handleRunEnded\(/);
+    expect(
+      clearAt,
+      'release the guard BEFORE the record — handleRunEnded is the cold path and must not sit between the failure and the release',
+    ).toBeLessThan(recordAt);
+  });
+
+  /**
+   * 11-13 Task 3 — `11-VERIFICATION.md` gap 3 `missing[]` bullet 4: "a count-based
+   * contract is what catches the next one".
+   *
+   * `applyChrome`'s entire design is ONE latch, EVERY run boundary. Three of its four
+   * run-boundary branches consulted `runEndedRef` from the day they were written; the
+   * endless WON branch did not, and the asymmetry survived a code review, a verifier
+   * pass and two rounds of plans because nothing in the repo was watching for it. This
+   * enumerates the branches and pins the count, modelled on the existing
+   * `'exactly one writer returns modeRef to campaign'` contract.
+   *
+   * WHAT THIS DOES NOT PROVE, first, because that is the whole reason it is written
+   * this way. Counting a reference proves the TERM IS WRITTEN. It proves NOTHING
+   * about whether the branch behaves. The behaviour is proven by three cases that
+   * drive the real host:
+   *   - `'an endless run that LOST stays ended — one further WON mirror builds no
+   *     board (gap 3)'` and its WALK sibling, in
+   *     `tests/ui/PlayingHost.endless-retry.test.tsx`
+   *   - `'a mid-run wave-build failure ENDS the run — a later WON that WOULD have
+   *     succeeded moves nothing (gap 3, case b)'`, same file
+   *   - `'a failed START stays ended — one WON mirror cannot rewrite the decided
+   *     tap-Retry copy (gap 3, case c)'`, in
+   *     `tests/ui/PlayingHost.endless-record.test.tsx`, asserted on RENDERED text
+   * Nothing here may stand in for those. If they are deleted, this case is not
+   * coverage of gap 3 — it is a statement count.
+   *
+   * THE ONE CLAIM THAT DROPPED TIER IN 11-13, recorded here so a later reader finds
+   * the reasoning beside the contract instead of reconstructing it. The
+   * wave-build-failure branch's `waveAdvanceInFlightRef.current = false` release used
+   * to be observed BEHAVIOURALLY, by delivering a repeat WON and watching the branch
+   * be re-entered (`tests/ui/PlayingHost.endless-retry.test.tsx`, the WR-04 case).
+   * Task 1's latch makes that re-entry impossible by design — a wave-build failure
+   * always ends the run, and every path that starts a new run clears the guard itself
+   * — so the release is now behaviourally UNOBSERVABLE in this repo. It is pinned at
+   * the source tier by the sibling case above, `'the failed wave build ends the run
+   * and releases the guard, inside the endless branch (WR-04 / SC-1)'`, and the WR-04
+   * behaviour case was RE-POINTED at the ENDED post-condition rather than deleted.
+   *
+   * ─────────────────────────────────────────────────────────────────────────────
+   * 11-15 — THE ROUND-4 EXTENSION, and the failure it is written against.
+   *
+   * THE ROUND-3 VERSION OF THIS CASE PASSED WHILE THE DEFECT SAT ABOVE ALL FOUR
+   * BRANCHES IT COUNTED. It enumerated the four run-boundary branches, proved each
+   * one consulted `runEndedRef`, pinned the branch count and the `setActive(false)`
+   * count — and every one of those assertions was true of a function whose FIRST five
+   * statements took sim phase, lives, score, combo and stall tier straight from the
+   * mirror, unguarded, above every branch and every mode test. A straggler mirror
+   * arriving after the run boundary repainted a finished run's Results panel from
+   * `Score · 2400` to `Score · 9999` and this contract had nothing to say about it.
+   * That is the reusable lesson, and it is the THIRD consecutive occurrence of the
+   * same shape — an instrument pointed one symbol away from the defect (round 2's
+   * `previousBestRef` assignment count, round 3's branch enumeration, this).
+   *
+   * So the contract now covers the function PREAMBLE as well as the four branches,
+   * and it does so with TWO independent instruments, because an enumeration cannot
+   * detect a write nobody enumerated:
+   *   - an ORDERING assertion: the first guard on `runEndedRef.current` precedes the
+   *     first mirror-sourced write, both indices asserted found before comparison;
+   *   - a COUNT: exactly five mirror-sourced writes exist in `applyChrome`. A sixth
+   *     moves this number and sends its author here to prove it sits below the latch.
+   *
+   * WHAT THE EXTENSION STILL DOES NOT PROVE, stated as plainly as the paragraph
+   * above. An ordering assertion over source text proves the WRITE RULE — which
+   * statement comes first — and never the RENDER. It cannot tell you what the player
+   * sees. The render is proved by `'an ENDED endless run keeps its own numbers on the
+   * mounted overlay — one straggler WON at 9999 repaints nothing (gap 1)'` in
+   * `tests/ui/PlayingHost.endless-record.test.tsx`, which mounts the REAL
+   * `ResultOverlay` and reads the `Score ·` line out of `result-slot`; and the WRITE
+   * is proved end-to-end by the `hostProps` assertions in
+   * `tests/ui/PlayingHost.endless-retry.test.tsx` — the three retrofitted gap-3
+   * drives, the campaign straggler case and the failed-START case. If those are
+   * deleted, what remains here is a statement order, not coverage of gap 1.
+   *
+   * TIER CHANGE, disclosed rather than folded in quietly. The three ordering
+   * assertions below used to target the endless WON BRANCH (`latchAt >= 0`,
+   * `inFlightAt > 0`, `latchAt < inFlightAt`, plus the bare-return regex). 11-15
+   * Task 1 hoisted that guard to the first statement of the FUNCTION and DELETED the
+   * branch-level copy, which made those three assertions unsatisfiable at the branch
+   * — not because coverage was weakened but because the guard moved UP. They are
+   * re-pointed at the preamble in this same case rather than deleted, and the
+   * concurrency guard assertion stays on the branch because it is a different
+   * obligation (run lifetime vs. re-entrancy) and 11-13's own comment says so. The
+   * mutation evidence is strictly STRONGER after the move: deleting the hoisted guard
+   * turns RED every case 11-13's mutation M2 killed PLUS the new chrome and render
+   * cases — measured at 7 failing cases across the three files.
+   */
+  it('every run-boundary branch in applyChrome consults the shared runEndedRef latch (gap 3)', () => {
+    expect(
+      applyChrome,
+      'applyChrome must be extractable, or every count below is vacuous',
+    ).not.toBe('');
+
+    const region = (src: string, re: RegExp): string => src.match(re)?.[1] ?? '';
+
+    const endlessWon = region(
+      applyChrome,
+      /if \(modeRef\.current === 'endless' && mirror\.phase === SIM\.WON\) \{([\s\S]*?)\n {6}\}/,
+    );
+    const waveBuildFailure = region(
+      endlessWon,
+      /\} else \{([\s\S]*?)\n {10}\}/,
+    );
+    const campaignWon = region(
+      applyChrome,
+      /\n {6}if \(mirror\.phase === SIM\.WON\) \{([\s\S]*?)\n {6}\} else if \(mirror\.phase === SIM\.LOST\) \{/,
+    );
+    const campaignLost = region(
+      applyChrome,
+      /\n {6}\} else if \(mirror\.phase === SIM\.LOST\) \{([\s\S]*?)\n {6}\}/,
+    );
+
+    const branches = [
+      ['the endless WON branch', endlessWon],
+      ['the mid-run wave-build failure branch', waveBuildFailure],
+      ['the campaign WON branch', campaignWon],
+      ['the campaign LOST branch', campaignLost],
+    ] as const;
+
+    // Non-empty FIRST — a drifted anchor must be RED, never vacuously green
+    // (11-09 Pattern 2).
+    for (const [name, body] of branches) {
+      expect(body, `${name} must be extractable`).not.toBe('');
+    }
+    expect(
+      branches.length,
+      'FOUR run-boundary branches, enumerated by name — the count is pinned so a fifth cannot be added without an author coming here',
+    ).toBe(4);
+
+    // 11-17 Task 3, CONTRACT B — A2 repaired. What stood here was a loop asserting
+    // `.toMatch(/runEndedRef\.current/)` on each of the four branches, and it was
+    // VACUOUS: the `runEndedRef.current = true;` ASSIGNMENT one line below each guard
+    // satisfied it. The verifier proved that by mutation — replacing all three
+    // remaining `if (!runEndedRef.current)` with `if (true)` left the whole workspace
+    // suite GREEN at 97 files / 645 tests. The repair asserts the GUARD SHAPE.
+    //
+    // DECISION, taken here rather than inherited: REPAIR THE INSTRUMENT. The three
+    // guards are correct defence-in-depth and stay; deleting live source during gap
+    // closure is exactly the scope creep this phase's last two rounds refused.
+    //
+    // WHAT THIS DOES NOT PROVE. Post-hoist those three guards are unreachable in the
+    // TRUE direction — control cannot pass applyChrome's function preamble with the
+    // latch set — so NO behavioural test COULD kill them. This contract pins their
+    // PRESENCE and SHAPE only. The run-lifetime property itself is pinned by 11-15's
+    // three added assertions further down (the preamble ordering, the bare-return
+    // regex and the five-mirror-write count), all mutation-killed, and by the driven
+    // cases in `tests/ui/PlayingHost.endless-record.test.tsx` and
+    // `tests/ui/PlayingHost.endless-retry.test.tsx`. Do not mistake this contract for
+    // the one that matters.
+    const GUARD_SHAPE =
+      /if \(!runEndedRef\.current\) \{\s*runEndedRef\.current = true;\s*handleRunEnded\(/;
+    for (const [name, body] of [
+      ['the mid-run wave-build failure branch', waveBuildFailure],
+      ['the campaign WON branch', campaignWon],
+      ['the campaign LOST branch', campaignLost],
+    ] as const) {
+      expect(
+        body,
+        `${name} must carry the record-once guard in its own SHAPE — a negated test on the latch whose body sets the latch and then calls handleRunEnded(. A bare mention of the identifier is not enough: the assignment one line below the guard satisfies that, which is precisely how this contract was vacuous for two rounds`,
+      ).toMatch(GUARD_SHAPE);
+    }
+
+    expect(
+      (applyChrome.match(new RegExp(GUARD_SHAPE.source, 'g')) ?? []).length,
+      'THREE record-once guards in applyChrome — the mid-run wave-build failure, campaign WON and campaign LOST. Counted independently of the enumeration above, because an enumeration cannot notice a branch nobody added to it. The mutation that left the suite green at 97 files / 645 tests — one `if (!runEndedRef.current)` becoming `if (true)` — moves this number',
+    ).toBe(3);
+
+    // The endless WON branch, stated HONESTLY rather than folded into a claim that is
+    // now false for it. 11-15 deliberately REMOVED its inner guard, so it consults the
+    // latch through applyChrome's FUNCTION PREAMBLE and not through a guard of its
+    // own. The old loop passed for this branch only because its nested
+    // wave-build-failure sub-branch supplied the match — the same one-symbol-away
+    // failure this whole round exists to close. It keeps its place in the four-name
+    // enumeration and the `.toBe(4)` count above: that is the extraction-honesty half
+    // and it still catches a fifth branch.
+    expect(
+      endlessWon.replace(waveBuildFailure, ''),
+      'the endless WON branch must carry NO record-once guard of its OWN — 11-15 removed it when the latch was hoisted to the function preamble, and a copy reappearing here would be unreachable code masquerading as a safety term. Its run-lifetime obligation is discharged by the preamble assertions below',
+    ).not.toMatch(/if \(!runEndedRef\.current\)/);
+
+    // The independent structural count that actually catches a FIFTH branch. Every
+    // run-END site in applyChrome stops the frame loop; the enumeration above cannot
+    // notice a branch nobody added to it, but this can — a new run-boundary branch
+    // moves this number and sends its author here.
+    const endSites = (applyChrome.match(/setActive\(false\)/g) ?? []).length;
+    expect(
+      endSites,
+      'THREE setActive(false) sites in applyChrome — the wave-build failure, campaign WON and campaign LOST. A fourth means a new run-boundary branch exists: add it to the enumeration above and prove it consults the latch',
+    ).toBe(3);
+
+    // 11-15 — THE ORDERING, re-pointed from the BRANCH to the FUNCTION. The property
+    // is where the guard sits relative to the writes it is meant to own, and the
+    // round-3 placement owned none of them: all five ran above it.
+    const latchAt = applyChrome.search(/if \(runEndedRef\.current\)/);
+    const firstMirrorWriteAt = applyChrome.search(
+      /set[A-Za-z]+\(mirror\.[A-Za-z]+\)/,
+    );
+    // Non-empty FIRST, the same 11-09 Pattern 2 the branch extractors above use: a
+    // drifted anchor must be RED, never vacuously green. Two `-1`s compare as equal,
+    // not as "in order".
+    expect(
+      latchAt,
+      'applyChrome must open with a guard ON the latch — `if (runEndedRef.current)`, not a mention and not a negated gate inside a branch',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      firstMirrorWriteAt,
+      'and the mirror-sourced writes must still be findable, or the ordering below is vacuous',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      latchAt,
+      'THE gap-1 property: the latch guard must PRECEDE the first mirror-sourced write. Measured pre-fix, the guard was at source line 976 and the first write at 936 — the latch owned the wave and owned no number the player was reading',
+    ).toBeLessThan(firstMirrorWriteAt);
+
+    // And it must RETURN. A guard whose body did anything else would let control fall
+    // into the five writes it was hoisted above. The sibling precedence contract above
+    // pins the branch ORDER; this pins what the latch guard itself does.
+    expect(
+      applyChrome,
+      'the latch guard\'s body must be a bare return — an ended run leaves applyChrome at the top, before any chrome is written',
+    ).toMatch(/if \(runEndedRef\.current\) \{\s*\n\s*return;\s*\n\s*\}/);
+
+    // The concurrency guard is a DIFFERENT obligation — re-entrancy, not run lifetime
+    // — and 11-13's own comment says so. It stays on the branch, where it belongs, and
+    // it must survive the hoist.
+    expect(
+      endlessWon.search(/if \(!waveAdvanceInFlightRef\.current\)/),
+      'the in-flight concurrency guard must still be inside the endless WON branch — the hoist moved run lifetime up, not re-entrancy',
+    ).toBeGreaterThanOrEqual(0);
+
+    // The COUNT, deliberately independent of the ordering above. An ordering assertion
+    // finds the FIRST write; it is structurally blind to a sixth one added anywhere.
+    const mirrorWrites = (
+      applyChrome.match(/set[A-Za-z]+\(mirror\.[A-Za-z]+\)/g) ?? []
+    ).length;
+    expect(
+      mirrorWrites,
+      'FIVE mirror-sourced writes in applyChrome — sim phase, lives, score, combo and stall tier. A sixth means a new piece of run state is being taken from the mirror: come here, add it to this sentence, and prove it sits BELOW the latch. Counting them is the instrument the round-3 branch enumeration could not be',
+    ).toBe(5);
+  });
+
+  /**
+   * 11-13 Task 3, second contract — the ended-run POST-CONDITION is uniform.
+   *
+   * Three states end an endless run: a LOST mirror, a mid-run wave-build failure, and
+   * a failed START. The first two clear or latch both refs on their own path; a failed
+   * START inherited whatever `waveAdvanceInFlightRef` the PREVIOUS run left behind
+   * (`11-REVIEW.md` IN-02), which made it the one ended state with a different shape.
+   *
+   * What this does NOT prove: it proves the two assignments EXIST in the function.
+   * It cannot prove the post-condition is observed, and — stated plainly — as of
+   * Task 1's latch the guard value is no longer READ after a failed start at all, so
+   * there is no behaviour left to observe. This is a source contract over
+   * defence-in-depth, and that is the honest description of it.
+   */
+  it('failEndlessStart leaves the same post-condition as the other two ended-run states (gap 3)', () => {
+    const body = code.match(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[clearCountdown, setActive\]\);/,
+    )?.[1];
+    expect(
+      body,
+      'failEndlessStart must be extractable, or both pins below are vacuous',
+    ).toBeTruthy();
+    expect(
+      body,
+      'a failed START is an ENDED run — the latch is what stops a later Retry manufacturing a phantom record (11-09)',
+    ).toMatch(/runEndedRef\.current = true/);
+    expect(
+      body,
+      'and it must leave the wave-advance guard in the same state the other two ended-run boundaries do, rather than inheriting the previous run\'s (11-REVIEW.md IN-02)',
+    ).toMatch(/waveAdvanceInFlightRef\.current = false/);
+  });
+
+  /**
+   * A-01, decided `retry-in-place` by the owner on 2026-09-26.
+   *
+   * 11-09 Task 2 CORRECTED this case in place; it kept its property — both failure
+   * returns must report the wave-1 build failure and the remedy must stay live — and
+   * rewrote the assertions to the contract that now ships. The old shape pinned the
+   * DEFECT: it required `setWaveBuildFailedWave(1)` twice in the preamble and
+   * required the preamble NOT to call `setResult`, which is precisely the state
+   * `11-VERIFICATION.md` gap 3 measured as unreachable — `result` null and `mode`
+   * still campaign meant `GameScreen` never mounted the overlay and the copy could
+   * not be read by anybody. Both failure returns now route through
+   * `failEndlessStart`, which owns the write and raises the surface.
+   *
+   * What this case does NOT prove: it proves the statements exist and are ordered,
+   * and proves NOTHING about whether the copy reaches a screen. A source contract
+   * that proved the WRITE and never the RENDER is the exact mechanism that let gap 3
+   * ship green while two thirds of the contract was unreachable. The rendered
+   * evidence lives in `tests/ui/PlayingHost.endless-record.test.tsx` § "a failed
+   * start from a fresh mount"; do not mistake this for render coverage.
+   */
+  it('both startEndlessRun failure returns route through failEndlessStart, which raises the surface (A-01)', () => {
+    const m = code.match(
+      /const startEndlessRun = useCallback\(([\s\S]*?)\n {2}\}, \[/,
+    );
+    expect(m?.[1], 'startEndlessRun must be extractable').toBeTruthy();
+    const body = m![1];
+    // Everything before the run is COMMITTED to — past this line the function is
+    // building a new run, and clearing chrome is correct.
+    const commitAt = body.indexOf("modeRef.current = 'endless'");
+    expect(
+      commitAt,
+      'startEndlessRun must still commit to endless mode, or the anchor below is meaningless',
+    ).toBeGreaterThan(0);
+    const preamble = body.slice(0, commitAt);
+
+    // (a) both failure returns route through the one helper.
+    expect(
+      body.match(/failEndlessStart\(\);/g)?.length,
+      'BOTH early returns — the readiness guard and the advanceToWave(1) false return — must route through failEndlessStart. Two failure shapes is how the copy became unreachable from two thirds of its call sites',
+    ).toBe(2);
+    expect(
+      preamble.match(/failEndlessStart\(\);/g)?.length,
+      'and both must sit in the preamble, above the commit point',
+    ).toBe(2);
+
+    // (b) the helper OWNS the failure write, and no wave number is written here.
+    expect(
+      body.match(/setWaveBuildFailedWave\(/g)?.length,
+      'startEndlessRun writes the failure wave exactly once, and it is the success-path CLEAR below — the failure write belongs to failEndlessStart alone',
+    ).toBe(1);
+    expect(
+      preamble,
+      'no failure return may write the failure wave itself — a duplicated write is a second failure shape waiting to diverge from the helper',
+    ).not.toMatch(/setWaveBuildFailedWave\(/);
+    expect(
+      body.slice(commitAt),
+      'the committed path must CLEAR the failure copy, or a successful Retry after a failed start runs a real run whose eventual loss still reads "could not be built"',
+    ).toMatch(/setWaveBuildFailedWave\(null\)/);
+    expect(
+      body,
+      'advanceToWave(1) assigns waveRef on success and pairs it with setWave — a second, unpaired assignment above a failure return is what let the ref and the HUD diverge (gap 2)',
+    ).not.toMatch(/waveRef\.current = 1/);
+
+    // (c) the build attempt is atomic: the seed is snapshotted, and the
+    //     advanceToWave(1) failure branch restores it BEFORE it ends the run.
+    expect(
+      preamble,
+      'the seed must be snapshotted before the mint, or there is nothing to restore',
+    ).toMatch(/const prevSeed = runSeedRef\.current;/);
+    const failureBranch = preamble.match(
+      /if \(!advanceToWave\(1\)\) \{([\s\S]*?)\n {4}\}/,
+    );
+    expect(
+      failureBranch?.[1],
+      'the advanceToWave(1) failure branch must be extractable, or the two pins below are vacuous',
+    ).toBeTruthy();
+    const restoreAt = failureBranch![1].search(
+      /runSeedRef\.current = prevSeed;/,
+    );
+    const failAt = failureBranch![1].search(/failEndlessStart\(\);/);
+    expect(
+      restoreAt,
+      'a failed start must leave NOTHING of the run identity changed — the seed goes back (gap 2)',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      restoreAt,
+      'and it must be restored before the run is ended, not after',
+    ).toBeLessThan(failAt);
+
+    // (d) the helper itself: endless mode first, the lose result after, and the
+    //     record latch that stops a phantom run being written for a start that
+    //     never began.
+    const helper = code.match(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    expect(
+      helper?.[1],
+      'failEndlessStart must be extractable, or every pin below it is vacuous',
+    ).toBeTruthy();
+    const helperBody = helper![1];
+    const modeAt = helperBody.search(/modeRef\.current = 'endless';/);
+    const resultAt = helperBody.search(/setResult\('lose'\);/);
+    expect(
+      modeAt,
+      "ResultOverlay nulls waveBuildFailedWave outside endless — the helper must flip the mode",
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      resultAt,
+      'GameScreen mounts the Results overlay only when result != null — the helper must set it',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      modeAt,
+      'the mode flip comes first: the overlay re-renders on the mode STATE and reads the failure wave through it',
+    ).toBeLessThan(resultAt);
+    expect(
+      helperBody,
+      'a start that never began must not be recordable — 11-10 moves recordInFlightEndlessRun inside startEndlessRun, and without this latch a later Retry writes a phantom {wave:1, score:0, abandoned} run (T-11-02)',
+    ).toMatch(/runEndedRef\.current = true;/);
+  });
+
+  it('the compiled-push effect is a no-op during an endless run, gated by ref (SC-5)', () => {
+    const m = code.match(
+      /useEffect\(\(\) => \{\n([\s\S]*?)\n {2}\}, \[loadResult, fxReady, compiledSv, setActive, retry\]\);/,
+    );
+    expect(m?.[1], 'the compiled-push effect must keep its dependency array').toBeTruthy();
+    const body = m![1];
+    const guardAt = body.search(/if \(modeRef\.current === 'endless'\) \{/);
+    const pushAt = body.search(/compiledSv\.value = loadResult\.compiled/);
+    expect(
+      guardAt,
+      'the effect must return early in endless — otherwise it overwrites the generated board and calls retry()',
+    ).toBeGreaterThanOrEqual(0);
+    expect(guardAt).toBeLessThan(pushAt);
+    expect(
+      body.slice(guardAt),
+      'the guard must return, not merely branch',
+    ).toMatch(/if \(modeRef\.current === 'endless'\) \{\s*return;\s*\}/);
+  });
+
+  it('the run seed is minted in the app tier and the layer boundaries hold (Pitfall 7 / LC-04)', () => {
+    expect(
+      code,
+      'the run seed must be minted here — src/levelgen bans wall-clock reads (Pitfall 7)',
+    ).toMatch(/runSeedRef\.current = Date\.now\(\) >>> 0/);
+    expect(code, 'generate must come through the levelgen barrel (LC-16)').toMatch(
+      /import \{ generate \} from '\.\.\/\.\.\/src\/levelgen';/,
+    );
+    expect(code, 'the ramp must come through the endless barrel').toMatch(
+      /from '\.\.\/\.\.\/src\/services\/endless'/,
+    );
+    expect(
+      code,
+      'the app zone may not import src/core (LC-04) — compileGeneratedLevel is the seam',
+    ).not.toMatch(/from '\.\.\/\.\.\/src\/core'/);
+    expect(code, 'the generated board reaches the pipeline through the runtime wrapper').toMatch(
+      /compileGeneratedLevel/,
+    );
+  });
+
+  /**
+   * 11-07 gap 1 — WHERE the endless run-boundary branches sit.
+   *
+   * These two contracts pin statement PLACEMENT and nothing more. The five
+   * run-boundary BEHAVIOURS are driven through the real host in
+   * `PlayingHost.endless-retry.test.tsx`, because `11-VERIFICATION.md` § Gaps Summary
+   * is explicit that the existing suite could not see gap 1 and that a source-level
+   * shape is what let it ship — so nothing here stands in for a driven case.
+   */
+  const onRetryBody = (() => {
+    const m = code.match(
+      /const onRetry = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  const remountDevSessionBody = (() => {
+    const m = code.match(
+      /const remountDevSession = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  /** The dependency array of a named `useCallback`, contents only. */
+  function depsOf(name: string): string {
+    const m = code.match(
+      new RegExp(
+        `const ${name} = useCallback\\(\\(\\) => \\{[\\s\\S]*?\\n {2}\\}, \\[([\\s\\S]*?)\\]\\);`,
+      ),
+    );
+    return m?.[1] ?? '';
+  }
+
+  it('the run-boundary regions parse — the harness itself is honest', () => {
+    expect(
+      onRetryBody,
+      'onRetry must be extractable, or its ordering contract below is vacuous',
+    ).not.toBe('');
+    expect(
+      remountDevSessionBody,
+      'remountDevSession must be extractable, or its ordering contract below is vacuous',
+    ).not.toBe('');
+  });
+
+  it('onRetry routes an endless Retry to startEndlessRun before the campaign retry() (gap 1)', () => {
+    const endlessAt = onRetryBody.search(
+      /if \(modeRef\.current === 'endless'\) \{/,
+    );
+    const retryAt = onRetryBody.search(/\n\s*retry\(\);/);
+    const readinessAt = onRetryBody.search(
+      /if \(!levelReady \|\| levelError != null \|\| !fxReady\) \{/,
+    );
+    expect(
+      endlessAt,
+      'onRetry must branch on the mode — the campaign reset is not a new endless run',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      retryAt,
+      'the campaign retry() must still exist — campaign behaviour is unchanged',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'behind retry() the branch would never run, and lives would refill on the wave-N board',
+    ).toBeLessThan(retryAt);
+    // 11-10: the HOIST. Pre-11-10 the readiness gate opened the function, so an
+    // endless Retry pressed while `fxReady` was false returned SILENTLY — verbatim
+    // the `silent-noop` the owner rejected on 2026-09-26, on a third path.
+    // `startEndlessRun` owns the endless readiness decision and routes a closed gate
+    // to `failEndlessStart()`, which puts the decided copy on screen.
+    expect(
+      readinessAt,
+      'the campaign readiness gate must still exist — campaign behaviour is unchanged',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'the endless branch must come FIRST, above the readiness gate — beneath it a Retry against a closed gate is a silent no-op',
+    ).toBeLessThan(readinessAt);
+    expect(
+      onRetryBody,
+      'the branch routes to startEndlessRun and RETURNS — it no longer records anything itself (11-10: the funnel moved INSIDE startEndlessRun)',
+    ).toMatch(
+      /if \(modeRef\.current === 'endless'\) \{\s*startEndlessRun\(\);\s*return;\s*\}/,
+    );
+    expect(
+      onRetryBody,
+      'and it must not keep a second copy of the invariant — three readable sites is exactly the condition that let two of five callers be missed (gap 1)',
+    ).not.toMatch(/recordInFlightEndlessRun/);
+  });
+
+  /**
+   * 11-09 Task 3 (IN-01) — the boundary asserted where it is PRODUCED.
+   *
+   * `waveBuildFailureKind` in `ResultOverlay.tsx` fences the READER: `>= 2` is
+   * mid-run, everything below is Retry-time. Its own unit cases prove the function.
+   * What they cannot prove is that the two sites which WRITE the number still agree
+   * with it — and until this block, neither writer carried any assertion at all, so a
+   * Phase-14 resume-at-wave-N change would have left the reader confidently wrong
+   * with nothing going red.
+   *
+   * What these two cases do NOT prove: they prove the two producers and the reader
+   * still agree about a NUMBER. They prove nothing about whether any copy reaches a
+   * screen. The reader's unit cases in `tests/ui/ResultOverlay.test.tsx` and the
+   * behaviour cases in `tests/ui/PlayingHost.endless-record.test.tsx` are what prove
+   * that — do not let this block stand in for either.
+   */
+  const failEndlessStartBody = (() => {
+    const m = code.match(
+      /const failEndlessStart = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  const midRunFailureElse = (() => {
+    const m = endlessBranch.match(
+      /if \(advanceToWave\(waveRef\.current \+ 1\)\) \{[\s\S]*?\} else \{([\s\S]*?)\n {10}\}/,
+    );
+    return m?.[1] ?? '';
+  })();
+
+  it('the two wave-build-failure writers still agree with the reader (IN-01)', () => {
+    const startEndlessRunBody = (() => {
+      const m = code.match(
+        /const startEndlessRun = useCallback\(([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+
+    // Non-empty FIRST — a region that failed to extract makes every pin below it
+    // vacuously green, which is the failure mode this round exists to stop.
+    expect(
+      startEndlessRunBody,
+      'startEndlessRun must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+    expect(
+      failEndlessStartBody,
+      'failEndlessStart must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+    expect(
+      midRunFailureElse,
+      "applyChrome's advanceToWave failure else must be extractable, or every pin below is vacuous",
+    ).not.toBe('');
+
+    // The START-TIME producer: one attempt, at the literal wave 1.
+    const attempts = startEndlessRunBody.match(/advanceToWave\([^)]*\)/g) ?? [];
+    expect(
+      attempts.length,
+      'startEndlessRun makes exactly one wave-build attempt',
+    ).toBe(1);
+    expect(
+      attempts[0],
+      'and it attempts wave 1 — this literal and the one in failEndlessStart are ONE invariant spread across two functions',
+    ).toBe('advanceToWave(1)');
+
+    // The value reported for that attempt, written in the OTHER function.
+    const reports =
+      failEndlessStartBody.match(/setWaveBuildFailedWave\([^)]*\)/g) ?? [];
+    expect(
+      reports.length,
+      'failEndlessStart reports the failed wave exactly once',
+    ).toBe(1);
+    expect(
+      reports[0],
+      'and it reports wave 1 — a resume-at-wave-N change cannot satisfy this and the advanceToWave argument above at once, so it goes RED at the producer instead of silently inverting the body copy the reader selects',
+    ).toBe('setWaveBuildFailedWave(1)');
+
+    // The MID-RUN producer, unchanged: the failed wave is one past the last good one.
+    expect(
+      midRunFailureElse,
+      'the mid-run writer reports waveRef.current + 1, which is what keeps mid-run at or above 2 and therefore classifiable as mid',
+    ).toMatch(/setWaveBuildFailedWave\(waveRef\.current \+ 1\)/);
+  });
+
+  it('the mid-run writer carries a __DEV__ wave-floor tripwire (IN-01)', () => {
+    expect(
+      midRunFailureElse,
+      "applyChrome's advanceToWave failure else must be extractable, or both pins below are vacuous",
+    ).not.toBe('');
+    expect(
+      midRunFailureElse,
+      'the mid classification holds only while waveRef.current is at or above the wave floor — a violation must surface at THIS writer, not as inverted copy on the overlay',
+    ).toMatch(/waveRef\.current < ENDLESS_WAVE_FLOOR/);
+    expect(
+      midRunFailureElse,
+      'the full typeof idiom, never a bare flag — a bare __DEV__ throws on a runtime that does not define it',
+    ).toMatch(/typeof __DEV__ !== 'undefined' && __DEV__/);
+    expect(
+      code,
+      'the floor must be a named constant, so the tripwire states what it is checking',
+    ).toMatch(/const ENDLESS_WAVE_FLOOR = 1;/);
+  });
+
+  it('remountDevSession routes the same way (gap 1, second half)', () => {
+    const endlessAt = remountDevSessionBody.search(
+      /if \(modeRef\.current === 'endless'\) \{/,
+    );
+    const retryAt = remountDevSessionBody.search(/\n\s*retry\(\);/);
+    const readinessAt = remountDevSessionBody.search(
+      /if \(!levelReady \|\| levelError != null \|\| !fxReady\) \{/,
+    );
+    expect(
+      endlessAt,
+      'a DEV tier change during an endless run must not silently discard it',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      retryAt,
+      'the campaign remount path must still exist',
+    ).toBeGreaterThanOrEqual(0);
+    expect(endlessAt).toBeLessThan(retryAt);
+    expect(
+      readinessAt,
+      'the campaign readiness gate must still exist — campaign behaviour is unchanged',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      endlessAt,
+      'the endless branch must come FIRST, above the readiness gate — same hoist as onRetry, same reason',
+    ).toBeLessThan(readinessAt);
+    expect(
+      remountDevSessionBody,
+      'the branch routes to startEndlessRun and RETURNS — it no longer records anything itself (11-10)',
+    ).toMatch(
+      /if \(modeRef\.current === 'endless'\) \{\s*startEndlessRun\(\);\s*return;\s*\}/,
+    );
+    expect(
+      remountDevSessionBody,
+      'and it must not keep a second copy of the invariant (gap 1)',
+    ).not.toMatch(/recordInFlightEndlessRun/);
+  });
+
+  /**
+   * 11-10 — `11-VERIFICATION.md` gap 1: WHERE the abandon funnel lives.
+   *
+   * Round 1 wired `recordInFlightEndlessRun()` at the CALLERS. Two of the five
+   * `startEndlessRun` callers were missed, and one of them was the `__DEV__`
+   * `Endless` button itself — measured at `recordRunEnd` calls = 0 against the real
+   * host. The invariant belongs inside `startEndlessRun`, because that function is
+   * what "a new run starts" MEANS, and it is the function Phase 14 promotes to the
+   * production endless entry point.
+   *
+   * What this case does NOT prove: statement order is not evidence that a run reached
+   * the store. It pins placement and nothing else. `tests/ui/PlayingHost.endless-retry.test.tsx`
+   * is what proves the behaviour, by asserting on the argument `recordRunEnd`
+   * actually RECEIVED — do not let this case stand in for it. That substitution, a
+   * source contract standing in for a driven one, is exactly how the previous round's
+   * gap shipped green.
+   */
+  it('startEndlessRun opens with the abandon funnel, above every write (gap 1)', () => {
+    const body = (() => {
+      const m = code.match(
+        /const startEndlessRun = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+    // Non-empty FIRST — a region that failed to extract makes every pin below it
+    // vacuously green (11-09 Pattern 2).
+    expect(
+      body,
+      'startEndlessRun must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+
+    // The FIRST statement, comments stripped. `waveRef.current` is what the funnel
+    // reads to decide the wave it records, so anything able to move the wave — the
+    // readiness gate's failEndlessStart, the seed mint, advanceToWave — must follow.
+    const firstStatement = body
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('//'))[0];
+    expect(
+      firstStatement,
+      'the funnel must be the FIRST statement — a run recorded after anything that can move waveRef is recorded at the wrong wave',
+    ).toBe('recordInFlightEndlessRun();');
+    expect(
+      (body.match(/recordInFlightEndlessRun\(\)/g) ?? []).length,
+      'exactly once — the invariant must be readable at ONE site, which is the whole correction',
+    ).toBe(1);
+    expect(
+      depsOf('startEndlessRun'),
+      'and it must be a declared dependency, or the memoised callback closes over a stale funnel',
+    ).toMatch(/\brecordInFlightEndlessRun\b/);
+
+    // The two callers that used to carry their own copy keep startEndlessRun and drop
+    // the funnel — both halves, because a leftover dependency on a deleted call is how
+    // a "cleaned up" site quietly keeps its second copy.
+    for (const name of ['onRetry', 'remountDevSession'] as const) {
+      const deps = depsOf(name);
+      expect(deps, `${name} deps must be extractable`).not.toBe('');
+      expect(
+        deps,
+        `${name} still routes to startEndlessRun, so it stays a dependency`,
+      ).toMatch(/\bstartEndlessRun\b/);
+      expect(
+        deps,
+        `${name} no longer calls the funnel, so it must not list it either`,
+      ).not.toMatch(/\brecordInFlightEndlessRun\b/);
+    }
+  });
+
+  /**
+   * 11-10 Task 2 — `Lv` is an explicit EXIT from endless (A-02, owner 2026-09-26).
+   *
+   * BE PRECISE ABOUT WHAT THIS DOES AND DOES NOT PROVE, because one half of it is a
+   * source contract for a measured reason, not for convenience.
+   *
+   * The BEHAVIOUR — record first, then leave the mode, then hand the next loss to the
+   * campaign arm — is driven through the real host in
+   * `tests/ui/PlayingHost.endless-retry.test.tsx` (`Lv exits endless (A-02)`), which
+   * asserts on the argument `recordRunEnd` actually received. Deleting BOTH mode
+   * writers below turns two of those cases red, the arm case with the verifier's own
+   * measured message. Nothing here stands in for that.
+   *
+   * What is NOT behaviourally observable in this repo is the DIRECT `modeRef.current`
+   * write, as distinct from `setMode` alone. Measured, not assumed: deleting
+   * `modeRef.current = 'campaign'` and keeping `setMode('campaign')` leaves all 17
+   * behaviour cases GREEN. The mirroring effect (`useEffect(() => { modeRef.current =
+   * mode }, [mode])`) flushes inside the `act()` wrapper around every press, so by the
+   * time a jsdom test can deliver the next frame the ref already reads campaign — the
+   * test drives every frame itself, so the window the direct write exists to cover
+   * never opens.
+   *
+   * That window is real on device: `applyChrome` and the compiled-push gate effect
+   * read `modeRef.current`, and `applyChrome` arrives over a `useAnimatedReaction` →
+   * `runOnJS` hop that can land between the synchronous `toggleDevLevel` call and
+   * React's post-render effect flush. A frame in that window would read `'endless'`
+   * and take the endless branch for a run that has already exited. So the write is
+   * pinned HERE, as a source contract, and this comment says why rather than dressing
+   * it up as behaviour (11-09 Pattern 1).
+   */
+  it('toggleDevLevel exits endless: records first, writes BOTH mode writers, arms nothing (A-02)', () => {
+    const body = (() => {
+      const m = code.match(
+        /const toggleDevLevel = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+    expect(
+      body,
+      'toggleDevLevel must be extractable, or every pin below is vacuous',
+    ).not.toBe('');
+
+    const firstStatement = body
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== '' && !line.startsWith('//'))[0];
+    expect(
+      firstStatement,
+      'the funnel must come FIRST — it reads waveRef.current, and it latches runEndedRef so the reset below cannot un-latch a run it just recorded',
+    ).toBe('recordInFlightEndlessRun();');
+
+    const recordAt = body.search(/recordInFlightEndlessRun\(\);/);
+    const modeRefAt = body.search(/modeRef\.current = 'campaign';/);
+    const setModeAt = body.search(/setMode\('campaign'\);/);
+    expect(
+      modeRefAt,
+      'the REF write — not observable in jsdom (see this block’s note), load-bearing for any frame that lands before the mirroring effect',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      setModeAt,
+      'and the STATE write — the W{n} readout is gated on it, so this is what makes the exit visible',
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      recordAt,
+      'record BEFORE the mode leaves, or the funnel finds campaign and no-ops on a live endless run',
+    ).toBeLessThan(modeRefAt);
+
+    // The rest of the exit: the run identity returns to 1 in step, and the advance
+    // guard is released so a latched in-flight advance cannot swallow the next WON.
+    expect(body, 'waveRef and setWave move together or the ref and the HUD diverge').toMatch(
+      /waveRef\.current = 1;/,
+    );
+    expect(body).toMatch(/setWave\(1\);/);
+    expect(body).toMatch(/waveAdvanceInFlightRef\.current = false;/);
+
+    // R-24 / R-26, unchanged: the compiled-push gate effect owns arming the loop.
+    // `tests/ui/PlayingHost.bake-gate.test.ts:39-46` asserts this too; it is repeated
+    // here because THIS task is the one that could plausibly have broken it.
+    expect(
+      body,
+      'the gate effect arms the loop — toggleDevLevel must not (R-26)',
+    ).not.toMatch(/setActive\s*\(\s*true\s*\)/);
+    expect(body, 'and it must not call retry() either (R-24)').not.toMatch(
+      /\n\s*retry\(\);/,
+    );
+
+    expect(
+      depsOf('toggleDevLevel'),
+      'the funnel must be a declared dependency, or the memoised callback closes over a stale one',
+    ).toMatch(/\brecordInFlightEndlessRun\b/);
+
+    // The claim that makes A-02 worth closing beyond this control: before it, nothing
+    // in the file ever wrote modeRef back to campaign, so the compiled-push gate effect
+    // was dead for the life of the mount after the first endless entry.
+    //
+    // 12-05 makes it TWO, and the A-02 note is rewritten here as this assertion's own
+    // message instructed. The second writer is `exitDailyToCampaign`, which a dev tier
+    // change routes to during a live DAILY run — a third mode needs a way back to
+    // campaign for exactly the reason endless did, and the alternative was a second
+    // copy of the abandon invariant inside `remountDevSession`, which the contract
+    // above forbids in terms.
+    //
+    // Counting is not the property, so the count no longer stands alone: every writer
+    // returning the REF to campaign must be PAIRED with a `setMode('campaign')`. That
+    // pairing is the whole of A-02 — the ref is what the compiled-push gate effect
+    // reads in the same commit, the state is what re-renders, and a writer moving one
+    // without the other is precisely the divergence this contract exists to catch.
+    const refWriters = (code.match(/modeRef\.current = 'campaign';/g) ?? [])
+      .length;
+    const stateWriters = (code.match(/setMode\('campaign'\);/g) ?? []).length;
+    expect(
+      refWriters,
+      'the writers returning modeRef to campaign are toggleDevLevel and exitDailyToCampaign — if a third appears, say why here rather than raising the number',
+    ).toBe(2);
+    expect(
+      stateWriters,
+      'each ref writer must be paired with a setMode — the gate effect reads the ref in this commit, the render reads the state, and moving one without the other is the A-02 divergence itself',
+    ).toBe(refWriters);
+    expect(
+      code,
+      'and the pairing must be ADJACENT, so a reader sees both at once rather than trusting a count',
+    ).not.toMatch(
+      /modeRef\.current = 'campaign';(?![\s\S]{0,80}setMode\('campaign'\);)/,
+    );
+  });
+
+  /**
+   * 11-17 Task 3, CONTRACT A — the re-arm enumeration becomes MECHANICAL.
+   *
+   * THE DERIVATION, and a reader can re-run both halves of it against
+   * `app/_components/PlayingHost.tsx` after stripping comment lines:
+   *
+   *     grep -c 'setActive(true);'   ->  6
+   *     grep -c 'setLevelId('        ->  3
+   *
+   * Strip first, always: measured on the round-5 base tree the UNFILTERED re-arm
+   * count is 6, because one `//` line names the literal in prose. Eight members, not
+   * five — and that difference is the whole of round-4's gap. 11-15 enumerated the
+   * five chrome WRITERS and asserted a safety property over "every path that begins
+   * or resumes a run", which is a DIFFERENT and larger set: the loop RE-ARM sites.
+   * A level writer arms the loop INDIRECTLY, because the compiled-push gate effect
+   * fires on any campaign `levelId` change and ends in `retry(); setActive(true);`.
+   *
+   * THE NINE MEMBERS (eight, plus 12-01's `startDailyRun`), each classified, each
+   * naming the assertion below that BINDS the classification rather than merely
+   * claiming it:
+   *
+   *  1. `startEndlessRun`          — clears the latch on its own synchronous path,
+   *                                  above its own arm. ASSERTION 4.
+   *  1b. `startDailyRun` (12-01)   — the same shape and the same classification: it
+   *                                  begins a run on a generated board, so it clears
+   *                                  the latch above its own arm. Numbered 1b rather
+   *                                  than renumbering the seven below it, so every
+   *                                  cross-reference in this file and in the plans that
+   *                                  cite it still points at the same member.
+   *                                  ASSERTION 4.
+   *  2. `onRetry` (campaign)       — same shape, below its endless early return.
+   *                                  ASSERTION 4.
+   *  3. `remountDevSession` (camp.)— same shape, below its endless early return.
+   *                                  ASSERTION 4.
+   *  4. `goNext`                   — clears the latch, then hands the level to the
+   *                                  gate effect. Never arms directly (R-24).
+   *                                  ASSERTION 3.
+   *  5. `toggleDevLevel`           — same. ASSERTION 3.
+   *  6. `runCertWorstCase`         — GUARDED rather than resetting. A reset here
+   *                                  would need the five chrome writes as well as
+   *                                  the clear — a sixth copy of the block the
+   *                                  verifier's WR-06 advisory names as this phase's
+   *                                  structural defect — and a clear without them
+   *                                  would leave a dead run's score and lives on the
+   *                                  HUD of a fresh board. ASSERTION 3.
+   *  7. `onResume`                 — needs NO clear, and the reason is the FULL
+   *                                  render condition of the overlay it hangs off,
+   *                                  not a fragment of it. `PauseOverlay` is the sole
+   *                                  holder of the `onResume` prop and renders only
+   *                                  under `showPauseOverlay`, which is
+   *                                  `!hasLevelError && uiPhase === 'paused' &&
+   *                                  result == null`. `result == null` is the
+   *                                  LOAD-BEARING term: `applyChrome`'s WON and LOST
+   *                                  branches set `result` on the same synchronous
+   *                                  path as the latch. `uiPhase === 'paused'` alone
+   *                                  excludes NOTHING — `handleMenuPress` latches
+   *                                  from exactly that state. Round 4 quoted only the
+   *                                  `uiPhase` term and reached the right answer by a
+   *                                  route the source does not support, which is this
+   *                                  phase's signature failure at one member's
+   *                                  granularity. ASSERTION 5.
+   *  8. the compiled-push gate effect — the SEAM where "a levelId change" becomes "a
+   *                                  run starts". It owns no latch term of its own
+   *                                  and trusts its callers. Deliberately the one
+   *                                  member with no assertion: a term there would
+   *                                  also gate `goNext` and `toggleDevLevel`, which
+   *                                  already reset correctly.
+   *
+   * This contract is what would have sent 11-15's author from the gate effect to the
+   * level half. An enumeration of chrome WRITERS is not an enumeration of loop
+   * RE-ARM sites, and nothing in the round-4 instruments could tell them apart.
+   */
+  it('every path that re-arms the frame loop is enumerated — five direct sites and three levelId writers (round-5)', () => {
+    // Local to this case ON PURPOSE. `codeOnly()` is shared by every contract in this
+    // file and strips `//` only; widening it would move all of them at once (the
+    // verifier names that as a durable improvement, not as this round's work). Here
+    // the block strip matters because the counts below are over LITERALS that the
+    // surrounding prose legitimately names.
+    const noBlocks = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '');
+    const src = noBlocks(code);
+
+    // A SECOND source file, read and never written. `src/runtime/GameScreen.tsx` is
+    // not in 11-17's files_modified; assertion 5 needs it because `onResume`'s
+    // exemption is a property of the render condition, which lives there.
+    const screenSrc = noBlocks(
+      codeOnly(
+        readFileSync(join(process.cwd(), 'src/runtime/GameScreen.tsx'), 'utf8'),
+      ),
+    );
+
+    const bodyOf = (name: string): string => {
+      const m = src.match(
+        new RegExp(
+          `const ${name} = useCallback\\(\\(\\) => \\{([\\s\\S]*?)\\n {2}\\}, \\[`,
+        ),
+      );
+      return m?.[1] ?? '';
+    };
+
+    // ---- ASSERTION 1: the direct re-arm sites -------------------------------
+    expect(
+      (src.match(/setActive\(true\)/g) ?? []).length,
+      'SIX statements arm the frame loop: the compiled-push gate effect, onResume’s countdown terminal timeout, startEndlessRun, startDailyRun, onRetry’s campaign branch and remountDevSession’s campaign branch. 12-01 added startDailyRun and DISCHARGED this message’s obligation the way it asks: it clears the run-ended latch on its own synchronous path, above its own arm, and assertion 4 below binds that rather than taking it on trust. A SEVENTH carries the same obligation',
+    ).toBe(6);
+
+    // ---- ASSERTION 2: the indirect re-arm sites ------------------------------
+    expect(
+      (src.match(/setLevelId\(/g) ?? []).length,
+      'THREE levelId writers: goNext, toggleDevLevel and runCertWorstCase. A level writer IS a loop re-arm — the compiled-push gate effect fires on any campaign levelId change and ends in retry() and setActive(true), so it arms the loop on the writer’s behalf. A FOURTH carries the same obligation as a sixth arm',
+    ).toBe(3);
+
+    // ---- ASSERTION 3: the level writers carry their own latch term -----------
+    for (const name of ['goNext', 'toggleDevLevel'] as const) {
+      const body = bodyOf(name);
+      // Non-empty FIRST (11-09 Pattern 2): a drifted anchor must be RED, never
+      // vacuously green.
+      expect(body, `${name} must be extractable, or its classification below is vacuous`).not.toBe('');
+      expect(
+        body,
+        `${name} hands a levelId to the gate effect, so it must clear the run-ended latch on its own synchronous path first — otherwise the gate effect arms the loop for a run that is over`,
+      ).toMatch(/runEndedRef\.current = false;/);
+    }
+
+    const certBodyA = bodyOf('runCertWorstCase');
+    expect(
+      certBodyA,
+      'runCertWorstCase must be extractable, or the guard shape below is vacuous',
+    ).not.toBe('');
+    expect(
+      (certBodyA.match(/const plan = certLevelPlan\(\);/g) ?? []).length,
+      '11-19. runCertWorstCase must consult the cert-level predicate EXACTLY ONCE per press and store the answer. Measured base 0 (the memo did not exist). Zero means this function decides for itself again; two means two consultations and therefore two chances to act on different answers within one press',
+    ).toBe(1);
+    expect(
+      certBodyA,
+      'runCertWorstCase is the third levelId writer and it is GUARDED rather than resetting: the level-forcing call must sit inside a block whose condition tests the stored `plan`. A reset here would need the five chrome writes as well as the clear — a sixth copy of the block WR-06 names as this phase’s structural defect. Whitespace is free so a prettier re-wrap cannot red this',
+    ).toMatch(/if\s*\(\s*plan\s*===[\s\S]*?\)\s*\{[\s\S]*?setLevelId\(/);
+    // 11-19, REPLACING the round-5 pin of `runEndedRef` at EXACTLY 1.
+    //
+    // WHAT CHANGED AND WHY. That count was 1 because the run-ended latch was tested
+    // INLINE here, in the level half’s condition — and the arm 34 lines below tested a
+    // different subset of the same terms, which is round-5 gap 1. The terms now live
+    // in ONE predicate (`app/_components/certLevelPlan.ts`) that every decision site
+    // reads, so ANY occurrence of either identifier in this body is a decision site
+    // that has STOPPED consulting it. That is the exact drift this round removed, and
+    // a count of 0 is strictly stronger than the count of 1 it replaces: the old pin
+    // permitted the inline test and was also a fix-blocker, because the most direct
+    // repair added a second occurrence and reddened it.
+    //
+    // Measured bases on the round-5 tree: runEndedRef 1, modeRef 2. Both are
+    // discriminating, not regression gates.
+    const certNoBlocksA = certBodyA.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(
+      (certNoBlocksA.match(/runEndedRef/g) ?? []).length,
+      'ZERO occurrences of the run-ended latch identifier in runCertWorstCase (measured base 1, where it was tested inline). A non-zero count means a decision site here re-tests a predicate term instead of reading certLevelPlan() — add the term to the predicate, never to this call site',
+    ).toBe(0);
+    expect(
+      (certNoBlocksA.match(/modeRef/g) ?? []).length,
+      'and ZERO occurrences of the run-mode ref (measured base 2: once in the level half’s condition, once in the arm). The arm knowing the mode term while the level half also knew the run-ended term IS round-5 gap 1 — one value, read once, is what makes them impossible to disagree',
+    ).toBe(0);
+
+    // ---- ASSERTION 4: each DIRECT site carries its OWN clear -----------------
+    // What the aggregate reset-block count cannot say. `grep -c` over the file proves
+    // five clears exist SOMEWHERE and stays at five if one is MOVED out of this body
+    // into a neighbour's. Binding the clear to the named site is what makes each of
+    // these three classifications derived rather than asserted — and relocating a
+    // clear is the falsification that proves the binding is real.
+    for (const name of [
+      'startEndlessRun',
+      'startDailyRun',
+      'onRetry',
+      'remountDevSession',
+    ] as const) {
+      const body = bodyOf(name);
+      expect(body, `${name} must be extractable, or its classification is vacuous`).not.toBe('');
+      const clearAt = body.indexOf('runEndedRef.current = false;');
+      const armAt = body.indexOf('setActive(true);');
+      expect(
+        clearAt,
+        `${name} must clear the run-ended latch inside its OWN body. The aggregate reset-block count of five would stay at five if this clear were relocated into a neighbouring callback — that is precisely the mutation this assertion exists to catch`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        armAt,
+        `${name} must arm the frame loop inside its OWN body, or it is not one of the five direct sites and assertion 1 above is naming the wrong function`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        clearAt,
+        `${name} must clear the latch BEFORE it arms the loop — same synchronous path, clear first. A clear below the arm leaves a window in which the new run is locked out of its own chrome`,
+      ).toBeLessThan(armAt);
+    }
+
+    // ---- ASSERTION 5: onResume's exemption, at its FULL condition ------------
+    const pauseCond =
+      screenSrc.match(/const showPauseOverlay =([\s\S]*?);/)?.[1] ?? '';
+    expect(
+      pauseCond,
+      'the showPauseOverlay assignment must be extractable from src/runtime/GameScreen.tsx, or onResume’s exemption below is vacuous',
+    ).not.toBe('');
+    expect(
+      pauseCond,
+      'showPauseOverlay must still test `result == null`. THIS is the term that excludes an ENDED run, because applyChrome’s WON and LOST branches set `result` on the same synchronous path as the latch — so it is the whole reason onResume needs no latch clear of its own. Dropping it silently invalidates member 7 of the enumeration above',
+    ).toMatch(/result == null/);
+    expect(
+      pauseCond,
+      'showPauseOverlay must still test `uiPhase === \'paused\'` — but note what this term does NOT do: on its own it excludes NOTHING, because handleMenuPress latches the run-ended ref from exactly that state. Round 4 quoted this term alone as onResume’s exemption and was right by accident',
+    ).toMatch(/uiPhase === 'paused'/);
+    const gateAt = screenSrc.search(/showPauseOverlay \?/);
+    const tagAt = screenSrc.search(/<PauseOverlay/);
+    expect(
+      gateAt,
+      'PauseOverlay must still be rendered behind a showPauseOverlay test — it is the sole holder of the onResume prop, so that condition IS the reachability precondition the exemption rests on',
+    ).toBeGreaterThanOrEqual(0);
+    expect(tagAt, 'and the PauseOverlay tag must still be findable').toBeGreaterThanOrEqual(0);
+    expect(
+      gateAt,
+      'the gate must PRECEDE the tag — if PauseOverlay is ever mounted outside that condition, onResume becomes reachable on an ended run and member 7 needs re-deriving',
+    ).toBeLessThan(tagAt);
+  });
+
+  /**
+   * 11-16 Task 2 Step B — round-4 gap 2, the cert deferral's run-mode term.
+   *
+   * WHAT THIS DOES NOT PROVE. Counting an expression in source proves the WRITE and
+   * nothing else. It cannot show that the one-shot fails to discharge, because the
+   * discharge lives in a different function — the deferred-inject effect — whose
+   * preconditions are evaluated on a later render, on a session that may be in the
+   * other mode entirely. That is exactly the shape of the defect this term closes,
+   * so a source count alone would be blind to a regression of it.
+   *
+   * The behaviour is proved in `tests/ui/PlayingHost.endless-retry.test.tsx`, by the
+   * two endless cases in the `Cert WC` describe — "while endless below level-03, Cert
+   * WC arms nothing" (which walks the dev level control to the consumer effect's
+   * level and asserts zero injections) and "while endless already on level-03, Cert
+   * WC injects nothing either". The two campaign cases beside them prove the other
+   * side of the condition still fires. This contract is the SECONDARY instrument.
+   */
+  describe('runCertWorstCase — the deferral arm (round-4 gap 2)', () => {
+    const certBody = (() => {
+      const m = code.match(
+        /const runCertWorstCase = useCallback\(\(\) => \{([\s\S]*?)\n {2}\}, \[/,
+      );
+      return m?.[1] ?? '';
+    })();
+
+    it('runCertWorstCase parsed — the harness itself is honest', () => {
+      expect(
+        certBody,
+        'runCertWorstCase must be extractable, or both contracts below are vacuously green',
+      ).not.toBe('');
+    });
+
+    it('the pending-cert arm is the predicate’s value, not a second expression (gap 2 / round-6 gap 1)', () => {
+      expect(
+        certBody,
+        '11-19, REPLACING the literal mode-only arm this pinned before. A deferral armed where the discharge preconditions are unreachable can only fire on some later, unrelated session — and an arm written as its OWN expression is how this drifted from the level half in three consecutive rounds. It must now be the stored predicate answer: `certPendingRef.current = plan !== \'unreachable\';`. The old form (`modeRef.current !== \'endless\'`) is strictly weaker: it knew the mode term and not the run-ended one, which is round-5 gap 1',
+      ).toMatch(/certPendingRef\.current = plan !== 'unreachable';/);
+      expect(
+        certBody,
+        'and unconditionally NOWHERE — a second bare arm would restore the hazard beside the guarded one',
+      ).not.toMatch(/certPendingRef\.current = true;/);
+    });
+
+    /**
+     * 11-19 Task 3 Part C — the THIRD consumer.
+     *
+     * `certLevelPlanFor` has three readers: the level half, the deferral arm (both
+     * above) and this effect's self-cancel. The self-cancel is what stops an arm
+     * outliving its own reachability — a session that goes endless or ends its run
+     * after arming drops the one-shot instead of carrying it to some later session.
+     *
+     * WHICH COUNT DISCRIMINATES. `certLevelPlan()` here moves 0 -> 1: that is the
+     * discriminating gate, and a 0 means Part B was never added or was deleted. The
+     * two identifier counts are 0 on the round-5 base tree as well, so they are
+     * REGRESSION gates and not discriminating ones — stated plainly rather than
+     * presented as evidence they are not.
+     */
+    it('the deferred-cert effect is the predicate’s third consumer (round-6 self-cancel)', () => {
+      const effect = code.match(
+        /if \(!certPendingRef\.current\) \{[\s\S]*?\n {2}\}, \[/,
+      )?.[0] ?? '';
+      expect(
+        effect,
+        'the deferred-cert effect must be extractable, or every count below it is vacuously green',
+      ).not.toBe('');
+      const body = effect.replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(
+        (body.match(/certLevelPlan\(\)/g) ?? []).length,
+        'EXACTLY ONE consultation of the predicate in the deferred-cert effect (measured base 0 — this is the discriminating gate). Zero means the self-cancel is gone and a stranded arm can wait indefinitely; two means the effect asks twice and can act on two different answers within one commit',
+      ).toBe(1);
+      expect(
+        (body.match(/certPendingRef\.current = false/g) ?? []).length,
+        'and at least one clear of the one-shot (measured base 1, the discharge clear). Part B adds the self-cancel clear beside it; deleting either leaves a latch nothing resets',
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        (body.match(/runEndedRef/g) ?? []).length,
+        'ZERO occurrences of the run-ended latch identifier here. REGRESSION GATE, not a discriminating one: the measured base is already 0. It exists so the third consumer cannot acquire the inline term the first two just shed',
+      ).toBe(0);
+      expect(
+        (body.match(/modeRef/g) ?? []).length,
+        'ZERO occurrences of the run-mode ref here. REGRESSION GATE, measured base 0, same reason as the line above',
+      ).toBe(0);
+    });
+
+    it('exactly one level-forcing call remains (11-14 count, unmoved)', () => {
+      expect(
+        (certBody.match(/setLevelId\('level-03'\)/g) ?? []).length,
+        '11-14 pinned this at one and measured the failure mode directly: an explanatory comment that named the call in prose made its own gate read 2. Line comments only in that function, and never restate this literal.',
+      ).toBe(1);
+    });
+  });
+
+  /**
+   * 14-01 Task 2 — the entry-mode dispatch's two silent-failure modes: a missing
+   * readiness dependency (a cold-start tap silently lands the player on a campaign
+   * board) and a synchronous call (an `error`-severity `react-hooks/set-state-in-effect`
+   * violation that lint would catch, but lint is not a durable regression gate on a
+   * shape a later author might "simplify").
+   */
+  it('entry dispatch is deferred, once-only and readiness-gated', () => {
+    const effect = code.match(
+      /if \(entryMode === 'campaign' \|\| entryDispatchedRef\.current\) return;([\s\S]*?)\}, \[([^\]]*)\]\);/,
+    );
+    expect(
+      effect,
+      'the entry-dispatch effect must be extractable, or every assertion below is vacuous',
+    ).toBeTruthy();
+    const body = effect![1];
+    const deps = effect![2];
+
+    for (const name of ['entryMode', 'levelReady', 'levelError', 'fxReady']) {
+      expect(
+        deps.includes(name),
+        `dependency array must name ${name} — omitting it is the cold-start defect: a []-dependency effect fires once, no-ops on a not-yet-ready host, and never fires again`,
+      ).toBe(true);
+    }
+
+    expect(
+      body.includes('setTimeout'),
+      'the dispatch must be scheduled through setTimeout, not called synchronously in the effect body — a synchronous call is an error-severity react-hooks/set-state-in-effect violation in this tree',
+    ).toBe(true);
+    expect(
+      body.includes('clearTimeout'),
+      'the effect must clear its pending timeout on cleanup/unmount',
+    ).toBe(true);
+    expect(
+      body.includes('entryDispatchedRef.current = true'),
+      'a once-only latch must be set before the dispatch, or a readiness flip re-enters and double-starts the run',
+    ).toBe(true);
+
+    expect(
+      code.includes('entryDispatchedRef'),
+      'non-vacuity: the comment-stripped source must still contain the identifier at all, or the strip above deleted everything and the assertions passed on an empty string',
+    ).toBe(true);
+  });
+
+  /**
+   * 14-06 Task 3 — the two temporary __DEV__ mode controls and the wave readout beside
+   * them are deleted, now that 14-01's production entry is their only caller.
+   */
+  it('dev row deletions', () => {
+    expect(
+      (code.match(/accessibilityLabel="Start an endless run"/g) || []).length,
+      'the temporary endless dev control must be gone',
+    ).toBe(0);
+    expect(
+      (code.match(/accessibilityLabel="Open today's daily challenge"/g) || [])
+        .length,
+      'the temporary daily dev control must be gone',
+    ).toBe(0);
+    expect(
+      (code.match(/<Text/g) || []).length,
+      'exactly four Text nodes survive: Lv, tier, Cert WC and Crash',
+    ).toBe(4);
+    // Non-vacuity: the crash control's label is still present, so a scan over a wrong
+    // path cannot pass by finding nothing.
+    expect(
+      (code.match(/Crash/g) || []).length,
+      'non-vacuity: the surviving crash control must still be found',
+    ).toBeGreaterThan(0);
+  });
+
+});

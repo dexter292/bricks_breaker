@@ -2,14 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useKeepAwake } from 'expo-keep-awake';
-import { CERT_HARNESS, SOAK_HARNESS } from '../../src/devflags';
+import { CERT_HARNESS, LEVELGEN_PROBE, SOAK_HARNESS } from '../../src/devflags';
+import { CORPUS_SEEDS, D_MAX, corpusFingerprint } from '../../src/levelgen';
 import type { LevelId } from '../../src/runtime/loadLevel';
-import { createDefaultProgressStore } from '../../src/services/storage';
-import { PlayingHost } from './PlayingHost';
+import {
+  createDefaultProgressStore,
+  currentDailyStreak,
+} from '../../src/services/storage';
+import { hasResultFor, localDateKey } from '../../src/services/daily';
+import { AchievementsScreen } from './AchievementsScreen';
+import { PlayingHost, type EntryMode } from './PlayingHost';
 import { SelectScreen } from './SelectScreen';
+import { StatisticsScreen } from './StatisticsScreen';
 import { TitleScreen } from './TitleScreen';
 
-type ShellPhase = 'title' | 'select' | 'playing';
+type ShellPhase = 'title' | 'select' | 'playing' | 'stats' | 'achievements';
 
 /** Dwell between Title↔Playing edges during soak cycles (D-19). Not on the frame path. */
 const SOAK_CYCLE_DWELL_MS = 750;
@@ -42,21 +49,73 @@ export function GameHost() {
     if (!CERT_HARNESS) return;
     console.log('[cert] GameHost CERT=1 phase=playing (skip Title)');
   }, []);
+  // A1 probe (Phase 10 plan 05): compute the corpus fingerprint on THIS device's JS engine.
+  // Hermes is the one execution environment no vitest run, CI runner or Node process reaches,
+  // so byte-identity with Node is spec-based inference until this line prints a matching value.
+  // Double-gated (EXPO_PUBLIC_LEVELGEN_PROBE=1 *and* __DEV__) because the corpus is
+  // CORPUS_SEEDS x (D_MAX + 1) = 4 200 generated boards — ~140 ms on Node, more on Hermes.
+  // Unarmed builds must not pay it, so nothing is computed before the early return.
+  // Cold path: one-shot at shell mount, the same slot the CERT log uses. Never renders,
+  // never sets state, never touches the game loop.
+  useEffect(() => {
+    if (!LEVELGEN_PROBE) return;
+    if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+    const startedAt = Date.now();
+    const fingerprint = corpusFingerprint();
+    const elapsedMs = Date.now() - startedAt;
+    const hex = (fingerprint >>> 0).toString(16).padStart(8, '0');
+    console.log(
+      `[levelgen] corpus fingerprint u32=0x${hex} seeds=${CORPUS_SEEDS} boards=${
+        CORPUS_SEEDS * (D_MAX + 1)
+      } ms=${elapsedMs} (expected 0x2e8f6c23 — see docs/ops/BOARD-GENERATOR.md § Limits)`,
+    );
+  }, []);
   const [best, setBest] = useState(0);
   const [activeLevelId, setActiveLevelId] = useState<LevelId>('level-01');
+  // D-04: which run Title dispatched into; reset to campaign on every onMenu so
+  // no shell state survives a run.
+  const [entryMode, setEntryMode] = useState<EntryMode>('campaign');
+  // N-UI-01 (14-06) — Title's three read-once-per-entry values, populated beside `best`
+  // from the SAME snapshot read below.
+  const [dailyPlayedToday, setDailyPlayedToday] = useState(false);
+  const [dailyStreak, setDailyStreak] = useState(0);
+  const [unseenCount, setUnseenCount] = useState(0);
   // F-26: same ProgressStore singleton as PlayingHost — Title rollup matches max.
   const store = useMemo(() => createDefaultProgressStore(), []);
 
   useEffect(() => {
     if (shellPhase !== 'title') return;
     let cancelled = false;
+    // The clock is read ONCE, here, inside the effect body — never in the render body,
+    // where react-hooks/purity is severity error. Today's date key is derived from it in
+    // the next statement, matching the shipped daily path (PlayingHost's startDailyRun).
+    const nowMs = Date.now();
+    const todayKey = localDateKey(nowMs);
     void store
-      .getBest()
-      .then((b) => {
-        if (!cancelled) setBest(b);
+      .getSnapshot()
+      .then((snap) => {
+        if (cancelled) return;
+        setBest(snap.bestScore);
+        // The same predicate startDailyRun evaluates the open/closed decision with —
+        // Title and the daily panel read one truth through one function.
+        setDailyPlayedToday(
+          hasResultFor(
+            snap.telemetry.daily.history.map((e) => e.date),
+            todayKey,
+          ),
+        );
+        // currentDailyStreak is the same function publishDailyPanel calls — one
+        // renderer for one truth between Title and the daily panel.
+        setDailyStreak(currentDailyStreak(snap.telemetry.daily));
+        setUnseenCount(snap.telemetry.achievements.unseen.length);
       })
       .catch(() => {
-        if (!cancelled) setBest(0);
+        if (!cancelled) {
+          setBest(0);
+          setDailyPlayedToday(false);
+          setDailyStreak(0);
+          setUnseenCount(0);
+        }
       });
     return () => {
       cancelled = true;
@@ -65,7 +124,8 @@ export function GameHost() {
 
   // DEV soak: 100 Title↔Playing mounts then 15 min continuous (D-19…D-23).
   // Discrete setTimeout only — never useFrameCallback / per-frame work.
-  // D-01: only 'title' | 'playing' — never 'select'.
+  // D-01: only 'title' | 'playing' — never 'select', 'stats' or 'achievements'. A meta
+  // screen inside the soak loop would measure the wrong thing.
   useEffect(() => {
     if (typeof __DEV__ === 'undefined' || !__DEV__ || !SOAK_HARNESS) {
       return;
@@ -147,7 +207,23 @@ export function GameHost() {
     return (
       <View style={styles.root}>
         {harnessAwake}
-        <TitleScreen best={best} onPlay={() => setShellPhase('select')} />
+        <TitleScreen
+          best={best}
+          dailyPlayedToday={dailyPlayedToday}
+          dailyStreak={dailyStreak}
+          unseenCount={unseenCount}
+          onCampaign={() => setShellPhase('select')}
+          onEndless={() => {
+            setEntryMode('endless');
+            setShellPhase('playing');
+          }}
+          onDaily={() => {
+            setEntryMode('daily');
+            setShellPhase('playing');
+          }}
+          onStats={() => setShellPhase('stats')}
+          onAchievements={() => setShellPhase('achievements')}
+        />
       </View>
     );
   }
@@ -167,13 +243,35 @@ export function GameHost() {
     );
   }
 
+  if (shellPhase === 'stats') {
+    return (
+      <View style={styles.root}>
+        {harnessAwake}
+        <StatisticsScreen onBack={() => setShellPhase('title')} />
+      </View>
+    );
+  }
+
+  if (shellPhase === 'achievements') {
+    return (
+      <View style={styles.root}>
+        {harnessAwake}
+        <AchievementsScreen onBack={() => setShellPhase('title')} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       {harnessAwake}
       <PlayingHost
         levelId={CERT_HARNESS ? 'level-03' : activeLevelId}
         onLevelIdChange={setActiveLevelId}
-        onMenu={() => setShellPhase('title')}
+        entryMode={CERT_HARNESS ? 'campaign' : entryMode}
+        onMenu={() => {
+          setEntryMode('campaign');
+          setShellPhase('title');
+        }}
       />
     </View>
   );

@@ -69,6 +69,7 @@ import {
 import {
   applyCertWorstCaseInject,
   applyRetryWorldReset,
+  applyWaveAdvance,
   clearCosmeticVfx,
 } from './worldRequests';
 import { remainderAfterSubstepCap } from './substepCap';
@@ -194,6 +195,17 @@ export type GameLoopHandle = {
    * Host gates CERT_HARNESS / __DEV__ Pressable.
    */
   injectCertWorstCase: () => void;
+  /**
+   * Endless wave advance (N-END-01): swap the next board onto the live World
+   * mid-run. Lives, score, combo, both RNG streams and every per-run counter are
+   * carried across — a wave is a new board, not a new run.
+   *
+   * The next board MUST already be in `compiled` before this is called: the frame
+   * callback only applies what `compiled.value` holds at that moment. Caller is the
+   * host's `SimPhase.WON` intercept on the RN JS thread — a discrete cold path.
+   * Never per frame, and never from a worklet.
+   */
+  advanceWave: () => void;
   /** CERT metrics mirror + seq — host useAnimatedReaction → console (R-20). */
   certOut: SharedValue<CertMetricsMirror>;
   certSeq: SharedValue<number>;
@@ -218,6 +230,17 @@ export type UseGameLoopOptions = {
   compiled: SharedValue<CompiledLevel | null>;
   /** Invoked from AppState auto-pause path (Task 2); host sets React pause UI. */
   onOsPause?: () => void;
+  /**
+   * Invoked when the app returns to the foreground (12-05); host re-derives the local
+   * calendar date and recomputes the daily countdown from a fresh clock read.
+   *
+   * A pure notification threaded through the app's ONE `AppState` subscription rather
+   * than added as a second one. Two subscriptions with independent lifetimes means no
+   * single place a reader can see what the app does on foreground, which is the
+   * "two renderers for one truth" shape this codebase keeps repairing. It cannot
+   * resume physics: see `appStatePause.ts`'s never-resume paragraph (PLT-01 / T-03-03).
+   */
+  onOsForeground?: () => void;
   drawOverlayFlag?: boolean;
   hudFont?: SkFont | null;
   /** PERF_OVERLAY / cliff harness sprite count (until Plan 05). */
@@ -323,6 +346,19 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   const certApplied = useSharedValue(0);
   const accumResetRequest = useSharedValue(0);
   const accumResetApplied = useSharedValue(0);
+  const waveRequest = useSharedValue(0);
+  const waveApplied = useSharedValue(0);
+  /**
+   * Cumulative simulated ticks from every *completed* wave of this run (D-06).
+   *
+   * `applyWaveAdvance` sets `world.tick = 0` at every board swap, so `w.tick` alone is
+   * the CURRENT wave's simulated time, not the run's — without this bank a 25-wave run
+   * would publish only the last wave's `ticksPlayed`. The bank is incremented by the
+   * outgoing wave's `w.tick` immediately before the advance, i.e. atomically with the
+   * reset and on the runtime that owns both, then added back at the publish call.
+   * Per-run state: zeroed by the retry block, because a retry IS a new run.
+   */
+  const ticksBanked = useSharedValue(0);
   /** Prior-frame live ball count — clear trails when count drops (F-16). */
   const lastTrailBallCount = useSharedValue(-1);
 
@@ -397,6 +433,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
       resetAudioBatch(batch);
       // D-01: every retry is a new run — zero counters in place (the local `stats`
       // already holds this reference, so never reassign runStatsSv.value here).
+      // D-06: the cumulative wave tick bank is per-run state too, so it zeroes here
+      // alongside the counters — a retry must not inherit the previous run's waves.
+      ticksBanked.value = 0;
       const s = runStatsSv.value;
       if (s) {
         resetRunStats(s);
@@ -418,6 +457,26 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     if (accumResetRequest.value !== accumResetApplied.value) {
       accumResetApplied.value = accumResetRequest.value;
       resetAccumulator(w);
+    }
+    // Endless wave advance (N-END-01 / SC-5). This block's POSITION is the SC-5
+    // argument and must stay here: it sits above the `simFrozen` computation below, so
+    // the advance has already set `simPhase` to DOCKED by the time `simFrozen` is
+    // evaluated. `simFrozen` therefore reads false and substepping resumes on this very
+    // frame — the frame callback is never stopped or restarted, and no `setActive` call
+    // is involved in a wave transition at all.
+    if (waveRequest.value !== waveApplied.value) {
+      waveApplied.value = waveRequest.value;
+      // D-06: bank the outgoing wave's simulated time BEFORE the advance zeroes w.tick.
+      ticksBanked.value = ticksBanked.value + w.tick;
+      applyWaveAdvance(w, compiled.value);
+      // Trails and sparks are per board — they must not streak across the swap.
+      clearCosmeticVfx(vfx, w);
+      resetAudioBatch(batch);
+      launchFlag.value = 0;
+      paddleTarget.value = w.paddleX;
+      // A wave is NOT a run (N-END-01 / RESEARCH Pitfall 4). Unlike the retry block
+      // above, nothing here zeroes the per-run counters, reassigns runStatsSv.value or
+      // bumps runStatsSeq: a 25-wave run must report all 25 waves, not the last one.
     }
 
     // First frame after reactivate: timeSincePreviousFrame is null → ~16.67ms
@@ -451,7 +510,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         // N-STAT-01: read-only counter fold, same live-ring window as the drains above.
         reduceRunTelemetry(w, stats);
         // Publish counters to JS (dirty-checked; bumps only when a counter moves).
-        if (publishRunStatsMirror(runStatsOut.value, stats, w.tick) === 1) {
+        // D-06: banked waves + the live wave — w.tick alone restarts every board.
+        const ticksPlayed = ticksBanked.value + w.tick;
+        if (publishRunStatsMirror(runStatsOut.value, stats, ticksPlayed) === 1) {
           runStatsSeq.value = runStatsSeq.value + 1;
         }
         // F-16: ball death / compact remaps slots — wipe all rings so ghosts
@@ -606,6 +667,9 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     certApplied,
     accumResetRequest,
     accumResetApplied,
+    waveRequest,
+    waveApplied,
+    ticksBanked,
     lastTrailBallCount,
     budgetParticleCap,
     budgetTrailMax,
@@ -708,7 +772,15 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
   // Returning to `active` stays frozen until Resume → countdown (Plan 05).
   // CERT harness skips OS pause — deep-link relaunch / screen glances must not kill the frame loop.
   const onOsPause = options.onOsPause;
+  const onOsForeground = options.onOsForeground;
   useEffect(() => {
+    // Unchanged, deliberately. 12-05 ACCEPTED the consequence rather than reaching
+    // past it: under the cert harness this effect returns before subscribing, so the
+    // foreground notification does not fire in that configuration. The daily
+    // countdown's mount and 60-second refreshes still do, the countdown is decoration
+    // and never a gate (12-UI-SPEC § Clock policy rule 1), playability is evaluated
+    // only by D-01, and the cert harness is a development instrument with no player on
+    // the other side. Recorded here rather than left to be discovered.
     if (certMetricsLog) {
       return;
     }
@@ -719,11 +791,14 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
         uiPhase.value = UiPhaseNum.PAUSED;
         onOsPause?.();
       },
+      onForeground: () => {
+        onOsForeground?.();
+      },
     });
     return () => {
       sub.remove();
     };
-  }, [setActive, uiPhase, onOsPause, certMetricsLog]);
+  }, [setActive, uiPhase, onOsPause, onOsForeground, certMetricsLog]);
 
   /**
    * Cert worst-case (D-14): bump request — UI frame injects on live World.
@@ -735,6 +810,17 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     /* eslint-enable react-hooks/immutability */
   }, [certRequest]);
 
+  /**
+   * Endless wave advance (N-END-01): bump request — the UI frame swaps the board on the
+   * live World. Host must have written the next compiled board into `compiled` first.
+   */
+  const advanceWave = useCallback(() => {
+    // Discrete request only — UI frame applies applyWaveAdvance on live World (F-01).
+    /* eslint-disable react-hooks/immutability -- SharedValue write (D-14) */
+    waveRequest.value = waveRequest.value + 1;
+    /* eslint-enable react-hooks/immutability */
+  }, [waveRequest]);
+
   return {
     world,
     runStats: runStatsSv,
@@ -745,6 +831,7 @@ export function useGameLoop(options: UseGameLoopOptions): GameLoopHandle & {
     setActive,
     retry,
     injectCertWorstCase,
+    advanceWave,
     certOut,
     certSeq,
     metrics,

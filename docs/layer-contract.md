@@ -15,6 +15,8 @@ Checkable crossing rules for Neon Brick Breaker. ESLint (`eslint.config.js`) and
 | LC-12 | `runtime/` → `render/` | Direct `'worklet'` call | Frame callback records `SkPicture` via `recordFrame` | ESLint boundaries |
 | LC-13 | `runtime/` → `vfx/` | Direct worklet call | `stepVfx` / `consumeEvents` after each `stepRun` | ESLint boundaries |
 | LC-14 | `render/` → `vfx/` | Read-only `VfxState` | `recordFrame` draws trails/particles/shake offset | ESLint boundaries |
+| LC-15 | `levelgen/` → `core/` | Direct call, JS cold path | Board generation (N-GEN-01) reads `LevelFileV1` / validate / solvability types; generation runs once per board, never per frame | ESLint boundaries |
+| LC-16 | `app/`, `services/` → `levelgen/` | Barrel import (`src/levelgen`) | Phase 11 endless waves and Phase 12 daily call `generate(seed, difficulty)` from the cold path; only the barrel is a supported surface | ESLint boundaries |
 
 ## Banned crossings
 
@@ -25,11 +27,13 @@ Checkable crossing rules for Neon Brick Breaker. ESLint (`eslint.config.js`) and
 | LC-07 | `runtime/` or `render/` calling `runOnJS` / `scheduleOnRN` | No per-frame JS hops except ≤1 batched `scheduleOnRN`/frame from `src/runtime/eventBridge.ts` for audio drain (Phase 7) | ESLint `no-restricted-syntax` (file-scoped override for `eventBridge.ts`) |
 | LC-08 | `render/` mutating the world | Render is a consumer; mutation belongs in `runtime`/`core` | Boundaries + review |
 | LC-11 | React state updates every physics/render frame | Breaks 60 FPS budget | Doc + later code review |
+| LC-17 | `levelgen/` → `runtime/`, `render/`, `input/`, `vfx/`, `services/`, React / RN / Skia / Expo | Generation is a JS cold path (CONTEXT constraint 3): it runs once per board, off the worklet, and must stay reproducible in Node and on Hermes from `(seed, difficulty)` alone | ESLint boundaries + `no-restricted-imports` |
 
 ## How to verify
 
 ```bash
 npx vitest run tests/core.smoke.test.ts tests/core.purity.test.ts
 npx eslint src/core
+npx eslint src/levelgen
 # Negative probe: illegal import in core/ must fail eslint (see plan 01-02 SUMMARY)
 ```

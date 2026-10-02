@@ -1,7 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MAX_FONT_SCALE } from '../textScale';
 
 type Props = {
+  /**
+   * Which mode the paused run belongs to (12-05). It changes exactly ONE thing: what a
+   * screen reader announces for `Retry`. Every visible label, every style and every
+   * other prop is identical across modes — this is not a new component and not a
+   * variant, it is one spoken string that would otherwise be false.
+   */
+  mode: 'campaign' | 'endless' | 'daily';
   onResume: () => void;
   onRetry: () => void;
   onMenu: () => void;
@@ -12,7 +20,7 @@ type Props = {
  * Resume → Retry → Menu (outline). No confirmation (D-03 / RUN-03).
  * Centered in the safe area (not under notch / Dynamic Island).
  */
-export function PauseOverlay({ onResume, onRetry, onMenu }: Props) {
+export function PauseOverlay({ mode, onResume, onRetry, onMenu }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -28,22 +36,38 @@ export function PauseOverlay({ onResume, onRetry, onMenu }: Props) {
       pointerEvents="auto"
     >
       <View style={styles.panel}>
-        <Text style={styles.heading}>Paused</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.heading}>
+          Paused
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Resume game"
           onPress={onResume}
           style={styles.button}
         >
-          <Text style={styles.buttonLabel}>Resume</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+            Resume
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Retry level"
+          // 12-UI-SPEC § Accessibility labels, the daily `Pause Retry` row, following
+          // the shipped mode-dependent-spoken-label precedent in `ResultOverlay`.
+          // The shipped campaign label is FALSE during a daily run, for its own
+          // reason: this restarts the SAME date-derived board (D-08), not a level and
+          // not a new seed — re-minting one would break SC-1 outright. The VISIBLE
+          // label is unchanged; only what a screen reader announces differs, and the
+          // campaign string appears exactly ONCE below, inside the ternary, so the two
+          // branches cannot drift into two hardcoded labels.
+          accessibilityLabel={
+            mode === 'daily' ? "Restart today's board" : 'Retry level'
+          }
           onPress={onRetry}
           style={[styles.button, styles.buttonSpaced]}
         >
-          <Text style={styles.buttonLabel}>Retry</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.buttonLabel}>
+            Retry
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -51,7 +75,9 @@ export function PauseOverlay({ onResume, onRetry, onMenu }: Props) {
           onPress={onMenu}
           style={[styles.menuButton, styles.buttonSpaced]}
         >
-          <Text style={styles.menuLabel}>Menu</Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE} style={styles.menuLabel}>
+            Menu
+          </Text>
         </Pressable>
       </View>
     </View>
